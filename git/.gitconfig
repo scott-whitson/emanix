@@ -1,0 +1,5 @@
+[user]
+	name = Scott Whitson
+	email = scott@whitsoninterfacesystems.com
+[core]
+	autocrlf = input
