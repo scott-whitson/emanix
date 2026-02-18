@@ -10,6 +10,9 @@ plugins=(
 
 source $ZSH/oh-my-zsh.sh
 
+# Auto-start ollama if not running
+pgrep -x ollama > /dev/null || (ollama serve &>/dev/null &)
+
 # --- Theme overrides (after oh-my-zsh loads) ---
 PROMPT="%(?::%{$fg_bold[red]%}%1{🔴%} )%{$fg[cyan]%}%c%{$reset_color%}"
 PROMPT+=' $(git_prompt_info)'
@@ -56,6 +59,11 @@ alias ..="cd .."
 alias ...="cd ../.."
 alias vact="source .venv/bin/activate"
 alias dvact="deactivate"
+# jrnl - leading space prevents history recording
+setopt HIST_IGNORE_SPACE
+alias j=" jrnl"
+alias jrnl=" jrnl"
+
 calc() { if [ $# -eq 0 ]; then bc -l; else echo "$*" | bc -l; fi; }
 
 # --- Functions ---
@@ -72,6 +80,10 @@ qt() {
 # --- Tools ---
 . "$HOME/.cargo/env"
 eval "$(zoxide init zsh)"
+
+# --- fzf ---
+source /usr/share/doc/fzf/examples/key-bindings.zsh
+source /usr/share/doc/fzf/examples/completion.zsh
 
 # --- Google Drive mount ---
 [ -d /mnt/h ] || sudo mkdir -p /mnt/h
