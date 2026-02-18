@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Bootstrap a new machine from this dotfiles repo.
-# Usage: git clone <repo> ~/dotfiles && cd ~/dotfiles && ./install.sh
+PROFILE="${1:-}"
+DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-echo "=== dotfiles bootstrap ==="
+if [[ -z "$PROFILE" ]] || [[ ! -d "$DOTFILES_DIR/profiles/$PROFILE" ]]; then
+  echo "Usage: ./install.sh <profile>"
+  echo ""
+  echo "Available profiles:"
+  for p in "$DOTFILES_DIR"/profiles/*/; do
+    echo "  $(basename "$p")"
+  done
+  exit 1
+fi
+
+PROFILE_DIR="$DOTFILES_DIR/profiles/$PROFILE"
+echo "=== dotfiles bootstrap (profile: $PROFILE) ==="
 
 # --- System packages ---
 sudo apt-get update -qq
@@ -71,12 +82,39 @@ if ! command -v claude &>/dev/null; then
   npm install -g @anthropic-ai/claude-code
 fi
 
-# --- Stow all packages ---
-echo "Stowing dotfiles..."
-cd "$(dirname "$0")"
-for pkg in zsh git micro claude; do
-  stow --adopt "$pkg" 2>/dev/null || stow "$pkg"
+# --- Stow base packages ---
+echo "Stowing base packages..."
+cd "$DOTFILES_DIR"
+for pkg in base/*/; do
+  pkg_name="$(basename "$pkg")"
+  # Skip if profile overrides this package
+  if [ -d "$PROFILE_DIR/$pkg_name" ]; then
+    echo "  Skipping base/$pkg_name (overridden by profile)"
+    continue
+  fi
+  stow -d base --adopt "$pkg_name" 2>/dev/null || stow -d base "$pkg_name"
 done
+
+# --- Stow profile packages ---
+echo "Stowing profile packages..."
+for pkg in "$PROFILE_DIR"/*/; do
+  pkg_name="$(basename "$pkg")"
+  stow -d "$PROFILE_DIR" --adopt "$pkg_name" 2>/dev/null || stow -d "$PROFILE_DIR" "$pkg_name"
+done
+
+# --- Template micro settings ---
+if [ -f "$PROFILE_DIR/profile.conf" ]; then
+  source "$PROFILE_DIR/profile.conf"
+fi
+if [[ -n "${OBSIDIAN_VAULT:-}" ]]; then
+  echo "Configuring micro wikilink vault..."
+  mkdir -p "$HOME/.config/micro"
+  cat > "$HOME/.config/micro/settings.json" <<MICEOF
+{
+    "wikilink.vault": "$OBSIDIAN_VAULT"
+}
+MICEOF
+fi
 
 # --- Set default shell to zsh ---
 if [ "$SHELL" != "$(which zsh)" ]; then
@@ -85,8 +123,7 @@ if [ "$SHELL" != "$(which zsh)" ]; then
 fi
 
 echo ""
-echo "=== Done! ==="
+echo "=== Done! (profile: $PROFILE) ==="
 echo "Manual steps:"
-echo "  1. Update micro vault path: ~/dotfiles/micro/.config/micro/settings.json"
-echo "  2. Set up SSH keys: ssh-keygen -t ed25519"
-echo "  3. Log out and back in for zsh to take effect"
+echo "  1. Set up SSH keys: ssh-keygen -t ed25519"
+echo "  2. Log out and back in for zsh to take effect"
