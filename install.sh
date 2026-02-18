@@ -85,23 +85,26 @@ if ! command -v claude &>/dev/null; then
 fi
 
 # --- Stow base packages ---
+# --no-folding ensures directories are real (not symlinks), so profile
+# packages can add files to the same directories (e.g. ~/.zshrc.d/)
 echo "Stowing base packages..."
 cd "$DOTFILES_DIR"
 for pkg in base/*/; do
   pkg_name="$(basename "$pkg")"
-  # Skip if profile overrides this package
-  if [ -d "$PROFILE_DIR/$pkg_name" ]; then
-    echo "  Skipping base/$pkg_name (overridden by profile)"
-    continue
-  fi
-  stow -d base -t "$HOME" --adopt "$pkg_name" 2>/dev/null || stow -d base -t "$HOME" "$pkg_name"
+  stow -d base -t "$HOME" --no-folding --adopt "$pkg_name" 2>/dev/null || stow -d base -t "$HOME" --no-folding "$pkg_name"
 done
 
 # --- Stow profile packages ---
+# Profile packages add to base directories (e.g. personal/zsh adds to ~/.zshrc.d/)
+# If a profile package conflicts with base (same file), unstow base first and retry
 echo "Stowing profile packages..."
 for pkg in "$PROFILE_DIR"/*/; do
   pkg_name="$(basename "$pkg")"
-  stow -d "$PROFILE_DIR" -t "$HOME" --adopt "$pkg_name" 2>/dev/null || stow -d "$PROFILE_DIR" -t "$HOME" "$pkg_name"
+  if ! stow -d "$PROFILE_DIR" -t "$HOME" --no-folding "$pkg_name" 2>/dev/null; then
+    # Conflict with base — unstow base version and retry
+    stow -d base -t "$HOME" --no-folding -D "$pkg_name" 2>/dev/null || true
+    stow -d "$PROFILE_DIR" -t "$HOME" --no-folding "$pkg_name"
+  fi
 done
 
 # --- Template micro settings ---
