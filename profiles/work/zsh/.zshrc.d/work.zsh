@@ -1,3 +1,3 @@
 # --- Work profile ---
 
-# export OBSIDIAN_VAULT="/path/to/work/vault"  # TODO: set when ready
+export OBSIDIAN_VAULT="/mnt/c/Users/swhitson.CENTRALDATA/OneDrive - Central Data Systems, Inc/docs"
