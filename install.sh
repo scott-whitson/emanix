@@ -60,6 +60,8 @@ if [ ! -d "$NVM_DIR" ]; then
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
   . "$NVM_DIR/nvm.sh"
   nvm install --lts
+else
+  . "$NVM_DIR/nvm.sh"
 fi
 
 # --- micro editor ---
@@ -92,14 +94,14 @@ for pkg in base/*/; do
     echo "  Skipping base/$pkg_name (overridden by profile)"
     continue
   fi
-  stow -d base --adopt "$pkg_name" 2>/dev/null || stow -d base "$pkg_name"
+  stow -d base -t "$HOME" --adopt "$pkg_name" 2>/dev/null || stow -d base -t "$HOME" "$pkg_name"
 done
 
 # --- Stow profile packages ---
 echo "Stowing profile packages..."
 for pkg in "$PROFILE_DIR"/*/; do
   pkg_name="$(basename "$pkg")"
-  stow -d "$PROFILE_DIR" --adopt "$pkg_name" 2>/dev/null || stow -d "$PROFILE_DIR" "$pkg_name"
+  stow -d "$PROFILE_DIR" -t "$HOME" --adopt "$pkg_name" 2>/dev/null || stow -d "$PROFILE_DIR" -t "$HOME" "$pkg_name"
 done
 
 # --- Template micro settings ---
