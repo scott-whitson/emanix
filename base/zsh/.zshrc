@@ -11,7 +11,9 @@ plugins=(
 source $ZSH/oh-my-zsh.sh
 
 # --- Theme overrides (after oh-my-zsh loads) ---
-PROMPT="%(?::%{$fg_bold[red]%}%1{🔴%} )%{$fg[cyan]%}%c%{$reset_color%}"
+PROMPT=""
+[[ -n "$SSH_CONNECTION" ]] && PROMPT+="%{$fg[yellow]%}%m%{$reset_color%} "
+PROMPT+="%(?::%{$fg_bold[red]%}%1{🔴%} )%{$fg[cyan]%}%c%{$reset_color%}"
 PROMPT+=' $(git_prompt_info)'
 ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg_bold[blue]%}git:(%{$fg[blue]%}"
 ZSH_THEME_GIT_PROMPT_DIRTY="%{$fg[blue]%}) %{$fg[blue]%}."
