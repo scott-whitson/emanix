@@ -30,9 +30,9 @@ fi
 # --- Zsh plugins ---
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 [ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ] || \
-  git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+  git clone git@github.com:zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
 [ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ] || \
-  git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+  git clone git@github.com:zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
 
 # --- Rust ---
 if ! command -v rustc &>/dev/null; then
@@ -75,7 +75,7 @@ fi
 MICRO_PLUGINS="$HOME/.config/micro/plug"
 if [ ! -d "$MICRO_PLUGINS/wikilink" ]; then
   mkdir -p "$MICRO_PLUGINS"
-  git clone https://github.com/obedm503/micro-wikilink "$MICRO_PLUGINS/wikilink"
+  git clone git@github.com:scott-whitson/micro-wikilink.git "$MICRO_PLUGINS/wikilink"
 fi
 
 # --- zellij ---
