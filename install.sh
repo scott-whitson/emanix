@@ -19,7 +19,7 @@ echo "=== dotfiles bootstrap (profile: $PROFILE) ==="
 
 # --- System packages ---
 sudo apt-get update -qq
-sudo apt-get install -y zsh stow git curl wget unzip
+sudo apt-get install -y zsh stow git curl wget unzip fzf
 
 # --- Oh My Zsh ---
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
@@ -76,6 +76,13 @@ MICRO_PLUGINS="$HOME/.config/micro/plug"
 if [ ! -d "$MICRO_PLUGINS/wikilink" ]; then
   mkdir -p "$MICRO_PLUGINS"
   git clone https://github.com/obedm503/micro-wikilink "$MICRO_PLUGINS/wikilink"
+fi
+
+# --- zellij ---
+if ! command -v zellij &>/dev/null; then
+  echo "Installing zellij..."
+  curl -L https://github.com/zellij-org/zellij/releases/latest/download/zellij-x86_64-unknown-linux-musl.tar.gz | tar xz -C /tmp
+  sudo mv /tmp/zellij /usr/local/bin/
 fi
 
 # --- Claude Code ---
