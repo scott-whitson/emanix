@@ -100,6 +100,9 @@ for pkg in base/*/; do
   pkg_name="$(basename "$pkg")"
   stow -d base -t "$HOME" --no-folding --adopt "$pkg_name" 2>/dev/null || stow -d base -t "$HOME" --no-folding "$pkg_name"
 done
+# --adopt resolves conflicts by pulling existing files into the repo;
+# restore the repo's versions so our dotfiles win over defaults (e.g. Oh My Zsh)
+git checkout -- base/
 
 # --- Stow profile packages ---
 # Profile packages add to base directories (e.g. personal/zsh adds to ~/.zshrc.d/)
