@@ -20,7 +20,7 @@ ZSH_THEME_GIT_PROMPT_DIRTY="%{$fg[blue]%}) %{$fg[blue]%}."
 RPROMPT='%F{245}%D{%I:%M$([ $(date +%H) -ge 12 ] && echo ".")}%f'
 
 # --- Path ---
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:/snap/bin:$PATH"
 
 # --- History ---
 HISTSIZE=50000
@@ -86,3 +86,6 @@ export NVM_DIR="$HOME/.nvm"
 
 # --- Profile overrides ---
 for f in ~/.zshrc.d/*.zsh(N); do source "$f"; done
+
+# Local binaries
+export PATH="$HOME/bin:$PATH"
