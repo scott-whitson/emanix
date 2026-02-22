@@ -98,6 +98,8 @@ echo "Stowing base packages..."
 cd "$DOTFILES_DIR"
 for pkg in base/*/; do
   pkg_name="$(basename "$pkg")"
+  # Skip windows — synced separately via sync-windows.sh
+  [[ "$pkg_name" == "windows" ]] && continue
   stow -d base -t "$HOME" --no-folding --adopt "$pkg_name" 2>/dev/null || stow -d base -t "$HOME" --no-folding "$pkg_name"
 done
 # --adopt resolves conflicts by pulling existing files into the repo;

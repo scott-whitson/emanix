@@ -21,7 +21,8 @@ This installs system packages, developer tools (Rust, Node, micro, Claude Code, 
 │   ├── zsh/.zshrc          # Oh My Zsh, aliases, tools; sources ~/.zshrc.d/*.zsh
 │   ├── git/.gitconfig      # core git settings; includes ~/.gitconfig.local
 │   ├── micro/              # keybindings (wikilink plugin)
-│   └── claude/             # Claude Code settings (full plugin set)
+│   ├── claude/             # Claude Code settings (full plugin set)
+│   └── windows/            # Windows-side configs (GlazeWM, etc.) — see below
 └── profiles/
     ├── personal/           # desktop / personal machine
     ├── work/               # work machine
@@ -65,6 +66,16 @@ cd ~/dotfiles && stow -d profiles/personal -t ~ --no-folding -R zsh
 # Unstow a package
 cd ~/dotfiles && stow -d base -t ~ --no-folding -D zsh
 ```
+
+## Windows Configs
+
+Windows-side configs (GlazeWM, AutoHotkey, etc.) live in `base/windows/` but can't be stowed since they target `C:\Users\scott`, not `~`. Use the sync script instead:
+
+```bash
+./sync-windows.sh
+```
+
+This copies configs to the Windows home directory. Reload GlazeWM after syncing with `lwin+shift+r`.
 
 ## Manual Steps
 
