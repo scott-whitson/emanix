@@ -70,7 +70,7 @@ qt() {
     echo "OBSIDIAN_VAULT not set"; return 1
   fi
   local quarter=$(( ($(date +%-m) - 1) / 3 + 1 ))
-  local file="$OBSIDIAN_VAULT/Quarterly/$(date +%Y)-Q${quarter}.md"
+  local file="$OBSIDIAN_VAULT/Quarterly Notes/$(date +%Y)-Q${quarter}.md"
   if [ -f "$file" ]; then
     hx "$file"
   else
