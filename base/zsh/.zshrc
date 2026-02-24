@@ -20,7 +20,8 @@ ZSH_THEME_GIT_PROMPT_DIRTY="%{$fg[blue]%}) %{$fg[blue]%}."
 RPROMPT='%F{245}%D{%I:%M$([ $(date +%H) -ge 12 ] && echo ".")}%f'
 
 # --- Path ---
-export PATH="$HOME/.local/bin:/snap/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
+[[ -d /snap/bin ]] && export PATH="/snap/bin:$PATH"
 
 # --- History ---
 HISTSIZE=50000
@@ -30,7 +31,7 @@ setopt HIST_FIND_NO_DUPS      # skip dupes when searching
 setopt HIST_REDUCE_BLANKS     # trim whitespace
 setopt SHARE_HISTORY          # share history across terminals
 
-# --- Git prompt performance (skip untracked files on /mnt/ paths) ---
+# --- Git prompt performance (skip untracked files in large repos) ---
 DISABLE_UNTRACKED_FILES_DIRTY="true"
 
 # --- Navigation ---
@@ -43,8 +44,11 @@ setopt PUSHD_SILENT            # don't print stack after pushd
 setopt COMPLETE_ALIASES
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'  # case-insensitive tab completion
 
-# --- Colors (fix WSL ugly background on directories) ---
-LS_COLORS="ow=01;36" && export LS_COLORS
+# --- Colors ---
+if [[ -n "$WSL_DISTRO_NAME" ]]; then
+  # Fix WSL ugly background on directories
+  LS_COLORS="ow=01;36" && export LS_COLORS
+fi
 zstyle ':completion:*' list-colors "${(@s.:.)LS_COLORS}"
 autoload -Uz compinit
 compinit
@@ -77,8 +81,13 @@ qt() {
 # --- Tools ---
 . "$HOME/.cargo/env"
 eval "$(zoxide init zsh)"
-source /usr/share/doc/fzf/examples/key-bindings.zsh
-source /usr/share/doc/fzf/examples/completion.zsh
+# FZF — paths differ between Debian and Arch
+for fzf_keys in /usr/share/doc/fzf/examples/key-bindings.zsh /usr/share/fzf/key-bindings.zsh; do
+  [[ -f "$fzf_keys" ]] && source "$fzf_keys" && break
+done
+for fzf_comp in /usr/share/doc/fzf/examples/completion.zsh /usr/share/fzf/completion.zsh; do
+  [[ -f "$fzf_comp" ]] && source "$fzf_comp" && break
+done
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"

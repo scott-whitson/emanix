@@ -15,11 +15,52 @@ if [[ -z "$PROFILE" ]] || [[ ! -d "$DOTFILES_DIR/profiles/$PROFILE" ]]; then
 fi
 
 PROFILE_DIR="$DOTFILES_DIR/profiles/$PROFILE"
-echo "=== dotfiles bootstrap (profile: $PROFILE) ==="
+
+# --- Detect distro ---
+detect_distro() {
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case "$ID" in
+      arch|endeavouros|manjaro) echo "arch" ;;
+      ubuntu|debian|pop|linuxmint) echo "debian" ;;
+      *) echo "$ID" ;;
+    esac
+  else
+    echo "unknown"
+  fi
+}
+
+DISTRO=$(detect_distro)
+echo "=== dotfiles bootstrap (profile: $PROFILE, distro: $DISTRO) ==="
 
 # --- System packages ---
-sudo apt-get update -qq
-sudo apt-get install -y zsh stow git curl wget unzip fzf
+case "$DISTRO" in
+  debian)
+    sudo apt-get update -qq
+    sudo apt-get install -y zsh stow git curl wget unzip fzf
+    ;;
+  arch)
+    sudo pacman -Syu --noconfirm --needed \
+      zsh stow git curl wget unzip fzf \
+      zoxide micro zellij rustup uv rclone base-devel
+    ;;
+  *)
+    echo "Unsupported distro: $DISTRO"
+    echo "Install manually: zsh stow git curl wget unzip fzf"
+    exit 1
+    ;;
+esac
+
+# --- Desktop packages (Arch only, skip for server) ---
+if [[ "$DISTRO" == "arch" && "$PROFILE" != "server" ]]; then
+  sudo pacman -S --noconfirm --needed \
+    hyprland xdg-desktop-portal-hyprland \
+    waybar wofi dunst kitty hyprpaper \
+    grim slurp wl-clipboard \
+    pipewire wireplumber pipewire-pulse \
+    polkit-gnome brightnessctl playerctl \
+    ttf-jetbrains-mono-nerd
+fi
 
 # --- Oh My Zsh ---
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
@@ -30,25 +71,33 @@ fi
 # --- Zsh plugins ---
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 [ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ] || \
-  git clone git@github.com:zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+  git clone https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
 [ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ] || \
-  git clone git@github.com:zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+  git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
 
 # --- Rust ---
-if ! command -v rustc &>/dev/null; then
-  echo "Installing Rust..."
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-  . "$HOME/.cargo/env"
+if [[ "$DISTRO" == "arch" ]]; then
+  # rustup installed via pacman, just need a toolchain
+  if ! rustc --version &>/dev/null; then
+    echo "Initializing Rust stable toolchain..."
+    rustup default stable
+  fi
+else
+  if ! command -v rustc &>/dev/null; then
+    echo "Installing Rust..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    . "$HOME/.cargo/env"
+  fi
 fi
 
-# --- uv (Python package manager) ---
-if ! command -v uv &>/dev/null; then
+# --- uv (Debian only — Arch gets it via pacman) ---
+if [[ "$DISTRO" != "arch" ]] && ! command -v uv &>/dev/null; then
   echo "Installing uv..."
   curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
 
-# --- zoxide ---
-if ! command -v zoxide &>/dev/null; then
+# --- zoxide (Debian only — Arch gets it via pacman) ---
+if [[ "$DISTRO" != "arch" ]] && ! command -v zoxide &>/dev/null; then
   echo "Installing zoxide..."
   curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
 fi
@@ -64,8 +113,8 @@ else
   . "$NVM_DIR/nvm.sh"
 fi
 
-# --- micro editor ---
-if ! command -v micro &>/dev/null; then
+# --- micro editor (Debian only — Arch gets it via pacman) ---
+if [[ "$DISTRO" != "arch" ]] && ! command -v micro &>/dev/null; then
   echo "Installing micro..."
   curl https://getmic.ro | bash
   sudo mv micro /usr/local/bin/
@@ -75,11 +124,11 @@ fi
 MICRO_PLUGINS="$HOME/.config/micro/plug"
 if [ ! -d "$MICRO_PLUGINS/wikilink" ]; then
   mkdir -p "$MICRO_PLUGINS"
-  git clone git@github.com:scott-whitson/micro-wikilink.git "$MICRO_PLUGINS/wikilink"
+  git clone https://github.com/scott-whitson/micro-wikilink.git "$MICRO_PLUGINS/wikilink"
 fi
 
-# --- zellij ---
-if ! command -v zellij &>/dev/null; then
+# --- zellij (Debian only — Arch gets it via pacman) ---
+if [[ "$DISTRO" != "arch" ]] && ! command -v zellij &>/dev/null; then
   echo "Installing zellij..."
   curl -L https://github.com/zellij-org/zellij/releases/latest/download/zellij-x86_64-unknown-linux-musl.tar.gz | tar xz -C /tmp
   sudo mv /tmp/zellij /usr/local/bin/
@@ -100,6 +149,8 @@ for pkg in base/*/; do
   pkg_name="$(basename "$pkg")"
   # Skip windows — synced separately via sync-windows.sh
   [[ "$pkg_name" == "windows" ]] && continue
+  # Skip desktop packages on non-Arch (Hyprland ecosystem)
+  case "$pkg_name" in hypr|waybar|wofi|dunst|kitty) [[ "$DISTRO" != "arch" ]] && continue ;; esac
   stow -d base -t "$HOME" --no-folding --adopt "$pkg_name" 2>/dev/null || stow -d base -t "$HOME" --no-folding "$pkg_name"
 done
 # --adopt resolves conflicts by pulling existing files into the repo;

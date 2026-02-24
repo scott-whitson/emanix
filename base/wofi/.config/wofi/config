@@ -1,0 +1,10 @@
+width=500
+height=320
+show=drun
+prompt=
+normal_window=false
+layer=overlay
+insensitive=true
+allow_images=true
+image_size=24
+columns=1
