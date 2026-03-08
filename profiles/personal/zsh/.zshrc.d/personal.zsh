@@ -1,6 +1,6 @@
 # --- Personal profile ---
 
-export OBSIDIAN_VAULT="/mnt/h/My Drive/SEW/Obsidian/Whitsgrove"
+export OBSIDIAN_VAULT="$HOME/gdrive/SEW/Obsidian/Whitsgrove"
 
 # Auto-start ollama if not running
 pgrep -x ollama > /dev/null || (ollama serve &>/dev/null &)
@@ -9,7 +9,3 @@ pgrep -x ollama > /dev/null || (ollama serve &>/dev/null &)
 setopt HIST_IGNORE_SPACE
 alias j=" jrnl"
 alias jrnl=" jrnl"
-
-# --- Google Drive mount ---
-[ -d /mnt/h ] || sudo mkdir -p /mnt/h
-mountpoint -q /mnt/h || sudo mount -t drvfs H: /mnt/h 2>/dev/null

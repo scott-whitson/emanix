@@ -1,22 +1,28 @@
 {
     "layer": "top",
     "position": "top",
-    "height": 36,
-    "spacing": 8,
+    "height": 28,
+    "spacing": 2,
 
-    "modules-left": ["hyprland/workspaces"],
-    "modules-center": ["clock"],
-    "modules-right": ["tray", "network", "pulseaudio", "battery"],
+    "modules-left": ["sway/workspaces", "sway/mode"],
+    "modules-center": ["custom/clock"],
+    "modules-right": ["pulseaudio", "cpu", "memory", "network", "battery"],
 
-    "hyprland/workspaces": {
-        "format": "{id}",
-        "on-click": "activate"
+    "sway/workspaces": {
+        "format": "{name}",
+        "disable-scroll": false
     },
 
-    "clock": {
-        "format": "{:%I:%M %p}",
-        "format-alt": "{:%A, %B %d, %Y}",
-        "tooltip-format": "<tt>{calendar}</tt>"
+    "sway/mode": {
+        "format": "<span style=\"italic\">{}</span>"
+    },
+
+    "custom/clock": {
+        "exec": "~/.config/waybar/clock.sh",
+        "return-type": "json",
+        "format": "{}",
+        "tooltip": true,
+        "interval": 0
     },
 
     "battery": {
@@ -24,16 +30,27 @@
             "warning": 30,
             "critical": 15
         },
-        "format": "{icon}  {capacity}%",
-        "format-charging": "󰂄  {capacity}%",
+        "format": "{icon}",
+        "format-charging": "󰂄",
+        "tooltip-format": "{capacity}% — {timeTo}",
         "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
     },
 
+    "cpu": {
+        "format": "  {usage}%",
+        "interval": 5
+    },
+
+    "memory": {
+        "format": "  {percentage}%",
+        "interval": 5
+    },
+
     "network": {
-        "format-wifi": "󰤨  {signalStrength}%",
-        "format-ethernet": "󰈀  {ifname}",
+        "format-wifi": "󰤨",
+        "format-ethernet": "󰈀",
         "format-disconnected": "󰤭",
-        "tooltip-format": "{ifname}: {ipaddr}/{cidr}"
+        "tooltip-format": "{ifname}: {ipaddr}/{cidr} ({signalStrength}%)"
     },
 
     "pulseaudio": {
@@ -43,9 +60,5 @@
             "default": ["󰕿", "󰖀", "󰕾"]
         },
         "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
-    },
-
-    "tray": {
-        "spacing": 10
     }
 }

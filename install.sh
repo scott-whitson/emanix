@@ -54,8 +54,8 @@ esac
 # --- Desktop packages (Arch only, skip for server) ---
 if [[ "$DISTRO" == "arch" && "$PROFILE" != "server" ]]; then
   sudo pacman -S --noconfirm --needed \
-    hyprland xdg-desktop-portal-hyprland \
-    waybar wofi dunst kitty hyprpaper \
+    sway swayidle swaylock xdg-desktop-portal-wlr \
+    waybar wofi mako kitty autotiling-rs \
     grim slurp wl-clipboard \
     pipewire wireplumber pipewire-pulse \
     polkit-gnome brightnessctl playerctl \
@@ -149,8 +149,8 @@ for pkg in base/*/; do
   pkg_name="$(basename "$pkg")"
   # Skip windows — synced separately via sync-windows.sh
   [[ "$pkg_name" == "windows" ]] && continue
-  # Skip desktop packages on non-Arch (Hyprland ecosystem)
-  case "$pkg_name" in hypr|waybar|wofi|dunst|kitty) [[ "$DISTRO" != "arch" ]] && continue ;; esac
+  # Skip desktop packages on non-Arch (Sway ecosystem)
+  case "$pkg_name" in sway|waybar|wofi|mako|kitty) [[ "$DISTRO" != "arch" ]] && continue ;; esac
   stow -d base -t "$HOME" --no-folding --adopt "$pkg_name" 2>/dev/null || stow -d base -t "$HOME" --no-folding "$pkg_name"
 done
 # --adopt resolves conflicts by pulling existing files into the repo;

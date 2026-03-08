@@ -22,10 +22,10 @@ The install script detects your distro (`apt` vs `pacman`), installs system pack
 │   ├── git/.gitconfig      # core git settings; includes ~/.gitconfig.local
 │   ├── micro/              # keybindings (wikilink plugin)
 │   ├── claude/             # Claude Code settings (full plugin set)
-│   ├── hypr/               # Hyprland compositor + hyprpaper (Arch only)
+│   ├── sway/               # Sway compositor (Arch only)
 │   ├── waybar/             # status bar config + theme (Arch only)
 │   ├── wofi/               # app launcher config + theme (Arch only)
-│   ├── dunst/              # notification daemon (Arch only)
+│   ├── mako/               # notification daemon (Arch only)
 │   ├── kitty/              # terminal emulator (Arch only)
 │   └── windows/            # Windows-side configs (GlazeWM, etc.) — see below
 └── profiles/
@@ -37,7 +37,7 @@ The install script detects your distro (`apt` vs `pacman`), installs system pack
 
 **Base** is stowed first with `--no-folding`, so directories like `~/.zshrc.d/` and `~/.claude/` are real directories (not symlinks). Profile packages then add or replace files inside those same directories.
 
-Desktop packages (`hypr`, `waybar`, `wofi`, `dunst`, `kitty`) are only stowed on Arch.
+Desktop packages (`sway`, `waybar`, `wofi`, `mako`, `kitty`) are only stowed on Arch.
 
 ## Profiles
 
@@ -62,39 +62,40 @@ The install script auto-detects the distro via `/etc/os-release`:
 |---|---|---|
 | **Package manager** | apt | pacman |
 | **Dev tools** | Installed via curl scripts | Installed via pacman (zoxide, micro, zellij, rustup, uv) |
-| **Desktop** | N/A (WSL uses Windows WM) | Hyprland + Waybar + Wofi + Dunst + Kitty |
+| **Desktop** | N/A (WSL uses Windows WM) | Sway + Waybar + Wofi + Mako + Kitty |
 | **Nerd Font** | N/A | ttf-jetbrains-mono-nerd via pacman |
 
-## Hyprland Desktop (Arch)
+## Sway Desktop (Arch)
 
 The desktop environment is configured across five base packages with a cohesive dark theme (Tokyo Night-inspired):
 
 | Component | Config | Purpose |
 |-----------|--------|---------|
-| **Hyprland** | `base/hypr/` | Wayland compositor — tiling, animations, keybindings |
-| **Waybar** | `base/waybar/` | Status bar — workspaces, clock, battery, network, audio |
+| **Sway** | `base/sway/` | Wayland compositor — tiling, keybindings, swayidle/swaylock |
+| **Waybar** | `base/waybar/` | Status bar — workspaces, clock, battery, network, audio, cpu/memory |
 | **Wofi** | `base/wofi/` | App launcher |
-| **Dunst** | `base/dunst/` | Notifications |
+| **Mako** | `base/mako/` | Notifications |
 | **Kitty** | `base/kitty/` | Terminal emulator |
 
-Key bindings (vim-style, matching GlazeWM layout):
+Key bindings (vim-style):
 
 | Binding | Action |
 |---------|--------|
 | `Super + H/J/K/L` | Focus left/down/up/right |
 | `Super + Shift + H/J/K/L` | Move window |
-| `Super + Ctrl + H/J/K/L` | Resize window |
+| `Super + R` | Enter resize mode (H/J/K/L to resize) |
 | `Super + 1-9` | Switch workspace |
 | `Super + Shift + 1-9` | Move window to workspace |
+| `Super + A/S` | Previous/next workspace |
 | `Super + Return` | Kitty terminal |
 | `Super + D` | Wofi launcher |
 | `Super + W` | Firefox |
 | `Super + F` | Fullscreen |
 | `Super + Shift + Q` | Close window |
 | `Super + Shift + Space` | Toggle floating |
+| `Super + -` | Show scratchpad |
+| `Super + Escape` | Lock screen |
 | `Print` | Screenshot region to clipboard |
-
-Wallpaper: drop an image at `~/.config/hypr/wallpaper.jpg` and hyprpaper picks it up.
 
 ## Adding a New Profile
 
@@ -134,4 +135,3 @@ This copies configs to the Windows home directory. Reload GlazeWM after syncing 
 - **Oh My Zsh**: installed automatically by `install.sh`
 - **Default shell**: `install.sh` runs `chsh -s $(which zsh)`; log out and back in to take effect
 - **rclone** (Arch): run `rclone config` to set up a `gdrive` remote for Google Drive
-- **Wallpaper** (Arch): place an image at `~/.config/hypr/wallpaper.jpg`

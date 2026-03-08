@@ -1,6 +1,6 @@
 * {
     font-family: "JetBrainsMono Nerd Font", monospace;
-    font-size: 13px;
+    font-size: 12px;
     min-height: 0;
 }
 
@@ -12,13 +12,15 @@ window#waybar {
 
 /* Reset all modules */
 #workspaces,
-#clock,
+#custom-clock,
+#cpu,
+#memory,
 #battery,
 #network,
 #pulseaudio,
 #tray {
-    padding: 0 12px;
-    margin: 4px 2px;
+    padding: 0 6px;
+    margin: 4px 1px;
     border-radius: 6px;
 }
 
@@ -42,7 +44,7 @@ window#waybar {
 }
 
 /* Clock */
-#clock {
+#custom-clock {
     color: #c0caf5;
     font-weight: bold;
 }
@@ -62,6 +64,16 @@ window#waybar {
 }
 
 #battery.charging {
+    color: #9ece6a;
+}
+
+/* CPU */
+#cpu {
+    color: #e0af68;
+}
+
+/* Memory */
+#memory {
     color: #9ece6a;
 }
 

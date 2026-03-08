@@ -17,7 +17,7 @@ PROMPT+="%(?::%{$fg_bold[red]%}%1{🔴%} )%{$fg[cyan]%}%c%{$reset_color%}"
 PROMPT+=' $(git_prompt_info)'
 ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg_bold[blue]%}git:(%{$fg[blue]%}"
 ZSH_THEME_GIT_PROMPT_DIRTY="%{$fg[blue]%}) %{$fg[blue]%}."
-RPROMPT='%F{245}%D{%I:%M$([ $(date +%H) -ge 12 ] && echo ".")}%f'
+RPROMPT=
 
 # --- Path ---
 export PATH="$HOME/.local/bin:$PATH"
@@ -72,7 +72,7 @@ qt() {
   local quarter=$(( ($(date +%-m) - 1) / 3 + 1 ))
   local file="$OBSIDIAN_VAULT/Quarterly/$(date +%Y)-Q${quarter}.md"
   if [ -f "$file" ]; then
-    micro "$file"
+    hx "$file"
   else
     echo "Quarterly tracker not found: $file"
   fi
