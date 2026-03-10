@@ -258,7 +258,7 @@ keybindings:
     bindings: ['lwin+enter']
 
   # Launch Chrome.
-  - commands: ['shell-exec chrome']
+  - commands: ['shell-exec start chrome']
     bindings: ['lwin+w']
 
   # Focus the next/previous active workspace defined in `workspaces` config.

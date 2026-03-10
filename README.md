@@ -1,6 +1,6 @@
 # dotfiles
 
-Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/) and a multi-profile system. One shared base config, with profile-specific overrides for different machines. Supports both Debian/Ubuntu (WSL) and Arch Linux (native).
+Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/) and a multi-profile system. One shared base config, with profile-specific overrides for different machines.
 
 ## Quick Start
 
@@ -10,7 +10,7 @@ cd ~/dotfiles
 ./install.sh <profile>
 ```
 
-The install script detects your distro (`apt` vs `pacman`), installs system packages and developer tools, stows the base config, then layers the chosen profile on top.
+The install script detects your distro, installs system packages and developer tools, stows the base config, then layers the chosen profile on top.
 
 ## Structure
 
@@ -22,30 +22,28 @@ The install script detects your distro (`apt` vs `pacman`), installs system pack
 │   ├── git/.gitconfig      # core git settings; includes ~/.gitconfig.local
 │   ├── micro/              # keybindings (wikilink plugin)
 │   ├── claude/             # Claude Code settings (full plugin set)
-│   ├── sway/               # Sway compositor (Arch only)
-│   ├── waybar/             # status bar config + theme (Arch only)
-│   ├── wofi/               # app launcher config + theme (Arch only)
-│   ├── mako/               # notification daemon (Arch only)
-│   ├── kitty/              # terminal emulator (Arch only)
+│   ├── sway/               # Sway compositor (desktop only)
+│   ├── waybar/             # status bar config + theme (desktop only)
+│   ├── wofi/               # app launcher config + theme (desktop only)
+│   ├── mako/               # notification daemon (desktop only)
+│   ├── kitty/              # terminal emulator (desktop only)
 │   └── windows/            # Windows-side configs (GlazeWM, etc.) — see below
 └── profiles/
-    ├── personal/           # WSL / personal machine
-    ├── arch-personal/      # Arch Linux / personal laptop
-    ├── work/               # work machine
+    ├── personal/           # personal laptop (Ubuntu + Sway)
+    ├── work/               # work machine (WSL)
     └── server/             # headless / remote server
 ```
 
 **Base** is stowed first with `--no-folding`, so directories like `~/.zshrc.d/` and `~/.claude/` are real directories (not symlinks). Profile packages then add or replace files inside those same directories.
 
-Desktop packages (`sway`, `waybar`, `wofi`, `mako`, `kitty`) are only stowed on Arch.
+Desktop packages (`sway`, `waybar`, `wofi`, `mako`, `kitty`) are skipped on WSL and server profiles (no display server).
 
 ## Profiles
 
-| Profile | Distro | What it adds |
-|---------|--------|-------------|
-| `personal` | Debian/WSL | Personal git identity, Obsidian vault path, ollama, jrnl, Google Drive via drvfs |
-| `arch-personal` | Arch | Personal git identity, Obsidian vault path, ollama, jrnl, Google Drive via rclone |
-| `work` | Debian/WSL | Work git identity, work Obsidian vault path |
+| Profile | Machine | What it adds |
+|---------|---------|-------------|
+| `personal` | Ubuntu laptop | Personal git identity, Obsidian vault path, ollama, jrnl, Google Drive via rclone |
+| `work` | WSL | Work git identity, work Obsidian vault path |
 | `server` | Any | Server git identity, trimmed Claude Code plugin set (no playwright, frontend-design, rust-analyzer) |
 
 Each profile can include:
@@ -54,18 +52,7 @@ Each profile can include:
 - `zsh/.zshrc.d/<profile>.zsh` -- shell config sourced after base `.zshrc`
 - `claude/.claude/settings.json` -- override base Claude settings
 
-## Distro Support
-
-The install script auto-detects the distro via `/etc/os-release`:
-
-| | Debian/Ubuntu/WSL | Arch/EndeavourOS/Manjaro |
-|---|---|---|
-| **Package manager** | apt | pacman |
-| **Dev tools** | Installed via curl scripts | Installed via pacman (zoxide, micro, zellij, rustup, uv) |
-| **Desktop** | N/A (WSL uses Windows WM) | Sway + Waybar + Wofi + Mako + Kitty |
-| **Nerd Font** | N/A | ttf-jetbrains-mono-nerd via pacman |
-
-## Sway Desktop (Arch)
+## Sway Desktop
 
 The desktop environment is configured across five base packages with a cohesive dark theme (Tokyo Night-inspired):
 
@@ -134,4 +121,4 @@ This copies configs to the Windows home directory. Reload GlazeWM after syncing 
 - **SSH keys**: `ssh-keygen -t ed25519` -- never committed to git
 - **Oh My Zsh**: installed automatically by `install.sh`
 - **Default shell**: `install.sh` runs `chsh -s $(which zsh)`; log out and back in to take effect
-- **rclone** (Arch): run `rclone config` to set up a `gdrive` remote for Google Drive
+- **rclone**: run `rclone config` to set up a `gdrive` remote for Google Drive

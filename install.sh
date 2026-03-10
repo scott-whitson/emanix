@@ -51,15 +51,34 @@ case "$DISTRO" in
     ;;
 esac
 
-# --- Desktop packages (Arch only, skip for server) ---
-if [[ "$DISTRO" == "arch" && "$PROFILE" != "server" ]]; then
-  sudo pacman -S --noconfirm --needed \
-    sway swayidle swaylock xdg-desktop-portal-wlr \
-    waybar wofi mako kitty autotiling-rs \
-    grim slurp wl-clipboard \
-    pipewire wireplumber pipewire-pulse \
-    polkit-gnome brightnessctl playerctl \
-    ttf-jetbrains-mono-nerd
+# --- Detect environment ---
+IS_WSL=false
+[[ -f /proc/version ]] && grep -qi microsoft /proc/version && IS_WSL=true
+IS_DESKTOP=false
+[[ "$PROFILE" != "server" ]] && IS_DESKTOP=true
+
+# --- Desktop packages (native Linux with display server) ---
+if [[ "$IS_DESKTOP" == "true" ]]; then
+  case "$DISTRO" in
+    debian)
+      sudo apt-get install -y \
+        sway swayidle swaylock xdg-desktop-portal-wlr \
+        waybar wofi mako-notifier kitty \
+        grim slurp wl-clipboard \
+        pipewire wireplumber pipewire-pulse \
+        polkit-gnome brightnessctl playerctl \
+        fonts-jetbrains-mono rclone
+      ;;
+    arch)
+      sudo pacman -S --noconfirm --needed \
+        sway swayidle swaylock xdg-desktop-portal-wlr \
+        waybar wofi mako kitty autotiling-rs \
+        grim slurp wl-clipboard \
+        pipewire wireplumber pipewire-pulse \
+        polkit-gnome brightnessctl playerctl \
+        ttf-jetbrains-mono-nerd rclone
+      ;;
+  esac
 fi
 
 # --- Oh My Zsh ---
@@ -149,8 +168,8 @@ for pkg in base/*/; do
   pkg_name="$(basename "$pkg")"
   # Skip windows — synced separately via sync-windows.sh
   [[ "$pkg_name" == "windows" ]] && continue
-  # Skip desktop packages on non-Arch (Sway ecosystem)
-  case "$pkg_name" in sway|waybar|wofi|mako|kitty) [[ "$DISTRO" != "arch" ]] && continue ;; esac
+  # Skip desktop packages when there's no display server (WSL, server)
+  case "$pkg_name" in sway|waybar|wofi|mako|kitty) [[ "$IS_DESKTOP" != "true" ]] && continue ;; esac
   stow -d base -t "$HOME" --no-folding --adopt "$pkg_name" 2>/dev/null || stow -d base -t "$HOME" --no-folding "$pkg_name"
 done
 # --adopt resolves conflicts by pulling existing files into the repo;
