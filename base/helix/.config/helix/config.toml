@@ -1,0 +1,19 @@
+theme = "tokyonight"
+
+[editor]
+line-number = "relative"
+cursorline = true
+auto-save = { after-delay.enable = true }
+bufferline = "multiple"
+
+[editor.cursor-shape]
+insert = "bar"
+normal = "block"
+select = "underline"
+
+[editor.indent-guides]
+render = true
+
+[editor.statusline]
+left = ["mode", "spinner", "file-name", "file-modification-indicator"]
+right = ["diagnostics", "selections", "position", "file-type"]

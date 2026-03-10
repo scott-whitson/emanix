@@ -1,0 +1,103 @@
+# -----------------------------------------------
+# Sway Common Configuration
+# -----------------------------------------------
+# Shared by native and WSL configs. Expects $mod and $term
+# to be set before this file is included.
+
+# --- Appearance (Tokyo Night) ---
+# class                  border    bg        text      indicator  child_border
+client.focused           #7aa2f7   #1a1b26   #c0caf5   #8dbcff    #7aa2f7
+client.focused_inactive  #565f89   #1a1b26   #565f89   #565f89    #565f89
+client.unfocused         #414868   #1a1b26   #414868   #414868    #414868
+client.urgent            #f7768e   #1a1b26   #f7768e   #f7768e    #f7768e
+
+# Background
+output * bg #1a1b26 solid_color
+
+# Gaps and borders
+gaps inner 4
+gaps outer 8
+default_border pixel 2
+default_floating_border pixel 2
+
+# Font for title bars (if they show)
+font pango:JetBrainsMono Nerd Font 10
+
+# -----------------------------------------------
+# Key Bindings
+# -----------------------------------------------
+
+# --- Apps ---
+bindsym $mod+Return exec $term
+bindsym $mod+d exec $menu
+
+# --- Window management ---
+bindsym $mod+Shift+q kill
+bindsym $mod+Shift+space floating toggle
+bindsym $mod+f fullscreen toggle
+bindsym $mod+v splitv
+bindsym $mod+b splith
+
+# --- Focus (vim-style) ---
+bindsym $mod+h focus left
+bindsym $mod+j focus down
+bindsym $mod+k focus up
+bindsym $mod+l focus right
+
+# --- Move windows ---
+bindsym $mod+Shift+h move left
+bindsym $mod+Shift+j move down
+bindsym $mod+Shift+k move up
+bindsym $mod+Shift+l move right
+
+# --- Resize mode ---
+mode "resize" {
+    bindsym h resize shrink width 40px
+    bindsym j resize grow height 40px
+    bindsym k resize shrink height 40px
+    bindsym l resize grow width 40px
+
+    bindsym Return mode "default"
+    bindsym Escape mode "default"
+    bindsym $mod+r mode "default"
+}
+bindsym $mod+r mode "resize"
+
+# --- Workspaces ---
+bindsym $mod+1 workspace number 1
+bindsym $mod+2 workspace number 2
+bindsym $mod+3 workspace number 3
+bindsym $mod+4 workspace number 4
+bindsym $mod+5 workspace number 5
+bindsym $mod+6 workspace number 6
+bindsym $mod+7 workspace number 7
+bindsym $mod+8 workspace number 8
+bindsym $mod+9 workspace number 9
+
+# --- Move to workspace ---
+bindsym $mod+Shift+1 move container to workspace number 1
+bindsym $mod+Shift+2 move container to workspace number 2
+bindsym $mod+Shift+3 move container to workspace number 3
+bindsym $mod+Shift+4 move container to workspace number 4
+bindsym $mod+Shift+5 move container to workspace number 5
+bindsym $mod+Shift+6 move container to workspace number 6
+bindsym $mod+Shift+7 move container to workspace number 7
+bindsym $mod+Shift+8 move container to workspace number 8
+bindsym $mod+Shift+9 move container to workspace number 9
+
+# --- Workspace navigation ---
+bindsym $mod+s workspace next_on_output
+bindsym $mod+a workspace prev_on_output
+
+# --- Scratchpad ---
+bindsym $mod+Shift+minus move scratchpad
+bindsym $mod+minus scratchpad show
+
+# --- Mouse ---
+floating_modifier $mod normal
+
+# --- Session ---
+bindsym $mod+Shift+e exec swaymsg exit
+bindsym $mod+Shift+r reload
+
+focus_follows_mouse yes

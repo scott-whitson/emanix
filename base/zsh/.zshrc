@@ -54,6 +54,9 @@ autoload -Uz compinit
 compinit
 
 # --- Aliases ---
+# Debian names some tools differently
+command -v batcat &>/dev/null && ! command -v bat &>/dev/null && alias bat="batcat"
+command -v fdfind &>/dev/null && ! command -v fd &>/dev/null && alias fd="fdfind"
 alias ll="ls -lah --color=auto"
 alias gs="git status"
 alias gd="git diff"
@@ -81,6 +84,7 @@ qt() {
 # --- Tools ---
 . "$HOME/.cargo/env"
 eval "$(zoxide init zsh)"
+export FZF_DEFAULT_COMMAND='fd -H --exclude .git'
 # FZF — paths differ between Debian and Arch
 for fzf_keys in /usr/share/doc/fzf/examples/key-bindings.zsh /usr/share/fzf/key-bindings.zsh; do
   [[ -f "$fzf_keys" ]] && source "$fzf_keys" && break

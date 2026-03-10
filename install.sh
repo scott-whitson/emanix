@@ -37,7 +37,7 @@ echo "=== dotfiles bootstrap (profile: $PROFILE, distro: $DISTRO) ==="
 case "$DISTRO" in
   debian)
     sudo apt-get update -qq
-    sudo apt-get install -y zsh stow git curl wget unzip fzf
+    sudo apt-get install -y zsh stow git curl wget unzip fzf fd-find ripgrep bat
     ;;
   arch)
     sudo pacman -Syu --noconfirm --needed \
@@ -151,6 +151,12 @@ if [[ "$DISTRO" != "arch" ]] && ! command -v zellij &>/dev/null; then
   echo "Installing zellij..."
   curl -L https://github.com/zellij-org/zellij/releases/latest/download/zellij-x86_64-unknown-linux-musl.tar.gz | tar xz -C /tmp
   sudo mv /tmp/zellij /usr/local/bin/
+fi
+
+# --- Helix editor (snap) ---
+if ! command -v hx &>/dev/null; then
+  echo "Installing Helix..."
+  sudo snap install helix --classic
 fi
 
 # --- Claude Code ---
