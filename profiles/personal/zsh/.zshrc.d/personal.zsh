@@ -12,8 +12,9 @@ alias jrnl=" jrnl"
 
 # --- Google Drive (local sync) ---
 # Local copy of Google Drive, synced hourly via cron (rclone bisync)
-# rox-sync upgrade shortcut
+# rox shortcuts
 alias rsu='cd ~/projects/rox && source .venv/bin/activate && rox-sync upgrade'
+alias rt='ssh -t minne "cd /opt/rox && source .venv/bin/activate && rox-tui"'
 
 export GDRIVE="$HOME/gdrive"
 [ -d "$GDRIVE" ] || mkdir -p "$GDRIVE"
