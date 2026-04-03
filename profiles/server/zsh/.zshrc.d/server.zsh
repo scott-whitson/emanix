@@ -1,2 +1,4 @@
 # --- Server profile ---
-# Add server-specific config here
+
+# rox-tui shortcut
+alias rt='cd /opt/rox && source .venv/bin/activate && rox-tui'

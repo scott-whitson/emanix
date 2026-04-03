@@ -10,8 +10,10 @@ setopt HIST_IGNORE_SPACE
 alias j=" jrnl"
 alias jrnl=" jrnl"
 
-# --- Google Drive (rclone) ---
-# Requires one-time setup: rclone config (add a "gdrive" remote for Google Drive)
-GDRIVE_MOUNT="$HOME/gdrive"
-[ -d "$GDRIVE_MOUNT" ] || mkdir -p "$GDRIVE_MOUNT"
-mountpoint -q "$GDRIVE_MOUNT" || rclone mount gdrive: "$GDRIVE_MOUNT" --daemon --vfs-cache-mode full 2>/dev/null
+# --- Google Drive (local sync) ---
+# Local copy of Google Drive, synced hourly via cron (rclone bisync)
+# rox-sync upgrade shortcut
+alias rsu='cd ~/projects/rox && source .venv/bin/activate && rox-sync upgrade'
+
+export GDRIVE="$HOME/gdrive"
+[ -d "$GDRIVE" ] || mkdir -p "$GDRIVE"
