@@ -16,11 +16,12 @@ exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DE
 # --- Autostart ---
 exec waybar
 exec mako
-exec_always autotiling-rs
+exec $term
+exec autotiling
 exec swayidle -w \
-    timeout 600 'swaylock -f -c 1a1b26' \
-    timeout 660 'swaymsg "output * power off"' \
-    resume 'swaymsg "output * power on"' \
+    timeout 1800 'swaylock -f -c 1a1b26' \
+    timeout 1860 'swaymsg "output * power off"' \
+    resume 'swaymsg "output * power on"; kill -9 $(cat /tmp/fragpaper.pid 2>/dev/null) 2>/dev/null; sleep 1; RUST_LOG=info ~/projects/fragpaper/target/release/fragpaper ~/projects/wallpaper-gen/shaders/attractors.vert ~/projects/wallpaper-gen/shaders/attractors.frag >> /tmp/fragpaper-debug.log 2>&1 &' \
     before-sleep 'swaylock -f -c 1a1b26'
 
 # --- Input ---
@@ -42,7 +43,9 @@ include ~/.config/sway/config-common
 
 # --- Native-only: app launchers ---
 bindsym $mod+w exec firefox
-bindsym $mod+e exec thunar
+bindsym $mod+Alt+p exec firefox --private-window
+bindsym $mod+e exec kitty lf
+bindsym $mod+o exec obsidian
 
 # --- Screenshots ---
 bindsym Print exec grim -g "$(slurp)" - | wl-copy
@@ -58,6 +61,14 @@ bindsym XF86AudioNext exec playerctl next
 bindsym XF86AudioPrev exec playerctl previous
 bindsym XF86MonBrightnessUp exec brightnessctl set 5%+
 bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
+
+# --- Wallpaper (fragpaper) ---
+bindsym $mod+Ctrl+p exec pkill -USR1 fragpaper
+exec bash -c 'pkill swaybg 2>/dev/null; RUST_LOG=info ~/projects/fragpaper/target/release/fragpaper ~/projects/wallpaper-gen/shaders/attractors.vert ~/projects/wallpaper-gen/shaders/attractors.frag > /tmp/fragpaper-debug.log 2>&1'
+
+# --- Push-to-talk ---
+bindsym Mod4+F1 exec ~/tools/push-to-talk.sh toggle
+bindsym F1 exec ~/tools/push-to-talk.sh toggle
 
 # --- Lock screen ---
 bindsym $mod+Escape exec swaylock -f -c 1a1b26
