@@ -64,8 +64,43 @@ alias gl="git log --oneline -20"
 alias ..="cd .."
 alias ...="cd ../.."
 alias vact="source .venv/bin/activate"
+alias lsd="ls -lt --time-style=long-iso | awk '{print \$6, \$7, \$NF}'"
 alias dvact="deactivate"
+alias rescue-gnome="sudo systemctl start gdm"
+alias theme="theme-switch"
 calc() { if [ $# -eq 0 ]; then bc -l; else echo "$*" | bc -l; fi; }
+
+# --- Work laptop sync ---
+# See: Obsidian vault → computing/Work Laptop Sync.md
+# Host alias "swhitson-11l-1" must resolve (NetBird / tailscale / ssh config).
+WORK_HOST="scott@swhitson-11l-1"
+WORK_REMOTE_DIR="~/projects"
+WORK_LOCAL_DIR="$HOME/work-projects"
+WORK_RSYNC_EXCLUDES=(--exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='.git')
+
+# Pull all projects from work laptop into ~/work-projects
+work-pull() {
+  rsync -avz --progress "${WORK_RSYNC_EXCLUDES[@]}" \
+    "${WORK_HOST}:${WORK_REMOTE_DIR}/" "${WORK_LOCAL_DIR}/"
+}
+
+# Push a specific project back to the work laptop.
+# Usage: work-push pearl-platform
+#        work-push clients/rubber-v2
+work-push() {
+  if [ -z "$1" ]; then
+    echo "Usage: work-push <project-path-relative-to-work-projects>"
+    return 1
+  fi
+  local project="$1"
+  if [ ! -d "${WORK_LOCAL_DIR}/${project}" ]; then
+    echo "Not found: ${WORK_LOCAL_DIR}/${project}"
+    return 1
+  fi
+  rsync -avz --progress \
+    "${WORK_LOCAL_DIR}/${project}/" \
+    "${WORK_HOST}:${WORK_REMOTE_DIR}/${project}/"
+}
 
 # --- Functions ---
 qt() {
@@ -102,3 +137,4 @@ for f in ~/.zshrc.d/*.zsh(N); do source "$f"; done
 
 # Local binaries
 export PATH="$HOME/bin:$PATH"
+[ -f ~/.secrets ] && source ~/.secrets

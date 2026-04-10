@@ -99,5 +99,6 @@ floating_modifier $mod normal
 # --- Session ---
 bindsym $mod+Shift+e exec swaymsg exit
 bindsym $mod+Shift+r reload
+bindsym $mod+Shift+t exec theme-switch
 
 focus_follows_mouse yes
