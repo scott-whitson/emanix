@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# theme-switch — toggle kitty between dark and light themes
+# Usage: theme-switch [dark|light]
+#   No argument toggles between dark and light.
+
+set -euo pipefail
+
+KITTY_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/kitty"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
+STATE_FILE="$STATE_DIR/theme-current"
+
+current_theme() {
+    cat "$STATE_FILE" 2>/dev/null || echo "dark"
+}
+
+target="${1:-}"
+
+if [ -z "$target" ]; then
+    if [ "$(current_theme)" = "dark" ]; then
+        target="light"
+    else
+        target="dark"
+    fi
+fi
+
+if [ "$target" != "dark" ] && [ "$target" != "light" ]; then
+    echo "Usage: theme-switch [dark|light]" >&2
+    exit 1
+fi
+
+# Swap the symlink (relative so it resolves within ~/.config/kitty/)
+ln -sf "$target.conf" "$KITTY_CONFIG_DIR/theme.conf"
+
+# Persist state
+mkdir -p "$STATE_DIR"
+echo "$target" > "$STATE_FILE"
+
+# Live reload all kitty instances
+killall -SIGUSR1 kitty 2>/dev/null || true
+
+echo "Switched to $target theme"
