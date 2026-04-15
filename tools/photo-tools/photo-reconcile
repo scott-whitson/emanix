@@ -1,0 +1,472 @@
+#!/usr/bin/env python3
+"""
+photo-reconcile: Deduplicate and import photos into a canonical Google Drive collection.
+
+Usage:
+    photo-reconcile index                          Build/update SHA256 hash index
+    photo-reconcile import <path> [--dry-run]      Import new photos from a source
+"""
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import shutil
+import sqlite3
+import sys
+import tempfile
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+# ── Configuration ──────────────────────────────────────────────────────────
+
+PICTURES_ROOT = Path.home() / "gdrive/SEW/History/Pictures"
+DB_PATH = Path(__file__).parent / "photo-index.db"
+
+JUNK_EXTENSIONS = {".json", ".db", ".ini", ".aae", ".html", ".css", ".txt", ".xml", ".yml", ".yaml"}
+
+PHOTO_EXTENSIONS = {
+    ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif",
+    ".heic", ".heif", ".webp", ".raw", ".cr2", ".nef", ".arw",
+    ".dng", ".orf", ".rw2", ".pef", ".sr2", ".raf",
+    ".mp4", ".mov", ".avi", ".mkv", ".3gp", ".m4v", ".wmv", ".mts",
+    ".xmp",  # Darktable sidecar
+}
+
+HASH_BUF_SIZE = 1 << 16  # 64 KB read chunks
+
+# ── Database ───────────────────────────────────────────────────────────────
+
+def db_connect():
+    db = sqlite3.connect(DB_PATH)
+    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS files (
+            sha256 TEXT PRIMARY KEY,
+            path TEXT NOT NULL,
+            size INTEGER,
+            indexed_at TEXT
+        )
+    """)
+    db.execute("CREATE INDEX IF NOT EXISTS idx_path ON files(path)")
+    db.commit()
+    return db
+
+
+def db_lookup_hash(db, sha256):
+    row = db.execute("SELECT path FROM files WHERE sha256 = ?", (sha256,)).fetchone()
+    return row[0] if row else None
+
+
+def db_insert(db, sha256, rel_path, size):
+    db.execute(
+        "INSERT OR REPLACE INTO files (sha256, path, size, indexed_at) VALUES (?, ?, ?, ?)",
+        (sha256, rel_path, size, datetime.now(timezone.utc).isoformat()),
+    )
+
+
+def db_all_paths(db):
+    """Return dict of {path: (sha256, size)} for all indexed files."""
+    rows = db.execute("SELECT path, sha256, size FROM files").fetchall()
+    return {r[0]: (r[1], r[2]) for r in rows}
+
+
+def db_remove_path(db, path):
+    db.execute("DELETE FROM files WHERE path = ?", (path,))
+
+# ── Hashing ────────────────────────────────────────────────────────────────
+
+def sha256_file(filepath):
+    h = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        while True:
+            chunk = f.read(HASH_BUF_SIZE)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+# ── Date extraction ────────────────────────────────────────────────────────
+
+def date_from_takeout_json(filepath):
+    """Try to find a Google Takeout supplemental-metadata JSON sidecar."""
+    p = Path(filepath)
+    candidates = [
+        p.parent / (p.name + ".supplemental-metadata.json"),
+        p.parent / (p.name + ".supplemental-me.json"),
+    ]
+    # Takeout also sometimes uses the pattern where the extension is before the json suffix
+    # e.g., "photo.jpg.supplemental-metadata.json" — which is the same as candidates[0]
+    for c in candidates:
+        if c.exists():
+            try:
+                with open(c) as f:
+                    data = json.load(f)
+                ts = int(data["photoTakenTime"]["timestamp"])
+                dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+                return dt.year
+            except (KeyError, ValueError, json.JSONDecodeError):
+                continue
+    return None
+
+
+def date_from_exif(filepath):
+    """Extract year from EXIF DateTimeOriginal or DateTime."""
+    try:
+        from PIL import Image
+        from PIL.ExifTags import Base as ExifBase
+    except ImportError:
+        return None
+
+    try:
+        img = Image.open(filepath)
+        exif = img.getexif()
+        if not exif:
+            return None
+
+        # Try DateTimeOriginal first (tag 36867), then DateTime (tag 306)
+        for tag_id in (ExifBase.DateTimeOriginal, ExifBase.DateTime):
+            val = exif.get(tag_id)
+            if val:
+                # Format: "2015:01:14 11:30:39"
+                m = re.match(r"(\d{4})[:/\-]", str(val))
+                if m:
+                    year = int(m.group(1))
+                    if 1900 <= year <= 2100:
+                        return year
+
+        # Also check IFD EXIF (nested EXIF data for some formats)
+        ifd = exif.get_ifd(0x8769)
+        if ifd:
+            for tag_id in (36867, 36868, 306):
+                val = ifd.get(tag_id)
+                if val:
+                    m = re.match(r"(\d{4})[:/\-]", str(val))
+                    if m:
+                        year = int(m.group(1))
+                        if 1900 <= year <= 2100:
+                            return year
+    except Exception:
+        pass
+    return None
+
+
+# Common filename patterns: 20150114_113039.jpg, IMG_20230415_*.jpg,
+# VID_20210101_*, PXL_20220301_*, Screenshot_2023-04-15-*, etc.
+FILENAME_DATE_PATTERNS = [
+    re.compile(r"(?:^|[_\-])(\d{4})(\d{2})(\d{2})[_\-]"),       # 20150114_ or _20150114_
+    re.compile(r"(?:^|[_\-])(\d{4})-(\d{2})-(\d{2})"),            # 2015-01-14
+    re.compile(r"^(\d{4})(\d{2})(\d{2})"),                         # starts with 20150114
+]
+
+
+def date_from_filename(filepath):
+    """Extract year from common photo filename patterns."""
+    name = Path(filepath).stem
+    for pat in FILENAME_DATE_PATTERNS:
+        m = pat.search(name)
+        if m:
+            year = int(m.group(1))
+            if 2000 <= year <= 2100:
+                return year
+    return None
+
+
+def date_from_mtime(filepath):
+    """Extract year from file modification time."""
+    try:
+        mtime = os.path.getmtime(filepath)
+        dt = datetime.fromtimestamp(mtime, tz=timezone.utc)
+        if 2000 <= dt.year <= 2100:
+            return dt.year
+    except OSError:
+        pass
+    return None
+
+
+def detect_year(filepath):
+    """Determine year for a photo using the priority chain. Returns year int or None."""
+    return (
+        date_from_takeout_json(filepath)
+        or date_from_exif(filepath)
+        or date_from_filename(filepath)
+        or date_from_mtime(filepath)
+    )
+
+# ── Source handling ─────────────────────────────────────────────────────────
+
+def prepare_source(source_path, tmp_dir):
+    """
+    Given a source path, return a directory to walk for photos.
+    Handles: single zip, directory of zips, plain directory.
+    """
+    source = Path(source_path)
+
+    if source.is_file() and source.suffix.lower() == ".zip":
+        # Single zip
+        print(f"Extracting {source.name}...")
+        extract_zip(source, tmp_dir)
+        return Path(tmp_dir)
+
+    if source.is_dir():
+        zips = sorted(source.glob("*.zip"))
+        if zips:
+            # Directory of zips — extract all
+            for z in zips:
+                print(f"Extracting {z.name}...")
+                extract_zip(z, tmp_dir)
+            # Also copy any loose (non-zip) files so they get scanned too
+            loose_dir = Path(tmp_dir) / "_loose_files"
+            for f in source.iterdir():
+                if f.is_file() and f.suffix.lower() != ".zip":
+                    loose_dir.mkdir(exist_ok=True)
+                    shutil.copy2(f, loose_dir / f.name)
+            return Path(tmp_dir)
+        else:
+            # Plain directory — scan directly
+            return source
+
+    print(f"Error: {source_path} is not a zip file or directory", file=sys.stderr)
+    sys.exit(1)
+
+
+def extract_zip(zip_path, dest):
+    """Extract a zip, handling encoding issues gracefully."""
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        for info in zf.infolist():
+            if info.is_dir():
+                continue
+            try:
+                zf.extract(info, dest)
+            except Exception as e:
+                print(f"  Warning: Could not extract {info.filename}: {e}", file=sys.stderr)
+
+# ── Import logic ───────────────────────────────────────────────────────────
+
+def resolve_dest(year, filename):
+    """Build destination path, handling filename collisions."""
+    if year:
+        dest_dir = PICTURES_ROOT / str(year)
+    else:
+        dest_dir = PICTURES_ROOT / "Not Chronological"
+
+    dest = dest_dir / filename
+    if not dest.exists():
+        return dest
+
+    stem = Path(filename).stem
+    suffix = Path(filename).suffix
+    i = 1
+    while True:
+        candidate = dest_dir / f"{stem}_{i}{suffix}"
+        if not candidate.exists():
+            return candidate
+        i += 1
+
+
+def cmd_index(args):
+    """Build/update the SHA256 hash index of Google Drive Pictures."""
+    if not PICTURES_ROOT.exists():
+        print(f"Error: Pictures root not found: {PICTURES_ROOT}", file=sys.stderr)
+        sys.exit(1)
+
+    db = db_connect()
+    existing = db_all_paths(db)
+
+    indexed = 0
+    skipped = 0
+    removed = 0
+    errors = 0
+    seen_paths = set()
+
+    print(f"Indexing {PICTURES_ROOT} ...")
+
+    for dirpath, dirnames, filenames in os.walk(PICTURES_ROOT):
+        for fname in filenames:
+            full = Path(dirpath) / fname
+            rel = str(full.relative_to(PICTURES_ROOT))
+            seen_paths.add(rel)
+
+            try:
+                size = full.stat().st_size
+            except OSError as e:
+                print(f"  Error stat: {rel}: {e}", file=sys.stderr)
+                errors += 1
+                continue
+
+            # Skip if already indexed with same path and size
+            if rel in existing:
+                old_hash, old_size = existing[rel]
+                if old_size == size:
+                    skipped += 1
+                    continue
+
+            # Hash and index
+            try:
+                h = sha256_file(full)
+                db_insert(db, h, rel, size)
+                indexed += 1
+                if indexed % 500 == 0:
+                    db.commit()
+                    print(f"  ... indexed {indexed} files (skipped {skipped})")
+            except OSError as e:
+                print(f"  Error hash: {rel}: {e}", file=sys.stderr)
+                errors += 1
+
+    # Remove stale entries (files that no longer exist)
+    for old_path in existing:
+        if old_path not in seen_paths:
+            db_remove_path(db, old_path)
+            removed += 1
+
+    db.commit()
+    db.close()
+
+    total = indexed + skipped
+    print(f"\nDone. {total} files in index.")
+    print(f"  New/updated: {indexed}")
+    print(f"  Unchanged:   {skipped}")
+    print(f"  Removed:     {removed}")
+    if errors:
+        print(f"  Errors:      {errors}")
+
+
+def cmd_import(args):
+    """Import new photos from a source into Google Drive Pictures."""
+    source_path = args.path
+    dry_run = args.dry_run
+
+    if not PICTURES_ROOT.exists():
+        print(f"Error: Pictures root not found: {PICTURES_ROOT}", file=sys.stderr)
+        sys.exit(1)
+
+    db = db_connect()
+
+    stats = {"duplicate": 0, "new": 0, "junk": 0, "error": 0}
+    new_by_year = {}
+
+    with tempfile.TemporaryDirectory(prefix="photo-reconcile-") as tmp_dir:
+        scan_dir = prepare_source(source_path, tmp_dir)
+
+        print(f"\nScanning {scan_dir} ...")
+        all_files = []
+        for dirpath, dirnames, filenames in os.walk(scan_dir):
+            for fname in filenames:
+                all_files.append(Path(dirpath) / fname)
+
+        print(f"Found {len(all_files)} files to process.\n")
+
+        for filepath in sorted(all_files):
+            ext = filepath.suffix.lower()
+            display_name = filepath.name
+
+            # Skip junk
+            if ext in JUNK_EXTENSIONS:
+                if not ext == ".json" or args.verbose:
+                    # Only show non-JSON junk in normal mode (JSON is very noisy from Takeout)
+                    pass
+                if dry_run and ext != ".json":
+                    print(f"JUNK:      {display_name} (skipped)")
+                stats["junk"] += 1
+                continue
+
+            # Skip non-photo extensions we don't recognize
+            if ext not in PHOTO_EXTENSIONS:
+                stats["junk"] += 1
+                if dry_run:
+                    print(f"JUNK:      {display_name} (unrecognized extension {ext})")
+                continue
+
+            # Hash
+            try:
+                h = sha256_file(filepath)
+            except OSError as e:
+                print(f"ERROR:     {display_name}: {e}", file=sys.stderr)
+                stats["error"] += 1
+                continue
+
+            # Check for duplicate
+            existing_path = db_lookup_hash(db, h)
+            if existing_path:
+                stats["duplicate"] += 1
+                if dry_run:
+                    print(f"DUPLICATE: {display_name} (matches {existing_path})")
+                continue
+
+            # Determine year
+            year = detect_year(filepath)
+            year_label = str(year) if year else "Not Chronological"
+
+            # Determine destination
+            dest = resolve_dest(year, filepath.name)
+            rel_dest = str(dest.relative_to(PICTURES_ROOT))
+
+            if dry_run:
+                print(f"NEW:       {display_name} -> {rel_dest}")
+            else:
+                # Actually copy
+                try:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(filepath, dest)
+                    db_insert(db, h, rel_dest, dest.stat().st_size)
+                    print(f"IMPORTED:  {display_name} -> {rel_dest}")
+                except OSError as e:
+                    print(f"ERROR:     {display_name}: {e}", file=sys.stderr)
+                    stats["error"] += 1
+                    continue
+
+            stats["new"] += 1
+            new_by_year[year_label] = new_by_year.get(year_label, 0) + 1
+
+    if not dry_run:
+        db.commit()
+    db.close()
+
+    # Summary
+    print(f"\n{'═' * 50}")
+    print(f"{'DRY RUN ' if dry_run else ''}SUMMARY")
+    print(f"{'═' * 50}")
+    print(f"  Duplicates skipped: {stats['duplicate']}")
+    print(f"  New files imported:  {stats['new']}")
+    print(f"  Junk files skipped:  {stats['junk']}")
+    if stats["error"]:
+        print(f"  Errors:              {stats['error']}")
+
+    if new_by_year:
+        print(f"\n  New files by year:")
+        for year_label in sorted(new_by_year):
+            print(f"    {year_label}: {new_by_year[year_label]}")
+
+# ── CLI ────────────────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="photo-reconcile",
+        description="Deduplicate and import photos into Google Drive Pictures.",
+    )
+    sub = parser.add_subparsers(dest="command")
+
+    # index
+    sub.add_parser("index", help="Build/update SHA256 hash index of Google Drive Pictures")
+
+    # import
+    imp = sub.add_parser("import", help="Import new photos from a source")
+    imp.add_argument("path", help="Path to a zip file, directory of zips, or photo directory")
+    imp.add_argument("--dry-run", action="store_true", help="Show what would happen without copying")
+    imp.add_argument("--verbose", "-v", action="store_true", help="Show all skipped files including JSON sidecars")
+
+    args = parser.parse_args()
+
+    if args.command == "index":
+        cmd_index(args)
+    elif args.command == "import":
+        cmd_import(args)
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

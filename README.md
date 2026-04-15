@@ -42,7 +42,7 @@ Desktop packages (`sway`, `waybar`, `wofi`, `mako`, `kitty`) are skipped on WSL 
 
 | Profile | Machine | What it adds |
 |---------|---------|-------------|
-| `personal` | Ubuntu laptop | Personal git identity, Obsidian vault path, ollama, jrnl, Google Drive via rclone |
+| `personal` | Ubuntu laptop | Personal git identity, Obsidian vault path, ollama, jrnl, Google Drive bisync |
 | `work` | WSL | Work git identity, work Obsidian vault path |
 | `server` | Any | Server git identity, trimmed Claude Code plugin set (no playwright, frontend-design, rust-analyzer) |
 
@@ -121,4 +121,4 @@ This copies configs to the Windows home directory. Reload GlazeWM after syncing 
 - **SSH keys**: `ssh-keygen -t ed25519` -- never committed to git
 - **Oh My Zsh**: installed automatically by `install.sh`
 - **Default shell**: `install.sh` runs `chsh -s $(which zsh)`; log out and back in to take effect
-- **rclone**: run `rclone config` to set up a `gdrive` remote for Google Drive
+- **Google Drive**: `~/gdrive` is a dedicated ext4 partition (`/dev/nvme0n1p8`) mounted via fstab, synced bidirectionally with Google Drive every 15 minutes using `rclone bisync`. Run `rclone config` to set up the `gdrive` remote, then `rclone bisync ~/gdrive gdrive: --resync` for the initial sync. The sync script is at `~/dotfiles/tools/gdrive_sync.sh` and runs via cron. Native Google Docs are skipped (`--drive-skip-gdocs`).
