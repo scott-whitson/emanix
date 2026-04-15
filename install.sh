@@ -173,6 +173,15 @@ if ! command -v claude &>/dev/null; then
   npm install -g @anthropic-ai/claude-code
 fi
 
+# --- Build window-picker (Hyprland overlay tool, native Rust binary) ---
+if [[ "$IS_DESKTOP" == "true" && "$DISTRO" == "arch" ]]; then
+  WP_BIN="$DOTFILES_DIR/tools/window-picker/target/release/window-picker"
+  if [[ ! -x "$WP_BIN" ]]; then
+    echo "Building window-picker..."
+    (cd "$DOTFILES_DIR/tools/window-picker" && cargo build --release)
+  fi
+fi
+
 # --- Stow base packages ---
 # --no-folding ensures directories are real (not symlinks), so profile
 # packages can add files to the same directories (e.g. ~/.zshrc.d/)
