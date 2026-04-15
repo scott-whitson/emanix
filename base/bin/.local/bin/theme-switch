@@ -32,6 +32,18 @@ fi
 ln -sf "$target.conf" "$CONFIG/hypr/colors/theme.conf"
 ln -sf "$target.conf" "$CONFIG/ghostty/theme.conf"
 ln -sf "$target.css"  "$CONFIG/waybar/style.css"
+ln -sf "$target.css"  "$CONFIG/hyprswitch/style.css"
+
+# --- System color-scheme (Firefox, Electron/Obsidian, libadwaita read this) ---
+if [ "$target" = "dark" ]; then
+    gtk_theme="Adwaita-dark"
+    color_scheme="prefer-dark"
+else
+    gtk_theme="Adwaita"
+    color_scheme="prefer-light"
+fi
+gsettings set org.gnome.desktop.interface color-scheme "$color_scheme" 2>/dev/null || true
+gsettings set org.gnome.desktop.interface gtk-theme "$gtk_theme" 2>/dev/null || true
 
 # --- Trigger live reloads ---
 # Hyprland: reread config (picks up new $col_active/$col_inactive)
@@ -42,6 +54,12 @@ pkill -SIGUSR2 waybar 2>/dev/null || true
 
 # Ghostty: SIGUSR2 reloads config (ghostty 1.2+)
 pkill -SIGUSR2 ghostty 2>/dev/null || true
+
+# Hyprswitch: no hot-reload for CSS; kill and relaunch the daemon.
+if pgrep -x hyprswitch &>/dev/null; then
+    pkill -x hyprswitch 2>/dev/null || true
+    (hyprswitch init &>/dev/null & disown) || true
+fi
 
 # --- Persist state ---
 mkdir -p "$STATE_DIR"
