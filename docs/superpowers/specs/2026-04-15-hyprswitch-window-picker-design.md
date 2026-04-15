@@ -1,7 +1,7 @@
 # Hyprswitch window picker — design
 
 **Date:** 2026-04-15
-**Status:** Approved design, ready for implementation plan.
+**Status:** SUPERSEDED. Hyprswitch turned out to be a modal picker (centered GUI with thumbnails), not the per-window ace-jump overlay actually wanted. Replaced by the custom overlay tool design (same date, different filename). Kept for history.
 
 ## Goal
 

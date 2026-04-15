@@ -1,5 +1,7 @@
 # Hyprswitch Window Picker Implementation Plan
 
+> **Status: ABANDONED.** Tasks 1–5 were executed, then reverted after live testing revealed hyprswitch's modal-picker UX did not match the intended per-window ace-jump overlay. Superseded by the custom overlay tool plan. Kept for history.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a `Super+Tab` window picker to Hyprland that labels each visible window with a digit (1–9, 0) and focuses the chosen window on keypress.
