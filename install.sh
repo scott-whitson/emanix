@@ -41,7 +41,7 @@ case "$DISTRO" in
     ;;
   arch)
     sudo pacman -Syu --noconfirm --needed \
-      zsh stow git curl wget unzip fzf \
+      zsh stow git curl wget unzip fzf rsync openssh gnupg \
       zoxide micro zellij rustup uv rclone base-devel
     ;;
   *)
@@ -153,10 +153,17 @@ if [[ "$DISTRO" != "arch" ]] && ! command -v zellij &>/dev/null; then
   sudo mv /tmp/zellij /usr/local/bin/
 fi
 
-# --- Helix editor (snap) ---
+# --- Helix editor ---
 if ! command -v hx &>/dev/null; then
   echo "Installing Helix..."
-  sudo snap install helix --classic
+  case "$DISTRO" in
+    arch)
+      sudo pacman -S --noconfirm --needed helix
+      ;;
+    debian)
+      sudo snap install helix --classic
+      ;;
+  esac
 fi
 
 # --- Claude Code ---
