@@ -1,0 +1,63 @@
+/* Tokyo Night — dark variant. Keep in sync with base/hypr/.config/hypr/colors/dark.conf. */
+
+* {
+    color: #c0caf5;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+}
+
+window {
+    background: rgba(26, 27, 38, 0.85);
+}
+
+.monitor {
+    background: rgba(36, 40, 59, 0.6);
+    border-radius: 8px;
+    padding: 8px;
+    margin: 6px;
+}
+
+.monitor_active {
+    border: var(--border-size) solid #7aa2f7;
+}
+
+.workspace {
+    background: rgba(41, 46, 66, 0.6);
+    border-radius: 6px;
+    padding: 6px;
+    margin: 4px;
+}
+
+.workspace_active {
+    border: var(--border-size) solid #7aa2f7;
+}
+
+.workspace_special {
+    border: var(--border-size) solid #bb9af7;
+}
+
+.client {
+    background: #24283b;
+    border: var(--border-size) solid #414868;
+    border-radius: 4px;
+    padding: 4px;
+    margin: 3px;
+}
+
+.client_active {
+    border: var(--border-size) solid #7aa2f7;
+}
+
+.client-image {
+    background: transparent;
+}
+
+.index {
+    background: #7aa2f7;
+    color: #1a1b26;
+    font-size: 18px;
+    font-weight: 700;
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin: 4px;
+}
