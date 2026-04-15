@@ -115,6 +115,41 @@ pub fn visible_windows(monitors: &[Monitor], clients: &[Client]) -> Vec<LabeledW
     labeled
 }
 
+// ---------- Palette ----------
+
+#[derive(Debug, Clone, Copy)]
+pub struct Palette {
+    /// Full-monitor dim overlay.
+    pub backdrop: (f64, f64, f64, f64),
+    /// Pill background.
+    pub pill: (f64, f64, f64, f64),
+    /// Digit text color.
+    pub digit: (f64, f64, f64, f64),
+}
+
+impl Palette {
+    pub const DARK: Palette = Palette {
+        backdrop: (0.0, 0.0, 0.0, 0.45),
+        pill:     (0.478, 0.635, 0.969, 1.0),   // #7aa2f7
+        digit:    (0.102, 0.106, 0.149, 1.0),   // #1a1b26
+    };
+    pub const LIGHT: Palette = Palette {
+        backdrop: (0.0, 0.0, 0.0, 0.30),
+        pill:     (0.180, 0.490, 0.914, 1.0),   // #2e7de9
+        digit:    (0.882, 0.886, 0.906, 1.0),   // #e1e2e7
+    };
+}
+
+pub fn load_palette() -> Palette {
+    let state = std::env::var("XDG_STATE_HOME")
+        .unwrap_or_else(|_| format!("{}/.local/state", std::env::var("HOME").unwrap_or_default()));
+    let path = format!("{}/theme-current", state);
+    match std::fs::read_to_string(&path).ok().as_deref().map(str::trim) {
+        Some("light") => Palette::LIGHT,
+        _ => Palette::DARK,
+    }
+}
+
 fn main() -> Result<()> {
     let monitors = query_monitors()?;
     let clients = query_clients()?;
@@ -239,5 +274,20 @@ mod tests {
         let monitors = vec![mon(0, "m0", 0, 0, 1920, 1080, 1)];
         let result = visible_windows(&monitors, &[]);
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn palette_defaults_to_dark_when_state_missing() {
+        let tmp = std::env::temp_dir().join(format!("wp-test-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let orig = std::env::var("XDG_STATE_HOME").ok();
+        std::env::set_var("XDG_STATE_HOME", &tmp);
+        let p = load_palette();
+        assert!((p.backdrop.3 - 0.45).abs() < 1e-9);
+        match orig {
+            Some(v) => std::env::set_var("XDG_STATE_HOME", v),
+            None => std::env::remove_var("XDG_STATE_HOME"),
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
