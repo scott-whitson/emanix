@@ -1,6 +1,6 @@
 use anyhow::Result;
 use gtk4::prelude::*;
-use gtk4::{glib, Application, ApplicationWindow, DrawingArea, EventControllerKey};
+use gtk4::{glib, Application, ApplicationWindow, CssProvider, DrawingArea, EventControllerKey};
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use serde::Deserialize;
 use std::process::Command;
@@ -53,8 +53,10 @@ pub fn query_clients() -> Result<Vec<Client>> {
 }
 
 pub fn dispatch_focus(address: &str) -> Result<()> {
-    let arg = format!("focuswindow address:{}", address);
-    let out = Command::new("hyprctl").args(["dispatch", &arg]).output()?;
+    let addr_arg = format!("address:{}", address);
+    let out = Command::new("hyprctl")
+        .args(["dispatch", "focuswindow", &addr_arg])
+        .output()?;
     if !out.status.success() {
         anyhow::bail!("hyprctl dispatch failed: {}", String::from_utf8_lossy(&out.stderr));
     }
@@ -165,6 +167,17 @@ pub fn run_overlay(labels: Vec<LabeledWindow>, monitors: Vec<Monitor>, palette: 
     let monitors = Rc::new(monitors);
 
     app.connect_activate(move |app| {
+        // Load CSS that makes the overlay window background fully transparent,
+        // so our cairo-drawn dim backdrop (alpha 0.45) is the only shading.
+        let provider = CssProvider::new();
+        provider.load_from_data("window { background: rgba(0,0,0,0); }");
+        if let Some(display) = gtk4::gdk::Display::default() {
+            gtk4::style_context_add_provider_for_display(
+                &display,
+                &provider,
+                gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+        }
         for mon in monitors.iter() {
             let mon_labels: Vec<LabeledWindow> = labels.iter()
                 .filter(|l| l.monitor_name == mon.name)
@@ -295,14 +308,29 @@ fn handle_key(
 }
 
 fn main() -> Result<()> {
+    // Log every invocation to /tmp so we can diagnose when launched via
+    // hyprctl exec (where stderr goes to /dev/null).
+    let log = |msg: &str| {
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true).append(true).open("/tmp/window-picker.log")
+        {
+            let _ = writeln!(f, "[{}] {}", std::process::id(), msg);
+        }
+    };
+    log("invoked");
     let monitors = query_monitors()?;
     let clients = query_clients()?;
     let labels = visible_windows(&monitors, &clients);
+    log(&format!("monitors={} clients={} labels={}", monitors.len(), clients.len(), labels.len()));
     if labels.len() <= 1 {
+        log("exiting: <=1 label");
         return Ok(());
     }
     let palette = load_palette();
+    log("starting overlay");
     run_overlay(labels, monitors, palette);
+    log("overlay returned");
     Ok(())
 }
 
