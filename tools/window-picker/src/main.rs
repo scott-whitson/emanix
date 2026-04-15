@@ -1,6 +1,10 @@
 use anyhow::Result;
+use gtk4::prelude::*;
+use gtk4::{glib, Application, ApplicationWindow, DrawingArea, EventControllerKey};
+use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use serde::Deserialize;
 use std::process::Command;
+use std::rc::Rc;
 
 // ---------- Layer 1: hyprctl types ----------
 
@@ -150,10 +154,155 @@ pub fn load_palette() -> Palette {
     }
 }
 
+// ---------- Layer 3: overlay ----------
+
+pub fn run_overlay(labels: Vec<LabeledWindow>, monitors: Vec<Monitor>, palette: Palette) {
+    let app = Application::builder()
+        .application_id("com.whitson.window-picker")
+        .build();
+
+    let labels = Rc::new(labels);
+    let monitors = Rc::new(monitors);
+
+    app.connect_activate(move |app| {
+        for mon in monitors.iter() {
+            let mon_labels: Vec<LabeledWindow> = labels.iter()
+                .filter(|l| l.monitor_name == mon.name)
+                .cloned()
+                .collect();
+            if mon_labels.is_empty() { continue; }
+            build_window(app, mon.clone(), mon_labels, palette);
+        }
+    });
+
+    app.run_with_args::<&str>(&[]);
+}
+
+fn build_window(
+    app: &Application,
+    monitor: Monitor,
+    mon_labels: Vec<LabeledWindow>,
+    palette: Palette,
+) {
+    let win = ApplicationWindow::builder().application(app).build();
+    win.init_layer_shell();
+    win.set_layer(Layer::Overlay);
+    win.set_keyboard_mode(KeyboardMode::Exclusive);
+    for e in [Edge::Left, Edge::Right, Edge::Top, Edge::Bottom] {
+        win.set_anchor(e, true);
+    }
+    // Pin the window to a specific GDK monitor by matching connector name.
+    if let Some(display) = gtk4::gdk::Display::default() {
+        let gdk_monitors = display.monitors();
+        for i in 0..gdk_monitors.n_items() {
+            if let Some(m) = gdk_monitors.item(i).and_downcast::<gtk4::gdk::Monitor>() {
+                if m.connector().map(|c| c.as_str() == monitor.name).unwrap_or(false) {
+                    win.set_monitor(Some(&m));
+                    break;
+                }
+            }
+        }
+    }
+
+    let area = DrawingArea::new();
+    area.set_hexpand(true);
+    area.set_vexpand(true);
+
+    let labels_for_draw = mon_labels.clone();
+    let palette_for_draw = palette;
+    area.set_draw_func(move |_area, cr, _width, _height| {
+        draw_overlay(cr, &labels_for_draw, palette_for_draw);
+    });
+    win.set_child(Some(&area));
+
+    let controller = EventControllerKey::new();
+    let labels_for_key = Rc::new(mon_labels);
+    let win_weak = win.downgrade();
+    controller.connect_key_pressed(move |_c, keyval, _code, _state| {
+        handle_key(&labels_for_key, keyval, win_weak.clone());
+        glib::Propagation::Stop
+    });
+    win.add_controller(controller);
+
+    win.present();
+}
+
+fn draw_overlay(cr: &gtk4::cairo::Context, labels: &[LabeledWindow], palette: Palette) {
+    cr.set_source_rgba(palette.backdrop.0, palette.backdrop.1, palette.backdrop.2, palette.backdrop.3);
+    cr.paint().ok();
+
+    for l in labels {
+        let cx = (l.rect_local.x + l.rect_local.w / 2) as f64;
+        let cy = (l.rect_local.y + l.rect_local.h / 2) as f64;
+
+        let pill_w: f64 = 96.0;
+        let pill_h: f64 = 96.0;
+        let radius: f64 = 20.0;
+        let px = cx - pill_w / 2.0;
+        let py = cy - pill_h / 2.0;
+
+        rounded_rect(cr, px, py, pill_w, pill_h, radius);
+        cr.set_source_rgba(palette.pill.0, palette.pill.1, palette.pill.2, palette.pill.3);
+        cr.fill().ok();
+
+        cr.set_source_rgba(palette.digit.0, palette.digit.1, palette.digit.2, palette.digit.3);
+        cr.select_font_face(
+            "Sans",
+            gtk4::cairo::FontSlant::Normal,
+            gtk4::cairo::FontWeight::Bold,
+        );
+        cr.set_font_size(64.0);
+        let text = l.digit.to_string();
+        let extents = cr.text_extents(&text).unwrap();
+        let tx = cx - extents.width() / 2.0 - extents.x_bearing();
+        let ty = cy - extents.height() / 2.0 - extents.y_bearing();
+        cr.move_to(tx, ty);
+        cr.show_text(&text).ok();
+    }
+}
+
+fn rounded_rect(cr: &gtk4::cairo::Context, x: f64, y: f64, w: f64, h: f64, r: f64) {
+    use std::f64::consts::PI;
+    cr.new_sub_path();
+    cr.arc(x + w - r, y + r, r, -PI / 2.0, 0.0);
+    cr.arc(x + w - r, y + h - r, r, 0.0, PI / 2.0);
+    cr.arc(x + r, y + h - r, r, PI / 2.0, PI);
+    cr.arc(x + r, y + r, r, PI, 3.0 * PI / 2.0);
+    cr.close_path();
+}
+
+fn handle_key(
+    labels: &Rc<Vec<LabeledWindow>>,
+    keyval: gtk4::gdk::Key,
+    win: glib::WeakRef<ApplicationWindow>,
+) {
+    use gtk4::gdk::Key;
+    let digit_keys: [(Key, char); 9] = [
+        (Key::_1, '1'), (Key::_2, '2'), (Key::_3, '3'),
+        (Key::_4, '4'), (Key::_5, '5'), (Key::_6, '6'),
+        (Key::_7, '7'), (Key::_8, '8'), (Key::_9, '9'),
+    ];
+    if let Some((_, d)) = digit_keys.iter().find(|(k, _)| *k == keyval) {
+        if let Some(target) = labels.iter().find(|l| l.digit == *d) {
+            let _ = dispatch_focus(&target.address);
+        }
+    }
+    if let Some(app) = win.upgrade().and_then(|w| w.application()) {
+        app.quit();
+    } else if let Some(w) = win.upgrade() {
+        w.close();
+    }
+}
+
 fn main() -> Result<()> {
     let monitors = query_monitors()?;
     let clients = query_clients()?;
-    eprintln!("monitors: {}, clients: {}", monitors.len(), clients.len());
+    let labels = visible_windows(&monitors, &clients);
+    if labels.len() <= 1 {
+        return Ok(());
+    }
+    let palette = load_palette();
+    run_overlay(labels, monitors, palette);
     Ok(())
 }
 
