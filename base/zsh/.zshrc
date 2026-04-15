@@ -66,7 +66,6 @@ alias ...="cd ../.."
 alias vact="source .venv/bin/activate"
 alias lsd="ls -lt --time-style=long-iso | awk '{print \$6, \$7, \$NF}'"
 alias dvact="deactivate"
-alias rescue-gnome="sudo systemctl start gdm"
 alias theme="theme-switch"
 calc() { if [ $# -eq 0 ]; then bc -l; else echo "$*" | bc -l; fi; }
 
