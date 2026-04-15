@@ -4,6 +4,7 @@ use gtk4::{glib, Application, ApplicationWindow, CssProvider, DrawingArea, Event
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use serde::Deserialize;
 use std::process::Command;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 // ---------- Layer 1: hyprctl types ----------
@@ -158,14 +159,20 @@ pub fn load_palette() -> Palette {
 
 // ---------- Layer 3: overlay ----------
 
-pub fn run_overlay(labels: Vec<LabeledWindow>, monitors: Vec<Monitor>, palette: Palette) {
+/// Runs the overlay event loop and returns the chosen window address (if any).
+/// Actual focus dispatch happens in the caller, AFTER the layer-shell surface
+/// has released its exclusive keyboard grab — otherwise Hyprland restores
+/// focus to the prior window instead of our target.
+pub fn run_overlay(labels: Vec<LabeledWindow>, monitors: Vec<Monitor>, palette: Palette) -> Option<String> {
     let app = Application::builder()
         .application_id("com.whitson.window-picker")
         .build();
 
     let labels = Rc::new(labels);
     let monitors = Rc::new(monitors);
+    let chosen: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
 
+    let chosen_for_activate = chosen.clone();
     app.connect_activate(move |app| {
         // Load CSS that makes the overlay window background fully transparent,
         // so our cairo-drawn dim backdrop (alpha 0.45) is the only shading.
@@ -184,11 +191,12 @@ pub fn run_overlay(labels: Vec<LabeledWindow>, monitors: Vec<Monitor>, palette: 
                 .cloned()
                 .collect();
             if mon_labels.is_empty() { continue; }
-            build_window(app, mon.clone(), mon_labels, palette);
+            build_window(app, mon.clone(), mon_labels, palette, chosen_for_activate.clone());
         }
     });
 
     app.run();
+    chosen.borrow().clone()
 }
 
 fn build_window(
@@ -196,6 +204,7 @@ fn build_window(
     monitor: Monitor,
     mon_labels: Vec<LabeledWindow>,
     palette: Palette,
+    chosen: Rc<RefCell<Option<String>>>,
 ) {
     let win = ApplicationWindow::builder().application(app).build();
     win.init_layer_shell();
@@ -231,8 +240,9 @@ fn build_window(
     let controller = EventControllerKey::new();
     let labels_for_key = Rc::new(mon_labels);
     let win_weak = win.downgrade();
+    let chosen_for_key = chosen.clone();
     controller.connect_key_pressed(move |_c, keyval, _code, _state| {
-        handle_key(&labels_for_key, keyval, win_weak.clone());
+        handle_key(&labels_for_key, keyval, win_weak.clone(), &chosen_for_key);
         glib::Propagation::Stop
     });
     win.add_controller(controller);
@@ -288,6 +298,7 @@ fn handle_key(
     labels: &Rc<Vec<LabeledWindow>>,
     keyval: gtk4::gdk::Key,
     win: glib::WeakRef<ApplicationWindow>,
+    chosen: &Rc<RefCell<Option<String>>>,
 ) {
     use gtk4::gdk::Key;
     let digit_keys: [(Key, char); 9] = [
@@ -297,7 +308,7 @@ fn handle_key(
     ];
     if let Some((_, d)) = digit_keys.iter().find(|(k, _)| *k == keyval) {
         if let Some(target) = labels.iter().find(|l| l.digit == *d) {
-            let _ = dispatch_focus(&target.address);
+            *chosen.borrow_mut() = Some(target.address.clone());
         }
     }
     if let Some(app) = win.upgrade().and_then(|w| w.application()) {
@@ -329,8 +340,12 @@ fn main() -> Result<()> {
     }
     let palette = load_palette();
     log("starting overlay");
-    run_overlay(labels, monitors, palette);
-    log("overlay returned");
+    let chosen = run_overlay(labels, monitors, palette);
+    log(&format!("overlay returned chosen={:?}", chosen));
+    if let Some(addr) = chosen {
+        dispatch_focus(&addr)?;
+        log("focus dispatched");
+    }
     Ok(())
 }
 
