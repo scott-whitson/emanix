@@ -196,7 +196,8 @@ pub fn run_overlay(labels: Vec<LabeledWindow>, monitors: Vec<Monitor>, palette: 
     });
 
     app.run();
-    chosen.borrow().clone()
+    let result = chosen.borrow().clone();
+    result
 }
 
 fn build_window(
