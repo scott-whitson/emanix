@@ -59,7 +59,19 @@ pub fn dispatch_focus(address: &str) -> Result<()> {
         .args(["dispatch", "focuswindow", &addr_arg])
         .output()?;
     if !out.status.success() {
-        anyhow::bail!("hyprctl dispatch failed: {}", String::from_utf8_lossy(&out.stderr));
+        anyhow::bail!("hyprctl dispatch focuswindow failed: {}", String::from_utf8_lossy(&out.stderr));
+    }
+    Ok(())
+}
+
+/// Move the cursor to absolute global coords. Used to defeat Hyprland's
+/// follow_mouse focus re-assertion after the overlay closes.
+pub fn move_cursor(x: i32, y: i32) -> Result<()> {
+    let out = Command::new("hyprctl")
+        .args(["dispatch", "movecursor", &x.to_string(), &y.to_string()])
+        .output()?;
+    if !out.status.success() {
+        anyhow::bail!("hyprctl dispatch movecursor failed: {}", String::from_utf8_lossy(&out.stderr));
     }
     Ok(())
 }
@@ -80,6 +92,10 @@ pub struct LabeledWindow {
     pub address: String,
     pub monitor_name: String,
     pub rect_local: Rect,
+    /// Global-coordinate center of the window (for moving the cursor when
+    /// dispatching focus, since Hyprland's follow_mouse=1 reasserts focus
+    /// to whatever window the cursor is over).
+    pub center_global: (i32, i32),
 }
 
 /// Return up to 9 labeled windows in spatial order across all visible workspaces.
@@ -116,6 +132,7 @@ pub fn visible_windows(monitors: &[Monitor], clients: &[Client]) -> Vec<LabeledW
                     w: c.size[0],
                     h: c.size[1],
                 },
+                center_global: (c.at[0] + c.size[0] / 2, c.at[1] + c.size[1] / 2),
             });
         }
     }
@@ -163,14 +180,14 @@ pub fn load_palette() -> Palette {
 /// Actual focus dispatch happens in the caller, AFTER the layer-shell surface
 /// has released its exclusive keyboard grab — otherwise Hyprland restores
 /// focus to the prior window instead of our target.
-pub fn run_overlay(labels: Vec<LabeledWindow>, monitors: Vec<Monitor>, palette: Palette) -> Option<String> {
+pub fn run_overlay(labels: Vec<LabeledWindow>, monitors: Vec<Monitor>, palette: Palette) -> Option<LabeledWindow> {
     let app = Application::builder()
         .application_id("com.whitson.window-picker")
         .build();
 
     let labels = Rc::new(labels);
     let monitors = Rc::new(monitors);
-    let chosen: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
+    let chosen: Rc<RefCell<Option<LabeledWindow>>> = Rc::new(RefCell::new(None));
 
     let chosen_for_activate = chosen.clone();
     app.connect_activate(move |app| {
@@ -205,7 +222,7 @@ fn build_window(
     monitor: Monitor,
     mon_labels: Vec<LabeledWindow>,
     palette: Palette,
-    chosen: Rc<RefCell<Option<String>>>,
+    chosen: Rc<RefCell<Option<LabeledWindow>>>,
 ) {
     let win = ApplicationWindow::builder().application(app).build();
     win.init_layer_shell();
@@ -299,7 +316,7 @@ fn handle_key(
     labels: &Rc<Vec<LabeledWindow>>,
     keyval: gtk4::gdk::Key,
     win: glib::WeakRef<ApplicationWindow>,
-    chosen: &Rc<RefCell<Option<String>>>,
+    chosen: &Rc<RefCell<Option<LabeledWindow>>>,
 ) {
     use gtk4::gdk::Key;
     let digit_keys: [(Key, char); 9] = [
@@ -309,7 +326,7 @@ fn handle_key(
     ];
     if let Some((_, d)) = digit_keys.iter().find(|(k, _)| *k == keyval) {
         if let Some(target) = labels.iter().find(|l| l.digit == *d) {
-            *chosen.borrow_mut() = Some(target.address.clone());
+            *chosen.borrow_mut() = Some(target.clone());
         }
     }
     if let Some(app) = win.upgrade().and_then(|w| w.application()) {
@@ -342,10 +359,16 @@ fn main() -> Result<()> {
     let palette = load_palette();
     log("starting overlay");
     let chosen = run_overlay(labels, monitors, palette);
-    log(&format!("overlay returned chosen={:?}", chosen));
-    if let Some(addr) = chosen {
-        dispatch_focus(&addr)?;
-        log("focus dispatched");
+    log(&format!("overlay returned chosen={:?}", chosen.as_ref().map(|l| &l.address)));
+    if let Some(target) = chosen {
+        // Hyprland's follow_mouse=1 reasserts focus to whatever window the
+        // pointer is over when the layer-shell keyboard grab releases. Move
+        // the cursor to the target first so follow_mouse picks the right
+        // window, then belt-and-suspenders with focuswindow.
+        let (cx, cy) = target.center_global;
+        let _ = move_cursor(cx, cy);
+        dispatch_focus(&target.address)?;
+        log("cursor moved + focus dispatched");
     }
     Ok(())
 }
