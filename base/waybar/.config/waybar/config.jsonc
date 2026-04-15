@@ -36,12 +36,12 @@
     },
 
     "cpu": {
-        "format": "  {usage}%",
+        "format": "󰻠  {usage}%",
         "interval": 5
     },
 
     "memory": {
-        "format": "  {percentage}%",
+        "format": "󰘚  {percentage}%",
         "interval": 5
     },
 
