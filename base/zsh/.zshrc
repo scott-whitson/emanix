@@ -138,6 +138,4 @@ export NVM_DIR="$HOME/.nvm"
 # --- Profile overrides ---
 for f in ~/.zshrc.d/*.zsh(N); do source "$f"; done
 
-# Local binaries
-export PATH="$HOME/bin:$PATH"
 [ -f ~/.secrets ] && source ~/.secrets
