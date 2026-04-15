@@ -120,7 +120,7 @@ qt() {
 }
 
 # --- Tools ---
-. "$HOME/.cargo/env"
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 eval "$(zoxide init zsh)"
 export FZF_DEFAULT_COMMAND='fd -H --exclude .git'
 # FZF — paths differ between Debian and Arch
@@ -131,9 +131,18 @@ for fzf_comp in /usr/share/doc/fzf/examples/completion.zsh /usr/share/fzf/comple
   [[ -f "$fzf_comp" ]] && source "$fzf_comp" && break
 done
 
+# --- NVM (lazy-loaded — eager load costs ~270ms) ---
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+nvm() {
+  unset -f nvm node npm npx yarn 2>/dev/null
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+  nvm "$@"
+}
+for _nvm_cmd in node npm npx yarn; do
+  eval "${_nvm_cmd}() { unset -f nvm node npm npx yarn 2>/dev/null; [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"; [ -s \"\$NVM_DIR/bash_completion\" ] && . \"\$NVM_DIR/bash_completion\"; ${_nvm_cmd} \"\$@\"; }"
+done
+unset _nvm_cmd
 
 # --- Profile overrides ---
 for f in ~/.zshrc.d/*.zsh(N); do source "$f"; done
