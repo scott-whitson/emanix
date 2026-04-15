@@ -1,0 +1,63 @@
+/* Tokyo Night Day — light variant. Keep in sync with base/hypr/.config/hypr/colors/light.conf. */
+
+* {
+    color: #3760bf;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+}
+
+window {
+    background: rgba(224, 224, 229, 0.9);
+}
+
+.monitor {
+    background: rgba(200, 204, 213, 0.7);
+    border-radius: 8px;
+    padding: 8px;
+    margin: 6px;
+}
+
+.monitor_active {
+    border: var(--border-size) solid #2e7de9;
+}
+
+.workspace {
+    background: rgba(210, 214, 223, 0.7);
+    border-radius: 6px;
+    padding: 6px;
+    margin: 4px;
+}
+
+.workspace_active {
+    border: var(--border-size) solid #2e7de9;
+}
+
+.workspace_special {
+    border: var(--border-size) solid #9854f1;
+}
+
+.client {
+    background: #e1e2e7;
+    border: var(--border-size) solid #a8aecb;
+    border-radius: 4px;
+    padding: 4px;
+    margin: 3px;
+}
+
+.client_active {
+    border: var(--border-size) solid #2e7de9;
+}
+
+.client-image {
+    background: transparent;
+}
+
+.index {
+    background: #2e7de9;
+    color: #e1e2e7;
+    font-size: 18px;
+    font-weight: 700;
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin: 4px;
+}
