@@ -175,7 +175,7 @@ pub fn run_overlay(labels: Vec<LabeledWindow>, monitors: Vec<Monitor>, palette: 
         }
     });
 
-    app.run_with_args::<&str>(&[]);
+    app.run();
 }
 
 fn build_window(
