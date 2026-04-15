@@ -362,13 +362,19 @@ fn main() -> Result<()> {
     log(&format!("overlay returned chosen={:?}", chosen.as_ref().map(|l| &l.address)));
     if let Some(target) = chosen {
         // Hyprland's follow_mouse=1 reasserts focus to whatever window the
-        // pointer is over when the layer-shell keyboard grab releases. Move
-        // the cursor to the target first so follow_mouse picks the right
-        // window, then belt-and-suspenders with focuswindow.
+        // pointer is over when the layer-shell keyboard grab releases.
+        // Dispatching from within our own process races with Hyprland's
+        // teardown of the layer surface, so spawn a detached shell that
+        // sleeps briefly (ensuring our binary has fully exited and the
+        // layer surface is gone), then moves the cursor + focuses the
+        // target. The shell outlives us.
         let (cx, cy) = target.center_global;
-        let _ = move_cursor(cx, cy);
-        dispatch_focus(&target.address)?;
-        log("cursor moved + focus dispatched");
+        let cmd = format!(
+            "sleep 0.1 && hyprctl dispatch movecursor {} {} && hyprctl dispatch focuswindow address:{}",
+            cx, cy, target.address
+        );
+        log(&format!("spawning detached dispatch: {}", cmd));
+        Command::new("sh").args(["-c", &cmd]).spawn()?;
     }
     Ok(())
 }
