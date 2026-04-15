@@ -6,7 +6,7 @@
 
     "modules-left": ["sway/workspaces", "sway/mode"],
     "modules-center": ["custom/clock"],
-    "modules-right": ["pulseaudio", "cpu", "memory", "network", "battery"],
+    "modules-right": ["pulseaudio", "cpu", "memory", "custom/gpu", "network", "battery"],
 
     "sway/workspaces": {
         "format": "{name}",
@@ -43,6 +43,12 @@
 
     "memory": {
         "format": "  {percentage}%",
+        "interval": 5
+    },
+
+    "custom/gpu": {
+        "exec": "~/.config/waybar/gpu.sh",
+        "format": "󰢮  {}%",
         "interval": 5
     },
 
