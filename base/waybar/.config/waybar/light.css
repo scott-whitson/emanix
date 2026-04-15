@@ -1,3 +1,5 @@
+/* Zenbones Light color scheme */
+
 * {
     font-family: "JetBrainsMono Nerd Font", monospace;
     font-size: 12px;
@@ -5,14 +7,14 @@
 }
 
 window#waybar {
-    background: rgba(26, 27, 38, 0.9);
-    color: #c0caf5;
-    border-bottom: 2px solid rgba(141, 188, 255, 0.3);
+    background: rgba(240, 237, 236, 0.95);
+    color: #2C363C;
+    border-bottom: 2px solid rgba(40, 100, 134, 0.3);
 }
 
 /* Reset all modules */
 #workspaces,
-#custom-clock,
+#clock,
 #cpu,
 #memory,
 #battery,
@@ -27,72 +29,72 @@ window#waybar {
 /* Workspaces */
 #workspaces button {
     padding: 0 8px;
-    color: #565f89;
+    color: #CFC1BA;
     background: transparent;
     border: none;
     border-radius: 6px;
 }
 
 #workspaces button.active {
-    color: #8dbcff;
-    background: rgba(141, 188, 255, 0.15);
+    color: #286486;
+    background: rgba(40, 100, 134, 0.12);
 }
 
 #workspaces button:hover {
-    color: #c0caf5;
-    background: rgba(192, 202, 245, 0.1);
+    color: #2C363C;
+    background: rgba(44, 54, 60, 0.08);
 }
 
 /* Clock */
-#custom-clock {
-    color: #c0caf5;
+#clock {
+    color: #2C363C;
     font-weight: bold;
 }
 
 /* Battery */
 #battery {
-    color: #9ece6a;
+    color: #4F6C31;
 }
 
 #battery.warning {
-    color: #e0af68;
+    color: #944927;
 }
 
 #battery.critical {
-    color: #f7768e;
+    color: #A8334C;
     animation: blink 1s infinite;
 }
 
 #battery.charging {
-    color: #9ece6a;
+    color: #4F6C31;
 }
 
 /* CPU */
 #cpu {
-    color: #e0af68;
+    color: #944927;
 }
 
 /* Memory */
 #memory {
-    color: #9ece6a;
+    color: #4F6C31;
 }
 
 /* Network */
 #network {
-    color: #7aa2f7;
+    color: #286486;
 }
 
 #network.disconnected {
-    color: #565f89;
+    color: #CFC1BA;
 }
 
 /* Audio */
 #pulseaudio {
-    color: #bb9af7;
+    color: #88507D;
 }
 
 #pulseaudio.muted {
-    color: #565f89;
+    color: #CFC1BA;
 }
 
 /* Tray */
@@ -102,5 +104,5 @@ window#waybar {
 
 /* Blink animation for critical battery */
 @keyframes blink {
-    to { color: #1a1b26; }
+    to { color: #F0EDEC; }
 }

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# theme-switch — toggle kitty between dark and light themes
+# theme-switch — toggle hyprland/ghostty/waybar between dark and light themes
 # Usage: theme-switch [dark|light]
 #   No argument toggles between dark and light.
 
 set -euo pipefail
 
-KITTY_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/kitty"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
 STATE_FILE="$STATE_DIR/theme-current"
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}"
 
 current_theme() {
     cat "$STATE_FILE" 2>/dev/null || echo "dark"
@@ -28,14 +28,23 @@ if [ "$target" != "dark" ] && [ "$target" != "light" ]; then
     exit 1
 fi
 
-# Swap the symlink (relative so it resolves within ~/.config/kitty/)
-ln -sf "$target.conf" "$KITTY_CONFIG_DIR/theme.conf"
+# --- Swap symlinks (relative so they resolve within each config dir) ---
+ln -sf "$target.conf" "$CONFIG/hypr/colors/theme.conf"
+ln -sf "$target.conf" "$CONFIG/ghostty/theme.conf"
+ln -sf "$target.css"  "$CONFIG/waybar/style.css"
 
-# Persist state
+# --- Trigger live reloads ---
+# Hyprland: reread config (picks up new $col_active/$col_inactive)
+command -v hyprctl &>/dev/null && hyprctl reload &>/dev/null || true
+
+# Waybar: SIGUSR2 triggers config + CSS reload
+pkill -SIGUSR2 waybar 2>/dev/null || true
+
+# Ghostty: SIGUSR2 reloads config (ghostty 1.2+)
+pkill -SIGUSR2 ghostty 2>/dev/null || true
+
+# --- Persist state ---
 mkdir -p "$STATE_DIR"
 echo "$target" > "$STATE_FILE"
-
-# Live reload all kitty instances
-killall -SIGUSR1 kitty 2>/dev/null || true
 
 echo "Switched to $target theme"

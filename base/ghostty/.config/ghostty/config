@@ -1,0 +1,26 @@
+# -----------------------------------------------
+# Ghostty Configuration
+# -----------------------------------------------
+
+# --- Theme (swapped by theme-switch script) ---
+config-file = theme.conf
+
+# --- Font ---
+font-family = JetBrainsMono Nerd Font
+font-size = 11
+
+# --- Cursor ---
+cursor-style = bar
+cursor-style-blink = false
+
+# --- Window ---
+window-padding-x = 6
+window-padding-y = 6
+window-decoration = false
+confirm-close-surface = false
+
+# --- Scrollback ---
+scrollback-limit = 10000
+
+# --- Bell ---
+bell-features = no-audio

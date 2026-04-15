@@ -42,7 +42,8 @@ case "$DISTRO" in
   arch)
     sudo pacman -Syu --noconfirm --needed \
       zsh stow git curl wget unzip fzf rsync openssh gnupg \
-      zoxide micro zellij rustup uv rclone base-devel
+      zoxide micro zellij rustup uv rclone base-devel \
+      noto-fonts noto-fonts-emoji
     ;;
   *)
     echo "Unsupported distro: $DISTRO"
@@ -71,8 +72,8 @@ if [[ "$IS_DESKTOP" == "true" ]]; then
       ;;
     arch)
       sudo pacman -S --noconfirm --needed \
-        sway swayidle swaylock xdg-desktop-portal-wlr \
-        waybar wofi mako kitty autotiling-rs \
+        hyprland hyprlock hypridle xdg-desktop-portal-hyprland \
+        waybar mako ghostty fuzzel hyprpaper \
         grim slurp wl-clipboard \
         pipewire wireplumber pipewire-pulse \
         polkit-gnome brightnessctl playerctl \
@@ -182,7 +183,7 @@ for pkg in base/*/; do
   # Skip windows — synced separately via sync-windows.sh
   [[ "$pkg_name" == "windows" ]] && continue
   # Skip desktop packages when there's no display server (WSL, server)
-  case "$pkg_name" in sway|waybar|wofi|mako|kitty) [[ "$IS_DESKTOP" != "true" ]] && continue ;; esac
+  case "$pkg_name" in hypr|waybar|mako|ghostty|fuzzel) [[ "$IS_DESKTOP" != "true" ]] && continue ;; esac
   stow -d base -t "$HOME" --no-folding --adopt "$pkg_name" 2>/dev/null || stow -d base -t "$HOME" --no-folding "$pkg_name"
 done
 # --adopt resolves conflicts by pulling existing files into the repo;
