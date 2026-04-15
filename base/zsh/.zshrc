@@ -23,6 +23,10 @@ RPROMPT=
 export PATH="$HOME/.local/bin:$PATH"
 [[ -d /snap/bin ]] && export PATH="/snap/bin:$PATH"
 
+# --- Go (XDG-ified GOPATH — keeps ~/go out of $HOME) ---
+export GOPATH="$HOME/.local/share/go"
+export PATH="$GOPATH/bin:$PATH"
+
 # --- History ---
 HISTSIZE=50000
 SAVEHIST=50000
