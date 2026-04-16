@@ -337,43 +337,26 @@ fn handle_key(
 }
 
 fn main() -> Result<()> {
-    // Log every invocation to /tmp so we can diagnose when launched via
-    // hyprctl exec (where stderr goes to /dev/null).
-    let log = |msg: &str| {
-        use std::io::Write;
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true).append(true).open("/tmp/window-picker.log")
-        {
-            let _ = writeln!(f, "[{}] {}", std::process::id(), msg);
-        }
-    };
-    log("invoked");
     let monitors = query_monitors()?;
     let clients = query_clients()?;
     let labels = visible_windows(&monitors, &clients);
-    log(&format!("monitors={} clients={} labels={}", monitors.len(), clients.len(), labels.len()));
     if labels.len() <= 1 {
-        log("exiting: <=1 label");
         return Ok(());
     }
     let palette = load_palette();
-    log("starting overlay");
     let chosen = run_overlay(labels, monitors, palette);
-    log(&format!("overlay returned chosen={:?}", chosen.as_ref().map(|l| &l.address)));
     if let Some(target) = chosen {
         // Hyprland's follow_mouse=1 reasserts focus to whatever window the
         // pointer is over when the layer-shell keyboard grab releases.
-        // Dispatching from within our own process races with Hyprland's
-        // teardown of the layer surface, so spawn a detached shell that
-        // sleeps briefly (ensuring our binary has fully exited and the
-        // layer surface is gone), then moves the cursor + focuses the
-        // target. The shell outlives us.
+        // Dispatching from within our own process races with that teardown,
+        // so hand the dispatch off to a detached shell that sleeps briefly
+        // (letting our binary exit and the layer surface disappear) then
+        // moves the cursor + focuses the target.
         let (cx, cy) = target.center_global;
         let cmd = format!(
             "sleep 0.1 && hyprctl dispatch movecursor {} {} && hyprctl dispatch focuswindow address:{}",
             cx, cy, target.address
         );
-        log(&format!("spawning detached dispatch: {}", cmd));
         Command::new("sh").args(["-c", &cmd]).spawn()?;
     }
     Ok(())
