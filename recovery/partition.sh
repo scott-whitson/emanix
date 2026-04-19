@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # --- Preflight ---
-for cmd in sgdisk cryptsetup mkfs.btrfs btrfs mount umount lsblk findmnt; do
+for cmd in sgdisk cryptsetup partprobe mkfs.fat mkfs.btrfs btrfs mount umount lsblk findmnt; do
     command -v "$cmd" &>/dev/null || { err "Missing command: $cmd"; exit 1; }
 done
 
@@ -108,5 +108,49 @@ if ! $ASSUME_YES; then
 fi
 
 # --- Destructive work happens below this line (Tasks 8, 9) ---
-err "STUB: destructive section not implemented yet (Task 8)"
+
+# --- Destroy the target partitions ---
+log "Deleting partitions: ${DESTROY[*]}"
+for p in "${DESTROY[@]}"; do
+    sgdisk -d "$p" "$TARGET" || warn "  sgdisk -d $p failed (may already be gone)"
+done
+
+# --- Create new p1 (EFI) and p2 (LUKS container) ---
+# p1: 1 GiB at the earliest free sector
+# p2: remainder of free space up to (but not into) any preserved partition
+log "Creating p1 (1 GiB EFI) and p2 (rest of free space)..."
+sgdisk -n 1:0:+1GiB -t 1:ef00 -c 1:"EFI" "$TARGET"
+sgdisk -n 2:0:0     -t 2:8309 -c 2:"cryptroot" "$TARGET"
+
+partprobe "$TARGET" || true
+sleep 2
+
+P1="$(part_dev 1)"
+P2="$(part_dev 2)"
+[[ -b "$P1" ]] || { err "$P1 did not appear after partprobe"; exit 1; }
+[[ -b "$P2" ]] || { err "$P2 did not appear after partprobe"; exit 1; }
+
+# --- Format EFI ---
+log "Formatting $P1 as FAT32..."
+mkfs.fat -F 32 -n EFI "$P1"
+
+# --- LUKS2 format + verify ---
+log "LUKS formatting $P2 (you will be prompted for a passphrase)..."
+cryptsetup luksFormat --type luks2 --pbkdf argon2id "$P2"
+
+log "Verifying passphrase by closing and reopening..."
+cryptsetup open "$P2" cryptroot
+cryptsetup close cryptroot
+cryptsetup open "$P2" cryptroot
+
+log "Backing up LUKS header to /tmp/luks-header.img..."
+cryptsetup luksHeaderBackup "$P2" --header-backup-file /tmp/luks-header.img
+ls -lh /tmp/luks-header.img
+
+warn "CRITICAL: copy /tmp/luks-header.img off this machine NOW."
+warn "If Tailscale/malt is reachable: scp /tmp/luks-header.img malt:~/dr-backups/"
+warn "Or to a USB stick. Do not skip this step."
+
+# --- Remaining work: Btrfs + subvolumes + mount (Task 9) ---
+err "STUB: Btrfs section not implemented yet (Task 9)"
 exit 99
