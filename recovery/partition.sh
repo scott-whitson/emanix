@@ -22,7 +22,7 @@ warn() { echo -e "${YELLOW}[part]${NC} $*"; }
 err()  { echo -e "${RED}[part]${NC} $*" >&2; }
 
 usage() {
-    sed -n '4,10p' "$0"
+    sed -n '4,12p' "$0"
     exit 0
 }
 
@@ -58,8 +58,13 @@ part_dev() {
 }
 
 # --- Verify preserved partitions actually exist ---
-log "Preserving partitions: $PRESERVE"
-IFS=',' read -ra PRESERVE_ARR <<< "$PRESERVE"
+if [[ -n "$PRESERVE" ]]; then
+    log "Preserving partitions: $PRESERVE"
+    IFS=',' read -ra PRESERVE_ARR <<< "$PRESERVE"
+else
+    log "Preserving partitions: (none)"
+    PRESERVE_ARR=()
+fi
 for p in "${PRESERVE_ARR[@]}"; do
     dev="$(part_dev "$p")"
     if [[ ! -b "$dev" ]]; then
@@ -70,7 +75,12 @@ for p in "${PRESERVE_ARR[@]}"; do
 done
 
 # --- Identify partitions that WILL be destroyed ---
-mapfile -t ALL_PARTS < <(lsblk -lno NAME "$TARGET" | grep -oP '(?<=p)\d+$|\d+$' | sort -un)
+# Exclude the parent device name (e.g. "nvme0n1") before extracting partition numbers;
+# otherwise its trailing digit would be misread as partition 1.
+mapfile -t ALL_PARTS < <(lsblk -lno NAME "$TARGET" \
+    | grep -v "^$(basename "$TARGET")$" \
+    | grep -oP '(?<=p)\d+$|\d+$' \
+    | sort -un || true)
 DESTROY=()
 for p in "${ALL_PARTS[@]}"; do
     keep=false
