@@ -125,8 +125,48 @@ restore_etc() {
 
 # --- Snapshot stack setup (Task 11) ---
 setup_snapshots() {
-    err "STUB: setup_snapshots not implemented yet (Task 11)"
-    exit 99
+    log "Installing snapper + snap-pac + grub-btrfs..."
+    sudo pacman -S --needed --noconfirm snapper snap-pac grub-btrfs
+
+    # Snapper requires /.snapshots to NOT exist before create-config; we handle the
+    # case where the subvolume is already mounted there by unmounting temporarily.
+    if mountpoint -q /.snapshots; then
+        log "Unmounting /.snapshots temporarily so snapper can create its config..."
+        sudo umount /.snapshots
+    fi
+    if [[ -d /.snapshots ]]; then
+        sudo rmdir /.snapshots 2>/dev/null || true
+    fi
+
+    log "Creating snapper config for /..."
+    sudo snapper -c root create-config /
+
+    # Snapper creates a new @/.snapshots subvolume — we want to use OUR @snapshots instead.
+    sudo btrfs subvolume delete /.snapshots
+    sudo mkdir /.snapshots
+    sudo mount -a  # re-mounts our @snapshots subvolume per fstab
+
+    # Retention policy: adjust limits (edit /etc/snapper/configs/root)
+    sudo sed -i \
+        -e 's/^TIMELINE_LIMIT_HOURLY=.*/TIMELINE_LIMIT_HOURLY="5"/' \
+        -e 's/^TIMELINE_LIMIT_DAILY=.*/TIMELINE_LIMIT_DAILY="7"/' \
+        -e 's/^TIMELINE_LIMIT_WEEKLY=.*/TIMELINE_LIMIT_WEEKLY="2"/' \
+        -e 's/^TIMELINE_LIMIT_MONTHLY=.*/TIMELINE_LIMIT_MONTHLY="0"/' \
+        -e 's/^TIMELINE_LIMIT_YEARLY=.*/TIMELINE_LIMIT_YEARLY="0"/' \
+        /etc/snapper/configs/root
+
+    log "Enabling snapper timers + grub-btrfsd..."
+    sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
+    sudo systemctl enable --now grub-btrfsd.service
+
+    log "Regenerating GRUB config so snapshot entries appear..."
+    sudo grub-mkconfig -o /boot/grub/grub.cfg
+
+    log "Creating baseline snapshot..."
+    sudo snapper -c root create --description "post-DR-restore baseline"
+
+    log "Snapshot setup complete. Current snapshots:"
+    sudo snapper list
 }
 
 case "$ACTION" in
