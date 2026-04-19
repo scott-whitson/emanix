@@ -121,10 +121,12 @@ collect_system_info() {
     if [[ -n "$CRYPT_BACKING" ]] && cryptsetup isLuks "$CRYPT_BACKING" 2>/dev/null; then
         log "  Root is on LUKS ($CRYPT_BACKING) — capturing header..."
         if sudo -n true 2>/dev/null; then
-            sudo cryptsetup luksHeaderBackup "$CRYPT_BACKING" \
-                --header-backup-file "${STAGING}/system/luks-header.img" 2>/dev/null \
-                && log "  LUKS header saved ($(du -sh "${STAGING}/system/luks-header.img" | cut -f1))" \
-                || warn "  LUKS header backup failed"
+            if sudo cryptsetup luksHeaderBackup "$CRYPT_BACKING" \
+                    --header-backup-file "${STAGING}/system/luks-header.img"; then
+                log "  LUKS header saved ($(du -sh "${STAGING}/system/luks-header.img" | cut -f1))"
+            else
+                warn "  LUKS header backup failed"
+            fi
         else
             warn "  sudo required for LUKS header backup — skipped"
         fi
