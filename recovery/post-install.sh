@@ -144,7 +144,7 @@ setup_snapshots() {
     # Snapper creates a new @/.snapshots subvolume — we want to use OUR @snapshots instead.
     sudo btrfs subvolume delete /.snapshots
     sudo mkdir /.snapshots
-    sudo mount -a  # re-mounts our @snapshots subvolume per fstab
+    sudo mount /.snapshots  # re-mounts @snapshots per fstab entry
 
     # Retention policy: adjust limits (edit /etc/snapper/configs/root)
     sudo sed -i \
