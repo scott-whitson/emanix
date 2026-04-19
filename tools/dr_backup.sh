@@ -110,6 +110,28 @@ collect_system_info() {
     # Crontab (if cron is installed — Arch default is systemd timers)
     command -v crontab &>/dev/null && crontab -l > "${STAGING}/system/crontab" 2>/dev/null || true
 
+    # LUKS header backup (only if root is on a LUKS-encrypted block device)
+    ROOT_SRC="$(findmnt -n -o SOURCE /)"
+    CRYPT_BACKING=""
+    if [[ "$ROOT_SRC" == /dev/mapper/* ]]; then
+        # Follow the mapper → find the underlying block device
+        CRYPT_BACKING="$(cryptsetup status "$(basename "$ROOT_SRC")" 2>/dev/null \
+            | awk '/device:/{print $2}')"
+    fi
+    if [[ -n "$CRYPT_BACKING" ]] && cryptsetup isLuks "$CRYPT_BACKING" 2>/dev/null; then
+        log "  Root is on LUKS ($CRYPT_BACKING) — capturing header..."
+        if sudo -n true 2>/dev/null; then
+            sudo cryptsetup luksHeaderBackup "$CRYPT_BACKING" \
+                --header-backup-file "${STAGING}/system/luks-header.img" 2>/dev/null \
+                && log "  LUKS header saved ($(du -sh "${STAGING}/system/luks-header.img" | cut -f1))" \
+                || warn "  LUKS header backup failed"
+        else
+            warn "  sudo required for LUKS header backup — skipped"
+        fi
+    else
+        log "  Root is not on LUKS — skipping header backup"
+    fi
+
     log "  System info collected"
 }
 
