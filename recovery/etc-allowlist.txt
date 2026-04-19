@@ -1,0 +1,33 @@
+# /etc restore allowlist
+# Used by post-install.sh --restore-system
+# Three sections: AUTO (copy without asking), REVIEW (prompt), NEVER (ignore)
+#
+# Paths are relative to /etc inside the extracted etc.tar
+
+[AUTO]
+pacman.conf
+pacman.d/mirrorlist
+pacman.d/hooks/
+pam.d/system-auth
+NetworkManager/system-connections/
+hosts
+ssh/sshd_config
+systemd/timesyncd.conf
+
+[REVIEW]
+systemd/network/
+locale.conf
+vconsole.conf
+hostname
+
+[NEVER]
+fstab
+crypttab
+machine-id
+shadow
+passwd
+mkinitcpio.conf
+default/grub
+systemd/system/
+ssh/ssh_host_
+resolv.conf
