@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # DR Backup — compressed backup to Google Drive
-# Usage: ~/tools/dr_backup.sh [--dry-run] [--no-upload] [--dest gdrive:path]
+# Usage: ~/dotfiles/tools/dr_backup.sh [--dry-run] [--no-upload] [--dest gdrive:path]
 
 BACKUP_DATE=$(date +%Y-%m-%d)
 HOSTNAME=$(uname -n)
@@ -37,14 +37,16 @@ Options:
   --help         Show this help
 
 What gets backed up:
-  HOME: projects, tools, dotfiles, wallpapers, Downloads, .factorio,
-        .config, .claude, .gemini, .oh-my-zsh, .cargo, .local, snap,
-        and all dotfiles in home root (.zshrc, .gitconfig, etc.)
+  HOME: dotfiles, projects, downloads, .config, .claude, .gemini,
+        .oh-my-zsh, .local, snap, and all dotfiles in home root
+        (.zshrc, .gitconfig, etc.)
   SYSTEM: /etc, package list, pacman config & mirrors, systemd user units
 
 What gets skipped:
-  gdrive, .steam, .cache, .rustup, .nvm, .npm, node_modules, .venv,
-  __pycache__, .git/objects (keeps .git/config and refs)
+  gdrive, .steam, .cache, .rustup, .nvm, .npm, .cargo, .factorio,
+  node_modules, .venv, __pycache__, target, .gradle, .next,
+  projects/rox/data, projects/work/clients, .git/objects (keeps
+  .git/config and refs)
 EOF
     exit 0
 }
@@ -136,7 +138,7 @@ HOME_EXCLUDES=(
     ".local/share/Trash"
     ".local/share/Steam"
     "projects/rox/data"      # Lives on minne server
-    "work-projects/clients"  # Client data lives on work SharePoint — never in personal backup
+    "projects/work/clients"  # Client data lives on work SharePoint — never in personal backup
 
     # Temp / lock files
     "*.swp"
@@ -272,7 +274,7 @@ main() {
     echo -e "${GREEN}║${NC} Dest:   ${DEST}/  ${GREEN}║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════╝${NC}"
     echo ""
-    warn "To restore, see: ~/tools/dr_restore.sh"
+    warn "To restore, see: ~/dotfiles/tools/dr_restore.sh"
 }
 
 main

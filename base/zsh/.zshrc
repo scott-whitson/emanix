@@ -78,10 +78,10 @@ calc() { if [ $# -eq 0 ]; then bc -l; else echo "$*" | bc -l; fi; }
 # Host alias "swhitson-11l-1" must resolve (NetBird / tailscale / ssh config).
 WORK_HOST="scott@swhitson-11l-1"
 WORK_REMOTE_DIR="~/projects"
-WORK_LOCAL_DIR="$HOME/work-projects"
+WORK_LOCAL_DIR="$HOME/projects/work"
 WORK_RSYNC_EXCLUDES=(--exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='.git')
 
-# Pull all projects from work laptop into ~/work-projects
+# Pull all projects from work laptop into ~/projects/work
 work-pull() {
   rsync -avz --progress "${WORK_RSYNC_EXCLUDES[@]}" \
     "${WORK_HOST}:${WORK_REMOTE_DIR}/" "${WORK_LOCAL_DIR}/"
@@ -92,7 +92,7 @@ work-pull() {
 #        work-push clients/rubber-v2
 work-push() {
   if [ -z "$1" ]; then
-    echo "Usage: work-push <project-path-relative-to-work-projects>"
+    echo "Usage: work-push <project-path-relative-to-projects/work>"
     return 1
   fi
   local project="$1"
