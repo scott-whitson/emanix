@@ -151,6 +151,31 @@ warn "CRITICAL: copy /tmp/luks-header.img off this machine NOW."
 warn "If Tailscale/malt is reachable: scp /tmp/luks-header.img malt:~/dr-backups/"
 warn "Or to a USB stick. Do not skip this step."
 
-# --- Remaining work: Btrfs + subvolumes + mount (Task 9) ---
-err "STUB: Btrfs section not implemented yet (Task 9)"
-exit 99
+# --- Btrfs on cryptroot ---
+log "Formatting /dev/mapper/cryptroot as Btrfs..."
+mkfs.btrfs -L root /dev/mapper/cryptroot
+
+# --- Create subvolumes ---
+log "Creating subvolumes..."
+mount /dev/mapper/cryptroot /mnt
+for sub in @ @home @var_log @pkg @snapshots; do
+    btrfs subvolume create "/mnt/$sub"
+done
+umount /mnt
+
+# --- Mount hierarchy for pacstrap ---
+log "Mounting subvolume hierarchy under /mnt..."
+MOUNT_OPTS="compress=zstd,ssd,discard=async,space_cache=v2"
+
+mount -o "$MOUNT_OPTS,subvol=@" /dev/mapper/cryptroot /mnt
+mkdir -p /mnt/{home,var/log,var/cache/pacman/pkg,.snapshots,boot}
+mount -o "$MOUNT_OPTS,subvol=@home"      /dev/mapper/cryptroot /mnt/home
+mount -o "$MOUNT_OPTS,subvol=@var_log"   /dev/mapper/cryptroot /mnt/var/log
+mount -o "$MOUNT_OPTS,subvol=@pkg"       /dev/mapper/cryptroot /mnt/var/cache/pacman/pkg
+mount -o "$MOUNT_OPTS,subvol=@snapshots" /dev/mapper/cryptroot /mnt/.snapshots
+mount "$P1" /mnt/boot
+
+log "Partitioning complete. Layout:"
+findmnt /mnt --tree --real
+echo
+log "Next step: run 'archinstall --config <path>/archinstall.json' — see runbook Phase 3."
