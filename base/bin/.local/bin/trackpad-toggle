@@ -24,7 +24,14 @@ case "$target" in
     *) echo "Usage: trackpad-toggle [on|off]" >&2; exit 1 ;;
 esac
 
-hyprctl keyword "device[$DEVICE]:enabled" "$enabled" >/dev/null
+# Issue the hyprctl change; only persist state if it actually succeeded.
+# Otherwise a failure (Hyprland down, wrong device name) would leave the
+# state file saying "off" while the device is still enabled, causing the
+# next toggle to flip the wrong direction.
+if ! hyprctl keyword "device[$DEVICE]:enabled" "$enabled" >/dev/null; then
+    echo "trackpad-toggle: hyprctl failed for device '$DEVICE'" >&2
+    exit 1
+fi
 
 mkdir -p "$STATE_DIR"
 echo "$target" > "$STATE_FILE"

@@ -22,13 +22,26 @@ if [ "$target" != "dark" ] && [ "$target" != "light" ]; then
     exit 1
 fi
 
-# --- Swap symlinks (relative so they resolve within each config dir) ---
-ln -sf "$target.conf"             "$CONFIG/hypr/colors/theme.conf"
-ln -sf "hyprlock-$target.conf"    "$CONFIG/hypr/hyprlock.conf"
-ln -sf "$target.conf"             "$CONFIG/ghostty/theme.conf"
-ln -sf "$target.css"              "$CONFIG/waybar/style.css"
-ln -sf "$target"                  "$CONFIG/mako/config"
-ln -sf "$target.ini"              "$CONFIG/fuzzel/fuzzel.ini"
+# --- Swap symlinks (relative so they resolve within each config dir).
+#     Guarded by [-e $dir/$target] so we don't create dangling links on a
+#     partially-stowed system (e.g. first run before stow completes). ---
+swap_symlink() {
+    # $1 = target (relative filename), $2 = link path
+    local tgt="$1" lnk="$2"
+    local dir; dir="$(dirname "$lnk")"
+    if [ -e "$dir/$tgt" ]; then
+        ln -sf "$tgt" "$lnk"
+    else
+        echo "theme-switch: skipping $lnk — $dir/$tgt not found (run \`stow\` first?)" >&2
+    fi
+}
+
+swap_symlink "$target.conf"          "$CONFIG/hypr/colors/theme.conf"
+swap_symlink "hyprlock-$target.conf" "$CONFIG/hypr/hyprlock.conf"
+swap_symlink "$target.conf"          "$CONFIG/ghostty/theme.conf"
+swap_symlink "$target.css"           "$CONFIG/waybar/style.css"
+swap_symlink "$target"               "$CONFIG/mako/config"
+swap_symlink "$target.ini"           "$CONFIG/fuzzel/fuzzel.ini"
 
 # --- Helix: swap `theme = "..."` line in config.toml ---
 helix_cfg="$CONFIG/helix/config.toml"
@@ -48,7 +61,10 @@ fi
 obsidian_appearance="$HOME/gdrive/SEW/Obsidian/Whitsgrove/.obsidian/appearance.json"
 if [ -f "$obsidian_appearance" ]; then
     [ "$target" = "dark" ] && obsidian_theme="obsidian" || obsidian_theme="moonstone"
-    python3 - "$obsidian_appearance" "$obsidian_theme" <<'PY' 2>/dev/null || true
+    # Don't swallow stderr — if the JSON patch fails (locked file, fuse
+    # mount quirk on gdrive, etc.) we want to see it. `|| true` still lets
+    # the rest of the theme switch continue.
+    python3 - "$obsidian_appearance" "$obsidian_theme" <<'PY' || true
 import json, sys, os, tempfile
 path, theme = sys.argv[1], sys.argv[2]
 with open(path) as f: data = json.load(f)
