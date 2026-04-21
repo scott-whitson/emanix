@@ -42,7 +42,7 @@ case "$DISTRO" in
   arch)
     sudo pacman -Syu --noconfirm --needed \
       zsh stow git curl wget unzip fzf rsync openssh gnupg \
-      zoxide micro zellij rustup uv rclone base-devel \
+      zoxide micro rustup uv rclone base-devel \
       noto-fonts noto-fonts-emoji
     ;;
   *)
@@ -145,13 +145,6 @@ MICRO_PLUGINS="$HOME/.config/micro/plug"
 if [ ! -d "$MICRO_PLUGINS/wikilink" ]; then
   mkdir -p "$MICRO_PLUGINS"
   git clone https://github.com/scott-whitson/micro-wikilink.git "$MICRO_PLUGINS/wikilink"
-fi
-
-# --- zellij (Debian only — Arch gets it via pacman) ---
-if [[ "$DISTRO" != "arch" ]] && ! command -v zellij &>/dev/null; then
-  echo "Installing zellij..."
-  curl -L https://github.com/zellij-org/zellij/releases/latest/download/zellij-x86_64-unknown-linux-musl.tar.gz | tar xz -C /tmp
-  sudo mv /tmp/zellij /usr/local/bin/
 fi
 
 # --- Helix editor ---
