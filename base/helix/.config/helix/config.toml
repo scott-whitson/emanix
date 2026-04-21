@@ -1,4 +1,4 @@
-theme = "tokyonight"
+theme = "github_light_high_contrast"
 
 [editor]
 line-number = "relative"

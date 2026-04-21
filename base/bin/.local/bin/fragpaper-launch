@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# fragpaper-launch — launches fragpaper with the current theme's bg + palette.
+# Reads $XDG_STATE_HOME/theme-current (set by theme-switch). Defaults to dark.
+
+set -u
+
+STATE_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/theme-current"
+theme="$(cat "$STATE_FILE" 2>/dev/null || echo dark)"
+
+if [ "$theme" = "light" ]; then
+    bg="#F7F3EC"
+    palette="light"
+else
+    bg="#1a1b26"
+    palette="dark"
+fi
+
+FRAGPAPER="$HOME/projects/fragpaper/target/release/fragpaper"
+SHADERS_DIR="$HOME/projects/wallpaper-gen/shaders"
+
+exec env RUST_LOG=info "$FRAGPAPER" \
+    --bg-color "$bg" \
+    --palette "$palette" \
+    "$SHADERS_DIR/attractors.vert" \
+    "$SHADERS_DIR/attractors.frag"

@@ -19,6 +19,11 @@ window-padding-y = 6
 window-decoration = false
 confirm-close-surface = false
 
+# New windows/tabs always start in $HOME; splits still inherit cwd.
+working-directory = home
+window-inherit-working-directory = false
+tab-inherit-working-directory = false
+
 # --- Scrollback ---
 scrollback-limit = 10000
 
