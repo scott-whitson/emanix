@@ -1,0 +1,12 @@
+[Unit]
+Description=Bidirectional Google Drive sync (rclone bisync)
+Documentation=man:rclone-bisync(1)
+After=network-online.target
+Wants=network-online.target
+ConditionPathIsMountPoint=%h/gdrive
+
+[Service]
+Type=oneshot
+ExecStart=%h/dotfiles/tools/gdrive_sync.sh
+Nice=10
+IOSchedulingClass=idle

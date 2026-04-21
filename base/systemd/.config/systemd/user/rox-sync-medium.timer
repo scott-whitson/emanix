@@ -1,0 +1,11 @@
+[Unit]
+Description=ROX data sync medium-loop timer (every 5 min)
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=5min
+Persistent=true
+Unit=rox-sync-medium.service
+
+[Install]
+WantedBy=timers.target

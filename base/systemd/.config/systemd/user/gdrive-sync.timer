@@ -1,0 +1,12 @@
+[Unit]
+Description=Trigger gdrive-sync every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Persistent=true
+Unit=gdrive-sync.service
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target

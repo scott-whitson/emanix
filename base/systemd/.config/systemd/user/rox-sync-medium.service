@@ -1,0 +1,14 @@
+[Unit]
+Description=ROX data sync (medium loop) — sessions/reports/executions
+Documentation=file:///home/scott/projects/rox/docs/superpowers/specs/2026-04-11-rox-data-sync-design.md
+
+[Service]
+Type=oneshot
+ExecStart=/home/scott/projects/rox/scripts/rox-sync-medium.sh
+StandardOutput=journal
+StandardError=journal
+Environment=ROX_MINNE_HOST=malt@minne
+Environment=ROX_DATA_DIR=/home/scott/projects/rox/data
+
+[Install]
+WantedBy=default.target
