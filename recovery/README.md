@@ -53,15 +53,32 @@ The script creates p1 (EFI) + p2 (LUKS → Btrfs subvolumes) and mounts under `/
     # Fallback: copy to a USB stick
     sudo dd if=/tmp/luks-header.img of=/dev/sdX
 
-## Phase 3 — Base install via archinstall (~15 min)
+## Phase 3 — Base install (~15 min)
+
+**Verified path — `manual-install.sh`:**
+
+    curl -u <user>:<PAT> -fsSL \
+      https://raw.githubusercontent.com/scott-whitson/dotfiles/main/recovery/manual-install.sh \
+      -o /tmp/manual-install.sh
+    chmod +x /tmp/manual-install.sh
+    /tmp/manual-install.sh
+
+It runs `pacstrap`, generates `fstab`, chroots in to set timezone/locale/hostname, installs GRUB with cryptodisk, enables NetworkManager + sshd, and creates user `scott` (default password `test123` — **change with `passwd` after first login**).
+
+Override via env vars if needed:
+
+    TARGET_HOSTNAME=myhost TARGET_TIMEZONE=America/Denver /tmp/manual-install.sh
+
+Reboot into the fresh system; LUKS prompts for the passphrase; log in as `scott`.
+
+**Alternative — `archinstall`:**
 
     curl -u <user>:<PAT> -fsSL \
       https://raw.githubusercontent.com/scott-whitson/dotfiles/main/recovery/archinstall.json \
       -o /tmp/archinstall.json
-
     archinstall --config /tmp/archinstall.json
 
-When prompted, set a strong `scott` user password and root password. Reboot into the fresh system; LUKS asks for the passphrase; log in as `scott`.
+Tested against archinstall 4.1 (2026-04-20) — the pre-mounted disk configuration failed with "Root partition not found". `archinstall.json` is retained for future re-testing as archinstall evolves, but `manual-install.sh` is the path that works today.
 
 ## Phase 4 — Restore user data (~20 min)
 

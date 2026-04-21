@@ -30,11 +30,18 @@ echo "TEST" > "${HOME_ROOT}/scott/.config/dr-marker.txt"
 ( cd "$HOME_ROOT" && tar --zstd -cf "${OUT}/dr-testbackup-2026-04-18-home.tar.zst" scott )
 
 # --- Fake system layer: package list + etc.tar with a couple of files ---
+# Test marker goes in /etc/hosts (in the AUTO list) rather than pam.d/system-auth
+# — restoring a broken system-auth would break sudo in the target system.
 SYS="${SCRATCH}/system-src"
-mkdir -p "${SYS}/system" "${SYS}/etc-src/etc/pam.d"
+mkdir -p "${SYS}/system" "${SYS}/etc-src/etc"
 echo "base linux zsh rclone openssh git neovim btrfs-progs snapper snap-pac grub-btrfs" \
     | tr ' ' '\n' > "${SYS}/system/packages.list"
-echo "#shim pam.d/system-auth for test" > "${SYS}/etc-src/etc/pam.d/system-auth"
+cat > "${SYS}/etc-src/etc/hosts" <<'EOF'
+# DR-RESTORE-TEST-MARKER
+127.0.0.1	localhost
+::1		localhost
+127.0.1.1	arch.localdomain arch
+EOF
 ( cd "${SYS}/etc-src" && tar cf "${SYS}/etc.tar" etc )
 ( cd "$SYS" && tar --zstd -cf "${OUT}/dr-testbackup-2026-04-18-system.tar.zst" system etc.tar )
 

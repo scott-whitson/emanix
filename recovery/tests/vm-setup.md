@@ -55,13 +55,13 @@ Revert to any snapshot in one click; reruns only redo what changed.
 ## What to verify in a green run
 
 - [ ] `partition.sh` completes without error on a blank 40 GiB disk (empty preserve list: `--preserve ""`)
-- [ ] `archinstall --config archinstall.json` succeeds
+- [ ] `manual-install.sh` succeeds (`archinstall` alternative exists but is currently broken — see README Phase 3)
 - [ ] Reboot → GRUB prompts for LUKS passphrase → boots
 - [ ] `dr-marker.txt` appears under `~/.config/` after home extraction (proves restore worked)
-- [ ] `post-install.sh --restore-system` copies the test `pam.d/system-auth`
+- [ ] `post-install.sh --restore-system` copies `/etc/hosts` with `DR-RESTORE-TEST-MARKER` comment (grep to verify)
 - [ ] `post-install.sh --setup-snapshots` completes without error
 - [ ] `snapper list` shows the baseline snapshot
-- [ ] **Kill `/` on purpose** (`sudo rm /usr/bin/ls`), reboot, pick the baseline snapshot from GRUB, system recovers
+- [ ] **Kill `/` on purpose** (e.g., `sudo mv /usr/bin/ls /usr/bin/ls.broken`), reboot, pick the baseline snapshot from GRUB, system recovers
 - [ ] `sudo tailscale up` enrolls successfully (use a reusable auth key)
 
 ## Graduation criteria
