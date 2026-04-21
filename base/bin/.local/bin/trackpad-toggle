@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# trackpad-toggle — enable/disable the laptop trackpad via hyprctl
+# Usage: trackpad-toggle [on|off]
+#   No argument toggles based on last recorded state.
+
+set -euo pipefail
+
+DEVICE="elan071a:00-04f3:30fd-touchpad"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
+STATE_FILE="$STATE_DIR/trackpad-enabled"
+
+current() {
+    cat "$STATE_FILE" 2>/dev/null || echo "on"
+}
+
+target="${1:-}"
+if [ -z "$target" ]; then
+    if [ "$(current)" = "on" ]; then target="off"; else target="on"; fi
+fi
+
+case "$target" in
+    on)  enabled="true"  ;;
+    off) enabled="false" ;;
+    *) echo "Usage: trackpad-toggle [on|off]" >&2; exit 1 ;;
+esac
+
+hyprctl keyword "device[$DEVICE]:enabled" "$enabled" >/dev/null
+
+mkdir -p "$STATE_DIR"
+echo "$target" > "$STATE_FILE"
+
+command -v notify-send &>/dev/null && notify-send "Trackpad" "$target" || true
+echo "Trackpad $target"
