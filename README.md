@@ -1,104 +1,62 @@
 # dotfiles
 
-> **Status (2026-04-23):** mid-reorg. This README is a stopgap — a proper manual at `docs/manual/` is planned in Wave 4 of the reorg. See `docs/superpowers/specs/2026-04-23-dotfiles-opinionated-reorg-design.md`.
+Scott Whitson's personal Linux setup. Arch + Hyprland. Opinionated, documented, reversible.
 
-Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/) and a multi-profile system. One shared base config, with profile-specific overrides for different machines.
+This is a private repo built for one user, but written as if a stranger could fork it. See [`docs/manual/08-roll-your-own.md`](docs/manual/08-roll-your-own.md) if you're that stranger.
 
-## Quick Start
+## Quickstart
 
 ```bash
-git clone git@github.com:scottwhitson/dotfiles.git ~/dotfiles
+git clone git@github.com:scott-whitson/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 ./install.sh workstation
 ```
 
-The install script detects your distro, installs system packages and developer tools, stows the base config, then layers the chosen profile on top.
+On first install, that's the full path from fresh Arch to a running Hyprland workstation with Catppuccin Mocha applied. Subsequent runs are idempotent no-ops.
+
+## Philosophy
+
+Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) for the expanded version:
+
+1. Local-first, data-owned
+2. Arch + Hyprland, no apologies
+3. Terminal-centric, keyboard-driven
+4. AI-augmented by default (Claude Code is a first-class tool)
+5. Reversible and recoverable
+6. Modular like Framework
+
+## Manual
+
+| Chapter | Topic |
+|---|---|
+| [01 — Install](docs/manual/01-install.md) | Fresh Arch → running workstation |
+| [02 — Keybindings](docs/manual/02-keybindings.md) | Every binding, by surface |
+| [03 — Theming](docs/manual/03-theming.md) | Theme system + `dot-theme-set` + `dot-theme-toggle` |
+| [04 — Tools](docs/manual/04-tools.md) | `tools/` uv project + `bin/dot-*` helpers |
+| [05 — Claude Code](docs/manual/05-claude-code.md) | Plugins, skills, agent-skills |
+| [06 — Recovery](docs/manual/06-recovery.md) | Dead laptop → functional in <1 hour |
+| [07 — Philosophy](docs/manual/07-philosophy.md) | The 6 tenets, expanded |
+| [08 — Roll Your Own](docs/manual/08-roll-your-own.md) | Fork guide |
 
 ## Structure
 
 ```
 ~/dotfiles/
-├── install.sh              # bootstrap script: ./install.sh <profile>
-├── base/                   # shared config, applied to every machine
-│   ├── zsh/.zshrc          # Oh My Zsh, aliases, tools; sources ~/.zshrc.d/*.zsh
-│   ├── git/.gitconfig      # core git settings; includes ~/.gitconfig.local
-│   ├── hypr/               # Hyprland compositor (desktop only)
-│   ├── waybar/             # status bar config + theme (desktop only)
-│   ├── fuzzel/             # app launcher config (desktop only)
-│   ├── mako/               # notification daemon (desktop only)
-│   ├── ghostty/            # terminal emulator (desktop only)
-│   ├── btop/               # system monitor
-│   ├── helix/              # text editor
-│   ├── lf/                 # terminal file manager
-│   ├── mpv/                # media player
-│   ├── yt-dlp/             # video downloader
-│   ├── claude/             # Claude Code settings (full plugin set)
-│   ├── paru/               # AUR helper config
-│   ├── xdg/                # XDG base dir overrides
-│   ├── systemd/            # user systemd units
-│   ├── bin/                # personal scripts (~/.local/bin)
-│   └── zsh/                # shell config
-└── profiles/
-    ├── workstation/        # this Arch laptop (personal)
-    └── server/             # headless / remote server
+├── install.sh               # ~50-line orchestrator
+├── install/                 # modular NN-<name>.sh scripts
+├── bin/                     # dot-* helpers (on $PATH via zshrc.d)
+├── base/                    # stow packages for every profile
+├── profiles/                # workstation + server
+├── themes/                  # catppuccin-mocha + catppuccin-latte
+├── tools/                   # uv project + Rust window-picker
+├── recovery/                # disaster-recovery runbook
+├── docs/                    # this manual + specs + plans
+└── .claude/                 # Claude Code skills/plugins specific to this repo
 ```
 
-**Base** is stowed first with `--no-folding`, so directories like `~/.zshrc.d/` and `~/.claude/` are real directories (not symlinks). Profile packages then add or replace files inside those same directories.
+## Status
 
-Desktop packages (`hypr`, `waybar`, `fuzzel`, `mako`, `ghostty`) are skipped on server profiles (no display server).
-
-## Profiles
-
-| Profile | Machine | What it adds |
-|---------|---------|-------------|
-| `workstation` | This Arch laptop | Personal git identity, Obsidian vault path, Google Drive bisync, custom zsh fragments |
-| `server` | Headless Arch server | Server git identity, trimmed Claude Code plugin set |
-
-Each profile can include:
-- `profile.conf` -- variables sourced by `install.sh` (e.g. `OBSIDIAN_VAULT` for micro wikilink)
-- `git/.gitconfig.local` -- profile-specific `[user]` identity
-- `zsh/.zshrc.d/<profile>.zsh` -- shell config sourced after base `.zshrc`
-- `claude/.claude/settings.json` -- override base Claude settings
-
-## Hyprland Desktop
-
-The desktop environment is configured across five base packages:
-
-| Component | Config | Purpose |
-|-----------|--------|---------|
-| **Hyprland** | `base/hypr/` | Wayland compositor — tiling, keybindings, hyprpaper, hyprlock |
-| **Waybar** | `base/waybar/` | Status bar |
-| **Fuzzel** | `base/fuzzel/` | App launcher |
-| **Mako** | `base/mako/` | Notifications |
-| **Ghostty** | `base/ghostty/` | Terminal emulator |
-
-See `~/.config/hypr/hyprland.conf` for the current keybindings. A full keybinding reference will land in `docs/manual/02-keybindings.md` in Wave 4 of the reorg.
-
-## Adding a New Profile
-
-1. Create `profiles/<name>/`
-2. Add a `profile.conf` (set `OBSIDIAN_VAULT` if using micro wikilinks, or leave empty)
-3. Add any stow packages you need (e.g. `git/.gitconfig.local`, `zsh/.zshrc.d/<name>.zsh`)
-4. Run `./install.sh workstation` (or `./install.sh server` for a headless machine)
-
-The directory layout inside a profile mirrors `$HOME`, same as base packages.
-
-## Common Operations
-
-```bash
-# Re-stow base after editing
-cd ~/dotfiles && stow -d base -t ~ --no-folding -R zsh
-
-# Re-stow a profile package
-cd ~/dotfiles && stow -d profiles/workstation -t ~ --no-folding -R zsh
-
-# Unstow a package
-cd ~/dotfiles && stow -d base -t ~ --no-folding -D zsh
-```
-
-## Manual Steps
-
-- **SSH keys**: `ssh-keygen -t ed25519` -- never committed to git
-- **Oh My Zsh**: installed automatically by `install.sh`
-- **Default shell**: `install.sh` runs `chsh -s $(which zsh)`; log out and back in to take effect
-- **Google Drive**: `~/gdrive` is a dedicated ext4 partition (`/dev/nvme0n1p8`) mounted via fstab, synced bidirectionally with Google Drive every 15 minutes using `rclone bisync`. Run `rclone config` to set up the `gdrive` remote, then `rclone bisync ~/gdrive gdrive: --resync` for the initial sync. The sync script is at `~/dotfiles/tools/gdrive_sync.sh` and runs via cron. Native Google Docs are skipped (`--drive-skip-gdocs`).
+- **Last reorg:** Wave 4 docs overhaul, 2026-04-24
+- **Active theme:** catppuccin-mocha (toggle with `$mod+Shift+T`)
+- **Health check:** `dot-doctor` (17 checks)
+- **License:** none — private repo
