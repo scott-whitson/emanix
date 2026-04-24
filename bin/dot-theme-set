@@ -1,26 +1,130 @@
 #!/usr/bin/env bash
-# bin/dot-theme-set — switch active theme (Wave 2 STUB; Wave 3 rewrites)
+# bin/dot-theme-set — apply a theme from $DOTFILES/themes/<name>/
 #
-# Wave 2 behavior: delegates to the existing theme-switch script if on PATH.
-# Wave 3 replaces this with a real implementation that reads themes/<name>/
-# and symlinks each per-app snippet into place.
+# Usage: dot-theme-set <theme-name>
+#
+# Validates the theme, writes state markers, symlinks per-app files into
+# ~/.config/<app>/, sed-rewrites Helix, JSON-patches Obsidian, runs
+# gsettings, relaunches fragpaper, reloads running apps.
 set -euo pipefail
 
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
+STATE_DIR="$HOME/.config/dotfiles"
 THEME_NAME="${1:-}"
 
 if [[ -z "$THEME_NAME" ]]; then
     echo "Usage: dot-theme-set <theme-name>"
     echo ""
-    echo "Wave 2 stub: delegates to 'theme-switch' if present."
-    echo "Wave 3 will implement directory-per-theme layout under ~/dotfiles/themes/."
+    echo "Available themes:"
+    for d in "$DOTFILES"/themes/*/; do
+        n=$(basename "$d")
+        v=$(cat "$d/variant" 2>/dev/null || echo "?")
+        printf "  %-20s (%s)\n" "$n" "$v"
+    done
     exit 1
 fi
 
-if command -v theme-switch &>/dev/null; then
-    echo "[dot-theme-set] (Wave 2 stub) delegating to theme-switch $THEME_NAME"
-    exec theme-switch "$THEME_NAME"
+THEME_DIR="$DOTFILES/themes/$THEME_NAME"
+if [[ ! -d "$THEME_DIR" ]]; then
+    echo "dot-theme-set: unknown theme '$THEME_NAME'" >&2
+    echo "  Available: $(ls "$DOTFILES"/themes/ | tr '\n' ' ')" >&2
+    exit 1
 fi
 
-echo "dot-theme-set: no theme-switch on PATH and Wave 3 not yet implemented." >&2
-echo "Install Wave 3 to get the real dot-theme-set." >&2
-exit 1
+# --- Read variant ---
+VARIANT_FILE="$THEME_DIR/variant"
+if [[ ! -f "$VARIANT_FILE" ]]; then
+    echo "dot-theme-set: $THEME_NAME is missing a 'variant' file" >&2
+    exit 1
+fi
+VARIANT=$(tr -d '[:space:]' < "$VARIANT_FILE")
+if [[ "$VARIANT" != "dark" ]] && [[ "$VARIANT" != "light" ]]; then
+    echo "dot-theme-set: variant must be 'dark' or 'light', got '$VARIANT'" >&2
+    exit 1
+fi
+
+# --- Write state markers ---
+mkdir -p "$STATE_DIR"
+echo "$THEME_NAME" > "$STATE_DIR/active-theme"
+echo "$THEME_NAME" > "$STATE_DIR/last-$VARIANT"
+
+# --- Symlink per-app files (idempotent: ln -sfn) ---
+link_if_present() {
+    local src="$1" dst="$2"
+    if [[ -f "$src" ]]; then
+        mkdir -p "$(dirname "$dst")"
+        ln -sfn "$src" "$dst"
+    fi
+}
+
+link_if_present "$THEME_DIR/hypr.conf"      "$HOME/.config/hypr/theme.conf"
+link_if_present "$THEME_DIR/hyprlock.conf"  "$HOME/.config/hypr/hyprlock.conf"
+link_if_present "$THEME_DIR/waybar.css"     "$HOME/.config/waybar/style.css"
+link_if_present "$THEME_DIR/ghostty.conf"   "$HOME/.config/ghostty/theme.conf"
+link_if_present "$THEME_DIR/fuzzel.ini"     "$HOME/.config/fuzzel/fuzzel.ini"
+link_if_present "$THEME_DIR/mako.conf"      "$HOME/.config/mako/config"
+link_if_present "$THEME_DIR/btop.theme"     "$HOME/.config/btop/themes/active.theme"
+link_if_present "$THEME_DIR/nvim.lua"       "$HOME/.config/nvim/lua/dotfiles-theme.lua"
+
+# --- Helix: sed-rewrite config.toml's theme = "..." line ---
+helix_cfg="$HOME/.config/helix/config.toml"
+helix_theme_file="$THEME_DIR/helix-theme"
+if [[ -f "$helix_cfg" ]] && [[ -f "$helix_theme_file" ]]; then
+    helix_theme=$(tr -d '[:space:]' < "$helix_theme_file")
+    # sed -i through a symlink breaks the link; edit the real file instead.
+    real_cfg=$(readlink -f "$helix_cfg")
+    sed -i -E "s|^theme = \".*\"|theme = \"$helix_theme\"|" "$real_cfg"
+fi
+
+# --- Obsidian: JSON-patch vault appearance.json (best-effort) ---
+obsidian_theme_file="$THEME_DIR/obsidian-theme"
+if [[ -n "${OBSIDIAN_VAULT:-}" ]] && [[ -f "$obsidian_theme_file" ]]; then
+    obsidian_theme=$(tr -d '[:space:]' < "$obsidian_theme_file")
+    appearance="$OBSIDIAN_VAULT/.obsidian/appearance.json"
+    if [[ -f "$appearance" ]]; then
+        python3 - "$appearance" "$obsidian_theme" <<'PY' || true
+import json, sys, os, tempfile
+path, theme = sys.argv[1], sys.argv[2]
+with open(path) as f: data = json.load(f)
+data["theme"] = theme
+fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
+with os.fdopen(fd, "w") as f: json.dump(data, f, indent=2)
+os.replace(tmp, path)
+PY
+    fi
+fi
+
+# --- GTK + system color-scheme via gsettings ---
+gtk_conf="$THEME_DIR/gtk.conf"
+if [[ -f "$gtk_conf" ]]; then
+    # shellcheck source=/dev/null
+    . "$gtk_conf"
+    gsettings set org.gnome.desktop.interface color-scheme "${COLOR_SCHEME:-default}" 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface gtk-theme    "${GTK_THEME:-Adwaita}"   2>/dev/null || true
+fi
+
+# --- Relaunch fragpaper (it has no live reload) ---
+if pgrep -x fragpaper &>/dev/null; then
+    pkill -TERM -x fragpaper 2>/dev/null || true
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        pgrep -x fragpaper &>/dev/null || break
+        sleep 0.1
+    done
+fi
+# fragpaper-launch reads active-theme + fragpaper.conf now (Task 5)
+setsid -f bash -c '~/.local/bin/fragpaper-launch > /tmp/fragpaper-debug.log 2>&1' &>/dev/null || true
+
+# --- Run theme-specific post-set hook if present ---
+if [[ -x "$THEME_DIR/post-set.sh" ]]; then
+    bash "$THEME_DIR/post-set.sh" || true
+fi
+
+# --- Reload running apps (best-effort) ---
+command -v hyprctl  &>/dev/null && hyprctl reload &>/dev/null || true
+command -v makoctl  &>/dev/null && makoctl reload 2>/dev/null || true
+pkill -SIGUSR2 waybar   2>/dev/null || true
+pkill -SIGUSR2 ghostty  2>/dev/null || true
+pkill -SIGUSR1 -x hx    2>/dev/null || true
+pkill -SIGUSR1 -x helix 2>/dev/null || true
+
+echo "Switched to $THEME_NAME ($VARIANT)"
