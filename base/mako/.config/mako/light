@@ -20,5 +20,3 @@ border-color=#A80000
 text-color=#1A1A1A
 default-timeout=0
 
-[app-name=kitty]
-icon-path=

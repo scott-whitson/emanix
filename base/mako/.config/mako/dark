@@ -16,5 +16,3 @@ icon-path=/usr/share/icons/hicolor
 border-color=#f7768e
 default-timeout=0
 
-[app-name=kitty]
-icon-path=

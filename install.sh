@@ -63,8 +63,8 @@ if [[ "$IS_DESKTOP" == "true" ]]; then
   case "$DISTRO" in
     debian)
       sudo apt-get install -y \
-        sway swayidle swaylock xdg-desktop-portal-wlr \
-        waybar wofi mako-notifier kitty \
+        hyprland hyprlock hypridle xdg-desktop-portal-hyprland \
+        waybar mako-notifier ghostty fuzzel \
         grim slurp wl-clipboard \
         pipewire wireplumber pipewire-pulse \
         polkit-gnome brightnessctl playerctl \
@@ -182,7 +182,7 @@ echo "Stowing base packages..."
 cd "$DOTFILES_DIR"
 for pkg in base/*/; do
   pkg_name="$(basename "$pkg")"
-  # Skip windows — synced separately via sync-windows.sh
+  # Skip windows — Windows configs are not stowed on Linux
   [[ "$pkg_name" == "windows" ]] && continue
   # Skip desktop packages when there's no display server (WSL, server)
   case "$pkg_name" in hypr|waybar|mako|ghostty|fuzzel) [[ "$IS_DESKTOP" != "true" ]] && continue ;; esac
