@@ -193,7 +193,7 @@ done
 git checkout -- base/
 
 # --- Stow profile packages ---
-# Profile packages add to base directories (e.g. personal/zsh adds to ~/.zshrc.d/)
+# Profile packages add to base directories (e.g. workstation/zsh adds to ~/.zshrc.d/)
 # If a profile package conflicts with base (same file), unstow base first and retry
 echo "Stowing profile packages..."
 for pkg in "$PROFILE_DIR"/*/; do
