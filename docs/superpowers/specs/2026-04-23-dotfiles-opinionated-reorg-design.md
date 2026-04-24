@@ -65,7 +65,8 @@ The manifesto. Each tenet should eliminate at least one decision.
 │   └── 11-services.sh        # systemd user units
 ├── bin/                      # NEW — re-runnable helpers (added to PATH via zshrc.d)
 │   ├── dot-restow            # re-stow one package or all
-│   ├── dot-theme-set         # switch active theme
+│   ├── dot-theme-set         # apply a specific theme by name
+│   ├── dot-theme-toggle      # flip between last-dark and last-light theme (Wave 3)
 │   ├── dot-update            # paru -Syu && dot-restow --all
 │   └── dot-doctor            # health check
 ├── base/                     # shared across profiles
@@ -191,7 +192,25 @@ All four are added to PATH via `base/zsh/.zshrc.d/dotfiles.zsh` which prepends `
 
 ## Section 3 — Theme System
 
-The most novel mechanism in this reorg.
+The most novel mechanism in this reorg. **Design updated 2026-04-24** after inspecting the existing `theme-switch` script; original directory-per-theme model from first-draft spec kept, but dark/light toggle UX preserved at a higher level.
+
+### Model
+
+Each theme is **single-state** (Omarchy-style — one palette per theme directory, no internal dark/light pair). The dark/light toggle that the existing `theme-switch` provides is preserved as a separate mechanism *on top of* the theme system:
+
+- `dot-theme-set <name>` applies a specific theme
+- `dot-theme-toggle` (bound to `$mod+SHIFT+t`) flips between the most recent dark and most recent light theme you chose
+- Each theme declares its variant (`dark` or `light`) so the toggle command knows which half of its state to update
+
+### State files (in `~/.config/dotfiles/`)
+
+| Path | Purpose |
+|---|---|
+| `active-theme` | Name of the currently applied theme |
+| `last-dark` | Most recent dark theme applied (for toggle) |
+| `last-light` | Most recent light theme applied (for toggle) |
+
+`dot-theme-set <name>` updates `active-theme` AND the appropriate `last-<variant>` file, based on the applied theme's declared variant.
 
 ### Theme directory anatomy
 
@@ -199,39 +218,79 @@ Each theme is a self-contained directory. Files are pre-rendered; no templating 
 
 ```
 themes/catppuccin-mocha/
+├── variant             # single word: "dark" or "light"
 ├── palette.sh          # colors as shell vars — human reference, single source of truth
 ├── hypr.conf           # col.active_border, col.inactive_border, decoration
-├── waybar.css          # @import'd by base waybar style.css
+├── hyprlock.conf       # full hyprlock screen config tuned to this theme
+├── waybar.css          # CSS used by base waybar style.css symlink
 ├── ghostty.conf        # palette = … (Ghostty native syntax)
 ├── mako.conf           # background-color, text-color, border-color block
 ├── fuzzel.ini          # [colors] section
 ├── btop.theme          # btop native format
 ├── nvim.lua            # require'd by kickstart init if present (pcall-guarded)
-├── gtk.conf            # GTK theme name, icon theme, cursor theme name
-├── wallpaper.jpg
+├── helix-theme         # one word: the name of the upstream Helix theme (e.g. "catppuccin_mocha")
+├── obsidian-theme      # one word: the Obsidian theme name (e.g. "obsidian" for dark)
+├── gtk.conf            # GTK theme name, icon theme, cursor theme name, color-scheme preference
+├── wallpaper.jpg       # (or .png)
 ├── README.md           # theme origin, extra font/icon packages required
-└── post-set.sh         # optional hook for app-specific tweaks
+└── post-set.sh         # optional hook for app-specific tweaks (runs last)
 ```
 
 ### `dot-theme-set <name>` behavior
 
 1. Validate `themes/<name>/` exists; refuse unknown names.
-2. Write marker: `~/.config/dotfiles/active-theme` = `<name>` (survives reboots; read by `install/10-theme.sh`).
-3. Symlink theme files into the locations apps read:
+2. Read variant from `themes/<name>/variant` (must be `dark` or `light`).
+3. Write markers in `~/.config/dotfiles/`:
+   - `active-theme` = `<name>`
+   - `last-<variant>` = `<name>` (e.g. `last-dark` if this is a dark theme)
+4. Symlink theme files into the locations apps read:
    - `themes/<name>/hypr.conf` → `~/.config/hypr/theme.conf`
-   - `themes/<name>/waybar.css` → `~/.config/waybar/theme.css`
-   - `themes/<name>/ghostty.conf` → `~/.config/ghostty/theme`
-   - `themes/<name>/fuzzel.ini` → `~/.config/fuzzel/theme.ini`
-   - `themes/<name>/mako.conf` → `~/.config/mako/theme.conf`
+   - `themes/<name>/hyprlock.conf` → `~/.config/hypr/hyprlock.conf`
+   - `themes/<name>/waybar.css` → `~/.config/waybar/style.css`
+   - `themes/<name>/ghostty.conf` → `~/.config/ghostty/theme.conf`
+   - `themes/<name>/fuzzel.ini` → `~/.config/fuzzel/fuzzel.ini`
+   - `themes/<name>/mako.conf` → `~/.config/mako/config`
    - `themes/<name>/btop.theme` → `~/.config/btop/themes/active.theme`
    - `themes/<name>/nvim.lua` → `~/.config/nvim/lua/dotfiles-theme.lua` *(skipped if `~/.config/nvim/lua/` does not exist)*
-   - `themes/<name>/wallpaper.jpg` → `~/.config/hypr/wallpaper`
-4. Run `themes/<name>/post-set.sh` if present (rewrites Helix `theme =` line via sed, sets GTK theme via gsettings, sends `:colorscheme` via `nvim --server` if a Neovim socket is live).
-5. Reload running apps (best-effort, non-fatal):
+   - `themes/<name>/wallpaper.jpg` → `~/.config/dotfiles/wallpaper`
+5. Non-symlink integration:
+   - Sed-rewrite `~/.config/helix/config.toml` `theme = "…"` line to the value in `themes/<name>/helix-theme` (preserves existing behavior from `theme-switch`)
+   - JSON-patch Obsidian's `<vault>/.obsidian/appearance.json` `"theme"` field to the value in `themes/<name>/obsidian-theme` (preserves existing behavior, conditional on `$OBSIDIAN_VAULT` being set in profile.conf)
+   - Run `gsettings` to set `color-scheme` and `gtk-theme` from `themes/<name>/gtk.conf`
+6. Run `themes/<name>/post-set.sh` if present (theme-specific tweaks not handled generically above).
+7. Reload running apps (best-effort, non-fatal):
    - `hyprctl reload`
    - `pkill -SIGUSR2 waybar`
+   - `pkill -SIGUSR2 ghostty` (ghostty picks up theme.conf on SIGUSR2)
    - `makoctl reload`
-   - `swww img ~/.config/hypr/wallpaper` (or `hyprpaper reload`, whichever is in use)
+   - `pkill -SIGUSR1 hx` / `pkill -SIGUSR1 helix` (helix reloads config on SIGUSR1)
+   - Restart fragpaper via its launch wrapper (fragpaper has no live reload — kill + relaunch with new wallpaper)
+
+### `dot-theme-toggle` behavior
+
+The hotkey companion. Preserves the existing `$mod+SHIFT+t` quick-toggle UX.
+
+1. Read `~/.config/dotfiles/active-theme`; look up its variant from `themes/<active>/variant`.
+2. If variant is `dark` → read `~/.config/dotfiles/last-light`; if non-empty and the theme still exists, apply it via `dot-theme-set`.
+3. If variant is `light` → same with `last-dark`.
+4. Graceful fallback if the counterpart state file is empty or stale: find the first theme of the opposite variant in `themes/*/variant` and apply that; warn the user to pick a preferred counterpart by running `dot-theme-set <name>` once.
+
+### Base config participation
+
+Each themable app's base config ends with a theme include, keeping theme-free content in `base/` and theme-specific content in `themes/`:
+
+- `base/hypr/.config/hypr/hyprland.conf` — includes `source = ~/.config/hypr/theme.conf`
+- `base/ghostty/.config/ghostty/config` — includes `config-file = theme.conf`
+- `base/mako/.config/mako/config` — already IS the theme file (symlinked in place by `dot-theme-set`)
+- `base/waybar/style.css` — already IS the theme file (symlinked in place)
+- `base/fuzzel/fuzzel.ini` — already IS the theme file (symlinked in place)
+- `base/btop/.config/btop/btop.conf` — `color_theme = "active"` (reads `~/.config/btop/themes/active.theme`)
+
+**Helix** is integrated via sed-rewrite of `config.toml` (no include mechanism), not symlink. Integration preserved from existing `theme-switch`.
+
+**Obsidian** is integrated via JSON-patch to the vault's `appearance.json` (live file watcher picks up the change). Preserved from existing `theme-switch`.
+
+**Fragpaper** (wallpaper daemon) has no live reload — killed and relaunched per theme change. Preserved from existing `theme-switch`.
 
 ### Base config participation
 
@@ -244,17 +303,28 @@ Each themable app's base config ends with a theme include, keeping theme-free co
 - `base/fuzzel/.config/fuzzel/fuzzel.ini` — `[include]` directive pointing at `theme.ini`
 - `base/btop/.config/btop/btop.conf` — `color_theme = "active"`
 
-**Helix is the awkward one** — no include support. `post-set.sh` uses `sed` to rewrite the `theme =` line in `~/.config/helix/config.toml`. One-liner, survives restart.
-
-**Neovim integration:** the user's kickstart fork at `~/.config/nvim/` ends its `init.lua` with `pcall(require, 'dotfiles-theme')`. The `dotfiles-theme.lua` file placed by `dot-theme-set` typically contains one line: `vim.cmd.colorscheme('catppuccin-mocha')` (or equivalent per theme). Requires the theme's colorscheme plugin to be installed by the kickstart config. If the file is absent, kickstart falls back to its default colorscheme — non-fatal by design.
+**Neovim integration:** the user's kickstart fork at `~/.config/nvim/` ends its `init.lua` with `pcall(require, 'dotfiles-theme')` (injected in Wave 2). The `dotfiles-theme.lua` file placed by `dot-theme-set` typically contains one line: `vim.cmd.colorscheme('catppuccin-mocha')` (or equivalent per theme). Requires the theme's colorscheme plugin to be installed by the kickstart config. If the file is absent, kickstart falls back to its default colorscheme — non-fatal by design.
 
 ### Server profile
 
 `install/10-theme.sh` is a no-op on server. `dot-theme-set` on a headless box only applies btop + ghostty if present; other surfaces silently skip when target directories don't exist.
 
+### Themes shipped at launch
+
+Wave 3 ships **two themes** (one of each variant, so the toggle works out of the box):
+
+- `themes/catppuccin-mocha/` — dark, variant=dark
+- `themes/catppuccin-latte/` — light, variant=light
+
+The user's prior dark palette (Tokyo Night) and prior light palette (daltonized-Claude-Code) are preserved in git history. If re-wanted later, they can be re-extracted as new themes.
+
+### Retirement of `theme-switch`
+
+The existing `base/bin/.local/bin/theme-switch` script is **deleted** in Wave 3 — its logic is absorbed and generalized into `bin/dot-theme-set` + `bin/dot-theme-toggle`. The `$mod+SHIFT+t` Hyprland keybind is rewired from `theme-switch` to `dot-theme-toggle`.
+
 ### Extension
 
-Adding a second theme later: copy `themes/catppuccin-mocha/` → `themes/<new>/`, hand-edit each file, done. No code changes to `dot-theme-set`.
+Adding a second theme later: copy `themes/catppuccin-mocha/` → `themes/<new>/`, hand-edit each file (including the `variant` file), done. No code changes to `dot-theme-set`.
 
 ### Not in v1
 
