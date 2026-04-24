@@ -25,7 +25,7 @@ check() {
 echo "== dot-doctor =="
 
 check "DOTFILES env var set"          "[[ -n \"\$DOTFILES\" ]]"
-check "\$DOTFILES/bin on PATH"         "echo \"\$PATH\" | grep -qF \"\$DOTFILES/bin\""
+check "\$DOTFILES/bin on PATH"         "[[ \":\$PATH:\" == *\":\$DOTFILES/bin:\"* ]]"
 check "stow installed"                 "command -v stow"
 check "paru installed"                 "command -v paru"
 check "zsh is default shell"           "[[ \"\$SHELL\" == \"\$(command -v zsh)\" ]]"
@@ -35,7 +35,7 @@ check "~/gdrive is mounted"            "mountpoint -q \"\$HOME/gdrive\""
 check "tailscale active"               "systemctl is-active --quiet tailscaled"
 check "JetBrains Mono Nerd Font installed" "fc-list | grep -qi 'jetbrainsmono nerd font'"
 check "pam_systemd_home NOT active"    "! grep -qE '^\\s*auth.*pam_systemd_home' /etc/pam.d/system-auth"
-check "~/.local/bin on PATH"           "echo \"\$PATH\" | grep -qE '(^|:)\$HOME/.local/bin(:|\$)'"
+check "~/.local/bin on PATH"           "[[ \":\$PATH:\" == *\":\$HOME/.local/bin:\"* ]]"
 check "~/projects/agent-skills is a git repo" "[[ -d \"\$HOME/projects/agent-skills/.git\" ]]"
 check "~/.config/nvim/init.lua has theme opt-in" "grep -qF \"pcall(require, 'dotfiles-theme')\" \"\$HOME/.config/nvim/init.lua\""
 
