@@ -38,6 +38,9 @@ check "pam_systemd_home NOT active"    "! grep -qE '^\\s*auth.*pam_systemd_home'
 check "~/.local/bin on PATH"           "[[ \":\$PATH:\" == *\":\$HOME/.local/bin:\"* ]]"
 check "~/projects/agent-skills is a git repo" "[[ -d \"\$HOME/projects/agent-skills/.git\" ]]"
 check "~/.config/nvim/init.lua has theme opt-in" "grep -qF \"pcall(require, 'dotfiles-theme')\" \"\$HOME/.config/nvim/init.lua\""
+check "active theme marker present"    "[[ -f \"\$HOME/.config/dotfiles/active-theme\" ]]"
+check "active theme directory exists"  "[[ -d \"\$DOTFILES/themes/\$(cat \"\$HOME/.config/dotfiles/active-theme\" 2>/dev/null)\" ]]"
+check "~/.config/hypr/theme.conf is live symlink" "[[ -L \"\$HOME/.config/hypr/theme.conf\" ]] && [[ -e \"\$HOME/.config/hypr/theme.conf\" ]]"
 
 echo ""
 if [[ "$failures" -eq 0 ]]; then
