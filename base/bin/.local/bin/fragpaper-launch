@@ -1,25 +1,31 @@
 #!/usr/bin/env bash
 # fragpaper-launch — launches fragpaper with the current theme's bg + palette.
-# Reads $XDG_STATE_HOME/theme-current (set by theme-switch). Defaults to dark.
+# Reads ~/.config/dotfiles/active-theme, then sources
+# ~/dotfiles/themes/<active>/fragpaper.conf for BG_COLOR and PALETTE.
+# Falls back to Catppuccin Mocha defaults if no active theme is set.
 
 set -u
 
-STATE_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/theme-current"
-theme="$(cat "$STATE_FILE" 2>/dev/null || echo dark)"
+DOTFILES="${DOTFILES:-$HOME/dotfiles}"
+ACTIVE_THEME_FILE="$HOME/.config/dotfiles/active-theme"
 
-if [ "$theme" = "light" ]; then
-    bg="#F7F3EC"
-    palette="light"
-else
-    bg="#1a1b26"
-    palette="dark"
+BG_COLOR="#1e1e2e"
+PALETTE="dark"
+
+if [[ -f "$ACTIVE_THEME_FILE" ]]; then
+    active=$(<"$ACTIVE_THEME_FILE")
+    conf="$DOTFILES/themes/$active/fragpaper.conf"
+    if [[ -f "$conf" ]]; then
+        # shellcheck source=/dev/null
+        . "$conf"
+    fi
 fi
 
 FRAGPAPER="$HOME/projects/fragpaper/target/release/fragpaper"
 SHADERS_DIR="$HOME/projects/wallpaper-gen/shaders"
 
 exec env RUST_LOG=info "$FRAGPAPER" \
-    --bg-color "$bg" \
-    --palette "$palette" \
+    --bg-color "$BG_COLOR" \
+    --palette "$PALETTE" \
     "$SHADERS_DIR/attractors.vert" \
     "$SHADERS_DIR/attractors.frag"
