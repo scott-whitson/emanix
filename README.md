@@ -1,5 +1,7 @@
 # dotfiles
 
+> **Status (2026-04-23):** mid-reorg. This README is a stopgap — a proper manual at `docs/manual/` is planned in Wave 4 of the reorg. See `docs/superpowers/specs/2026-04-23-dotfiles-opinionated-reorg-design.md`.
+
 Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/) and a multi-profile system. One shared base config, with profile-specific overrides for different machines.
 
 ## Quick Start
@@ -7,7 +9,7 @@ Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/) an
 ```bash
 git clone git@github.com:scottwhitson/dotfiles.git ~/dotfiles
 cd ~/dotfiles
-./install.sh <profile>
+./install.sh workstation
 ```
 
 The install script detects your distro, installs system packages and developer tools, stows the base config, then layers the chosen profile on top.
@@ -20,31 +22,37 @@ The install script detects your distro, installs system packages and developer t
 ├── base/                   # shared config, applied to every machine
 │   ├── zsh/.zshrc          # Oh My Zsh, aliases, tools; sources ~/.zshrc.d/*.zsh
 │   ├── git/.gitconfig      # core git settings; includes ~/.gitconfig.local
-│   ├── micro/              # keybindings (wikilink plugin)
-│   ├── claude/             # Claude Code settings (full plugin set)
-│   ├── sway/               # Sway compositor (desktop only)
+│   ├── hypr/               # Hyprland compositor (desktop only)
 │   ├── waybar/             # status bar config + theme (desktop only)
-│   ├── wofi/               # app launcher config + theme (desktop only)
+│   ├── fuzzel/             # app launcher config (desktop only)
 │   ├── mako/               # notification daemon (desktop only)
-│   ├── kitty/              # terminal emulator (desktop only)
-│   └── windows/            # Windows-side configs (GlazeWM, etc.) — see below
+│   ├── ghostty/            # terminal emulator (desktop only)
+│   ├── btop/               # system monitor
+│   ├── helix/              # text editor
+│   ├── lf/                 # terminal file manager
+│   ├── mpv/                # media player
+│   ├── yt-dlp/             # video downloader
+│   ├── claude/             # Claude Code settings (full plugin set)
+│   ├── paru/               # AUR helper config
+│   ├── xdg/                # XDG base dir overrides
+│   ├── systemd/            # user systemd units
+│   ├── bin/                # personal scripts (~/.local/bin)
+│   └── zsh/                # shell config
 └── profiles/
-    ├── personal/           # personal laptop (Ubuntu + Sway)
-    ├── work/               # work machine (WSL)
+    ├── workstation/        # this Arch laptop (personal)
     └── server/             # headless / remote server
 ```
 
 **Base** is stowed first with `--no-folding`, so directories like `~/.zshrc.d/` and `~/.claude/` are real directories (not symlinks). Profile packages then add or replace files inside those same directories.
 
-Desktop packages (`sway`, `waybar`, `wofi`, `mako`, `kitty`) are skipped on WSL and server profiles (no display server).
+Desktop packages (`hypr`, `waybar`, `fuzzel`, `mako`, `ghostty`) are skipped on server profiles (no display server).
 
 ## Profiles
 
 | Profile | Machine | What it adds |
 |---------|---------|-------------|
-| `personal` | Ubuntu laptop | Personal git identity, Obsidian vault path, ollama, jrnl, Google Drive bisync |
-| `work` | WSL | Work git identity, work Obsidian vault path |
-| `server` | Any | Server git identity, trimmed Claude Code plugin set (no playwright, frontend-design, rust-analyzer) |
+| `workstation` | This Arch laptop | Personal git identity, Obsidian vault path, Google Drive bisync, custom zsh fragments |
+| `server` | Headless Arch server | Server git identity, trimmed Claude Code plugin set |
 
 Each profile can include:
 - `profile.conf` -- variables sourced by `install.sh` (e.g. `OBSIDIAN_VAULT` for micro wikilink)
@@ -52,44 +60,26 @@ Each profile can include:
 - `zsh/.zshrc.d/<profile>.zsh` -- shell config sourced after base `.zshrc`
 - `claude/.claude/settings.json` -- override base Claude settings
 
-## Sway Desktop
+## Hyprland Desktop
 
-The desktop environment is configured across five base packages with a cohesive dark theme (Tokyo Night-inspired):
+The desktop environment is configured across five base packages:
 
 | Component | Config | Purpose |
 |-----------|--------|---------|
-| **Sway** | `base/sway/` | Wayland compositor — tiling, keybindings, swayidle/swaylock |
-| **Waybar** | `base/waybar/` | Status bar — workspaces, clock, battery, network, audio, cpu/memory |
-| **Wofi** | `base/wofi/` | App launcher |
+| **Hyprland** | `base/hypr/` | Wayland compositor — tiling, keybindings, hyprpaper, hyprlock |
+| **Waybar** | `base/waybar/` | Status bar |
+| **Fuzzel** | `base/fuzzel/` | App launcher |
 | **Mako** | `base/mako/` | Notifications |
-| **Kitty** | `base/kitty/` | Terminal emulator |
+| **Ghostty** | `base/ghostty/` | Terminal emulator |
 
-Key bindings (vim-style):
-
-| Binding | Action |
-|---------|--------|
-| `Super + H/J/K/L` | Focus left/down/up/right |
-| `Super + Shift + H/J/K/L` | Move window |
-| `Super + R` | Enter resize mode (H/J/K/L to resize) |
-| `Super + 1-9` | Switch workspace |
-| `Super + Shift + 1-9` | Move window to workspace |
-| `Super + A/S` | Previous/next workspace |
-| `Super + Return` | Kitty terminal |
-| `Super + D` | Wofi launcher |
-| `Super + W` | Firefox |
-| `Super + F` | Fullscreen |
-| `Super + Shift + Q` | Close window |
-| `Super + Shift + Space` | Toggle floating |
-| `Super + -` | Show scratchpad |
-| `Super + Escape` | Lock screen |
-| `Print` | Screenshot region to clipboard |
+See `~/.config/hypr/hyprland.conf` for the current keybindings. A full keybinding reference will land in `docs/manual/02-keybindings.md` in Wave 4 of the reorg.
 
 ## Adding a New Profile
 
 1. Create `profiles/<name>/`
 2. Add a `profile.conf` (set `OBSIDIAN_VAULT` if using micro wikilinks, or leave empty)
 3. Add any stow packages you need (e.g. `git/.gitconfig.local`, `zsh/.zshrc.d/<name>.zsh`)
-4. Run `./install.sh <name>`
+4. Run `./install.sh workstation` (or `./install.sh server` for a headless machine)
 
 The directory layout inside a profile mirrors `$HOME`, same as base packages.
 
@@ -100,21 +90,11 @@ The directory layout inside a profile mirrors `$HOME`, same as base packages.
 cd ~/dotfiles && stow -d base -t ~ --no-folding -R zsh
 
 # Re-stow a profile package
-cd ~/dotfiles && stow -d profiles/personal -t ~ --no-folding -R zsh
+cd ~/dotfiles && stow -d profiles/workstation -t ~ --no-folding -R zsh
 
 # Unstow a package
 cd ~/dotfiles && stow -d base -t ~ --no-folding -D zsh
 ```
-
-## Windows Configs
-
-Windows-side configs (GlazeWM, AutoHotkey, etc.) live in `base/windows/` but can't be stowed since they target `C:\Users\scott`, not `~`. Use the sync script instead:
-
-```bash
-./sync-windows.sh
-```
-
-This copies configs to the Windows home directory. Reload GlazeWM after syncing with `lwin+shift+r`.
 
 ## Manual Steps
 
