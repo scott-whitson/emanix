@@ -1,7 +1,0 @@
-{
-    "Alt-/": "lua:comment.comment",
-    "Alt-b": "command:wikilink.back",
-    "Alt-g": "command:wikilink.follow",
-    "Alt-o": "command:wikilink.open",
-    "CtrlUnderscore": "lua:comment.comment"
-}
