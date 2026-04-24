@@ -12,5 +12,6 @@
     "claude-md-management@claude-plugins-official": true,
     "mind@memvid": true
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "agentPushNotifEnabled": true
 }
