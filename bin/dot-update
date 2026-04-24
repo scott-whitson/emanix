@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# bin/dot-update — system update + re-stow everything
+# Runs: paru -Syu, then dot-restow --all.
+set -euo pipefail
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
+
+echo "==> paru -Syu (system + AUR update)"
+paru -Syu
+
+echo ""
+echo "==> dot-restow --all"
+"$DOTFILES/bin/dot-restow" --all
+
+echo ""
+echo "==> dot-update complete"

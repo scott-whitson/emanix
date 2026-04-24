@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# bin/dot-theme-set — switch active theme (Wave 2 STUB; Wave 3 rewrites)
+#
+# Wave 2 behavior: delegates to the existing theme-switch script if on PATH.
+# Wave 3 replaces this with a real implementation that reads themes/<name>/
+# and symlinks each per-app snippet into place.
+set -euo pipefail
+
+THEME_NAME="${1:-}"
+
+if [[ -z "$THEME_NAME" ]]; then
+    echo "Usage: dot-theme-set <theme-name>"
+    echo ""
+    echo "Wave 2 stub: delegates to 'theme-switch' if present."
+    echo "Wave 3 will implement directory-per-theme layout under ~/dotfiles/themes/."
+    exit 1
+fi
+
+if command -v theme-switch &>/dev/null; then
+    echo "[dot-theme-set] (Wave 2 stub) delegating to theme-switch $THEME_NAME"
+    exec theme-switch "$THEME_NAME"
+fi
+
+echo "dot-theme-set: no theme-switch on PATH and Wave 3 not yet implemented." >&2
+echo "Install Wave 3 to get the real dot-theme-set." >&2
+exit 1

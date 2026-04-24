@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# bin/dot-doctor — environment sanity checks for the dotfiles system
+# Prints one check per line; green ✓ on success, red ✗ on failure. Non-zero exit
+# if any check fails.
+set -u  # not -e: we want to keep running after individual check failures
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
+
+GREEN=$'\033[1;32m'
+RED=$'\033[1;31m'
+RESET=$'\033[0m'
+
+failures=0
+
+check() {
+    local label="$1" cmd="$2"
+    if eval "$cmd" &>/dev/null; then
+        printf '%s✓%s %s\n' "$GREEN" "$RESET" "$label"
+    else
+        printf '%s✗%s %s\n' "$RED" "$RESET" "$label"
+        failures=$((failures+1))
+    fi
+}
+
+echo "== dot-doctor =="
+
+check "DOTFILES env var set"          "[[ -n \"\$DOTFILES\" ]]"
+check "\$DOTFILES/bin on PATH"         "echo \"\$PATH\" | grep -qF \"\$DOTFILES/bin\""
+check "stow installed"                 "command -v stow"
+check "paru installed"                 "command -v paru"
+check "zsh is default shell"           "[[ \"\$SHELL\" == \"\$(command -v zsh)\" ]]"
+check "claude on PATH"                 "command -v claude"
+check "~/.gitconfig.local symlink ok" "[[ -L \"\$HOME/.gitconfig.local\" ]] && [[ -e \"\$HOME/.gitconfig.local\" ]]"
+check "~/gdrive is mounted"            "mountpoint -q \"\$HOME/gdrive\""
+check "tailscale active"               "systemctl is-active --quiet tailscaled"
+check "JetBrains Mono Nerd Font installed" "fc-list | grep -qi 'jetbrainsmono nerd font'"
+check "pam_systemd_home NOT active"    "! grep -qE '^\\s*auth.*pam_systemd_home' /etc/pam.d/system-auth"
+check "~/.local/bin on PATH"           "echo \"\$PATH\" | grep -qE '(^|:)\$HOME/.local/bin(:|\$)'"
+check "~/projects/agent-skills is a git repo" "[[ -d \"\$HOME/projects/agent-skills/.git\" ]]"
+check "~/.config/nvim/init.lua has theme opt-in" "grep -qF \"pcall(require, 'dotfiles-theme')\" \"\$HOME/.config/nvim/init.lua\""
+
+echo ""
+if [[ "$failures" -eq 0 ]]; then
+    printf '%sAll checks passed.%s\n' "$GREEN" "$RESET"
+    exit 0
+else
+    printf '%s%d check(s) failed.%s\n' "$RED" "$failures" "$RESET"
+    exit 1
+fi

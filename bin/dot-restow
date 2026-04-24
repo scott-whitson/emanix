@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# bin/dot-restow — re-stow one or all packages in base/ and the active profile
+# Usage:
+#   dot-restow <pkg>         # restow a specific package
+#   dot-restow --all         # restow everything
+set -euo pipefail
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
+
+ACTIVE_PROFILE=""
+if [[ -f "$HOME/.config/dotfiles/active-profile" ]]; then
+    ACTIVE_PROFILE=$(<"$HOME/.config/dotfiles/active-profile")
+fi
+
+if [[ -z "$ACTIVE_PROFILE" ]]; then
+    # Fallback: infer from existing symlinks
+    if [[ -L "$HOME/.gitconfig.local" ]]; then
+        target=$(readlink "$HOME/.gitconfig.local")
+        case "$target" in
+            *profiles/workstation*) ACTIVE_PROFILE=workstation ;;
+            *profiles/server*)      ACTIVE_PROFILE=server ;;
+        esac
+    fi
+fi
+
+if [[ -z "$ACTIVE_PROFILE" ]]; then
+    echo "dot-restow: cannot infer active profile; set one manually:" >&2
+    echo "  mkdir -p ~/.config/dotfiles && echo workstation > ~/.config/dotfiles/active-profile" >&2
+    exit 1
+fi
+
+restow_one() {
+    local pkg="$1"
+    if [[ -d "$DOTFILES/base/$pkg" ]]; then
+        echo "[base] restowing $pkg"
+        stow -d "$DOTFILES/base" -t "$HOME" --no-folding -R "$pkg"
+    fi
+    if [[ -d "$DOTFILES/profiles/$ACTIVE_PROFILE/$pkg" ]]; then
+        echo "[profile:$ACTIVE_PROFILE] restowing $pkg"
+        stow -d "$DOTFILES/profiles/$ACTIVE_PROFILE" -t "$HOME" --no-folding -R "$pkg"
+    fi
+}
+
+case "${1:-}" in
+    --all)
+        for p in "$DOTFILES"/base/*/; do
+            restow_one "$(basename "$p")"
+        done
+        for p in "$DOTFILES"/profiles/"$ACTIVE_PROFILE"/*/; do
+            restow_one "$(basename "$p")"
+        done
+        ;;
+    ""|-h|--help)
+        echo "Usage: dot-restow <pkg>|--all"
+        exit 1
+        ;;
+    *)
+        restow_one "$1"
+        ;;
+esac
