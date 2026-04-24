@@ -1,0 +1,106 @@
+* {
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 12px;
+    min-height: 0;
+}
+
+window#waybar {
+    background: rgba(30, 30, 46, 0.9);
+    color: #cdd6f4;
+    border-bottom: 2px solid rgba(137, 180, 250, 0.3);
+}
+
+/* Reset all modules */
+#workspaces,
+#clock,
+#cpu,
+#memory,
+#battery,
+#network,
+#pulseaudio,
+#tray {
+    padding: 0 6px;
+    margin: 4px 1px;
+    border-radius: 6px;
+}
+
+/* Workspaces */
+#workspaces button {
+    padding: 0 8px;
+    color: #6c7086;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+}
+
+#workspaces button.active {
+    color: #89b4fa;
+    background: rgba(137, 180, 250, 0.15);
+}
+
+#workspaces button:hover {
+    color: #cdd6f4;
+    background: rgba(205, 214, 244, 0.1);
+}
+
+/* Clock */
+#clock {
+    color: #cdd6f4;
+    font-weight: bold;
+}
+
+/* Battery */
+#battery {
+    color: #a6e3a1;
+}
+
+#battery.warning {
+    color: #f9e2af;
+}
+
+#battery.critical {
+    color: #f38ba8;
+    animation: blink 1s infinite;
+}
+
+#battery.charging {
+    color: #a6e3a1;
+}
+
+/* CPU */
+#cpu {
+    color: #fab387;
+}
+
+/* Memory */
+#memory {
+    color: #a6e3a1;
+}
+
+/* Network */
+#network {
+    color: #89b4fa;
+}
+
+#network.disconnected {
+    color: #6c7086;
+}
+
+/* Audio */
+#pulseaudio {
+    color: #cba6f7;
+}
+
+#pulseaudio.muted {
+    color: #6c7086;
+}
+
+/* Tray */
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+/* Blink animation for critical battery */
+@keyframes blink {
+    to { color: #1e1e2e; }
+}
