@@ -1,0 +1,112 @@
+/* Catppuccin Latte color scheme */
+
+* {
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 12px;
+    min-height: 0;
+}
+
+window#waybar {
+    background: rgba(239, 241, 245, 0.97);
+    color: #4c4f69;
+    border-bottom: 2px solid rgba(30, 102, 245, 0.55);
+}
+
+/* Reset all modules */
+#workspaces,
+#clock,
+#cpu,
+#memory,
+#battery,
+#network,
+#pulseaudio,
+#tray {
+    padding: 0 6px;
+    margin: 4px 1px;
+    border-radius: 6px;
+}
+
+/* Workspaces */
+#workspaces button {
+    padding: 0 8px;
+    color: #6c6f85;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+#workspaces button.active {
+    color: #eff1f5;
+    background: #1e66f5;
+    font-weight: bold;
+}
+
+#workspaces button:hover {
+    color: #4c4f69;
+    background: rgba(76, 79, 105, 0.12);
+}
+
+/* Clock */
+#clock {
+    color: #4c4f69;
+    font-weight: bold;
+}
+
+/* Battery */
+#battery {
+    color: #40a02b;
+}
+
+#battery.warning {
+    color: #df8e1d;
+}
+
+#battery.critical {
+    color: #d20f39;
+    animation: blink 1s infinite;
+}
+
+#battery.charging {
+    color: #40a02b;
+}
+
+/* CPU */
+#cpu {
+    color: #fe640b;
+}
+
+/* Memory */
+#memory {
+    color: #40a02b;
+}
+
+/* Network */
+#network {
+    color: #1e66f5;
+}
+
+#network.disconnected {
+    color: #9ca0b0;
+    font-style: italic;
+}
+
+/* Audio */
+#pulseaudio {
+    color: #8839ef;
+}
+
+#pulseaudio.muted {
+    color: #9ca0b0;
+    font-style: italic;
+}
+
+/* Tray */
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+/* Blink animation for critical battery */
+@keyframes blink {
+    to { color: #eff1f5; }
+}
