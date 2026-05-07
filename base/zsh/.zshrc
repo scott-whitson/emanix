@@ -21,6 +21,10 @@ RPROMPT=
 
 # --- Path ---
 export PATH="$HOME/.local/bin:$PATH"
+
+# --- Editor (used by git commit, sudoedit, crontab -e, qt(), etc.) ---
+export EDITOR=helix
+export VISUAL=helix
 [[ -d /snap/bin ]] && export PATH="/snap/bin:$PATH"
 
 # --- Go (XDG-ified GOPATH — keeps ~/go out of $HOME) ---
@@ -71,6 +75,7 @@ alias vact="source .venv/bin/activate"
 alias lsd="ls -lt --time-style=long-iso | awk '{print \$6, \$7, \$NF}'"
 alias dvact="deactivate"
 alias theme="theme-switch"
+alias h="helix"
 calc() { if [ $# -eq 0 ]; then bc -l; else echo "$*" | bc -l; fi; }
 
 # --- Work laptop sync ---
@@ -111,12 +116,27 @@ qt() {
     echo "OBSIDIAN_VAULT not set"; return 1
   fi
   local quarter=$(( ($(date +%-m) - 1) / 3 + 1 ))
-  local file="$OBSIDIAN_VAULT/Quarterly/$(date +%Y)-Q${quarter}.md"
-  if [ -f "$file" ]; then
-    hx "$file"
-  else
-    echo "Quarterly tracker not found: $file"
+  local name="$(date +%Y)-Q${quarter}.md"
+  local file=""
+  # Active quarter usually lives at vault root; archived quarters in Quarterly/
+  for path in "$OBSIDIAN_VAULT/$name" "$OBSIDIAN_VAULT/Quarterly/$name"; do
+    if [ -f "$path" ]; then file="$path"; break; fi
+  done
+  if [[ -z "$file" ]]; then
+    echo "Quarterly tracker not found in $OBSIDIAN_VAULT (or its Quarterly/ subdir): $name"
+    return 1
   fi
+  # Pick an editor: $EDITOR, then a fallback chain
+  local editor="$EDITOR"
+  if [[ -z "$editor" ]]; then
+    for cand in helix hx micro nvim vim nano; do
+      if command -v "$cand" >/dev/null 2>&1; then editor="$cand"; break; fi
+    done
+  fi
+  if [[ -z "$editor" ]]; then
+    echo "No editor found (tried helix, hx, micro, nvim, vim, nano)"; return 1
+  fi
+  "$editor" "$file"
 }
 
 # --- Tools ---
