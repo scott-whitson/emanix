@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# _ib-launch <mode>  — version-aware IB Gateway launcher under Xvfb via IBC.
+# Called by ib-gateway@.service. Not for direct user invocation; use `ib up <mode>`.
+
+set -euo pipefail
+
+mode="${1:?mode (live|paper) required}"
+case "$mode" in live|paper) ;; *) echo "_ib-launch: bad mode '$mode'" >&2; exit 2 ;; esac
+
+GW_ROOT="${GW_ROOT:-/opt/ibgateway}"        # actual IB Gateway install (flat layout)
+GW_SHIM="${GW_SHIM:-/opt/ibc-shim}"         # bridges IBC's expected $tws_path/ibgateway/$version layout
+IBC_PATH="${IBC_PATH:-/opt/ibc}"
+IBC_INI="$HOME/.config/ibc/config.${mode}.ini"
+TWS_SETTINGS="$HOME/.local/share/Jts"
+
+# Detect installed IB Gateway version from its .desktop file (e.g. "IB Gateway 10.45.desktop" → "1045").
+desktop=$(compgen -G "$GW_ROOT/IB Gateway *.desktop" 2>/dev/null | head -1 || true)
+[[ -n "${desktop:-}" ]] || { echo "_ib-launch: no IB Gateway .desktop file under $GW_ROOT" >&2; exit 3; }
+GW_VERSION=$(basename "$desktop" | grep -oE '[0-9]+\.[0-9]+' | tr -d '.')
+[[ -n "${GW_VERSION:-}" ]] || { echo "_ib-launch: could not parse version from $desktop" >&2; exit 3; }
+
+# IBC will look for $GW_SHIM/ibgateway/$GW_VERSION/jars — verify the shim exists.
+[[ -e "$GW_SHIM/ibgateway/$GW_VERSION/jars" ]] || {
+    echo "_ib-launch: IBC compat shim missing: $GW_SHIM/ibgateway/$GW_VERSION → $GW_ROOT" >&2
+    echo "  fix: sudo mkdir -p $GW_SHIM/ibgateway && sudo ln -sfn $GW_ROOT $GW_SHIM/ibgateway/$GW_VERSION" >&2
+    exit 3
+}
+
+[[ -r "$IBC_INI"                     ]] || { echo "_ib-launch: IBC config not readable: $IBC_INI"   >&2; exit 4; }
+[[ -x "$IBC_PATH/scripts/ibcstart.sh" ]] || { echo "_ib-launch: IBC missing at $IBC_PATH"            >&2; exit 5; }
+
+mkdir -p "$TWS_SETTINGS"
+
+exec /usr/bin/xvfb-run -a -s "-screen 0 1024x768x16 -nolisten tcp" \
+     "$IBC_PATH/scripts/ibcstart.sh" "$GW_VERSION" \
+     --gateway --mode="$mode" \
+     --tws-path="$GW_SHIM" \
+     --tws-settings-path="$TWS_SETTINGS" \
+     --ibc-path="$IBC_PATH" \
+     --ibc-ini="$IBC_INI"

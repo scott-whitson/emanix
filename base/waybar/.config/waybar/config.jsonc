@@ -6,7 +6,7 @@
 
     "modules-left": ["hyprland/workspaces"],
     "modules-center": ["clock"],
-    "modules-right": ["pulseaudio", "cpu", "memory", "custom/gpu", "network", "battery"],
+    "modules-right": ["pulseaudio", "custom/ib", "cpu", "memory", "custom/gpu", "network", "battery"],
 
     "hyprland/workspaces": {
         "format": "{id}",
@@ -49,6 +49,17 @@
         "exec": "~/.config/waybar/gpu.sh",
         "format": "󰢮  {}%",
         "interval": 5
+    },
+
+    "custom/ib": {
+        "exec": "~/.config/waybar/ib.sh",
+        "return-type": "json",
+        "format": "{}",
+        "interval": 5,
+        "on-click": "ib up live",
+        "on-click-right": "ib down live",
+        "on-click-middle": "ghostty -e ib status",
+        "tooltip": true
     },
 
     "network": {

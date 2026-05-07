@@ -1,0 +1,15 @@
+[Unit]
+Description=IB Gateway (%i mode) under Xvfb via IBC
+Documentation=https://github.com/IbcAlpha/IBC
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/_ib-launch %i
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target
