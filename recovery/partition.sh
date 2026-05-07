@@ -148,7 +148,7 @@ cryptsetup luksHeaderBackup "$P2" --header-backup-file /tmp/luks-header.img
 ls -lh /tmp/luks-header.img
 
 warn "CRITICAL: copy /tmp/luks-header.img off this machine NOW."
-warn "If Tailscale/malt is reachable: scp /tmp/luks-header.img malt:~/dr-backups/"
+warn "If Tailscale/datacore is reachable: scp /tmp/luks-header.img datacore:~/dr-backups/"
 warn "Or to a USB stick. Do not skip this step."
 
 # --- Btrfs on cryptroot ---

@@ -21,7 +21,7 @@ use reusable key ahead of time and store it in Bitwarden for the DR scenario.
 Verify peers are reachable:
 
     tailscale status
-    tailscale ping malt
+    tailscale ping datacore
 
 ## GitHub (for private dotfiles access if needed)
 The restore flow sidesteps cloning the private dotfiles repo (they come out of the

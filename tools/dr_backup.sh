@@ -161,7 +161,6 @@ HOME_EXCLUDES=(
     # Large regenerable data
     ".local/share/Trash"
     ".local/share/Steam"
-    "projects/rox/data"      # Lives on minne server
     "projects/work/clients"  # Client data lives on work SharePoint — never in personal backup
 
     # Temp / lock files

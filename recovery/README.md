@@ -48,7 +48,7 @@ The script creates p1 (EFI) + p2 (LUKS → Btrfs subvolumes) and mounts under `/
     # If Tailscale is reachable on the ISO (install first: pacman -Sy tailscale)
     sudo systemctl start tailscaled
     sudo tailscale up
-    scp /tmp/luks-header.img malt:~/dr-backups/
+    scp /tmp/luks-header.img datacore:~/dr-backups/
 
     # Fallback: copy to a USB stick
     sudo dd if=/tmp/luks-header.img of=/dev/sdX

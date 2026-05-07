@@ -23,7 +23,7 @@ fi
 echo "== SSH targets =="
 # host:friendly-name pairs — edit as needed
 TARGETS=(
-  "minne:home server (minne/malt)"
+  "datacore:home server"
   "swhitson-11l-1:work laptop (linux)"
 )
 for entry in "${TARGETS[@]}"; do
