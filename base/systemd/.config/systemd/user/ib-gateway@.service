@@ -6,6 +6,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+# install4j drops a daily ~/.YYYYMMDD.local/share/Jts/launcher.log backup at
+# every gateway start. It's noise (~24KB, content already in the live launcher.log).
+# `-` prefix lets the unit start even if find returns non-zero.
+ExecStartPre=-/usr/bin/find %h -maxdepth 1 -type d -name ".[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].local" -exec rm -rf {} +
 ExecStart=%h/.local/bin/_ib-launch %i
 Restart=on-failure
 RestartSec=15
