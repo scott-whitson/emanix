@@ -7,3 +7,9 @@ dependencies = [
     "trafilatura>=2.0.0",
     "youtube-transcript-api>=1.2.4",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pillow>=11.0",
+]
