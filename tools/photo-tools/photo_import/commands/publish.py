@@ -61,16 +61,28 @@ def run_publish(
         transport.remote_mkdir(remote_dir)
         transport.rsync_push(shoot_dir, remote_dir)
     except TransportError as e:
-        for digest in local_hashes.values():
-            ledger.mark_archive_failed(digest, error=str(e))
+        ledger.begin_immediate()
+        try:
+            for digest in local_hashes.values():
+                ledger.mark_archive_failed(digest, error=str(e))
+            ledger.commit()
+        except Exception:
+            ledger.rollback()
+            raise
         raise PublishError(f"rsync push failed: {e}") from e
 
     # ── Verify remote hashes match local ───────────────────────────────
     try:
         remote_hashes = transport.remote_sha256(remote_dir)
     except TransportError as e:
-        for digest in local_hashes.values():
-            ledger.mark_archive_failed(digest, error=f"remote sha256: {e}")
+        ledger.begin_immediate()
+        try:
+            for digest in local_hashes.values():
+                ledger.mark_archive_failed(digest, error=f"remote sha256: {e}")
+            ledger.commit()
+        except Exception:
+            ledger.rollback()
+            raise
         raise PublishError(f"remote sha256 failed: {e}") from e
 
     mismatches = []
@@ -78,8 +90,14 @@ def run_publish(
         if remote_hashes.get(name) != local_hash:
             mismatches.append(name)
     if mismatches:
-        for name in mismatches:
-            ledger.mark_archive_failed(local_hashes[name], error="hash mismatch after rsync")
+        ledger.begin_immediate()
+        try:
+            for name in mismatches:
+                ledger.mark_archive_failed(local_hashes[name], error="hash mismatch after rsync")
+            ledger.commit()
+        except Exception:
+            ledger.rollback()
+            raise
         raise PublishError(f"hash mismatch on datacore for: {', '.join(mismatches)}")
 
     # Archive verified — record archive_path in ledger
@@ -91,18 +109,30 @@ def run_publish(
         immich.upload_directory(shoot_dir)
     except ImmichError as e:
         # Archive succeeded; mark immich-failed and record archive_path in the same update.
-        for name, digest in local_hashes.items():
-            ledger.mark_immich_failed(digest, archive_path=archive_paths[name], error=str(e))
+        ledger.begin_immediate()
+        try:
+            for name, digest in local_hashes.items():
+                ledger.mark_immich_failed(digest, archive_path=archive_paths[name], error=str(e))
+            ledger.commit()
+        except Exception:
+            ledger.rollback()
+            raise
         report.errors.append(f"immich upload failed: {e}")
         return report
 
     # ── All-good ledger update ─────────────────────────────────────────
-    for name, digest in local_hashes.items():
-        # immich-go does not currently surface per-asset IDs; pass None.
-        ledger.mark_published(
-            sha256=digest,
-            archive_path=archive_paths[name],
-            immich_asset_id=None,
-        )
+    ledger.begin_immediate()
+    try:
+        for name, digest in local_hashes.items():
+            # immich-go does not currently surface per-asset IDs; pass None.
+            ledger.mark_published(
+                sha256=digest,
+                archive_path=archive_paths[name],
+                immich_asset_id=None,
+            )
+        ledger.commit()
+    except Exception:
+        ledger.rollback()
+        raise
     report.uploaded = len(local_hashes)
     return report

@@ -21,6 +21,17 @@ def test_probe_returns_true_when_reachable():
         assert c.probe() is True
 
 
+def test_probe_uses_server_ping_url():
+    c = ImmichClient(url="http://datacore:2283", api_key="k")
+    with patch("photo_import.immich.urllib.request.urlopen") as urlopen:
+        urlopen.return_value.__enter__.return_value.status = 200
+        c.probe()
+        # urlopen was called with a Request whose full_url ends in /api/server/ping
+        req = urlopen.call_args.args[0]
+        assert req.full_url == "http://datacore:2283/api/server/ping"
+        assert req.get_method() == "GET"
+
+
 def test_probe_returns_false_on_connection_error():
     c = ImmichClient(url="http://datacore:2283", api_key="k")
     with patch("photo_import.immich.urllib.request.urlopen", side_effect=ConnectionError("nope")):

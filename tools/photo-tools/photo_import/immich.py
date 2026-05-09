@@ -17,8 +17,8 @@ class ImmichClient:
         self.api_key = api_key
 
     def probe(self, timeout: int = 5) -> bool:
-        """Return True iff Immich responds to /api/server-info."""
-        req = urllib.request.Request(f"{self.url}/api/server-info", method="HEAD")
+        """Return True iff Immich responds to /api/server/ping (200 {"res":"pong"})."""
+        req = urllib.request.Request(f"{self.url}/api/server/ping", method="GET")
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return 200 <= resp.status < 400
