@@ -94,4 +94,6 @@ class Transport:
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode != 0:
             raise TransportError(f"remote sha256 of {remote_path} failed: {r.stderr.strip()}")
+        if not r.stdout.strip():
+            raise TransportError(f"remote sha256 of {remote_path} returned empty output")
         return r.stdout.split(None, 1)[0]
