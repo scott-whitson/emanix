@@ -93,3 +93,43 @@ def test_concurrent_writers_fail_fast(tmp_path):
         ledger_a.rollback()
         ledger_a.close()
         ledger_b.close()
+
+
+def test_mark_immich_failed(tmp_path):
+    db_path = tmp_path / "ledger.sqlite"
+    with Ledger.open(db_path) as ledger:
+        ledger.insert_staged("h" * 64, "/sd/Z.JPG", "/inbox/Z.JPG", date(2026, 5, 8))
+        ledger.mark_immich_failed(
+            "h" * 64,
+            archive_path="/srv/data/photo-archive/Pictures/2026/2026-05-08/Z.JPG",
+            error="HTTP 503",
+        )
+        row = ledger.lookup_hash("h" * 64)
+        assert row.status == Status.IMMICH_FAILED
+        assert row.archive_path == "/srv/data/photo-archive/Pictures/2026/2026-05-08/Z.JPG"
+        assert row.last_error == "HTTP 503"
+
+
+def test_mark_archived_only(tmp_path):
+    db_path = tmp_path / "ledger.sqlite"
+    with Ledger.open(db_path) as ledger:
+        # First put it in a failed state to verify last_error gets cleared
+        ledger.insert_staged("i" * 64, "/sd/W.JPG", "/inbox/W.JPG", date(2026, 5, 8))
+        ledger.mark_archive_failed("i" * 64, error="transient")
+        ledger.mark_archived_only(
+            "i" * 64,
+            archive_path="/srv/data/photo-archive/Pictures/2026/2026-05-08/W.JPG",
+        )
+        row = ledger.lookup_hash("i" * 64)
+        assert row.status == Status.ARCHIVED_ONLY
+        assert row.archive_path == "/srv/data/photo-archive/Pictures/2026/2026-05-08/W.JPG"
+        assert row.last_error is None
+
+
+def test_clear_inbox_path(tmp_path):
+    db_path = tmp_path / "ledger.sqlite"
+    with Ledger.open(db_path) as ledger:
+        ledger.insert_staged("j" * 64, "/sd/V.JPG", "/inbox/V.JPG", date(2026, 5, 8))
+        assert ledger.lookup_hash("j" * 64).inbox_path == "/inbox/V.JPG"
+        ledger.clear_inbox_path("j" * 64)
+        assert ledger.lookup_hash("j" * 64).inbox_path is None

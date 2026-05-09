@@ -2,12 +2,10 @@
 from __future__ import annotations
 
 import sqlite3
-from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Iterator
 
 
 class Status(str, Enum):
