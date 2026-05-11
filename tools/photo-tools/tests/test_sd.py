@@ -96,6 +96,106 @@ def test_run_sd_import_copies_and_deduplicates(tmp_path, sd_card):
     assert not any("thumb.jpg" in str(p) for p in staging.rglob("*"))
 
 
+def test_run_sd_import_stages_xmp_sidecars(tmp_path, make_jpg):
+    """XMP sidecars are staged alongside their parent photo in the correct shoot folder."""
+    sd = tmp_path / "SD" / "DCIM" / "100CANON"
+    sd.mkdir(parents=True)
+    staging = tmp_path / "staging"
+    ledger_path = tmp_path / "ledger.sqlite"
+
+    # Create a JPG with a known shoot date and drop it on the fake SD card
+    jpg_src = make_jpg(name="IMG_0001.JPG", exif_dt=datetime(2026, 5, 8, 12, 0, 0))
+    (sd / "IMG_0001.JPG").write_bytes(jpg_src.read_bytes())
+
+    # Create a matching XMP sidecar on the fake SD card
+    xmp_content = b'<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?></xpacket>'
+    (sd / "IMG_0001.JPG.xmp").write_bytes(xmp_content)
+
+    source_root = sd.parent.parent  # directory containing DCIM/
+
+    # First run: imports the JPG (and XMP, because the JPG is now in the ledger
+    # after the first pass processes it, and the XMP second pass runs right after)
+    with Ledger.open(ledger_path) as ledger:
+        report = run_sd_import(
+            source_root=source_root,
+            staging_root=staging,
+            ledger=ledger,
+        )
+
+    # JPG + XMP both copied
+    assert report.copied == 2
+    assert report.skipped_existing == 0
+    assert report.errors == []
+
+    may8 = staging / "2026-05-08"
+    assert (may8 / "IMG_0001.JPG").exists()
+    assert (may8 / "IMG_0001.JPG.xmp").exists()
+
+    # Second run: both are already in ledger — all skipped
+    with Ledger.open(ledger_path) as ledger:
+        report2 = run_sd_import(
+            source_root=source_root,
+            staging_root=staging,
+            ledger=ledger,
+        )
+    assert report2.copied == 0
+    assert report2.skipped_existing == 2
+
+
+def test_run_sd_import_picks_up_xmp_sidecars(tmp_path, sd_card):
+    """XMP sidecars should be staged alongside their parent photos."""
+    # Add an XMP sidecar for IMG_0001.JPG (which has EXIF date 2026-05-08)
+    canon = sd_card / "DCIM" / "100CANON"
+    xmp = canon / "IMG_0001.JPG.xmp"
+    xmp.write_text('<xml>rating-data</xml>')
+
+    staging = tmp_path / "staging"
+    ledger_path = tmp_path / "ledger.sqlite"
+    with Ledger.open(ledger_path) as ledger:
+        report = run_sd_import(
+            source_root=sd_card,
+            staging_root=staging,
+            ledger=ledger,
+        )
+    # 4 photos + 1 XMP = 5 copied
+    assert report.copied == 5
+    # XMP lands in same date folder as its parent (parent has EXIF date 2026-05-08)
+    assert (staging / "2026-05-08" / "IMG_0001.JPG.xmp").exists()
+
+
+def test_run_sd_import_skips_orphan_xmp(tmp_path, sd_card):
+    """An XMP with no parent on the card should be flagged as an error, not crash."""
+    canon = sd_card / "DCIM" / "100CANON"
+    (canon / "NONEXISTENT.JPG.xmp").write_text('<xml/>')
+
+    staging = tmp_path / "staging"
+    ledger_path = tmp_path / "ledger.sqlite"
+    with Ledger.open(ledger_path) as ledger:
+        report = run_sd_import(
+            source_root=sd_card,
+            staging_root=staging,
+            ledger=ledger,
+        )
+    # No XMPs staged (orphan), but no crash
+    assert any("orphan XMP" in e for e in report.errors)
+
+
+def test_run_sd_import_xmp_dedup_on_rerun(tmp_path, sd_card):
+    """XMP rerun is a no-op via ledger dedup."""
+    canon = sd_card / "DCIM" / "100CANON"
+    (canon / "IMG_0001.JPG.xmp").write_text('<xml>rating-data</xml>')
+
+    staging = tmp_path / "staging"
+    ledger_path = tmp_path / "ledger.sqlite"
+    with Ledger.open(ledger_path) as ledger:
+        run_sd_import(source_root=sd_card, staging_root=staging, ledger=ledger)
+    with Ledger.open(ledger_path) as ledger:
+        report = run_sd_import(source_root=sd_card, staging_root=staging, ledger=ledger)
+    # XMP would have been deduped against ledger
+    assert report.copied == 0
+    assert report.skipped_existing >= 5  # 4 photos + 1 XMP
+
+
 def test_run_sd_import_handles_filename_collision(tmp_path, sd_card):
     staging = tmp_path / "staging"
     ledger_path = tmp_path / "ledger.sqlite"

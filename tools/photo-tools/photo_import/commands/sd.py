@@ -122,4 +122,98 @@ def run_sd_import(
         ledger.rollback()
         raise
 
+    # Second pass: XMP sidecars (e.g., IMG_0017.JPG.xmp). Each XMP belongs to a
+    # parent photo (same dir, name minus the .xmp suffix). We stage the XMP in
+    # the parent's shoot_date folder so it travels with its parent when publish
+    # runs. We insert a ledger row for the XMP itself with status=staged so
+    # publish picks up the shoot folder even when the parent is already
+    # published.
+    ledger.begin_immediate()
+    try:
+        for src in sorted(dcim.rglob("*")):
+            if not src.is_file():
+                continue
+            if should_skip(src.relative_to(source_root)):
+                continue
+            if src.suffix.lower() != ".xmp":
+                continue
+
+            parent_name = src.name[:-len(".xmp")]  # IMG_0017.JPG.xmp -> IMG_0017.JPG
+            parent_src = src.parent / parent_name
+            if not parent_src.is_file():
+                report.errors.append(f"orphan XMP (no parent on card): {src}")
+                continue
+
+            # Hash the XMP itself for dedup; if we've imported this exact XMP before,
+            # skip. (XMP edits change the hash, so a different ledger row would be
+            # created for an updated XMP.)
+            try:
+                xmp_digest = sha256_file(src)
+            except OSError as e:
+                report.errors.append(f"hash failed for {src}: {e}")
+                continue
+            if ledger.lookup_hash(xmp_digest) is not None:
+                report.skipped_existing += 1
+                continue
+
+            # Look up the parent's shoot_date so we know which staging folder
+            try:
+                parent_digest = sha256_file(parent_src)
+            except OSError as e:
+                report.errors.append(f"hash failed for parent {parent_src}: {e}")
+                continue
+            parent_row = ledger.lookup_hash(parent_digest)
+            if parent_row is None:
+                report.errors.append(f"XMP parent not in ledger; skipping: {src}")
+                continue
+            shoot_date = parent_row.shoot_date
+
+            target_dir = staging_root / shoot_date.isoformat()
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target = target_dir / src.name
+
+            if target.exists():
+                # Filename collision: existing XMP in staging. Compare hashes.
+                try:
+                    existing_digest = sha256_file(target)
+                except OSError:
+                    existing_digest = None
+                if existing_digest == xmp_digest:
+                    report.skipped_existing += 1
+                    continue
+                # Different content — append -N suffix
+                stem, suffix = target.stem, target.suffix
+                n = 1
+                while True:
+                    candidate = target_dir / f"{stem}-{n}{suffix}"
+                    if not candidate.exists():
+                        target = candidate
+                        report.collisions += 1
+                        break
+                    n += 1
+
+            shutil.copy2(src, target)
+            try:
+                dest_digest = sha256_file(target)
+            except OSError as e:
+                report.errors.append(f"verify hash failed for {target}: {e}")
+                target.unlink(missing_ok=True)
+                continue
+            if dest_digest != xmp_digest:
+                report.errors.append(f"hash mismatch after copy: {src} -> {target}")
+                target.unlink(missing_ok=True)
+                continue
+
+            ledger.insert_staged(
+                sha256=xmp_digest,
+                src_path=str(src),
+                inbox_path=str(target),
+                shoot_date=shoot_date,
+            )
+            report.copied += 1
+        ledger.commit()
+    except Exception:
+        ledger.rollback()
+        raise
+
     return report
