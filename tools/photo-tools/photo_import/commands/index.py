@@ -25,6 +25,8 @@ def shoot_date_from_archive_path(path: str) -> date:
 
     For paths like .../Pictures/<year>/<YYYY-MM-DD>/<file>, use the dated subdir.
     For legacy paths .../Pictures/<year>/<file>, fall back to <year>-01-01.
+    If no year or date segment is found, returns the sentinel date(1970, 1, 1) so
+    these files are visibly grouped under epoch ("unknown date") rather than today.
     """
     parts = PurePosixPath(path).parts
     for part in reversed(parts[:-1]):
@@ -32,7 +34,7 @@ def shoot_date_from_archive_path(path: str) -> date:
             return date.fromisoformat(part)
         if _YEAR_DIR_RE.match(part):
             return date(int(part), 1, 1)
-    return date.today()
+    return date(1970, 1, 1)
 
 
 def run_index(transport, archive_root: str, ledger: Ledger) -> IndexReport:

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from photo_import.ledger import Ledger, Status
@@ -23,9 +23,6 @@ def sweep_staging(
     report = SweepReport()
     if not staging_root.is_dir():
         return report
-
-    cutoff = datetime.now() - timedelta(days=retention_days)
-    cutoff_ts = cutoff.timestamp()
 
     for shoot_dir in sorted(staging_root.iterdir()):
         if not shoot_dir.is_dir():
@@ -48,12 +45,18 @@ def sweep_staging(
             report.kept += 1
             continue
 
-        # Newest mtime among files in the dir
-        newest = max(
-            (f.stat().st_mtime for f in shoot_dir.rglob("*") if f.is_file()),
-            default=0.0,
-        )
-        if newest > cutoff_ts:
+        # Use newest published_at from ledger rows (not file mtime — files copied from
+        # SD card preserve their original capture mtime, which is irrelevant here).
+        publish_times = [r.published_at for r in rows if r.published_at is not None]
+        if not publish_times:
+            # Defensive: all rows are PUBLISHED (we checked above) so at least one
+            # should have published_at set. If none do, treat as too-new to be safe.
+            report.kept += 1
+            continue
+        newest_published = max(publish_times)
+        # published_at is stored UTC; compare with a UTC cutoff
+        cutoff_utc = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        if newest_published > cutoff_utc:
             report.kept += 1
             continue
 

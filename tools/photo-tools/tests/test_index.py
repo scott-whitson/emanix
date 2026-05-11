@@ -71,3 +71,10 @@ def test_index_extracts_shoot_date_year_only_for_legacy(tmp_path):
     from photo_import.commands.index import shoot_date_from_archive_path
     p = "/srv/data/photo-archive/Pictures/2024/IMG_OLD.JPG"
     assert shoot_date_from_archive_path(p) == date(2024, 1, 1)
+
+
+def test_index_extracts_shoot_date_returns_epoch_for_unknown_path():
+    """Paths with no year/date segment should return epoch sentinel."""
+    from photo_import.commands.index import shoot_date_from_archive_path
+    p = "/srv/data/photo-archive/Pictures/Tennessee Years/img.JPG"
+    assert shoot_date_from_archive_path(p) == date(1970, 1, 1)
