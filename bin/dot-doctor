@@ -12,6 +12,9 @@ RESET=$'\033[0m'
 
 failures=0
 
+# Read active profile (written by install/09-stow-profile.sh)
+ACTIVE_PROFILE=$(<"$HOME/.config/dotfiles/active-profile" 2>/dev/null || echo "unknown")
+
 check() {
     local label="$1" cmd="$2"
     if eval "$cmd" &>/dev/null; then
@@ -22,25 +25,37 @@ check() {
     fi
 }
 
-echo "== dot-doctor =="
+echo "== dot-doctor (profile: $ACTIVE_PROFILE) =="
 
+# --- Cross-profile checks ---
 check "DOTFILES env var set"          "[[ -n \"\$DOTFILES\" ]]"
 check "\$DOTFILES/bin on PATH"         "[[ \":\$PATH:\" == *\":\$DOTFILES/bin:\"* ]]"
 check "stow installed"                 "command -v stow"
 check "paru installed"                 "command -v paru"
 check "zsh is default shell"           "[[ \"\$SHELL\" == \"\$(command -v zsh)\" ]]"
-check "claude on PATH"                 "command -v claude"
 check "~/.gitconfig.local symlink ok" "[[ -L \"\$HOME/.gitconfig.local\" ]] && [[ -e \"\$HOME/.gitconfig.local\" ]]"
-check "~/gdrive is mounted"            "mountpoint -q \"\$HOME/gdrive\""
-check "tailscale active"               "systemctl is-active --quiet tailscaled"
-check "JetBrains Mono Nerd Font installed" "fc-list | grep -qi 'jetbrainsmono nerd font'"
-check "pam_systemd_home NOT active"    "! grep -qE '^\\s*auth.*pam_systemd_home' /etc/pam.d/system-auth"
 check "~/.local/bin on PATH"           "[[ \":\$PATH:\" == *\":\$HOME/.local/bin:\"* ]]"
-check "~/projects/agent-skills is a git repo" "[[ -d \"\$HOME/projects/agent-skills/.git\" ]]"
-check "~/.config/nvim/init.lua has theme opt-in" "grep -qF \"pcall(require, 'dotfiles-theme')\" \"\$HOME/.config/nvim/init.lua\""
-check "active theme marker present"    "[[ -f \"\$HOME/.config/dotfiles/active-theme\" ]]"
-check "active theme directory exists"  "[[ -d \"\$DOTFILES/themes/\$(cat \"\$HOME/.config/dotfiles/active-theme\" 2>/dev/null)\" ]]"
-check "~/.config/hypr/theme.conf is live symlink" "[[ -L \"\$HOME/.config/hypr/theme.conf\" ]] && [[ -e \"\$HOME/.config/hypr/theme.conf\" ]]"
+check "pam_systemd_home NOT active"    "! grep -qE '^\\s*auth.*pam_systemd_home' /etc/pam.d/system-auth"
+check "active-profile marker present" "[[ -f \"\$HOME/.config/dotfiles/active-profile\" ]]"
+
+# --- Workstation-only checks ---
+if [[ "$ACTIVE_PROFILE" == "workstation" ]]; then
+    check "~/gdrive is mounted"            "mountpoint -q \"\$HOME/gdrive\""
+    check "tailscale active"               "systemctl is-active --quiet tailscaled"
+    check "JetBrains Mono Nerd Font installed" "fc-list | grep -qi 'jetbrainsmono nerd font'"
+    check "~/projects/agent-skills is a git repo" "[[ -d \"\$HOME/projects/agent-skills/.git\" ]]"
+    check "~/.config/nvim/init.lua has theme opt-in" "grep -qF \"pcall(require, 'dotfiles-theme')\" \"\$HOME/.config/nvim/init.lua\""
+    check "active theme marker present"    "[[ -f \"\$HOME/.config/dotfiles/active-theme\" ]]"
+    check "active theme directory exists"  "[[ -d \"\$DOTFILES/themes/\$(cat \"\$HOME/.config/dotfiles/active-theme\" 2>/dev/null)\" ]]"
+    check "~/.config/hypr/theme.conf is live symlink" "[[ -L \"\$HOME/.config/hypr/theme.conf\" ]] && [[ -e \"\$HOME/.config/hypr/theme.conf\" ]]"
+fi
+
+# --- AI tooling checks (any profile) ---
+if command -v pi &>/dev/null; then
+    check "pi on PATH"  "command -v pi"
+else
+    check "claude on PATH" "command -v claude"
+fi
 
 echo ""
 if [[ "$failures" -eq 0 ]]; then

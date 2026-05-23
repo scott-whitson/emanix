@@ -1,1 +1,17 @@
 .claude/
+
+# Python build artifacts
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+
+# Python virtualenvs
+tools/.venv/
+tools/photo-tools/.venv/
+
+# Rust build output
+tools/window-picker/target/
+
+# Large binary assets (not version-controlled; see docs for download instructions)
+tools/vosk-models/*/

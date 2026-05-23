@@ -3,16 +3,25 @@
 set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
+# Guard: abort if base/ has uncommitted edits — the git checkout at the end
+# would silently discard them.
+if ! git -C "$DOTFILES" diff --quiet -- base/; then
+    die "Uncommitted edits in base/ detected. Stash or commit them before running install."
+fi
+if ! git -C "$DOTFILES" diff --cached --quiet -- base/; then
+    die "Staged edits in base/ detected. Commit or reset them before running install."
+fi
+
 log "stowing base/* packages"
 cd "$DOTFILES"
 
 for pkg_path in base/*/; do
     pkg_name="$(basename "$pkg_path")"
 
-    # Skip desktop packages on headless/server
+    # Skip workstation-only packages on headless/server
     if ! profile_is workstation; then
         case "$pkg_name" in
-            hypr|waybar|mako|ghostty|fuzzel) continue ;;
+            hypr|waybar|mako|ghostty|fuzzel|pi) continue ;;
         esac
     fi
 

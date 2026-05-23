@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install/07-claude.sh — Claude Code CLI + agent-skills sanity check
+# install/07-claude.sh — AI coding CLI (pi + Claude Code) + agent-skills sanity check
 set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
@@ -17,6 +17,14 @@ if ! command -v claude &>/dev/null; then
     npm install -g @anthropic-ai/claude-code
 else
     log "Claude Code already on PATH: $(claude --version 2>&1 | head -1)"
+fi
+
+# --- Pi coding agent ---
+if ! command -v pi &>/dev/null; then
+    log "installing pi coding agent via npm"
+    npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+else
+    log "pi already on PATH: $(pi --version 2>&1 | head -1)"
 fi
 
 # --- agent-skills sanity check ---

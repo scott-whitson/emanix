@@ -8,6 +8,12 @@ if [[ ! -d "$PROFILE_DIR" ]]; then
     die "profile directory not found: $PROFILE_DIR"
 fi
 
+# Write the active-profile marker so dot-restow can find the profile without
+# falling back to symlink inference.
+mkdir -p "$HOME/.config/dotfiles"
+echo "$PROFILE" > "$HOME/.config/dotfiles/active-profile"
+log "active-profile marker written: $PROFILE"
+
 log "stowing $PROFILE_DIR/* packages"
 cd "$DOTFILES"
 
