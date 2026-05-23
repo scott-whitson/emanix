@@ -9,7 +9,7 @@
     "modules-right": ["pulseaudio", "custom/ib", "cpu", "memory", "custom/gpu", "network", "battery"],
 
     "hyprland/workspaces": {
-        "format": "{id}",
+        "format": "{name}",
         "on-click": "activate",
         "disable-scroll": false
     },

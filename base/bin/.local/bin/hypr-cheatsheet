@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Show Hyprland keybindings from the vault cheatsheet as a fuzzel popup.
+# Pure viewer — selection is discarded, Esc dismisses. Reads source fresh
+# each invocation so edits in Obsidian show up immediately.
+set -euo pipefail
+
+src="$HOME/vault/Whitsgrove/Hyprland Cheatsheet.md"
+
+if [[ ! -f "$src" ]]; then
+    notify-send "Hyprland cheatsheet" "Source missing: $src"
+    exit 1
+fi
+
+awk '
+BEGIN { section = "" }
+/^[[:space:]]*$/ { next }
+/^#+[[:space:]]/ {
+    sub(/^#+[[:space:]]+/, "")
+    section = tolower($0)
+    next
+}
+/^[[:space:]]*[-*+][[:space:]]/ {
+    line = $0
+    sub(/^[[:space:]]*[-*+][[:space:]]+/, "", line)
+    gsub(/`/, "", line)
+    if (section != "") print section " · " line
+    else print line
+}
+' "$src" | fuzzel --dmenu --prompt "binds ▸ " --width 80 >/dev/null || true

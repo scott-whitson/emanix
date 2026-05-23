@@ -6,21 +6,32 @@ All system-level bindings. `$mod` is Super (Windows key) on this machine.
 
 ## Hyprland
 
+Active layout: **master** (configured in `base/hypr/.config/hypr/hyprland.conf` via `layout = master` + a `master { … }` block — left-oriented, `mfact = 0.55`).
+
+> **Live reference:** `$mod + Shift + /` pops a searchable fuzzel viewer (`hypr-cheatsheet`) sourced from `~/vault/Whitsgrove/Hyprland Cheatsheet.md`. Edits to that file are picked up on the next popup. The tables below are the canonical reference; the vault file is the daily-use index.
+
 ### Window management
 
 | Binding | Action |
 |---|---|
 | `$mod + h/j/k/l` | Move focus left / down / up / right |
 | `$mod + Shift + h/j/k/l` | Move window left / down / up / right |
-| `$mod + Ctrl + h/j/k/l` | Resize active window (repeatable) |
+| `$mod + Ctrl + h` / `$mod + Ctrl + l` | Shrink / grow master area (`mfact ±0.05`, repeatable) |
+| `$mod + Ctrl + j/k` | Resize active window vertically (repeatable) |
 | `$mod + mouse1 (drag)` | Move floating window |
 | `$mod + mouse2 (drag)` | Resize floating window |
 | `$mod + Shift + q` | Close active window |
 | `$mod + Shift + Space` | Toggle floating |
 | `$mod + f` | Fullscreen |
-| `$mod + v` | Preselect split below (dwindle) |
-| `$mod + b` | Preselect split right (dwindle) |
 | `$mod + Tab` | Window picker (`~/.local/bin/window-picker`) |
+
+### Master layout
+
+| Binding | Action |
+|---|---|
+| `$mod + m` | Jump to/from the master window |
+| `$mod + Shift + Return` | Promote focused window to master (`swapwithmaster`) |
+| `$mod + y` | Cycle orientation (left → top → right → bottom → center) |
 
 ### Workspaces
 
@@ -30,8 +41,11 @@ All system-level bindings. `$mod` is Super (Windows key) on this machine.
 | `$mod + Shift + 1..9` | Move window to workspace 1–9 (silent) |
 | `$mod + s` | Next workspace on monitor |
 | `$mod + a` | Previous workspace on monitor |
+| `$mod + r` | Rename current workspace (`hypr-rename-workspace`; fuzzel prompt, empty input clears) |
 | `$mod + Shift + -` | Move window to special workspace (scratchpad) |
 | `$mod + -` | Toggle special workspace |
+
+Workspace names render in waybar's `hyprland/workspaces` module via `"format": "{name}"`. Renames are session-local (lost on Hyprland exit).
 
 ### Launchers
 
@@ -41,8 +55,9 @@ All system-level bindings. `$mod` is Super (Windows key) on this machine.
 | `$mod + d` | App launcher (`$menu`) |
 | `$mod + w` | Firefox |
 | `$mod + Alt + p` | Firefox private window |
-| `$mod + e` | File manager (`lf` in terminal) |
+| `$mod + e` | File manager (`thunar`) |
 | `$mod + o` | Obsidian |
+| `$mod + Shift + /` | Keybindings cheatsheet popup (`hypr-cheatsheet`; reads `~/vault/Whitsgrove/Hyprland Cheatsheet.md`) |
 | `$mod + Escape` | Lock screen (`hyprlock`) |
 | `Print` | Screenshot region → clipboard (`grim` + `slurp`) |
 | `Shift + Print` | Screenshot region → `~/downloads/screenshot-YYYYMMDD-HHMMSS.png` |

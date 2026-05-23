@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Prompt for a workspace label via fuzzel, then rename the active Hyprland
+# workspace to "<id> <label>". Empty input clears the label back to "<id>".
+set -euo pipefail
+
+id=$(hyprctl activeworkspace | awk '/^workspace ID/ {print $3; exit}')
+if [[ -z "$id" ]]; then
+    exit 1
+fi
+
+new=$(printf '' | fuzzel --dmenu --prompt "ws $id ▸ " --lines 0 --width 30) || exit 0
+
+# Trim leading/trailing whitespace
+new="${new#"${new%%[![:space:]]*}"}"
+new="${new%"${new##*[![:space:]]}"}"
+
+if [[ -n "$new" ]]; then
+    hyprctl dispatch renameworkspace "$id" "$id $new"
+else
+    hyprctl dispatch renameworkspace "$id" "$id"
+fi

@@ -59,6 +59,8 @@ Every file in `base/bin/.local/bin/` is symlinked to `~/.local/bin/<name>` by `i
 | Wrapper | Purpose |
 |---|---|
 | `fragpaper-launch` | Launches fragpaper with the active theme's BG_COLOR + PALETTE |
+| `hypr-cheatsheet` | Fuzzel viewer for Hyprland keybindings; sources from `~/vault/Whitsgrove/Hyprland Cheatsheet.md` (bound to `$mod + Shift + /`) |
+| `hypr-rename-workspace` | Fuzzel prompt → `hyprctl dispatch renameworkspace <id> "<id> <label>"` (bound to `$mod + r`) |
 | `news` | Calls the uv-managed `news` entry point |
 | `trackpad-toggle` | Toggle trackpad on/off |
 | `web_extract` | Calls the uv-managed `web_extract` entry point |
