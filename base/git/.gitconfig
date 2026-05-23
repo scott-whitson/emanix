@@ -2,3 +2,5 @@
 	autocrlf = input
 [include]
 	path = ~/.gitconfig.local
+[user]
+	email = scott@scottwhitson.com
