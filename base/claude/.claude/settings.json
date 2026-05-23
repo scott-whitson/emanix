@@ -13,5 +13,6 @@
     "mind@memvid": true
   },
   "alwaysThinkingEnabled": true,
+  "theme": "auto",
   "agentPushNotifEnabled": true
 }

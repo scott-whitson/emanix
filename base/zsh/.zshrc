@@ -154,13 +154,13 @@ done
 # --- NVM (lazy-loaded — eager load costs ~270ms) ---
 export NVM_DIR="$HOME/.nvm"
 nvm() {
-  unset -f nvm node npm npx yarn 2>/dev/null
+  unset -f nvm node npm npx yarn pi 2>/dev/null
   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
   [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
   nvm "$@"
 }
-for _nvm_cmd in node npm npx yarn; do
-  eval "${_nvm_cmd}() { unset -f nvm node npm npx yarn 2>/dev/null; [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"; [ -s \"\$NVM_DIR/bash_completion\" ] && . \"\$NVM_DIR/bash_completion\"; ${_nvm_cmd} \"\$@\"; }"
+for _nvm_cmd in node npm npx yarn pi; do
+  eval "${_nvm_cmd}() { unset -f nvm node npm npx yarn pi 2>/dev/null; [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"; [ -s \"\$NVM_DIR/bash_completion\" ] && . \"\$NVM_DIR/bash_completion\"; ${_nvm_cmd} \"\$@\"; }"
 done
 unset _nvm_cmd
 

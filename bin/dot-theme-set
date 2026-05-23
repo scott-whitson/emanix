@@ -94,6 +94,27 @@ PY
     fi
 fi
 
+# --- Pi: update settings.json theme ---
+pi_settings="$HOME/.pi/settings.json"
+if command -v python3 &>/dev/null; then
+    python3 - "$pi_settings" "$THEME_NAME" <<'PY' || true
+import json, sys, os, tempfile
+path, theme = sys.argv[1], sys.argv[2]
+try:
+    if os.path.exists(path):
+        with open(path) as f: data = json.load(f)
+    else:
+        data = {}
+    data["theme"] = theme
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
+    with os.fdopen(fd, "w") as f: json.dump(data, f, indent=2)
+    os.replace(tmp, path)
+except Exception as e:
+    print(f"pi settings update failed: {e}", file=__import__('sys').stderr)
+PY
+fi
+
 # --- GTK + system color-scheme via gsettings ---
 gtk_conf="$THEME_DIR/gtk.conf"
 if [[ -f "$gtk_conf" ]]; then
@@ -126,5 +147,6 @@ pkill -SIGUSR2 waybar   2>/dev/null || true
 pkill -SIGUSR2 ghostty  2>/dev/null || true
 pkill -SIGUSR1 -x hx    2>/dev/null || true
 pkill -SIGUSR1 -x helix 2>/dev/null || true
+# Pi reloads on settings.json change automatically (via file watch)
 
 echo "Switched to $THEME_NAME ($VARIANT)"
