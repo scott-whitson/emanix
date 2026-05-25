@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# OpenRouter cost — exact rolling 7-day via management key (activity) + regular key (usage)
+
+PI_AUTH="$HOME/.pi/agent/auth.json"
+
+[[ ! -f "$PI_AUTH" ]] && { notify-send "hypr-or-cost" "auth.json not found" -u critical; exit 1; }
+
+read mgmt_key apikey <<< $(python3 <<-'PYEOF'
+import json
+with open('/home/scott/.pi/agent/auth.json') as f:
+    d = json.load(f)
+mgmt = d.get('openrouter-management', {}).get('key', '')
+reg = d.get('openrouter', {}).get('key', '')
+print(f"{mgmt} {reg}")
+PYEOF
+)
+
+[[ -z "$mgmt_key" ]] && { notify-send "hypr-or-cost" "No management key" -u critical; exit 1; }
+[[ -z "$apikey" ]]   && { notify-send "hypr-or-cost" "OpenRouter key not found" -u critical; exit 1; }
+
+ACTIVITY=$(curl -s "https://openrouter.ai/api/v1/activity?limit=500" -H "Authorization: Bearer $mgmt_key")
+KEY_DATA=$(curl -s "https://openrouter.ai/api/v1/auth/key" -H "Authorization: Bearer $apikey")
+
+export ACTIVITY KEY_DATA
+
+output=$(python3 <<-'PYEOF'
+import json, os
+from datetime import datetime, timezone, timedelta
+
+# Activity API — historical 7 days (lags ~1 day behind real-time)
+data = json.loads(os.environ['ACTIVITY']).get('data', [])
+
+cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+rolling_7d = 0.0
+gen_count = 0
+models = set()
+
+for entry in data:
+    dt = datetime.strptime(entry['date'].split(' ')[0], '%Y-%m-%d').replace(tzinfo=timezone.utc)
+    if dt >= cutoff:
+        rolling_7d += float(entry.get('usage', 0) or 0)
+        gen_count += int(entry.get('requests', 0) or 0)
+        models.add(entry.get('model', '?'))
+
+# Today's daily usage from regular key (activity API lags ~1 day)
+key_data = json.loads(os.environ['KEY_DATA']).get('data', {})
+usage_daily = float(key_data.get('usage_daily', 0) or 0)
+usage_monthly = float(key_data.get('usage_monthly', 0) or 0)
+
+today_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+today_in_activity = any(e.get('date','').startswith(today_str) for e in data)
+if not today_in_activity and usage_daily > 0:
+    rolling_7d += usage_daily
+
+lines = [f'${rolling_7d:.2f} \u2014 last 7 days ({gen_count} requests)']
+if len(models) <= 3 and models:
+    lines.append(f'Models: {", ".join(sorted(models))}')
+lines.append(f'${usage_monthly:.2f} \u2014 this month')
+print('\n'.join(lines))
+PYEOF
+)
+
+notify-send "OpenRouter Cost" "$output"

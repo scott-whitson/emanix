@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Phoenix, NY weather — NWS forecast notification + satellite/radar slideshow
+set -euo pipefail
+
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/hypr-weather"
+mkdir -p "$CACHE_DIR"
+
+LAT="43.2312"
+LON="-76.3007"
+UA="(pi-session, scottwhitson@gmail.com)"
+
+# --- Start image downloads immediately (parallel background) ---
+curl -sfLo "$CACHE_DIR/satellite.jpg" \
+  "https://cdn.star.nesdis.noaa.gov/GOES16/ABI/SECTOR/ne/GEOCOLOR/latest.jpg" &
+curl -sfLo "$CACHE_DIR/airmass.jpg" \
+  "https://cdn.star.nesdis.noaa.gov/GOES16/ABI/SECTOR/ne/AirMass/latest.jpg" &
+curl -sfLo "$CACHE_DIR/radar.gif" \
+  "https://radar.weather.gov/ridge/standard/NORTHEAST_loop.gif" &
+img_pids=$!
+
+# --- Fetch hourly forecast (fast, serial) ---
+forecast_json=$(curl -sf -H "User-Agent: $UA" "https://api.weather.gov/points/${LAT},${LON}")
+grid_url=$(echo "$forecast_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['properties']['forecastHourly'])")
+curl -sf -H "User-Agent: $UA" "$grid_url" -o "$CACHE_DIR/hourly.json"
+
+# --- Build + show notification (no wait for images) ---
+notify-send "☁ Phoenix, NY Hourly" "$(python3 -c "
+import json
+from datetime import datetime
+with open('$CACHE_DIR/hourly.json') as f:
+    d = json.load(f)
+for p in d['properties']['periods'][:8]:
+    dt = datetime.fromisoformat(p['startTime'].replace('Z', '+00:00'))
+    time = dt.strftime('%a %I%p').lstrip('0').replace(':00', '')
+    pop = p.get('probabilityOfPrecipitation', {}).get('value', 0) or 0
+    print(f'{time}  {p[\"temperature\"]}°  {pop:.0f}%  {p[\"shortForecast\"]}')
+")"
+
+# --- Wait for images to finish, then open mpv slideshow ---
+wait $img_pids 2>/dev/null || true
+
+mpv --image-display-duration=6 \
+    --loop=inf \
+    --no-audio \
+    --title=hypr-weather-sat \
+    --geometry=1000x900 \
+    "$CACHE_DIR/satellite.jpg" \
+    "$CACHE_DIR/airmass.jpg" \
+    "$CACHE_DIR/radar.gif" 2>/dev/null &disown

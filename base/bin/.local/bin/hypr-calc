@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Quick calculator — fuzzel + qalc
+# Type expression, get result copied + notified
+
+if ! command -v qalc &>/dev/null; then
+  notify-send "hypr-calc" "qalc not found. Install with: sudo pacman -S libqalculate" -u critical
+  exit 1
+fi
+
+if ! command -v fuzzel &>/dev/null; then
+  notify-send "hypr-calc" "fuzzel not found" -u critical
+  exit 1
+fi
+
+expr=$(echo "" | fuzzel --dmenu --prompt "calc> " --lines=0 2>/dev/null)
+[[ -z "$expr" ]] && exit 0
+
+result=$(qalc "$expr" 2>/dev/null)
+# qalc outputs in format "expr = result", extract just the result part
+answer=$(echo "$result" | tail -1)
+
+echo "$answer" | wl-copy
+notify-send "🧮 $expr" "$answer"
