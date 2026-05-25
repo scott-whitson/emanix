@@ -70,10 +70,10 @@ def rounded_rect(ctx, x, y, w, h, r):
 # Title
 cr.select_font_face("JetBrains Mono", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
 cr.set_font_size(20)
-_, _, tw, _, _, _ = cr.text_extents("⌨ Hyprland Keybindings")
+_, _, tw, _, _, _ = cr.text_extents("Keybindings")
 cr.set_source_rgb(*GREEN)
 cr.move_to((W - tw) / 2, 30)
-cr.show_text("⌨ Hyprland Keybindings")
+cr.show_text("Keybindings")
 
 # Split sections into 2 columns
 mid = (len(sections) + 1) // 2
@@ -131,9 +131,10 @@ def draw_section(ctx, x, y, name, items, max_w):
         # Description
         ctx.select_font_face("JetBrains Mono", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
         ctx.set_source_rgb(*TEXT)
-        dx = x + 14 + kw
+        dx = x + 18 + kw
         avail = max_w - (dx - x) - 12
-        display = desc
+        display = desc[0].upper() + desc[1:]
+        display = display.replace("\u2192", "->").replace("`", "")
         _, _, dw, _, _, _ = ctx.text_extents(display)
         if dw > avail:
             while dw > avail - 12 and len(display) > 2:
