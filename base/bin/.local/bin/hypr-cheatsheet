@@ -171,4 +171,5 @@ mpv --image-display-duration=inf \
     --no-audio \
     --title=hypr-cheatsheet \
     --geometry=960x720 \
+    --input-conf=<(echo "ESC quit") \
     "$png_file" 2>/dev/null &disown
