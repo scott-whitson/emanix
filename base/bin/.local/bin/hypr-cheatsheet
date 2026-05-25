@@ -1,29 +1,149 @@
 #!/usr/bin/env bash
-# Show Hyprland keybindings from the vault cheatsheet as a fuzzel popup.
-# Pure viewer — selection is discarded, Esc dismisses. Reads source fresh
-# each invocation so edits in Obsidian show up immediately.
+# Show Hyprland keybindings in a floating catppuccin-themed HTML window
+
 set -euo pipefail
 
 src="$HOME/vault/Whitsgrove/Hyprland Cheatsheet.md"
+html_file="${XDG_CACHE_HOME:-$HOME/.cache}/hypr-cheatsheet.html"
 
-if [[ ! -f "$src" ]]; then
-    notify-send "Hyprland cheatsheet" "Source missing: $src"
-    exit 1
-fi
+[[ ! -f "$src" ]] && { notify-send "hypr-cheatsheet" "Source missing: $src"; exit 1; }
 
-awk '
-BEGIN { section = "" }
-/^[[:space:]]*$/ { next }
-/^#+[[:space:]]/ {
-    sub(/^#+[[:space:]]+/, "")
-    section = tolower($0)
-    next
-}
-/^[[:space:]]*[-*+][[:space:]]/ {
-    line = $0
-    sub(/^[[:space:]]*[-*+][[:space:]]+/, "", line)
-    gsub(/`/, "", line)
-    if (section != "") print section " · " line
-    else print line
-}
-' "$src" | fuzzel --dmenu --prompt "binds ▸ " --width 80 >/dev/null || true
+python3 - <<-'PYEOF' "$src" "$html_file"
+import sys, re, html
+
+with open(sys.argv[1]) as f:
+    lines = f.readlines()
+
+sections = []
+current_section = None
+current_items = []
+
+for line in lines:
+    stripped = line.strip()
+    # Section headers
+    m = re.match(r'^##\s+(.+)$', stripped)
+    if m:
+        if current_section is not None:
+            sections.append((current_section, current_items))
+        current_section = m.group(1)
+        current_items = []
+        continue
+    # Bullet items: `key` — description
+    bm = re.match(r'^[-*+]\s+`([^`]+)`\s*[—–-]\s*(.+)$', stripped)
+    if bm and current_section is not None:
+        current_items.append((bm.group(1), bm.group(2)))
+        continue
+    # Non-bullet description lines (e.g. the intro text)
+    if current_section is None and stripped:
+        continue
+
+if current_section is not None:
+    sections.append((current_section, current_items))
+
+def render_section(name, items):
+    rows = ''
+    for key, desc in items:
+        safe_key = html.escape(key)
+        safe_desc = html.escape(desc)
+        rows += f'<tr><td class="key">{safe_key}</td><td class="desc">{safe_desc}</td></tr>\n'
+    return f'''
+    <div class="section">
+      <h2>{html.escape(name)}</h2>
+      <table>{rows}</table>
+    </div>'''
+
+# Split sections into two columns evenly
+mid = (len(sections) + 1) // 2
+col1 = ''.join(render_section(n, it) for n, it in sections[:mid])
+col2 = ''.join(render_section(n, it) for n, it in sections[mid:])
+
+page = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>hypr-cheatsheet</title>
+<style>
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{
+    font-family: -apple-system, 'SF Mono', 'JetBrains Mono', monospace;
+    background: #1e1e2e;
+    color: #cdd6f4;
+    padding: 18px;
+}}
+h1 {{
+    font-size: 20px;
+    color: #a6e3a1;
+    margin-bottom: 14px;
+    text-align: center;
+}}
+.grid {{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+}}
+@media (max-width: 800px) {{
+    .grid {{ grid-template-columns: 1fr; }}
+}}
+.section {{
+    background: #181825;
+    border-radius: 8px;
+    padding: 12px 14px;
+    break-inside: avoid;
+}}
+.section h2 {{
+    font-size: 14px;
+    color: #89b4fa;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #313244;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}}
+.section table {{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}}
+.section tr + tr td {{
+    border-top: 1px solid #252536;
+}}
+.section td {{
+    padding: 5px 4px;
+    vertical-align: top;
+}}
+.key {{
+    color: #fab387;
+    font-weight: bold;
+    white-space: nowrap;
+    width: 1%;
+    padding-right: 10px !important;
+}}
+.desc {{
+    color: #cdd6f4;
+    width: 99%;
+}}
+.footer {{
+    margin-top: 14px;
+    font-size: 11px;
+    color: #6c7086;
+    text-align: center;
+    grid-column: 1 / -1;
+}}
+</style>
+</head>
+<body>
+<h1>⌨ Hyprland Keybindings</h1>
+<div class="grid">
+  {col1}
+  {col2}
+  <div class="footer">Esc to close &bull; Edit in Obsidian &bull; Sources: ~/vault/Whitsgrove/Hyprland Cheatsheet.md</div>
+</div>
+</body>
+</html>'''
+
+with open(sys.argv[2], 'w') as f:
+    f.write(page)
+PYEOF
+
+firefox --new-window "file://${html_file}" 2>/dev/null &disown
