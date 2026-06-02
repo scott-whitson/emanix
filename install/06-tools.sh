@@ -15,25 +15,11 @@ fi
 # The tools/ project exposes them via uv-managed entry points; no symlinks needed
 # beyond what base/bin/ already provides.
 
-ensure_fragpaper_font() {
-	local want=/usr/share/fonts/TTF/DejaVuSansMono.ttf
-	local have=/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf
-	if [[ -e "$want" ]]; then
-		return 0
-	fi
-	if [[ -r "$have" ]]; then
-		log "creating fragpaper font path shim"
-		sudo install -d /usr/share/fonts/TTF
-		sudo ln -sf "$have" "$want"
-	fi
-}
-
 # --- fragpaper source clone + install ---
-# Source lives in ~/projects/fragpaper (local repo); installed runtime lands in ~/.local/opt/fragpaper.
-# Shaders are copied into ~/.local/share/fragpaper/shaders so launcher never depends on repo checkout.
+# Source lives in ~/projects/fragpaper (local repo); launcher reads shaders directly from there.
+# We only build/install binary here.
 FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/projects/fragpaper}"
 FRAGPAPER_OPT="${FRAGPAPER_OPT:-$HOME/.local/opt/fragpaper}"
-FRAGPAPER_SHARE="${FRAGPAPER_SHARE:-$HOME/.local/share/fragpaper}"
 FRAGPAPER_REPO="${FRAGPAPER_REPO:-https://github.com/scott-whitson/fragpaper.git}"
 
 if [[ -d "$FRAGPAPER_SRC/.git" ]]; then
@@ -48,16 +34,10 @@ else
 fi
 
 if [[ -n "$FRAGPAPER_SRC" && -d "$FRAGPAPER_SRC" ]]; then
-	ensure_fragpaper_font
 	log "building fragpaper release"
 	if (cd "$FRAGPAPER_SRC" && cargo build --release --locked); then
-		install -d -m 0755 "$FRAGPAPER_OPT/bin" "$FRAGPAPER_SHARE/shaders"
+		install -d -m 0755 "$FRAGPAPER_OPT/bin"
 		install -m 0755 "$FRAGPAPER_SRC/target/release/fragpaper" "$FRAGPAPER_OPT/bin/fragpaper"
-		if [[ -d "$FRAGPAPER_SRC/shaders" ]]; then
-			rsync -a --delete "$FRAGPAPER_SRC/shaders/" "$FRAGPAPER_SHARE/shaders/"
-		else
-			warn "fragpaper shaders dir missing; keeping existing shader assets"
-		fi
 	else
 		warn "fragpaper build failed; skipping optional fragpaper install"
 	fi
