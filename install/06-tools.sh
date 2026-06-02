@@ -29,25 +29,19 @@ ensure_fragpaper_font() {
 }
 
 # --- fragpaper source clone + install ---
-# Source lives in ~/.local/src/fragpaper; installed runtime lands in ~/.local/opt/fragpaper.
+# Source lives in ~/projects/fragpaper (local repo); installed runtime lands in ~/.local/opt/fragpaper.
 # Shaders are copied into ~/.local/share/fragpaper/shaders so launcher never depends on repo checkout.
-FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/.local/src/fragpaper}"
+FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/projects/fragpaper}"
 FRAGPAPER_OPT="${FRAGPAPER_OPT:-$HOME/.local/opt/fragpaper}"
 FRAGPAPER_SHARE="${FRAGPAPER_SHARE:-$HOME/.local/share/fragpaper}"
 FRAGPAPER_REPO="${FRAGPAPER_REPO:-https://github.com/scott-whitson/fragpaper.git}"
 
 if [[ -d "$FRAGPAPER_SRC/.git" ]]; then
 	log "fragpaper source already present at $FRAGPAPER_SRC"
-	if [[ -z "$(git -C "$FRAGPAPER_SRC" status --porcelain)" ]]; then
-		log "updating fragpaper source"
-		GIT_TERMINAL_PROMPT=0 git -C "$FRAGPAPER_SRC" pull --ff-only
-	else
-		warn "fragpaper source has local changes; skipping pull"
-	fi
 else
-	log "cloning fragpaper source to $FRAGPAPER_SRC"
+	log "fragpaper source missing; cloning into $FRAGPAPER_SRC"
 	mkdir -p "$(dirname "$FRAGPAPER_SRC")"
-	if ! GIT_TERMINAL_PROMPT=0 clone_if_missing "$FRAGPAPER_REPO" "$FRAGPAPER_SRC"; then
+	if ! clone_if_missing "$FRAGPAPER_REPO" "$FRAGPAPER_SRC"; then
 		warn "fragpaper clone failed; skipping optional fragpaper install"
 		FRAGPAPER_SRC=""
 	fi
