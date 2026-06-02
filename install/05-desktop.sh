@@ -33,8 +33,30 @@ install_ghostty() {
 	need_pkg ghostty
 }
 
+install_obsidian() {
+	local arch tag version deb_url tmp
+	if [[ -x /usr/bin/obsidian ]] || [[ -x /opt/Obsidian/obsidian ]]; then
+		return 0
+	fi
+	arch="$(dpkg --print-architecture)"
+	if [[ "$arch" != amd64 ]]; then
+		warn "Obsidian official DEB only ships for amd64; skipping on $arch"
+		return 0
+	fi
+	tag="$(curl -fsSI https://github.com/obsidianmd/obsidian-releases/releases/latest | tr -d '\r' | awk -F/ '/^location:/I {print $NF; exit}')"
+	version="${tag#v}"
+	deb_url="https://github.com/obsidianmd/obsidian-releases/releases/download/$tag/obsidian_${version}_amd64.deb"
+	tmp="$(mktemp -d)"
+	trap 'rm -rf "$tmp"' RETURN
+	log "downloading Obsidian $version"
+	curl -fL --progress-bar "$deb_url" -o "$tmp/obsidian.deb"
+	log "installing Obsidian"
+	sudo apt install -y "$tmp/obsidian.deb"
+}
+
 log "installing desktop support packages"
 need_pkg \
+	firefox-esr \
 	waybar mako-notifier fuzzel \
 	grim slurp wl-clipboard \
 	pipewire wireplumber pipewire-pulse \
@@ -42,3 +64,4 @@ need_pkg \
 	fonts-noto fonts-noto-color-emoji
 
 install_ghostty
+install_obsidian

@@ -34,6 +34,8 @@ check "~/.local/bin on PATH"           "[[ \":\$PATH:\" == *\":\$HOME/.local/bin
 check "pam_systemd_home NOT active"    "! grep -qE '^\\s*auth.*pam_systemd_home' /etc/pam.d/system-auth"
 check "tailscale active"               "systemctl is-active --quiet tailscaled"
 check "JetBrains Mono installed"       "[[ -f \"$HOME/.local/share/fonts/JetBrainsMonoNerd/JetBrainsMonoNerdFont-Regular.ttf\" ]] || [[ -f \"$HOME/.local/share/fonts/JetBrainsMonoNerd/JetBrainsMonoNerdFontMono-Regular.ttf\" ]] || ([[ -x /usr/bin/fc-match ]] && fc-match 'JetBrains Mono' | grep -Eqi 'jetbrains|nerd font|DejaVu Sans Mono')"
+check "Firefox installed"               "[[ -x /usr/bin/firefox || -x /usr/bin/firefox-esr ]]"
+check "Obsidian installed"              "[[ -x /usr/bin/obsidian || -x /opt/Obsidian/obsidian ]]"
 check "~/.config/nvim/init.lua has theme opt-in" "grep -qF \"pcall(require, 'dotfiles-theme')\" \"\$HOME/.config/nvim/init.lua\""
 check "active theme marker present"    "[[ -f \"\$HOME/.config/dotfiles/active-theme\" ]]"
 check "active theme directory exists"  "[[ -d \"\$DOTFILES/themes/\$(cat \"\$HOME/.config/dotfiles/active-theme\" 2>/dev/null)\" ]]"

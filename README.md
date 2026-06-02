@@ -59,4 +59,5 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **Active theme:** catppuccin-mocha (toggle with `$mod+Shift+T`)
 - **Health check:** `dot-doctor`
 - **IB Gateway:** datacore-only; manual restart because relogin can trigger MFA
+- **Firefox + Obsidian:** first-class desktop apps; install flow should bring them up on a fresh Debian box
 - **License:** none — private repo
