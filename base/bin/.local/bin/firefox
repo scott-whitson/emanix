@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -x /usr/bin/firefox ]]; then
+	exec /usr/bin/firefox "$@"
+fi
+
+if [[ -x /usr/bin/firefox-esr ]]; then
+	exec /usr/bin/firefox-esr "$@"
+fi
+
+if command -v flatpak &>/dev/null; then
+	exec flatpak run org.mozilla.firefox "$@"
+fi
+
+echo "firefox: no browser binary found" >&2
+exit 127

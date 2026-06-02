@@ -53,10 +53,10 @@ Workspace names render in waybar's `hyprland/workspaces` module via `"format": "
 |---|---|
 | `$mod + Return` | Terminal (`$term`) |
 | `$mod + d` | App launcher (`$menu`) |
-| `$mod + w` | Firefox |
-| `$mod + Alt + p` | Firefox private window |
+| `$mod + w` | Firefox (`~/.local/bin/firefox`) |
+| `$mod + Alt + p` | Firefox private window (`~/.local/bin/firefox --private-window`) |
 | `$mod + e` | File manager (`thunar`) |
-| `$mod + o` | Obsidian |
+| `$mod + o` | Obsidian (`~/.local/bin/obsidian`) |
 | `$mod + Shift + /` | Keybindings cheatsheet popup (`hypr-cheatsheet`; reads `~/docs/vault/Whitsgrove/Hyprland Cheatsheet.md`) |
 | `$mod + Escape` | Lock screen (`hyprlock`) |
 | `Print` | Screenshot region → clipboard (`grim` + `slurp`) |
