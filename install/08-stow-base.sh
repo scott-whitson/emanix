@@ -22,6 +22,19 @@ for pkg_path in base/*/; do
 		continue
 	fi
 
+	if [[ "$pkg_name" == "git" ]]; then
+		local_gitconfig_local="$HOME/.gitconfig.local"
+		if [[ -e "$local_gitconfig_local" ]]; then
+			if [[ ! -L "$local_gitconfig_local" ]]; then
+				backup="$local_gitconfig_local.pre-stow.$(date +%s)"
+				log "backing up existing ~/.gitconfig.local to $(basename "$backup")"
+				mv "$local_gitconfig_local" "$backup"
+			else
+				rm -f "$local_gitconfig_local"
+			fi
+		fi
+	fi
+
 	# --adopt absorbs existing files at $HOME so stow can succeed on fresh
 	# installs (Oh My Zsh drops a default .zshrc, etc.); the git checkout
 	# below restores the repo's intended content.
