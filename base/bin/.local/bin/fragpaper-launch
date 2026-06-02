@@ -2,6 +2,7 @@
 # fragpaper-launch — launches fragpaper with the current theme's bg + palette.
 # Reads ~/.config/dotfiles/active-theme, then sources
 # ~/dotfiles/themes/<active>/fragpaper.conf for BG_COLOR and PALETTE.
+# Uses local ~/projects/fragpaper shader repo directly.
 # Falls back to Catppuccin Mocha defaults if no active theme is set.
 
 set -u
@@ -22,7 +23,8 @@ if [[ -f "$ACTIVE_THEME_FILE" ]]; then
 fi
 
 FRAGPAPER_BIN="${FRAGPAPER_BIN:-$HOME/.local/opt/fragpaper/bin/fragpaper}"
-SHADERS_DIR="${FRAGPAPER_SHADERS_DIR:-$HOME/.local/share/fragpaper/shaders}"
+FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/projects/fragpaper}"
+SHADERS_DIR="${FRAGPAPER_SHADERS_DIR:-$FRAGPAPER_SRC/shaders}"
 
 exec env RUST_LOG=info "$FRAGPAPER_BIN" \
     --bg-color "$BG_COLOR" \

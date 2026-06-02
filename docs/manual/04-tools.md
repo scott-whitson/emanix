@@ -54,7 +54,7 @@ A small Rust binary that renders a window picker overlay for Hyprland. Built by 
 
 ### fragpaper
 
-GPU shader wallpaper renderer for Wayland. `install/06-tools.sh` uses local `~/projects/fragpaper`, builds a release binary, installs it to `~/.local/opt/fragpaper/bin/fragpaper`, and copies shader assets to `~/.local/share/fragpaper/shaders/`.
+GPU shader wallpaper renderer for Wayland. `install/06-tools.sh` uses local `~/projects/fragpaper`, builds a release binary, and installs it to `~/.local/opt/fragpaper/bin/fragpaper`. `fragpaper-launch` reads shaders directly from `~/projects/fragpaper/shaders/`.
 
 Runtime launcher:
 
@@ -66,7 +66,8 @@ Override env if needed:
 
 ```bash
 FRAGPAPER_BIN=~/.local/opt/fragpaper/bin/fragpaper
-FRAGPAPER_SHADERS_DIR=~/.local/share/fragpaper/shaders
+FRAGPAPER_SRC=~/projects/fragpaper
+FRAGPAPER_SHADERS_DIR=~/projects/fragpaper/shaders
 ```
 
 ## base/bin/ — stowed wrappers
