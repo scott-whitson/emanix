@@ -43,7 +43,10 @@ install_obsidian() {
 		warn "Obsidian official DEB only ships for amd64; skipping on $arch"
 		return 0
 	fi
-	tag="$(curl -fsSI https://github.com/obsidianmd/obsidian-releases/releases/latest | tr -d '\r' | awk -F/ '/^location:/I {print $NF; exit}')"
+	tag="$(curl -fsSL https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest | awk -F'"' '/"tag_name":/ {print $4; exit}')"
+	if [[ -z "$tag" ]]; then
+		die "could not resolve latest Obsidian release tag"
+	fi
 	version="${tag#v}"
 	deb_url="https://github.com/obsidianmd/obsidian-releases/releases/download/$tag/obsidian_${version}_amd64.deb"
 	tmp="$(mktemp -d)"
