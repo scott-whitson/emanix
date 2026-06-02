@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-src="$HOME/vault/Whitsgrove/Hyprland Cheatsheet.md"
+src="$HOME/docs/vault/Whitsgrove/Hyprland Cheatsheet.md"
 cache="${XDG_CACHE_HOME:-$HOME/.cache}"
 png_file="$cache/hypr-cheatsheet.png"
 

@@ -52,6 +52,23 @@ Default subreddits live in `REDDIT_SUBS` in `tools/news.py`.
 
 A small Rust binary that renders a window picker overlay for Hyprland. Built by `install/06-tools.sh`. Binary path: `~/dotfiles/tools/window-picker/target/release/window-picker`.
 
+### fragpaper
+
+GPU shader wallpaper renderer for Wayland. `install/06-tools.sh` clones source to `~/.local/src/fragpaper`, builds a release binary, installs it to `~/.local/opt/fragpaper/bin/fragpaper`, and copies shader assets to `~/.local/share/fragpaper/shaders/`.
+
+Runtime launcher:
+
+```bash
+~/.local/bin/fragpaper-launch
+```
+
+Override env if needed:
+
+```bash
+FRAGPAPER_BIN=~/.local/opt/fragpaper/bin/fragpaper
+FRAGPAPER_SHADERS_DIR=~/.local/share/fragpaper/shaders
+```
+
 ## base/bin/ — stowed wrappers
 
 Every file in `base/bin/.local/bin/` is symlinked to `~/.local/bin/<name>` by `install/08-stow-base.sh`. (Populate this table from the Step 1 inspection. Expected contents as of now — double-check against actual):
@@ -59,8 +76,9 @@ Every file in `base/bin/.local/bin/` is symlinked to `~/.local/bin/<name>` by `i
 | Wrapper | Purpose |
 |---|---|
 | `fragpaper-launch` | Launches fragpaper with the active theme's BG_COLOR + PALETTE |
-| `hypr-cheatsheet` | Fuzzel viewer for Hyprland keybindings; sources from `~/vault/Whitsgrove/Hyprland Cheatsheet.md` (bound to `$mod + Shift + /`) |
+| `hypr-cheatsheet` | Fuzzel viewer for Hyprland keybindings; sources from `~/docs/vault/Whitsgrove/Hyprland Cheatsheet.md` (bound to `$mod + Shift + /`) |
 | `hypr-rename-workspace` | Fuzzel prompt → `hyprctl dispatch renameworkspace <id> "<id> <label>"` (bound to `$mod + r`) |
+| `helix` | Wrapper that prefers `hx` on Debian but still supports a native `helix` binary |
 | `news` | Calls the uv-managed `news` entry point |
 | `trackpad-toggle` | Toggle trackpad on/off |
 | `web_extract` | Calls the uv-managed `web_extract` entry point |
@@ -73,11 +91,11 @@ These live at `$DOTFILES/bin/` and are on PATH via `base/zsh/.zshrc.d/dotfiles.z
 
 | Helper | Purpose |
 |---|---|
-| `dot-restow <pkg\|--all>` | Re-stow one package or everything (base + active profile) |
+| `dot-restow <pkg\|--all>` | Re-stow one package or all packages from `base/` |
 | `dot-theme-set <name>` | Apply a theme (see [Chapter 03](03-theming.md)) |
 | `dot-theme-toggle` | Flip between last-dark and last-light (Chapter 03) |
-| `dot-update` | `paru -Syu && dot-restow --all` — weekly housekeeping |
-| `dot-doctor` | 17-check health scan: stow links, mounts, services, fonts, PATH, claude, agent-skills, active theme |
+| `dot-update` | `apt update && apt full-upgrade -y && dot-restow --all` — weekly housekeeping |
+| `dot-doctor` | 15-check health scan: stow links, services, fonts, PATH, pi, active theme |
 
 ## Adding a new tool
 

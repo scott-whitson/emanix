@@ -1,39 +1,23 @@
 #!/usr/bin/env bash
-# install/07-claude.sh — AI coding CLI (pi + Claude Code) + agent-skills sanity check
 set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
-# --- Claude Code CLI (npm global) ---
-# nvm must have placed node on PATH by way of 06-tools.sh sourcing nvm.sh.
-# Re-source here to be safe when this script is run standalone.
-export NVM_DIR="$HOME/.nvm"
-if [[ -s "$NVM_DIR/nvm.sh" ]]; then
-	# shellcheck source=/dev/null
-	. "$NVM_DIR/nvm.sh"
+# Pi coding agent install + client config sync on workstation and datacore.
+# Actual files live in dotfiles source tree and are stowed into ~/.pi.
+
+if ! command -v npm &>/dev/null; then
+	die "npm missing; install nodejs npm in 01-core.sh"
 fi
 
-if ! command -v claude &>/dev/null; then
-	log "installing Claude Code CLI via npm"
-	npm install -g @anthropic-ai/claude-code
-else
-	log "Claude Code already on PATH: $(claude --version 2>&1 | head -1)"
-fi
-
-# --- Pi coding agent ---
 if ! command -v pi &>/dev/null; then
 	log "installing pi coding agent via npm"
-	npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+	npm install -g --prefix "$HOME/.local" --ignore-scripts @earendil-works/pi-coding-agent
 else
 	log "pi already on PATH: $(pi --version 2>&1 | head -1)"
 fi
 
-# --- agent-skills sanity check ---
-AGENT_SKILLS_DIR="$HOME/projects/agent-skills"
-if [[ ! -d "$AGENT_SKILLS_DIR/.git" ]]; then
-	warn "$AGENT_SKILLS_DIR is not a git repo."
-	warn "  Clone it manually once (repo URL is user-specific):"
-	warn "    mkdir -p $HOME/projects"
-	warn "    git clone <your-agent-skills-url> $AGENT_SKILLS_DIR"
-else
-	log "agent-skills present at $AGENT_SKILLS_DIR"
-fi
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+printf '%s\n' "Pi config source: ${ROOT_DIR}"
+printf '%s\n' "Ensure ~/.pi/agent/settings.json is stowed from dotfiles source."
+printf '%s\n' "Set HONCHO_URL to http://datacore.scottwhitson.ts.net:8008 on both machines."

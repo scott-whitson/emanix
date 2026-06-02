@@ -11,9 +11,6 @@ Type=simple
 # `-` prefix lets the unit start even if find returns non-zero.
 ExecStartPre=-/usr/bin/find %h -maxdepth 1 -type d -name ".[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].local" -exec rm -rf {} +
 ExecStart=%h/.local/bin/_ib-launch %i
-Restart=on-failure
-RestartSec=15
+# No auto-restart, no auto-login. Manual `ib up` only.
+Restart=no
 TimeoutStopSec=20
-
-[Install]
-WantedBy=default.target

@@ -8,9 +8,8 @@
 #   ib logs [live|paper]   tail journalctl
 #   ib restart [live|paper]
 #
-# First cold-start of `ib up live` triggers a 2FA push to your phone — tap to approve.
-# Once running, the service stays up across screen lock; reboots require manual restart
-# unless `loginctl enable-linger scott` is set.
+# Manual start only. No auto-login, no auto-restart.
+# Once running, service stays up across screen lock; reboots need manual restart.
 
 set -euo pipefail
 

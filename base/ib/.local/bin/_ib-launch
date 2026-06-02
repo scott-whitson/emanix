@@ -13,6 +13,22 @@ IBC_PATH="${IBC_PATH:-/opt/ibc}"
 IBC_INI="$HOME/.config/ibc/config.${mode}.ini"
 TWS_SETTINGS="$HOME/.local/share/Jts"
 
+assert_no_autologin() {
+    local ini="$1"
+
+    if grep -Eq '^[[:space:]]*ReloginAfterSecondFactorAuthenticationTimeout[[:space:]]*=[[:space:]]*yes([[:space:]]*(;.*)?)?$' "$ini"; then
+        echo "_ib-launch: auto-relogin disabled on Arch laptop; set ReloginAfterSecondFactorAuthenticationTimeout=no in $ini" >&2
+        exit 6
+    fi
+
+    if grep -Eq '^[[:space:]]*(AutoRestartTime|ClosedownAt|AutoLogoffTime)[[:space:]]*=[[:space:]]*[^[:space:];#]+' "$ini"; then
+        echo "_ib-launch: auto-restart / auto-logoff fields must stay blank in $ini" >&2
+        exit 6
+    fi
+}
+
+assert_no_autologin "$IBC_INI"
+
 # Detect installed IB Gateway version from its .desktop file (e.g. "IB Gateway 10.45.desktop" → "1045").
 desktop=$(compgen -G "$GW_ROOT/IB Gateway *.desktop" 2>/dev/null | head -1 || true)
 [[ -n "${desktop:-}" ]] || { echo "_ib-launch: no IB Gateway .desktop file under $GW_ROOT" >&2; exit 3; }

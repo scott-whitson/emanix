@@ -114,7 +114,7 @@ If this ever annoys you enough, three escape hatches:
 
 ## Fragpaper integration
 
-Fragpaper is a GPU shader wallpaper generator (not a static image). Each theme provides `BG_COLOR` and `PALETTE` (`dark` or `light`) via `fragpaper.conf`. `fragpaper-launch` reads the active theme and passes them to the fragpaper binary.
+Fragpaper is a GPU shader wallpaper generator (not a static image). Each theme provides `BG_COLOR` and `PALETTE` (`dark` or `light`) via `fragpaper.conf`. `fragpaper-launch` reads the active theme and passes them to the installed fragpaper binary.
 
 If fragpaper isn't installed, theme switching still works — fragpaper relaunch is `|| true` guarded and the rest of the system doesn't care.
 

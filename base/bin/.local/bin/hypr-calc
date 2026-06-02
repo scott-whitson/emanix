@@ -3,7 +3,7 @@
 # Type expression, get result copied + notified
 
 if ! command -v qalc &>/dev/null; then
-  notify-send "hypr-calc" "qalc not found. Install with: sudo pacman -S libqalculate" -u critical
+  notify-send "hypr-calc" "qalc not found. Install with: sudo apt install qalc" -u critical
   exit 1
 fi
 

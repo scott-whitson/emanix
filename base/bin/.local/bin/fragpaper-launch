@@ -21,10 +21,10 @@ if [[ -f "$ACTIVE_THEME_FILE" ]]; then
     fi
 fi
 
-FRAGPAPER="$HOME/projects/fragpaper/target/release/fragpaper"
-SHADERS_DIR="$HOME/projects/wallpaper-gen/shaders"
+FRAGPAPER_BIN="${FRAGPAPER_BIN:-$HOME/.local/opt/fragpaper/bin/fragpaper}"
+SHADERS_DIR="${FRAGPAPER_SHADERS_DIR:-$HOME/.local/share/fragpaper/shaders}"
 
-exec env RUST_LOG=info "$FRAGPAPER" \
+exec env RUST_LOG=info "$FRAGPAPER_BIN" \
     --bg-color "$BG_COLOR" \
     --palette "$PALETTE" \
     "$SHADERS_DIR/attractors.vert" \

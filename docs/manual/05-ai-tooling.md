@@ -4,13 +4,13 @@ Tenet #4: **AI-augmented by default.** The pi coding agent is a first-class tool
 
 ## What's installed
 
-- **pi coding agent** — `npm install -g @earendil-works/pi-coding-agent`, run by `install/07-pi.sh`. Requires Node via nvm; `06-tools.sh` places nvm on `PATH` before this script runs.
+- **pi coding agent** — `npm install -g --prefix ~/.local @earendil-works/pi-coding-agent`, run by `install/07-pi.sh`. Requires Node/npm from apt; `01-core.sh` installs them.
 - **Agent config** — `base/pi/.pi/agent/AGENTS.md`, stowed to `~/.pi/agent/AGENTS.md`
 - **Extensions** — `base/pi/.pi/agent/extensions/remember.ts`, stowed to `~/.pi/agent/extensions/`
 
 ## Install order dependency
 
-`install/07-pi.sh` re-sources `nvm.sh` before calling `npm` so it works when run standalone. If you run it before `06-tools.sh` has placed nvm on `PATH`, it will still succeed as long as `$NVM_DIR/nvm.sh` exists.
+`install/07-pi.sh` uses system `npm` and installs pi into `~/.local`, so `~/.local/bin` must be on PATH (the shell setup already does this).
 
 ## Skills
 
@@ -25,7 +25,7 @@ Skills are installed at `~/.pi/agent/skills/` and are also tracked in `base/pi/.
 ## Day-to-day usage patterns
 
 - pi provides its own skill discovery — it surfaces relevant skills based on the current task context.
-- The `mind` plugin from the previous Claude Code setup has been retired; Engram handles persistent memory for project context across sessions.
+- The `mind` plugin from the previous agent setup has been retired; Engram handles persistent memory for project context across sessions.
 - Custom extensions (like `remember.ts`) live in `~/.pi/agent/extensions/` and are stowed from `base/pi/`.
 
 ## Commit discipline

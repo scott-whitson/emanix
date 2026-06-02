@@ -8,7 +8,7 @@ All system-level bindings. `$mod` is Super (Windows key) on this machine.
 
 Active layout: **master** (configured in `base/hypr/.config/hypr/hyprland.conf` via `layout = master` + a `master { … }` block — left-oriented, `mfact = 0.55`).
 
-> **Live reference:** `$mod + Shift + /` pops a searchable fuzzel viewer (`hypr-cheatsheet`) sourced from `~/vault/Whitsgrove/Hyprland Cheatsheet.md`. Edits to that file are picked up on the next popup. The tables below are the canonical reference; the vault file is the daily-use index.
+> **Live reference:** `$mod + Shift + /` pops a searchable fuzzel viewer (`hypr-cheatsheet`) sourced from `~/docs/vault/Whitsgrove/Hyprland Cheatsheet.md`. Edits to that file are picked up on the next popup. The tables below are the canonical reference; the vault file is the daily-use index.
 
 ### Window management
 
@@ -57,7 +57,7 @@ Workspace names render in waybar's `hyprland/workspaces` module via `"format": "
 | `$mod + Alt + p` | Firefox private window |
 | `$mod + e` | File manager (`thunar`) |
 | `$mod + o` | Obsidian |
-| `$mod + Shift + /` | Keybindings cheatsheet popup (`hypr-cheatsheet`; reads `~/vault/Whitsgrove/Hyprland Cheatsheet.md`) |
+| `$mod + Shift + /` | Keybindings cheatsheet popup (`hypr-cheatsheet`; reads `~/docs/vault/Whitsgrove/Hyprland Cheatsheet.md`) |
 | `$mod + Escape` | Lock screen (`hyprlock`) |
 | `Print` | Screenshot region → clipboard (`grim` + `slurp`) |
 | `Shift + Print` | Screenshot region → `~/downloads/screenshot-YYYYMMDD-HHMMSS.png` |
@@ -108,7 +108,6 @@ Defaults. No `~/.config/zellij/` config shipped in dotfiles. If you add one, doc
 
 ---
 
-## Claude Code
+## AI tooling
 
-- In session: `/help` lists session commands (`/plan`, `/resume`, `/review`, `/clear`, `/compact`, etc.). These are Claude Code built-ins, not dotfiles config.
-- Hooks: configured in `base/claude/.claude/settings.json`. See [Chapter 05 — Claude Code](05-claude-code.md).
+No AI-tool-specific keybindings ship here. Use `pi` from shell; skills live under `~/.pi/agent/skills/`.

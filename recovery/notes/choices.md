@@ -1,7 +1,7 @@
 # Architecture choices — rationale
 
 One-liner summary of decisions made in the 2026-04-18 DR design.
-Full reasoning in `docs/superpowers/specs/2026-04-18-arch-dr-design.md`.
+Full reasoning now lives in vault: `~/docs/vault/Whitsgrove/Debian Recovery - Minimum Viable System.md` and `~/docs/vault/Whitsgrove/Debian Migration Plan.md`.
 
 ## Filesystem: Btrfs with subvolumes (`@`, `@home`, `@var_log`, `@pkg`, `@snapshots`)
 Subvolumes give the "wipe root without touching home" property of separate partitions,

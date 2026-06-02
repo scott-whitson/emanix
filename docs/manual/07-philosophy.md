@@ -15,19 +15,20 @@ Files live on disk first. Cloud is a backup destination, never the source of tru
 - `~/gdrive` is a mounted partition with rclone bisync every 15 minutes, not a streamed-on-demand mount
 - `dr_backup.sh` treats the backup as a point-in-time copy, not a live sync
 
-## 2. Arch + Hyprland, no apologies
+## 2. Debian + Hyprland, no apologies
 
-Bleeding-edge is a feature, not a bug. Rolling release matches how you work.
+Stable base, modern desktop. Debian Testing gives you current Hyprland and still keeps the machine boring enough to trust.
 
 **What this eliminates:**
-- Distro detection in `install.sh` (it's Arch-only now)
-- Ubuntu/Debian fallback code (deleted in Wave 2)
-- Sway/Wofi/Kitty legacy (deleted in Wave 1)
-- Compromise package selections that worked across both (just pick the best Arch package)
+- Distro detection in `install.sh` (it targets Debian now)
+- Legacy Arch package-manager paths are gone from the install flow
+- Compromise package selections that try to cover two distros at once
+- Rolling-release anxiety before a work session
 
 **Concrete consequences:**
-- `install.sh` is 49 lines. If it were distro-agnostic, it would be 200+.
-- `01-pacman.sh` can list `helix`, `neovim`, `rclone`, `uv` without worrying whether a given Debian version ships them
+- `install.sh` stays short because the distro choice is already made
+- `01-core.sh` is the Debian bootstrap step
+- `hx`, `rclone`, `uv`, `waybar`, and `hyprland` are installed from Debian packages where available
 
 ## 3. Terminal-centric, keyboard-driven
 
@@ -44,18 +45,18 @@ Ghostty + Zellij + Helix/Neovim + lf. GUI apps are tolerated, not celebrated. Ev
 
 ## 4. AI-augmented by default
 
-Claude Code is a first-class tool, not a bolt-on. Custom skills, plugins, and the `agent-skills` project are part of the OS.
+pi coding agent is a first-class tool, not a bolt-on. Custom skills and extensions are part of the OS.
 
 **What this eliminates:**
 - Treating AI-assisted workflows as an afterthought to configure per-project
-- Re-learning your Claude plugin layout on a fresh machine
+- Re-learning your agent layout on a fresh machine
 
 **Concrete consequences:**
-- `base/claude/.claude/settings.json` ships with the dotfiles
-- `install/07-claude.sh` is a dedicated step (not folded into `06-tools.sh`)
-- See [Chapter 05 — Claude Code](05-claude-code.md) for the concrete setup
+- `base/pi/.pi/agent/AGENTS.md` ships with the dotfiles
+- `install/07-pi.sh` is a dedicated step (not folded into `06-tools.sh`)
+- See [Chapter 05 — AI Tooling](05-ai-tooling.md) for the concrete setup
 
-**This is the tenet most specific to this user.** A fork would either adopt a similar AI-augmented workflow or delete `base/claude/` and retire this tenet.
+**This is the tenet most specific to this user.** A fork would either adopt a similar AI-augmented workflow or delete `base/pi/` and retire this tenet.
 
 ## 5. Reversible and recoverable
 
@@ -67,8 +68,8 @@ Claude Code is a first-class tool, not a bolt-on. Custom skills, plugins, and th
 - The laptop being a single point of failure
 
 **Concrete consequences:**
-- `./install.sh workstation` is idempotent — run it after any manual tweak to re-base
-- `dot-doctor` exists to catch drift (17 checks, last verified 2026-04-24)
+- `./install.sh` is idempotent — run it after any manual tweak to re-base
+- `dot-doctor` exists to catch drift (15 checks, Debian port verified 2026-06-01)
 - `dr_backup.sh` runs on a systemd timer
 
 ## 6. Modular like Framework
@@ -82,7 +83,7 @@ Every piece is swappable. No lock-in to a tool that can't be ripped out in an af
 
 **Concrete consequences:**
 - The theme system ([Chapter 03](03-theming.md)) is directory-per-theme — remove a theme by deleting a directory
-- `bin/dot-*` helpers each do one thing; `dot-update` composes `paru -Syu` + `dot-restow --all` rather than baking them together
+- `bin/dot-*` helpers each do one thing; `dot-update` composes `apt full-upgrade` + `dot-restow --all` rather than baking them together
 - Kickstart.nvim is a separate repo, not a stow package — so you can ditch it without disturbing the dotfiles
 
 ## What this document is *not*

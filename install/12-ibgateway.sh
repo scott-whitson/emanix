@@ -15,43 +15,45 @@ set -euo pipefail
 # Allow standalone execution: set the env _common.sh requires when not invoked
 # by install.sh (orchestrator). Falls through cleanly when env IS set.
 export DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
-export PROFILE="${PROFILE:-workstation}"
 
 # This script must run as the user (sudo is invoked internally for /opt writes).
 # Running the whole script with `sudo bash …` would put HOME=/root and write
 # ~/.config/ibc to the wrong place.
 if [[ $EUID -eq 0 ]]; then
-    echo "Run as your user, not root. The script calls 'sudo' itself for /opt writes." >&2
-    echo "Re-run:  bash $0" >&2
-    exit 1
+	echo "Run as your user, not root. The script calls 'sudo' itself for /opt writes." >&2
+	echo "Re-run:  bash $0" >&2
+	exit 1
 fi
 
 source "$(dirname "$0")/_common.sh"
 
-skip_unless_profile workstation
+if [[ "${HOSTNAME%%.*}" != "datacore" ]]; then
+	log "skipping IB Gateway on ${HOSTNAME%%.*}; datacore is gateway host"
+	exit 0
+fi
 
 GW_ROOT="/opt/ibgateway"
 IBC_ROOT="/opt/ibc"
 GW_INSTALLER_URL="https://download2.interactivebrokers.com/installers/ibgateway/stable-standalone/ibgateway-stable-standalone-linux-x64.sh"
 IBC_API_URL="https://api.github.com/repos/IbcAlpha/IBC/releases/latest"
 
-# --- pacman deps for headless run ---
-need_pkg xorg-server-xvfb unzip curl
+# --- Debian deps for headless run ---
+need_pkg xvfb unzip curl
 
 # --- IB Gateway ---
 if [[ -d "$GW_ROOT/ibgateway" ]] && compgen -G "$GW_ROOT/ibgateway/[0-9]*" >/dev/null; then
-    log "IB Gateway already at $GW_ROOT (versions: $(ls "$GW_ROOT/ibgateway" | tr '\n' ' '))"
+	log "IB Gateway already at $GW_ROOT (versions: $(ls "$GW_ROOT/ibgateway" | tr '\n' ' '))"
 else
-    log "downloading IB Gateway stable installer (~150 MB)"
-    tmp=$(mktemp -d)
-    trap 'rm -rf "$tmp"' EXIT
-    curl -fL "$GW_INSTALLER_URL" -o "$tmp/install.sh"
-    chmod +x "$tmp/install.sh"
+	log "downloading IB Gateway stable installer (~150 MB)"
+	tmp=$(mktemp -d)
+	trap 'rm -rf "$tmp"' EXIT
+	curl -fL "$GW_INSTALLER_URL" -o "$tmp/install.sh"
+	chmod +x "$tmp/install.sh"
 
-    log "installing IB Gateway to $GW_ROOT (sudo required)"
-    # install4j unattended: -q quiet, -dir installs to specified path, -overwrite for re-runs
-    sudo "$tmp/install.sh" -q -overwrite -dir "$GW_ROOT"
-    sudo chmod -R o+rX "$GW_ROOT"
+	log "installing IB Gateway to $GW_ROOT (sudo required)"
+	# install4j unattended: -q quiet, -dir installs to specified path, -overwrite for re-runs
+	sudo "$tmp/install.sh" -q -overwrite -dir "$GW_ROOT"
+	sudo chmod -R o+rX "$GW_ROOT"
 fi
 
 # --- IBC compat shim ---
@@ -63,38 +65,38 @@ fi
 GW_SHIM="/opt/ibc-shim"
 desktop=$(compgen -G "$GW_ROOT/IB Gateway *.desktop" 2>/dev/null | head -1 || true)
 if [[ -n "$desktop" ]]; then
-    gw_version=$(basename "$desktop" | grep -oE '[0-9]+\.[0-9]+' | tr -d '.')
-    if [[ -n "$gw_version" ]]; then
-        compat_link="$GW_SHIM/ibgateway/$gw_version"
-        if [[ ! -L "$compat_link" ]] || [[ "$(readlink "$compat_link")" != "$GW_ROOT" ]]; then
-            log "creating IBC compat shim: $compat_link -> $GW_ROOT"
-            sudo mkdir -p "$GW_SHIM/ibgateway"
-            sudo ln -sfn "$GW_ROOT" "$compat_link"
-        fi
-    fi
+	gw_version=$(basename "$desktop" | grep -oE '[0-9]+\.[0-9]+' | tr -d '.')
+	if [[ -n "$gw_version" ]]; then
+		compat_link="$GW_SHIM/ibgateway/$gw_version"
+		if [[ ! -L "$compat_link" ]] || [[ "$(readlink "$compat_link")" != "$GW_ROOT" ]]; then
+			log "creating IBC compat shim: $compat_link -> $GW_ROOT"
+			sudo mkdir -p "$GW_SHIM/ibgateway"
+			sudo ln -sfn "$GW_ROOT" "$compat_link"
+		fi
+	fi
 fi
 
 # --- IBC ---
 if [[ -x "$IBC_ROOT/scripts/ibcstart.sh" ]]; then
-    log "IBC already at $IBC_ROOT"
+	log "IBC already at $IBC_ROOT"
 else
-    log "fetching latest IBC release URL from GitHub"
-    ibc_url=$(curl -fsSL "$IBC_API_URL" \
-              | grep '"browser_download_url".*[Ll]inux.*\.zip"' \
-              | head -1 \
-              | sed -E 's/.*"(https[^"]+)".*/\1/')
-    [[ -n "$ibc_url" ]] || die "could not parse IBC linux zip URL from $IBC_API_URL"
-    log "downloading IBC: $ibc_url"
+	log "fetching latest IBC release URL from GitHub"
+	ibc_url=$(curl -fsSL "$IBC_API_URL" |
+		grep '"browser_download_url".*[Ll]inux.*\.zip"' |
+		head -1 |
+		sed -E 's/.*"(https[^"]+)".*/\1/')
+	[[ -n "$ibc_url" ]] || die "could not parse IBC linux zip URL from $IBC_API_URL"
+	log "downloading IBC: $ibc_url"
 
-    tmp_ibc=$(mktemp -d)
-    trap 'rm -rf "$tmp_ibc"' EXIT
-    curl -fL "$ibc_url" -o "$tmp_ibc/ibc.zip"
+	tmp_ibc=$(mktemp -d)
+	trap 'rm -rf "$tmp_ibc"' EXIT
+	curl -fL "$ibc_url" -o "$tmp_ibc/ibc.zip"
 
-    log "installing IBC to $IBC_ROOT (sudo required)"
-    sudo mkdir -p "$IBC_ROOT"
-    sudo unzip -o "$tmp_ibc/ibc.zip" -d "$IBC_ROOT" >/dev/null
-    sudo find "$IBC_ROOT" -maxdepth 2 -name '*.sh' -exec chmod +x {} \;
-    sudo chmod -R o+rX "$IBC_ROOT"
+	log "installing IBC to $IBC_ROOT (sudo required)"
+	sudo mkdir -p "$IBC_ROOT"
+	sudo unzip -o "$tmp_ibc/ibc.zip" -d "$IBC_ROOT" >/dev/null
+	sudo find "$IBC_ROOT" -maxdepth 2 -name '*.sh' -exec chmod +x {} \;
+	sudo chmod -R o+rX "$IBC_ROOT"
 fi
 
 # --- Per-user IBC config dir + templates (kept outside dotfiles since real .ini holds creds) ---
@@ -102,11 +104,11 @@ mkdir -p "$HOME/.config/ibc"
 chmod 700 "$HOME/.config/ibc"
 
 for mode in live paper; do
-    template="$HOME/.config/ibc/config.${mode}.ini.template"
-    [[ -f "$template" ]] && continue
-    log "writing $(basename "$template")"
-    port=$([[ "$mode" == live ]] && echo 4001 || echo 4002)
-    cat >"$template" <<EOF
+	template="$HOME/.config/ibc/config.${mode}.ini.template"
+	[[ -f "$template" ]] && continue
+	log "writing $(basename "$template")"
+	port=$([[ "$mode" == live ]] && echo 4001 || echo 4002)
+	cat >"$template" <<EOF
 ; IBC config — ${mode^^} mode (port $port)
 ; Copy to config.${mode}.ini, fill in credentials, then chmod 600.
 ;
@@ -121,8 +123,9 @@ TradingMode=${mode}
 FIX=no
 
 ; IBKR Mobile push 2FA — leave SecondFactorDevice blank → push to phone, you tap.
+; Debian laptop policy: no auto-relogin, no auto-restart, no auto-logoff.
 SecondFactorDevice=
-ReloginAfterSecondFactorAuthenticationTimeout=yes
+ReloginAfterSecondFactorAuthenticationTimeout=no
 ExitAfterSecondFactorAuthenticationTimeout=no
 SecondFactorAuthenticationExitInterval=60
 
@@ -134,7 +137,7 @@ AllowBlindTrading=no
 DismissPasswordExpiryWarning=no
 DismissNSEComplianceNotice=yes
 
-; IBKR forces a daily logout ~23:55 ET. AutoRestartTime can re-login automatically.
+; Keep all auto-restart fields blank.
 AutoRestartTime=
 ClosedownAt=
 AutoLogoffTime=
@@ -153,4 +156,4 @@ log "  4. rm -f ~/.config/systemd/user/ib-gateway@.service.bak  # (in case stow 
 log "  5. systemctl --user daemon-reload"
 log "  6. ib up paper       # invisible Xvfb start; ~30s; check 'ib status'"
 log "  7. once paper good: rm -rf ~/.local/share/Jts/ibgateway  # old binary tree"
-log "  8. fill config.live.ini same way → ib up live  (tap 2FA on phone first time)"
+log "  8. fill config.live.ini same way → ib up live  (manual login only; no auto-relogin)"

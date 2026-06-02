@@ -27,5 +27,9 @@ tab-inherit-working-directory = false
 # --- Scrollback ---
 scrollback-limit = 10000
 
+# --- Clipboard ---
+# Copy selected text to both selection (middle-click) and system (Ctrl+V) clipboard
+copy-on-select = clipboard
+
 # --- Bell ---
 bell-features = no-audio

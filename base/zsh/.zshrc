@@ -87,8 +87,8 @@ qt() {
   local name="$(date +%Y)-Q${quarter}.md"
   local file=""
   # Active quarter usually lives at vault root; archived quarters in Quarterly/
-  for path in "$OBSIDIAN_VAULT/$name" "$OBSIDIAN_VAULT/Quarterly/$name"; do
-    if [ -f "$path" ]; then file="$path"; break; fi
+  for candidate in "$OBSIDIAN_VAULT/$name" "$OBSIDIAN_VAULT/Quarterly/$name"; do
+    if [ -f "$candidate" ]; then file="$candidate"; break; fi
   done
   if [[ -z "$file" ]]; then
     echo "Quarterly tracker not found in $OBSIDIAN_VAULT (or its Quarterly/ subdir): $name"
@@ -96,7 +96,8 @@ qt() {
   fi
   # Pick an editor: $EDITOR, then a fallback chain
   local editor="$EDITOR"
-  if [[ -z "$editor" ]]; then
+  if ! command -v "$editor" >/dev/null 2>&1; then
+    editor=""
     for cand in helix hx micro nvim vim nano; do
       if command -v "$cand" >/dev/null 2>&1; then editor="$cand"; break; fi
     done

@@ -1,28 +1,25 @@
 #!/usr/bin/env bash
-# install/08-stow-base.sh — stow every base/* package (skip desktop pkgs on server)
+# install/08-stow-base.sh — stow every base/* package
 set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
-# Guard: abort if base/ has uncommitted edits — the git checkout at the end
-# would silently discard them.
-if ! git -C "$DOTFILES" diff --quiet -- base/; then
-	die "Uncommitted edits in base/ detected. Stash or commit them before running install."
-fi
-if ! git -C "$DOTFILES" diff --cached --quiet -- base/; then
-	die "Staged edits in base/ detected. Commit or reset them before running install."
+BASE_STASHED=0
+if [[ -n "$(git -C "$DOTFILES" status --porcelain --untracked-files=all -- base/)" ]]; then
+	log "saving base/ edits before stow"
+	git -C "$DOTFILES" stash push -u -m "auto base/ pre-stow" -- base/ >/dev/null
+	BASE_STASHED=1
 fi
 
 log "stowing base/* packages"
 cd "$DOTFILES"
 
+host_name="${HOSTNAME%%.*}"
 for pkg_path in base/*/; do
 	pkg_name="$(basename "$pkg_path")"
 
-	# Skip workstation-only packages on headless/server
-	if ! profile_is workstation; then
-		case "$pkg_name" in
-		hypr | waybar | mako | ghostty | fuzzel | pi) continue ;;
-		esac
+	if [[ "$host_name" != "datacore" ]] && [[ "$pkg_name" == "ib" || "$pkg_name" == "systemd" ]]; then
+		log "skipping $pkg_name on $host_name (datacore-only)"
+		continue
 	fi
 
 	# --adopt absorbs existing files at $HOME so stow can succeed on fresh
@@ -32,8 +29,19 @@ for pkg_path in base/*/; do
 		stow -d base -t "$HOME" --no-folding "$pkg_name"
 done
 
-# WARNING: this reverts ALL uncommitted changes in base/, including intentional
-# edits. Always commit or stash base/ edits before running install.sh; the
-# orchestrator preflight doesn't check (but dot-doctor should be able to flag
-# the risk on demand in future).
+# Reset repo copy, then restore any saved base/ edits so install can continue
+# without manual stashing.
 git checkout -- base/
+if [[ "$BASE_STASHED" -eq 1 ]]; then
+	log "restoring saved base/ edits"
+	if git -C "$DOTFILES" stash apply >/dev/null; then
+		git -C "$DOTFILES" stash drop >/dev/null
+	else
+		warn "could not auto-restore base/ stash; leaving stash in place"
+	fi
+fi
+
+# Ensure git config include link exists even if stow/adopt behavior varied.
+if [[ -f "$DOTFILES/base/git/.gitconfig.local" ]]; then
+	ln -sfn "$DOTFILES/base/git/.gitconfig.local" "$HOME/.gitconfig.local"
+fi
