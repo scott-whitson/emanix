@@ -45,6 +45,7 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 ~/dotfiles/
 ├── bootstrap.sh             # fresh-clone entrypoint
 ├── repair.sh                # rerun install scripts
+├── ventoy/                  # USB bootstrap kit
 ├── install.sh               # ~30-line orchestrator
 ├── install/                 # modular NN-<name>.sh scripts
 ├── bin/                     # dot-* helpers (on $PATH via zshrc.d)
@@ -62,4 +63,5 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **IB Gateway:** datacore-only; manual restart because relogin can trigger MFA
 - **Firefox + Obsidian:** first-class desktop apps; install flow brings them up on a fresh Debian box
 - **Bootstrap helpers:** `bootstrap.sh` / `repair.sh` for fresh-clone flow; `dot-bootstrap` / `dot-repair` for shell PATH flow
+- **Ventoy kit:** `ventoy/bootstrap.sh` for USB-driven Headscale + dotfiles bootstrap
 - **License:** none — private repo
