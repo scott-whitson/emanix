@@ -112,7 +112,7 @@ qt() {
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 eval "$(zoxide init zsh)"
 export FZF_DEFAULT_COMMAND='fd -H --exclude .git'
-# FZF — paths differ between Debian and Arch
+# FZF — paths differ between Debian installs
 for fzf_keys in /usr/share/doc/fzf/examples/key-bindings.zsh /usr/share/fzf/key-bindings.zsh; do
   [[ -f "$fzf_keys" ]] && source "$fzf_keys" && break
 done

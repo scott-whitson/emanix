@@ -21,7 +21,7 @@ Stable base, modern desktop. Debian Testing gives you current Hyprland and still
 
 **What this eliminates:**
 - Distro detection in `install.sh` (it targets Debian now)
-- Legacy Arch package-manager paths are gone from the install flow
+- Legacy package-manager paths are gone from the install flow
 - Compromise package selections that try to cover two distros at once
 - Rolling-release anxiety before a work session
 
@@ -69,7 +69,7 @@ pi coding agent is a first-class tool, not a bolt-on. Custom skills and extensio
 
 **Concrete consequences:**
 - `./install.sh` is idempotent — run it after any manual tweak to re-base
-- `dot-doctor` exists to catch drift (15 checks, Debian port verified 2026-06-01)
+- `dot-doctor` exists to catch drift (17 checks, Debian port verified 2026-06-01)
 - `dr_backup.sh` runs on a systemd timer
 
 ## 6. Modular like Framework

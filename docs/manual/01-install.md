@@ -24,7 +24,7 @@ Git-based fetches try datacore mirror first, then fall back to upstream if mirro
 | # | Script | Purpose | Interactive? |
 |---|---|---|---|
 | 01 | `01-core.sh` | Installs core Debian packages: build-essential, cargo, rustc, pkg-config, libgtk-4-dev, libadwaita-1-dev, blueprint-compiler, libnotify-bin, git, stow, zsh, curl/wget/unzip/rsync/openssh-client/gnupg, fzf, zoxide, rclone, hx, neovim, qalc, Noto fonts. Then installs `uv` from apt if available, else the official binary installer; installs JetBrains Mono from apt if available, else a Nerd Font fallback in `~/.local/share/fonts/`. | sudo password |
-| 03 | `03-system.sh` | Installs Oh My Zsh (non-interactive, keeps existing `.zshrc`), clones zsh-autosuggestions and zsh-syntax-highlighting plugins, sets zsh as the default shell via `chsh`, and warns if `pam_systemd_home` auth is active in `/etc/pam.d/system-auth`. | `chsh` may prompt |
+| 03 | `03-system.sh` | Installs Oh My Zsh (non-interactive, keeps existing `.zshrc`), clones zsh-autosuggestions and zsh-syntax-highlighting plugins, sets zsh as the default shell via `chsh`, and warns if `pam_systemd_home` auth is active anywhere under `/etc/pam.d/`. | `chsh` may prompt |
 | 04 | `04-hyprland.sh` | Installs Hyprland compositor stack: hyprland, hyprlock, hypridle, hyprpaper, xdg-desktop-portal-hyprland, hyprpolkitagent. | sudo password |
 | 05 | `05-desktop.sh` | Installs desktop support packages: Firefox ESR, Obsidian, waybar, mako-notifier, fuzzel, ghostty (via Debian repo fallback if needed), grim/slurp/wl-clipboard, PipeWire + WirePlumber + pipewire-pulse, brightnessctl, playerctl. | sudo password |
 | 06 | `06-tools.sh` | Runs `uv sync` on `tools/`, builds `window-picker`, checks Node/npm from apt, clones fragpaper, and clones kickstart.nvim to `~/.config/nvim` if missing. Appends the theme opt-in line to `init.lua` (idempotent). | None |
@@ -41,7 +41,7 @@ Re-running `./install.sh` is safe. Every package install uses `--needed`, every 
 ## Interactive gotchas
 
 - Sudo prompts multiple times. Run `sudo -v` in a second terminal to warm the cache.
-- `03-system.sh` will warn (but not fix) if `pam_systemd_home` auth is active in `/etc/pam.d/system-auth`. Fix it manually before proceeding: comment out the offending line, then verify with `sudo true`.
+- `03-system.sh` will warn (but not fix) if `pam_systemd_home` auth is active anywhere under `/etc/pam.d/`. Fix it manually before proceeding: comment out the offending line, then verify with `sudo true`.
 - Non-TTY agent contexts cannot drive sudo — the full orchestrator fails early in such environments.
 
 ## Failure recovery

@@ -28,12 +28,12 @@ if [[ "$SHELL" != "$(command -v zsh)" ]]; then
 fi
 
 # --- pam_systemd_home sanity check ---
-# Per user memory: /etc/pam.d/system-auth must have the pam_systemd_home auth line
-# commented out, otherwise sudo/su behave oddly. Pambase updates regress this.
+# Debian shape: warn if any PAM file still pulls in pam_systemd_home.
 # We do NOT auto-edit /etc/pam.d/*; we only warn.
-if [[ -f /etc/pam.d/system-auth ]] &&
-	grep -qE '^\s*auth.*pam_systemd_home' /etc/pam.d/system-auth 2>/dev/null; then
-	warn "pam_systemd_home auth line is ACTIVE in /etc/pam.d/system-auth"
+pam_hits="$(grep -RslE --exclude='*.dpkg-*' --exclude='*.bak' --exclude='*.old' --exclude='*~' '^\s*auth.*pam_systemd_home' /etc/pam.d 2>/dev/null || true)"
+if [[ -n "$pam_hits" ]]; then
+	warn "pam_systemd_home auth line is ACTIVE in:"
+	printf '%s\n' "$pam_hits" | sed 's/^/  /'
 	warn "  This may regress sudo/su behavior on this system."
 	warn "  Comment out the line manually, then verify with: sudo true"
 fi

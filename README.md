@@ -35,7 +35,7 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 | [03 — Theming](docs/manual/03-theming.md) | Theme system + `dot-theme-set` + `dot-theme-toggle` |
 | [04 — Tools](docs/manual/04-tools.md) | `tools/` uv project + `bin/dot-*` helpers |
 | [05 — AI Tooling](docs/manual/05-ai-tooling.md) | pi coding agent + skills |
-| [06 — Recovery](docs/manual/06-recovery.md) | Archived recovery notes |
+| [06 — Recovery](docs/manual/06-recovery.md) | Historical recovery notes |
 | [07 — Philosophy](docs/manual/07-philosophy.md) | The 6 tenets, expanded |
 | [08 — Roll Your Own](docs/manual/08-roll-your-own.md) | Fork guide |
 

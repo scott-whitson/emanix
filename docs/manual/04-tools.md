@@ -98,7 +98,7 @@ These live at `$DOTFILES/bin/` and are on PATH via `base/zsh/.zshrc.d/dotfiles.z
 | `dot-theme-set <name>` | Apply a theme (see [Chapter 03](03-theming.md)) |
 | `dot-theme-toggle` | Flip between last-dark and last-light (Chapter 03) |
 | `dot-update` | `apt update && apt full-upgrade -y && dot-restow --all` — weekly housekeeping |
-| `dot-doctor` | 15-check health scan: stow links, services, fonts, PATH, pi, active theme |
+| `dot-doctor` | 17-check health scan: stow links, services, fonts, PATH, pi, active theme |
 
 ## Adding a new tool
 

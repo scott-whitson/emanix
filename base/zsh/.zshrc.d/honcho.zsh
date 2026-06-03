@@ -1,4 +1,4 @@
-# base/zsh/.zshrc.d/honcho.zsh — shared Honcho client env for Arch + datacore.
+# base/zsh/.zshrc.d/honcho.zsh — shared Honcho client env for datacore + Debian workstations.
 
 export HONCHO_ENABLED="${HONCHO_ENABLED:-true}"
 export HONCHO_URL="${HONCHO_URL:-http://datacore.scottwhitson.ts.net:8008}"

@@ -1,6 +1,6 @@
 # Chapter 06 — Recovery
 
-Archived Arch recovery chapter. Current Debian recovery strip lives in vault and is the source of truth.
+Historical recovery chapter. Current Debian recovery strip lives in vault and is the source of truth.
 
 ## Current recovery docs
 
@@ -10,4 +10,4 @@ Archived Arch recovery chapter. Current Debian recovery strip lives in vault and
 
 ## Status
 
-This chapter stays only as historical context for the old Arch path. Do not use it for Debian recovery.
+This chapter stays only as historical context for the old reinstall path. Do not use it for Debian recovery.

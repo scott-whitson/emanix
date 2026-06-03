@@ -17,7 +17,7 @@ assert_no_autologin() {
     local ini="$1"
 
     if grep -Eq '^[[:space:]]*ReloginAfterSecondFactorAuthenticationTimeout[[:space:]]*=[[:space:]]*yes([[:space:]]*(;.*)?)?$' "$ini"; then
-        echo "_ib-launch: auto-relogin disabled on Arch laptop; set ReloginAfterSecondFactorAuthenticationTimeout=no in $ini" >&2
+        echo "_ib-launch: auto-relogin disabled on non-datacore host; set ReloginAfterSecondFactorAuthenticationTimeout=no in $ini" >&2
         exit 6
     fi
 
