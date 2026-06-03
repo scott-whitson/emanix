@@ -64,6 +64,8 @@ Workspace names render in waybar's `hyprland/workspaces` module via `"format": "
 | `Ctrl + Print` | Screenshot full screen → clipboard |
 | `$mod + F1` | Push-to-talk toggle (`push-to-talk.sh toggle`) |
 | `F1` | Push-to-talk toggle (bare, without mod) |
+| `F2` | Screen dim (`brightnessctl set 5%-`) |
+| `F3` | Screen brightness up (`brightnessctl set 5%+`) |
 
 ### Theme
 
