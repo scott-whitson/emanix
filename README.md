@@ -6,14 +6,22 @@ This is a private repo built for one user, but written as if a stranger could fo
 
 ## Quickstart
 
+Existing Debian box:
+
 ```bash
 git clone scott@datacore:~/projects/dotfiles ~/dotfiles
 cd ~/dotfiles
 ./bootstrap.sh
 ```
 
-Fresh install path: Debian Testing → recover root access → join Headscale → `ssh datacore` → clone dotfiles → run `./bootstrap.sh` → Hyprland + tools.
-Git-based fetches try datacore mirror first, then upstream if mirror missing.
+Fresh box or reinstall:
+
+```bash
+./ventoy/bootstrap.sh --datacore-url https://datacore.example --device-name fjord --role desktop
+```
+
+That flow phones home to datacore, gets short-lived bootstrap token, joins Headscale, transfers dotfiles, then hands off to `./bootstrap.sh`.
+Git-based fetches still try datacore mirror first, then upstream if mirror missing.
 
 ## Philosophy
 
@@ -63,5 +71,5 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **IB Gateway:** datacore-only; manual restart because relogin can trigger MFA
 - **Firefox + Obsidian:** first-class desktop apps; install flow brings them up on a fresh Debian box
 - **Bootstrap helpers:** `bootstrap.sh` / `repair.sh` for fresh-clone flow; `dot-bootstrap` / `dot-repair` for shell PATH flow
-- **Ventoy kit:** `ventoy/bootstrap.sh` for USB-driven Headscale + dotfiles bootstrap
+- **Ventoy kit:** `ventoy/bootstrap.sh` for datacore enrollment + dotfiles bootstrap on blank machines
 - **License:** none — private repo

@@ -2,6 +2,18 @@
 
 Portable first-run helper for Debian machines.
 
+## Default flow
+
+This script is the blank-machine bootstrap path:
+
+1. Start `bootstrap.sh`
+2. Enter datacore URL, device name, and role if not passed on CLI
+3. Open datacore verification URL in browser
+4. Sign in, approve device, and receive short-lived bootstrap token
+5. Join Headscale
+6. Fetch dotfiles from datacore
+7. Run repo `./bootstrap.sh`
+
 ## Layout
 
 Copy this directory to Ventoy USB root, or keep it wherever you want and run `bootstrap.sh` from here.
@@ -17,33 +29,37 @@ ventoy/
 
 ## Use
 
-1. Boot Debian install.
-2. Mount USB if needed.
-3. Run:
-
 ```bash
-./bootstrap.sh
+./bootstrap.sh \
+  --datacore-url https://datacore.example \
+  --device-name fjord \
+  --role desktop
 ```
 
-## Headscale
+If flags are omitted, script prompts for datacore URL, device name, and role.
 
-Script prompts for:
-- login server URL
-- auth key
+## Datacore response
 
-If you already have them, pass them non-interactively:
+Enrollment session should return:
+- `verification_url`
+- `device_code`
+- `bootstrap_token`
+- `headscale_login_server`
+- `dotfiles_archive_url` or `dotfiles_git_url`
+- optional `device_id`
+- optional `hostname`
+
+Archive fetch is tried first, then git URL, then local USB mirror.
+
+## Legacy rescue mode
+
+If datacore enrollment is unavailable, use manual Headscale fallback:
 
 ```bash
 ./bootstrap.sh \
-  --login-server https://headscale.example \
-  --authkey YOUR_AUTH_KEY
+  --legacy-login-server https://headscale.example \
+  --legacy-headscale-authkey YOUR_AUTH_KEY
 ```
-
-## Optional local mirror
-
-If USB carries a cloned copy of repo at `ventoy/dotfiles/`, script uses that copy first; if clone from datacore fails, it falls back to the USB mirror.
-
-To refresh local mirror, copy latest repo into that directory.
 
 ## Options
 
@@ -52,7 +68,11 @@ To refresh local mirror, copy latest repo into that directory.
 ```
 
 Useful flags:
-- `--no-headscale` — skip Headscale join
+- `--datacore-url URL` — datacore bootstrap portal base URL
+- `--device-name NAME` — enrolled machine name
+- `--role ROLE` — device profile/role
 - `--target DIR` — install repo into alternate dir
-- `--remote URL` — use alternate dotfiles clone URL
 - `--source DIR` — point at alternate local mirror
+- `--no-browser` — suppress browser opener
+- `--no-headscale` — skip Headscale join after approval
+- `--legacy-login-server URL` / `--legacy-headscale-authkey KEY` — manual rescue path

@@ -6,9 +6,22 @@ From a clean Debian Testing install to a running Hyprland desktop in about an ho
 
 - Clean Debian install with sudo access and a working internet connection
 - Know your hostname and timezone
-- SSH access back to `datacore`
+- Datacore bootstrap portal reachable from the machine
 
 ## Bootstrap
+
+Preferred blank-machine flow:
+
+```bash
+./ventoy/bootstrap.sh \
+  --datacore-url https://datacore.example \
+  --device-name fjord \
+  --role desktop
+```
+
+That flow phones home to datacore, opens verification URL, gets a short-lived bootstrap token, joins Headscale, fetches dotfiles, and then hands off to repo `./bootstrap.sh`.
+
+Existing installed machine can still use direct clone:
 
 ```bash
 git clone scott@datacore:~/projects/dotfiles ~/dotfiles
@@ -16,32 +29,25 @@ cd ~/dotfiles
 ./bootstrap.sh
 ```
 
-That’s it. The orchestrator exports `DOTFILES`, then runs every `install/NN-*.sh` in lexical order.
+The repo orchestrator exports `DOTFILES`, then runs every `install/NN-*.sh` in lexical order.
 Git-based fetches try datacore mirror first, then fall back to upstream if mirror missing.
 
 ## fjord sample run
 
 Use this as a clean reinstall exercise on `fjord`.
 
-1. Join Headscale and confirm SSH reachability to `datacore`:
+1. Boot Debian, mount Ventoy USB, and start datacore bootstrap:
 
    ```bash
-   sudo tailscale up
-   ssh datacore
+   ./ventoy/bootstrap.sh \
+     --datacore-url https://datacore.example \
+     --device-name fjord \
+     --role desktop
    ```
 
-2. Clone dotfiles from `datacore`:
+2. Open datacore verification URL, sign in, and approve device.
 
-   ```bash
-   git clone scott@datacore:~/projects/dotfiles ~/dotfiles
-   cd ~/dotfiles
-   ```
-
-3. Run fresh-clone bootstrap:
-
-   ```bash
-   ./bootstrap.sh
-   ```
+3. Let script join Headscale, fetch dotfiles, and run repo bootstrap.
 
 4. Verify install:
 
@@ -49,7 +55,7 @@ Use this as a clean reinstall exercise on `fjord`.
    dot-doctor
    ```
 
-If `~/dotfiles` already exists, skip the clone and just `cd ~/dotfiles` before `./bootstrap.sh`.
+If you already have a working clone, skip Ventoy and just `cd ~/dotfiles` before `./bootstrap.sh`.
 
 ## What each script does
 
@@ -104,5 +110,5 @@ The orchestrator prints these at the end; listed here for completeness:
 
 - Disk partitioning / bootloader / encryption — see [Chapter 06 — Recovery](06-recovery.md)
 - SSH keygen (explicit manual step — never committed)
-- Tailscale enrollment (`sudo tailscale up` after install)
+- Tailscale enrollment inside repo install (`sudo tailscale up`); Ventoy bootstrap handles enrollment before handing off
 - Kickstart.nvim fork selection — defaults to upstream `nvim-lua/kickstart.nvim`; if you fork on your own GitHub, edit `install/06-tools.sh`'s `KICKSTART_URL`
