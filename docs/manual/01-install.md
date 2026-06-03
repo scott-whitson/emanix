@@ -13,7 +13,7 @@ From a clean Debian Testing install to a running Hyprland desktop in about an ho
 ```bash
 git clone scott@datacore:~/projects/dotfiles ~/dotfiles
 cd ~/dotfiles
-./install.sh
+./bootstrap.sh
 ```
 
 That’s it. The orchestrator exports `DOTFILES`, then runs every `install/NN-*.sh` in lexical order.
@@ -53,9 +53,9 @@ Each `install/*.sh` is independently runnable after fixing a problem:
 DOTFILES=~/dotfiles bash ~/dotfiles/install/NN-name.sh
 
 # Or use repo helpers from repo root:
-#   ./bin/dot-repair 05-desktop
-#   ./bin/dot-repair --all
-#   ./bin/dot-bootstrap
+#   ./repair.sh 05-desktop
+#   ./repair.sh --all
+#   ./bootstrap.sh
 
 # Or re-run the whole orchestrator (always safe):
 ./install.sh

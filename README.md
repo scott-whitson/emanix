@@ -9,10 +9,10 @@ This is a private repo built for one user, but written as if a stranger could fo
 ```bash
 git clone scott@datacore:~/projects/dotfiles ~/dotfiles
 cd ~/dotfiles
-./install.sh
+./bootstrap.sh
 ```
 
-Fresh install path: Debian Testing → recover root access → join Headscale → `ssh datacore` → run `./install.sh` → Hyprland + tools.
+Fresh install path: Debian Testing → recover root access → join Headscale → `ssh datacore` → run `./bootstrap.sh` → Hyprland + tools.
 Git-based fetches try datacore mirror first, then upstream fallback.
 
 ## Philosophy
@@ -43,6 +43,8 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 
 ```
 ~/dotfiles/
+├── bootstrap.sh             # fresh-clone entrypoint
+├── repair.sh                # rerun install scripts
 ├── install.sh               # ~30-line orchestrator
 ├── install/                 # modular NN-<name>.sh scripts
 ├── bin/                     # dot-* helpers (on $PATH via zshrc.d)
@@ -60,5 +62,5 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **Health check:** `dot-doctor`
 - **IB Gateway:** datacore-only; manual restart because relogin can trigger MFA
 - **Firefox + Obsidian:** first-class desktop apps; install flow should bring them up on a fresh Debian box
-- **Bootstrap helpers:** `dot-bootstrap` for datacore-first sync + install, `dot-repair` for rerunning install scripts
+- **Bootstrap helpers:** `bootstrap.sh` / `repair.sh` for fresh-clone flow; `dot-bootstrap` / `dot-repair` for shell PATH flow
 - **License:** none — private repo

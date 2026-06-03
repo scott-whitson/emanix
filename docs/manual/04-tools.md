@@ -102,7 +102,7 @@ These live at `$DOTFILES/bin/` and are on PATH via `base/zsh/.zshrc.d/dotfiles.z
 | `dot-repair <script\|--all>` | Rerun one or more `install/*.sh` scripts without re-cloning repo |
 | `dot-doctor` | 17-check health scan: stow links, services, fonts, PATH, pi, active theme |
 
-Fresh clone note: until shell dotfiles load `$DOTFILES/bin` onto PATH, run helpers as `./bin/dot-bootstrap` and `./bin/dot-repair` from repo root.
+Fresh clone note: use `./bootstrap.sh` and `./repair.sh` from repo root before shell dotfiles load `$DOTFILES/bin` onto PATH.
 
 ## Adding a new tool
 
