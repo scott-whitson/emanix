@@ -42,33 +42,55 @@ repo_name_from_url() {
 	printf '%s' "${name%.git}"
 }
 
+git_clone_into() {
+	local url="$1" dest="$2" branch="${3:-}" rc=0
+	if [[ -n "$branch" ]]; then
+		if git clone --branch "$branch" "$url" "$dest"; then
+			:
+		else
+			rc=$?
+		fi
+	else
+		if git clone "$url" "$dest"; then
+			:
+		else
+			rc=$?
+		fi
+	fi
+	if [[ "$rc" -ne 0 ]] && [[ -d "$dest" ]] && ! git -C "$dest" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+		rm -rf "$dest"
+	fi
+	return "$rc"
+}
+
 clone_if_missing() {
 	local url="$1" dest="$2" branch="${3:-}" repo_name mirror_url
-	if [[ -d "$dest" ]] && [[ -n "$(ls -A "$dest" 2>/dev/null)" ]]; then
-		log "clone_if_missing: $dest already populated, skipping"
-		return 0
+	if [[ -d "$dest" ]]; then
+		if git -C "$dest" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+			if [[ -n "$(ls -A "$dest" 2>/dev/null)" ]]; then
+				log "clone_if_missing: $dest already populated, skipping"
+				return 0
+			fi
+		elif [[ -e "$dest/.git" ]]; then
+			warn "clone_if_missing: $dest has broken git metadata; removing and retrying"
+			rm -rf "$dest"
+		elif [[ -n "$(ls -A "$dest" 2>/dev/null)" ]]; then
+			warn "clone_if_missing: $dest exists and is not a git repo; refusing to reuse it"
+			return 1
+		fi
 	fi
 
 	repo_name="$(repo_name_from_url "$url")"
 	if [[ -n "$DATACORE_GIT_ROOT" ]] && [[ "$url" != *"datacore:"* ]] && [[ "$url" != *"datacore."* ]]; then
 		mirror_url="${DATACORE_GIT_ROOT%/}/$repo_name"
 		log "trying datacore mirror $mirror_url -> $dest"
-		if [[ -n "$branch" ]]; then
-			if git clone --branch "$branch" "$mirror_url" "$dest"; then
-				return 0
-			fi
-		else
-			if git clone "$mirror_url" "$dest"; then
-				return 0
-			fi
+		if git_clone_into "$mirror_url" "$dest" "$branch"; then
+			return 0
 		fi
-		warn "datacore mirror unavailable for $repo_name; falling back to $url"
+		warn "datacore mirror unavailable for $repo_name; clearing partial clone and falling back to $url"
+		rm -rf "$dest"
 	fi
 
 	log "cloning $url -> $dest"
-	if [[ -n "$branch" ]]; then
-		git clone --branch "$branch" "$url" "$dest"
-	else
-		git clone "$url" "$dest"
-	fi
+	git_clone_into "$url" "$dest" "$branch"
 }

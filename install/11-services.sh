@@ -26,5 +26,10 @@ for unit_file in "$UNIT_DIR"/*.timer "$UNIT_DIR"/*.service; do
 		continue
 	fi
 	log "enabling $unit_name"
-	systemctl --user enable --now "$unit_name" 2>&1 | grep -v '^Created symlink' || true
+	if output="$(systemctl --user enable --now "$unit_name" 2>&1)"; then
+		printf '%s\n' "$output" | grep -v '^Created symlink' || true
+	else
+		printf '%s\n' "$output" >&2
+		exit 1
+	fi
 done

@@ -12,6 +12,7 @@ tools/photo-tools/.venv/
 
 # Rust build output
 tools/window-picker/target/
+tools/window-picker/.build-state
 
 # Large binary assets (not version-controlled; see docs for download instructions)
 tools/vosk-models/*/

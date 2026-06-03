@@ -6,7 +6,7 @@ source "$(dirname "$0")/_common.sh"
 # --- uv sync the tools/ project ---
 if [[ -f "$DOTFILES/tools/pyproject.toml" ]]; then
 	log "uv sync tools/"
-	(cd "$DOTFILES/tools" && uv sync --quiet)
+	(cd "$DOTFILES/tools" && uv sync --quiet --locked)
 else
 	warn "tools/pyproject.toml not found; skipping uv sync"
 fi
@@ -17,10 +17,26 @@ fi
 
 # --- fragpaper source clone + install ---
 # Source lives in ~/projects/fragpaper (local repo); launcher reads shaders directly from there.
-# We only build/install binary here.
+# We only build/install binary here. Build stamp tracks commit + dirty tree state.
 FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/projects/fragpaper}"
 FRAGPAPER_OPT="${FRAGPAPER_OPT:-$HOME/.local/opt/fragpaper}"
 FRAGPAPER_REPO="${FRAGPAPER_REPO:-https://github.com/scott-whitson/fragpaper.git}"
+
+repo_fingerprint() {
+	local root="$1"
+	{
+		git -C "$root" rev-parse HEAD 2>/dev/null || printf 'missing'
+		printf '\n'
+		git -C "$root" status --porcelain --untracked-files=all 2>/dev/null || true
+	} | cksum | awk '{print $1}'
+}
+
+tree_fingerprint() {
+	local root="$1"
+	{
+		find "$root" -type f ! -path "$root/target/*" ! -name '.build-state' -print0 | sort -z | xargs -0 cksum
+	} | cksum | awk '{print $1}'
+}
 
 if [[ -d "$FRAGPAPER_SRC/.git" ]]; then
 	log "fragpaper source already present at $FRAGPAPER_SRC"
@@ -34,12 +50,20 @@ else
 fi
 
 if [[ -n "$FRAGPAPER_SRC" && -d "$FRAGPAPER_SRC" ]]; then
-	log "building fragpaper release"
-	if (cd "$FRAGPAPER_SRC" && cargo build --release --locked); then
-		install -d -m 0755 "$FRAGPAPER_OPT/bin"
-		install -m 0755 "$FRAGPAPER_SRC/target/release/fragpaper" "$FRAGPAPER_OPT/bin/fragpaper"
+	FRAGPAPER_BIN="$FRAGPAPER_OPT/bin/fragpaper"
+	FRAGPAPER_STAMP="$FRAGPAPER_OPT/.build-state"
+	FRAGPAPER_STATE="$(repo_fingerprint "$FRAGPAPER_SRC")"
+	if [[ -x "$FRAGPAPER_BIN" ]] && [[ -f "$FRAGPAPER_STAMP" ]] && [[ "$(cat "$FRAGPAPER_STAMP" 2>/dev/null)" == "$FRAGPAPER_STATE" ]]; then
+		log "fragpaper already built at state $FRAGPAPER_STATE"
 	else
-		warn "fragpaper build failed; skipping optional fragpaper install"
+		log "building fragpaper release"
+		if (cd "$FRAGPAPER_SRC" && cargo build --release --locked); then
+			install -d -m 0755 "$FRAGPAPER_OPT/bin"
+			install -m 0755 "$FRAGPAPER_SRC/target/release/fragpaper" "$FRAGPAPER_BIN"
+			printf '%s\n' "$FRAGPAPER_STATE" >"$FRAGPAPER_STAMP"
+		else
+			warn "fragpaper build failed; skipping optional fragpaper install"
+		fi
 	fi
 fi
 
@@ -47,13 +71,17 @@ fi
 WP_DIR="$DOTFILES/tools/window-picker"
 WP_BIN="$WP_DIR/target/release/window-picker"
 if [[ -d "$WP_DIR" ]]; then
-	if [[ ! -x "$WP_BIN" ]]; then
+	WP_STAMP="$WP_DIR/.build-state"
+	WP_STATE="$(tree_fingerprint "$WP_DIR")"
+	if [[ -x "$WP_BIN" ]] && [[ -f "$WP_STAMP" ]] && [[ "$(cat "$WP_STAMP" 2>/dev/null)" == "$WP_STATE" ]]; then
+		log "window-picker already built at state $WP_STATE"
+	else
 		log "building window-picker (Rust release)"
-		if ! (cd "$WP_DIR" && cargo build --release); then
+		if (cd "$WP_DIR" && cargo build --release --locked); then
+			printf '%s\n' "$WP_STATE" >"$WP_STAMP"
+		else
 			warn "window-picker build failed; skipping optional binary"
 		fi
-	else
-		log "window-picker already built"
 	fi
 fi
 
