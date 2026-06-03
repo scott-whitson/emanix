@@ -12,8 +12,8 @@ cd ~/dotfiles
 ./bootstrap.sh
 ```
 
-Fresh install path: Debian Testing → recover root access → join Headscale → `ssh datacore` → run `./bootstrap.sh` → Hyprland + tools.
-Git-based fetches try datacore mirror first, then upstream fallback.
+Fresh install path: Debian Testing → recover root access → join Headscale → `ssh datacore` → clone dotfiles → run `./bootstrap.sh` → Hyprland + tools.
+Git-based fetches try datacore mirror first, then upstream if mirror missing.
 
 ## Philosophy
 
@@ -61,6 +61,6 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **Active theme:** catppuccin-mocha (toggle with `$mod+Shift+T`)
 - **Health check:** `dot-doctor`
 - **IB Gateway:** datacore-only; manual restart because relogin can trigger MFA
-- **Firefox + Obsidian:** first-class desktop apps; install flow should bring them up on a fresh Debian box
+- **Firefox + Obsidian:** first-class desktop apps; install flow brings them up on a fresh Debian box
 - **Bootstrap helpers:** `bootstrap.sh` / `repair.sh` for fresh-clone flow; `dot-bootstrap` / `dot-repair` for shell PATH flow
 - **License:** none — private repo
