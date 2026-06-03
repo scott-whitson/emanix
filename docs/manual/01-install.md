@@ -19,6 +19,38 @@ cd ~/dotfiles
 That’s it. The orchestrator exports `DOTFILES`, then runs every `install/NN-*.sh` in lexical order.
 Git-based fetches try datacore mirror first, then fall back to upstream if mirror missing.
 
+## fjord sample run
+
+Use this as a clean reinstall exercise on `fjord`.
+
+1. Join Headscale and confirm SSH reachability to `datacore`:
+
+   ```bash
+   sudo tailscale up
+   ssh datacore
+   ```
+
+2. Clone dotfiles from `datacore`:
+
+   ```bash
+   git clone scott@datacore:~/projects/dotfiles ~/dotfiles
+   cd ~/dotfiles
+   ```
+
+3. Run fresh-clone bootstrap:
+
+   ```bash
+   ./bootstrap.sh
+   ```
+
+4. Verify install:
+
+   ```bash
+   dot-doctor
+   ```
+
+If `~/dotfiles` already exists, skip the clone and just `cd ~/dotfiles` before `./bootstrap.sh`.
+
 ## What each script does
 
 | # | Script | Purpose | Interactive? |
