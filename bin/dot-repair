@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# bin/dot-repair — rerun one or more install scripts without re-cloning repo
+#
+# Usage:
+#   dot-repair --all
+#   dot-repair 03-system
+#   dot-repair 05-desktop.sh 06-tools
+set -euo pipefail
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
+export DOTFILES
+
+usage() {
+	echo "Usage: dot-repair --all | <install-script> [more...]" >&2
+	echo "Examples: dot-repair 03-system 06-tools" >&2
+	echo "          dot-repair 05-desktop.sh" >&2
+}
+
+run_script() {
+	local name="$1" script
+	script="$DOTFILES/install/${name%.sh}.sh"
+	if [[ ! -x "$script" ]]; then
+		echo "dot-repair: missing script $script" >&2
+		exit 2
+	fi
+	echo ">>> $(basename "$script")"
+	bash "$script"
+}
+
+case "${1:-}" in
+	--all)
+		shift
+		for script in "$DOTFILES"/install/[0-9][0-9]-*.sh; do
+			[[ -e "$script" ]] || continue
+			echo ">>> $(basename "$script")"
+			bash "$script"
+		done
+		;;
+	""|-h|--help)
+		usage
+		exit 1
+		;;
+	*)
+		for name in "$@"; do
+			run_script "$name"
+		done
+		;;
+esac

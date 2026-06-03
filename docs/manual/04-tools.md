@@ -94,11 +94,15 @@ These live at `$DOTFILES/bin/` and are on PATH via `base/zsh/.zshrc.d/dotfiles.z
 
 | Helper | Purpose |
 |---|---|
+| `dot-bootstrap` | Datacore-first sync + full `./install.sh` bootstrap |
 | `dot-restow <pkg\|--all>` | Re-stow one package or all packages from `base/` |
 | `dot-theme-set <name>` | Apply a theme (see [Chapter 03](03-theming.md)) |
 | `dot-theme-toggle` | Flip between last-dark and last-light (Chapter 03) |
 | `dot-update` | `apt update && apt full-upgrade -y && dot-restow --all` — weekly housekeeping |
+| `dot-repair <script\|--all>` | Rerun one or more `install/*.sh` scripts without re-cloning repo |
 | `dot-doctor` | 17-check health scan: stow links, services, fonts, PATH, pi, active theme |
+
+Fresh clone note: until shell dotfiles load `$DOTFILES/bin` onto PATH, run helpers as `./bin/dot-bootstrap` and `./bin/dot-repair` from repo root.
 
 ## Adding a new tool
 

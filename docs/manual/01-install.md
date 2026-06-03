@@ -52,6 +52,11 @@ Each `install/*.sh` is independently runnable after fixing a problem:
 # Re-run a single script after fixing an issue:
 DOTFILES=~/dotfiles bash ~/dotfiles/install/NN-name.sh
 
+# Or use repo helpers from repo root:
+#   ./bin/dot-repair 05-desktop
+#   ./bin/dot-repair --all
+#   ./bin/dot-bootstrap
+
 # Or re-run the whole orchestrator (always safe):
 ./install.sh
 ```

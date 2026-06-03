@@ -60,4 +60,5 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **Health check:** `dot-doctor`
 - **IB Gateway:** datacore-only; manual restart because relogin can trigger MFA
 - **Firefox + Obsidian:** first-class desktop apps; install flow should bring them up on a fresh Debian box
+- **Bootstrap helpers:** `dot-bootstrap` for datacore-first sync + install, `dot-repair` for rerunning install scripts
 - **License:** none — private repo

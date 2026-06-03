@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# bin/dot-bootstrap — datacore-first sync + full install bootstrap
+#
+# Usage:
+#   dot-bootstrap            # sync origin if possible, then run ./install.sh
+#   dot-bootstrap --no-sync  # skip git pull, just run ./install.sh
+set -euo pipefail
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
+cd "$DOTFILES"
+
+sync=1
+case "${1:-}" in
+	--no-sync)
+		sync=0
+		shift
+		;;
+	"" )
+		;;
+	-h|--help)
+		echo "Usage: dot-bootstrap [--no-sync]"
+		exit 0
+		;;
+	*)
+		echo "dot-bootstrap: unknown arg '${1}'" >&2
+		echo "Usage: dot-bootstrap [--no-sync]" >&2
+		exit 2
+		;;
+esac
+
+if [[ $# -gt 0 ]]; then
+	echo "dot-bootstrap: too many args" >&2
+	echo "Usage: dot-bootstrap [--no-sync]" >&2
+	exit 2
+fi
+
+remote="$(git remote get-url origin 2>/dev/null || true)"
+branch="$(git branch --show-current 2>/dev/null || true)"
+sync_target="$remote"
+
+if [[ -z "$remote" ]]; then
+	printf '[dot-bootstrap] no git origin configured; skipping sync\n' >&2
+	sync=0
+elif [[ "$remote" == *github.com* ]]; then
+	printf '[dot-bootstrap] origin points GitHub; pulling via datacore mirror first\n' >&2
+	sync_target="scott@datacore:~/projects/dotfiles"
+fi
+
+if [[ "$sync" -eq 1 ]]; then
+	if [[ -z "$branch" ]]; then
+		printf '[dot-bootstrap] cannot determine current branch; skipping sync\n' >&2
+		sync=0
+	else
+		printf '==> git pull --ff-only %s %s\n' "$sync_target" "$branch"
+		if ! git pull --ff-only "$sync_target" "$branch"; then
+			if [[ -n "$remote" ]] && [[ "$remote" != "$sync_target" ]]; then
+				printf '[dot-bootstrap] datacore mirror failed; falling back to origin\n' >&2
+				git pull --ff-only "$remote" "$branch"
+			else
+				exit 1
+			fi
+		fi
+		printf '\n'
+	fi
+fi
+
+printf '==> ./install.sh\n'
+exec "$DOTFILES/install.sh"
