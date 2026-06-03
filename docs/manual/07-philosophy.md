@@ -60,7 +60,7 @@ pi coding agent is a first-class tool, not a bolt-on. Custom skills and extensio
 
 ## 5. Reversible and recoverable
 
-`recovery/` directory exists. Any machine is rebuildable from the repo in <1 hour. No snowflake state that only lives on one laptop.
+Fresh Debian reinstall path is enough: join Headscale, clone dotfiles from datacore, run `./bootstrap.sh`, and verify with `dot-doctor`. No snowflake state that only lives on one laptop.
 
 **What this eliminates:**
 - "I'll just tweak this live and remember to commit later" (the source of all snowflakes)

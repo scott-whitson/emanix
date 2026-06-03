@@ -51,7 +51,6 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 ├── base/                    # stow packages
 ├── themes/                  # catppuccin-mocha + catppuccin-latte
 ├── tools/                   # uv project + Rust window-picker
-├── recovery/                # disaster-recovery runbook
 └── docs/                    # manual + specs + plans
 ```
 
