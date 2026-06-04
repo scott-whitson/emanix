@@ -75,4 +75,5 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **Bootstrap contract:** `docs/specs/datacore-bootstrap.openapi.yaml`
 - **Bootstrap backend design:** `docs/specs/datacore-bootstrap-backend.md`
 - **Bootstrap plan:** `docs/plans/datacore-bootstrap-plan.md`
+- **Fjord→Zord runbook:** `docs/plans/fjord-zord-reinstall-runbook.md`
 - **License:** none — private repo
