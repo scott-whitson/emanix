@@ -19,7 +19,7 @@ Preferred blank-machine flow:
   --role desktop
 ```
 
-That flow phones home to datacore, opens verification URL, gets a short-lived bootstrap token, joins Headscale, fetches dotfiles, and then hands off to repo `./bootstrap.sh`.
+That flow phones home to datacore, opens verification URL, gets a short-lived bootstrap token, installs SSH trust bundle, joins Headscale, fetches dotfiles, and then hands off to repo `./bootstrap.sh`.
 
 Existing installed machine can still use direct clone:
 
@@ -47,7 +47,7 @@ Use this as a clean reinstall exercise on `fjord`.
 
 2. Open datacore verification URL, sign in, and approve device.
 
-3. Let script join Headscale, fetch dotfiles, and run repo bootstrap.
+3. Let script install SSH trust, join Headscale, fetch dotfiles, and run repo bootstrap.
 
 4. Verify install:
 
@@ -103,12 +103,12 @@ DOTFILES=~/dotfiles bash ~/dotfiles/install/NN-name.sh
 
 The orchestrator prints these at the end; listed here for completeness:
 
-1. Set up SSH keys: `ssh-keygen -t ed25519`
-2. Log out and back in for zsh to take effect
+1. Log out and back in for zsh to take effect
+2. If you need extra SSH identities beyond Ventoy bootstrap, add them manually
 
 ## What the orchestrator does NOT do
 
 - Disk partitioning / bootloader / encryption — see [Chapter 06 — Recovery](06-recovery.md)
-- SSH keygen (explicit manual step — never committed)
+- SSH keygen for base bootstrap identity (Ventoy bootstrap handles that)
 - Tailscale enrollment inside repo install (`sudo tailscale up`); Ventoy bootstrap handles enrollment before handing off
 - Kickstart.nvim fork selection — defaults to upstream `nvim-lua/kickstart.nvim`; if you fork on your own GitHub, edit `install/06-tools.sh`'s `KICKSTART_URL`

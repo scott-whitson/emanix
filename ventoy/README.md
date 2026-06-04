@@ -10,7 +10,7 @@ This script is the blank-machine bootstrap path:
 2. Enter datacore URL, device name, and role if not passed on CLI
 3. Open datacore verification URL in browser
 4. Sign in, approve device, and receive short-lived bootstrap token
-5. Join Headscale
+5. Install SSH trust bundle and join Headscale
 6. Fetch dotfiles from datacore
 7. Run repo `./bootstrap.sh`
 
@@ -45,9 +45,12 @@ Enrollment session should return:
 - `device_code`
 - `bootstrap_token`
 - `headscale_login_server`
+- `ssh_trust_bundle`
 - `dotfiles_archive_url` or `dotfiles_git_url`
 - optional `device_id`
 - optional `hostname`
+
+Client also sends its `machine_ssh_public_key` during enrollment so datacore can install reciprocal SSH trust.
 
 Archive fetch is tried first, then git URL, then local USB mirror.
 

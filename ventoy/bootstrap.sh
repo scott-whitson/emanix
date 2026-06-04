@@ -37,6 +37,10 @@ DOTFILES_ARCHIVE_URL=""
 DOTFILES_GIT_URL=""
 DEVICE_ID=""
 APPROVED_HOSTNAME=""
+MACHINE_SSH_KEY_PATH="${MACHINE_SSH_KEY_PATH:-$HOME/.ssh/datacore_bootstrap_ed25519}"
+DATACORE_SSH_KNOWN_HOSTS_FILE="${DATACORE_SSH_KNOWN_HOSTS_FILE:-$HOME/.ssh/datacore_known_hosts}"
+MACHINE_SSH_PUBLIC_KEY=""
+SSH_TRUST_BUNDLE=""
 
 msg() { printf '\033[1;34m[ventoy]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[ventoy]\033[0m %s\n' "$*" >&2; }
@@ -112,29 +116,32 @@ else:
 }
 
 build_json_payload() {
-	python3 - "$DEVICE_NAME" "$ROLE" <<'PY'
+	python3 - "$DEVICE_NAME" "$ROLE" "$MACHINE_SSH_PUBLIC_KEY" <<'PY'
 import json
 import sys
 
-device_name, role = sys.argv[1:3]
+device_name, role, machine_ssh_public_key = sys.argv[1:4]
 payload = {
     'device_name': device_name,
     'hostname': device_name,
     'role': role,
     'client': 'ventoy-bootstrap',
 }
+if machine_ssh_public_key:
+    payload['machine_ssh_public_key'] = machine_ssh_public_key
 print(json.dumps(payload))
 PY
 }
 
 build_completion_payload() {
-	python3 - "$DEVICE_NAME" "$ROLE" "$DEVICE_ID" "$APPROVED_HOSTNAME" <<'PY'
+	python3 - "$BOOTSTRAP_TOKEN" "$DEVICE_NAME" "$ROLE" "$DEVICE_ID" "$APPROVED_HOSTNAME" <<'PY'
 import json
 import sys
 
-device_name, role, device_id, hostname = sys.argv[1:5]
+token, device_name, role, device_id, hostname = sys.argv[1:6]
 payload = {
     'status': 'ok',
+    'bootstrap_token': token,
     'device_name': device_name,
     'role': role,
     'hostname': hostname,
@@ -151,7 +158,7 @@ have() {
 
 ensure_packages() {
 	local missing=()
-	for bin in curl python3; do
+	for bin in curl python3 ssh-keygen; do
 		have "$bin" || missing+=("$bin")
 	done
 	if [[ ${#missing[@]} -eq 0 ]]; then
@@ -162,7 +169,7 @@ ensure_packages() {
 	fi
 	msg "installing missing tools: ${missing[*]}"
 	sudo apt update
-	sudo apt install -y curl python3 ca-certificates
+	sudo apt install -y curl python3 openssh-client ca-certificates
 }
 
 ensure_git() {
@@ -185,6 +192,20 @@ ensure_tailscale() {
 	sudo apt install -y tailscale
 }
 
+ensure_machine_ssh_keypair() {
+	mkdir -p "$HOME/.ssh"
+	chmod 700 "$HOME/.ssh"
+	if [[ -f "$MACHINE_SSH_KEY_PATH" && -f "$MACHINE_SSH_KEY_PATH.pub" ]]; then
+		MACHINE_SSH_PUBLIC_KEY="$(cat "$MACHINE_SSH_KEY_PATH.pub")"
+		return 0
+	fi
+	msg "generating machine SSH keypair for datacore trust"
+	ssh-keygen -q -t ed25519 -N '' -f "$MACHINE_SSH_KEY_PATH" -C "$DEVICE_NAME@$APPROVED_HOSTNAME" >/dev/null
+	chmod 600 "$MACHINE_SSH_KEY_PATH"
+	chmod 644 "$MACHINE_SSH_KEY_PATH.pub"
+	MACHINE_SSH_PUBLIC_KEY="$(cat "$MACHINE_SSH_KEY_PATH.pub")"
+}
+
 api_post() {
 	local path="$1"
 	local body="$2"
@@ -200,6 +221,24 @@ api_get() {
 	curl --fail --silent --show-error --location \
 		--retry 3 --retry-delay 2 \
 		"$DATACORE_URL$path"
+}
+
+api_get_with_status() {
+	local path="$1"
+	local body_file headers_file code body
+	body_file="$(mktemp)"
+	headers_file="$(mktemp)"
+	code="$(curl --silent --show-error --location \
+		--retry 3 --retry-delay 2 \
+		-D "$headers_file" -o "$body_file" \
+		-w '%{http_code}' \
+		"$DATACORE_URL$path")" || {
+		rm -f "$body_file" "$headers_file"
+		return 1
+	}
+	body="$(cat "$body_file")"
+	rm -f "$body_file" "$headers_file"
+	printf '%s\n%s' "$code" "$body"
 }
 
 open_browser() {
@@ -275,34 +314,99 @@ start_bootstrap_session() {
 }
 
 wait_for_bootstrap_approval() {
-	local response state
+	local response status body state
 	while true; do
-		response="$(api_get "/api/bootstrap/sessions/$SESSION_ID")"
-		state="$(printf '%s' "$response" | json_get state)"
-		case "$state" in
-		pending | waiting)
-			sleep "$POLL_INTERVAL"
+		response="$(api_get_with_status "/api/bootstrap/sessions/$SESSION_ID")"
+		status="${response%%$'\n'*}"
+		body="${response#*$'\n'}"
+		case "$status" in
+		200)
+			state="$(printf '%s' "$body" | json_get state)"
+			case "$state" in
+			pending | waiting)
+				sleep "$POLL_INTERVAL"
+				;;
+			approved)
+				BOOTSTRAP_TOKEN="$(printf '%s' "$body" | json_get bootstrap_token)"
+				HEADSCALE_LOGIN_SERVER="$(printf '%s' "$body" | json_get_optional headscale_login_server || true)"
+				DOTFILES_ARCHIVE_URL="$(printf '%s' "$body" | json_get_optional dotfiles_archive_url || true)"
+				DOTFILES_GIT_URL="$(printf '%s' "$body" | json_get_optional dotfiles_git_url || true)"
+				DEVICE_ID="$(printf '%s' "$body" | json_get_optional device_id || true)"
+				SSH_TRUST_BUNDLE="$body"
+				APPROVED_HOSTNAME="$(printf '%s' "$body" | json_get_optional hostname || true)"
+				APPROVED_HOSTNAME="${APPROVED_HOSTNAME:-$DEVICE_NAME}"
+				[[ -n "$BOOTSTRAP_TOKEN" ]] || die "datacore approved session but no bootstrap token"
+				return 0
+				;;
+			denied | expired | rejected)
+				die "datacore bootstrap session $state"
+				;;
+			*)
+				warn "unexpected session state: $state"
+				sleep "$POLL_INTERVAL"
+				;;
+			esac
 			;;
-		approved)
-			BOOTSTRAP_TOKEN="$(printf '%s' "$response" | json_get bootstrap_token)"
-			HEADSCALE_LOGIN_SERVER="$(printf '%s' "$response" | json_get_optional headscale_login_server || true)"
-			DOTFILES_ARCHIVE_URL="$(printf '%s' "$response" | json_get_optional dotfiles_archive_url || true)"
-			DOTFILES_GIT_URL="$(printf '%s' "$response" | json_get_optional dotfiles_git_url || true)"
-			DEVICE_ID="$(printf '%s' "$response" | json_get_optional device_id || true)"
-			APPROVED_HOSTNAME="$(printf '%s' "$response" | json_get_optional hostname || true)"
-			APPROVED_HOSTNAME="${APPROVED_HOSTNAME:-$DEVICE_NAME}"
-			[[ -n "$BOOTSTRAP_TOKEN" ]] || die "datacore approved session but no bootstrap token"
-			return 0
+		410)
+			die "datacore bootstrap session expired"
 			;;
-		denied | expired | rejected)
-			die "datacore bootstrap session $state"
+		404)
+			die "datacore bootstrap session missing"
 			;;
 		*)
-			warn "unexpected session state: $state"
+			warn "unexpected HTTP status from datacore: $status"
 			sleep "$POLL_INTERVAL"
 			;;
 		esac
 	done
+}
+
+install_ssh_trust_bundle() {
+	[[ -n "$SSH_TRUST_BUNDLE" ]] || return 0
+	local ssh_user known_hosts ssh_config_snippet ssh_config_block datacore_host default_snippet
+	ssh_user="$(printf '%s' "$SSH_TRUST_BUNDLE" | json_get_optional ssh_trust_bundle.ssh_user || true)"
+	known_hosts="$(printf '%s' "$SSH_TRUST_BUNDLE" | json_get_optional ssh_trust_bundle.known_hosts || true)"
+	ssh_config_snippet="$(printf '%s' "$SSH_TRUST_BUNDLE" | json_get_optional ssh_trust_bundle.ssh_config_snippet || true)"
+	if [[ -n "$known_hosts" ]]; then
+		mkdir -p "$HOME/.ssh"
+		chmod 700 "$HOME/.ssh"
+		printf '%s\n' "$known_hosts" >"$DATACORE_SSH_KNOWN_HOSTS_FILE"
+		chmod 600 "$DATACORE_SSH_KNOWN_HOSTS_FILE"
+		msg "installed datacore known_hosts trust"
+	fi
+	if [[ -z "$ssh_config_snippet" && -n "$ssh_user" ]]; then
+		datacore_host="$(python3 -c 'from urllib.parse import urlparse; import sys
+url = sys.argv[1]
+parsed = urlparse(url)
+print(parsed.hostname or url)' "$DATACORE_URL")"
+		default_snippet=$(
+			cat <<EOF
+Host datacore
+  HostName $datacore_host
+  User $ssh_user
+  IdentityFile $MACHINE_SSH_KEY_PATH
+  UserKnownHostsFile $DATACORE_SSH_KNOWN_HOSTS_FILE
+  IdentitiesOnly yes
+  HostKeyAlias datacore
+EOF
+		)
+		ssh_config_snippet="$default_snippet"
+	fi
+	if [[ -n "$ssh_config_snippet" ]]; then
+		mkdir -p "$HOME/.ssh"
+		chmod 700 "$HOME/.ssh"
+		ssh_config_block="$HOME/.ssh/config"
+		if ! grep -qF '# BEGIN datacore bootstrap' "$ssh_config_block" 2>/dev/null; then
+			printf '%s\n%s\n%s\n' '# BEGIN datacore bootstrap' "$ssh_config_snippet" '# END datacore bootstrap' >>"$ssh_config_block"
+		else
+			warn "datacore SSH config block already present"
+		fi
+		chmod 600 "$ssh_config_block"
+		msg "installed datacore SSH config"
+	fi
+	if [[ -z "$known_hosts" && -z "$ssh_config_snippet" && -n "$ssh_user" ]]; then
+		warn "datacore approved session returned ssh user but no trust material"
+	fi
 }
 
 set_hostname() {
@@ -576,9 +680,11 @@ fi
 
 prompt_datacore_url
 prompt_device_fields
+ensure_machine_ssh_keypair
 start_bootstrap_session
 print_enrollment_instructions
 wait_for_bootstrap_approval
+install_ssh_trust_bundle
 set_hostname "$APPROVED_HOSTNAME"
 join_headscale_datacore
 acquire_dotfiles

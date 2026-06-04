@@ -20,7 +20,7 @@ Fresh box or reinstall:
 ./ventoy/bootstrap.sh --datacore-url https://datacore.example --device-name fjord --role desktop
 ```
 
-That flow phones home to datacore, gets short-lived bootstrap token, joins Headscale, transfers dotfiles, then hands off to `./bootstrap.sh`.
+That flow phones home to datacore, gets short-lived bootstrap token, installs SSH trust, joins Headscale, transfers dotfiles, then hands off to `./bootstrap.sh`.
 Git-based fetches still try datacore mirror first, then upstream if mirror missing.
 
 ## Philosophy
@@ -72,4 +72,7 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **Firefox + Obsidian:** first-class desktop apps; install flow brings them up on a fresh Debian box
 - **Bootstrap helpers:** `bootstrap.sh` / `repair.sh` for fresh-clone flow; `dot-bootstrap` / `dot-repair` for shell PATH flow
 - **Ventoy kit:** `ventoy/bootstrap.sh` for datacore enrollment + dotfiles bootstrap on blank machines
+- **Bootstrap contract:** `docs/specs/datacore-bootstrap.openapi.yaml`
+- **Bootstrap backend design:** `docs/specs/datacore-bootstrap-backend.md`
+- **Bootstrap plan:** `docs/plans/datacore-bootstrap-plan.md`
 - **License:** none — private repo

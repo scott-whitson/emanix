@@ -2,7 +2,7 @@
   "lastChangelogVersion": "0.78.0",
   "defaultProvider": "openai",
   "defaultModel": "gpt-5.4-mini",
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "medium",
   "packages": [
     "npm:pi-web-access",
     "npm:pi-subagents",
