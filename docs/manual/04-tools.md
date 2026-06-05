@@ -73,7 +73,7 @@ FRAGPAPER_SHADERS_DIR=$FRAGPAPER_SRC/shaders
 
 ### syncthing
 
-Syncthing is the local file-sync layer for your docs vault. The install flow brings up the user service and expects the synced docs tree to live at `~/docs`, which is what Obsidian opens. The canonical setup shares that folder from datacore to runtime desktops; the runtime desktop only needs the synced files, not a project checkout.
+Syncthing is the local file-sync layer for your docs vault. The install flow brings up the user service and `install/13-docs-sync.sh` pairs the docs folder with datacore. The synced docs tree lives at `~/docs`, which is what Obsidian opens. The canonical setup shares that folder from datacore to runtime desktops; the runtime desktop only needs the synced files, not a project checkout.
 
 Useful paths:
 

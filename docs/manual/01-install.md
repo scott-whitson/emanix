@@ -81,6 +81,7 @@ If you already have a working clone, skip Ventoy and just `cd ~/dotfiles` before
 | 10 | `10-theme.sh` | Applies the active theme via `bin/dot-theme-set`. On first run defaults to `catppuccin-mocha`; on re-install re-applies whatever `~/.config/dotfiles/active-theme` records. | None |
 | 11 | `11-services.sh` | Runs `systemctl --user daemon-reload` then enables and starts every `*.timer` and `*.service` found in `~/.config/systemd/user/`. | None |
 | 12 | `12-ibgateway.sh` | Datacore-only. Installs IB Gateway + IBC into `/opt`, writes per-user config templates, and prints next steps on datacore; skips on fjord and other non-gateway hosts. | sudo for `/opt` writes |
+| 13 | `13-docs-sync.sh` | Sets up Syncthing for the docs vault: creates `~/docs`, initializes Syncthing identity if needed, and pairs the runtime host with datacore so Obsidian has live content. | None |
 
 ## Idempotence
 
