@@ -59,20 +59,36 @@ install_obsidian() {
 
 install_backlight_permissions() {
 	local rule=/etc/udev/rules.d/90-backlight-permissions.rules
-	local tmp
-	tmp="$(mktemp)"
-	cat >"$tmp" <<'EOF'
-# Allow members of the video group to adjust backlight brightness.
-ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness"
-ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"
+	local service=/etc/systemd/system/dot-backlight-permissions.service
+	local tmp_rule tmp_service
+	tmp_rule="$(mktemp)"
+	tmp_service="$(mktemp)"
+	cat >"$tmp_rule" <<'EOF'
+# Trigger the root service whenever a backlight device appears.
+ACTION=="add", SUBSYSTEM=="backlight", TAG+="systemd", ENV{SYSTEMD_WANTS}="dot-backlight-permissions.service"
 EOF
-	if [[ ! -f "$rule" ]] || ! cmp -s "$tmp" "$rule"; then
-		log "installing backlight udev permissions rule"
-		sudo install -D -m 0644 "$tmp" "$rule"
-		sudo udevadm control --reload-rules
-		sudo udevadm trigger --subsystem-match=backlight || true
+	cat >"$tmp_service" <<'EOF'
+[Unit]
+Description=Set writable backlight permissions for brightness keys
+ConditionPathExistsGlob=/sys/class/backlight/*/brightness
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash -lc 'for f in /sys/class/backlight/*/brightness; do [ -e "$f" ] || continue; chgrp video "$f" && chmod g+w "$f"; done'
+EOF
+	if [[ ! -f "$rule" ]] || ! cmp -s "$tmp_rule" "$rule"; then
+		log "installing backlight udev trigger rule"
+		sudo install -D -m 0644 "$tmp_rule" "$rule"
 	fi
-	rm -f "$tmp"
+	if [[ ! -f "$service" ]] || ! cmp -s "$tmp_service" "$service"; then
+		log "installing backlight permission service"
+		sudo install -D -m 0644 "$tmp_service" "$service"
+	fi
+	rm -f "$tmp_rule" "$tmp_service"
+	sudo systemctl daemon-reload
+	sudo udevadm control --reload-rules
+	sudo udevadm trigger --subsystem-match=backlight || true
+	sudo systemctl start dot-backlight-permissions.service || true
 }
 
 ensure_video_group() {
