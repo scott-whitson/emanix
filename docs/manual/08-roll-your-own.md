@@ -46,6 +46,25 @@ A clean fork keeps three buckets separate:
 - **Lab checkout** — a non-canonical editable mirror on another machine when you want to tinker without changing the canonical source.
 - **Installed product** — something you run, not something you develop on that host.
 
+## `~/lab` convention
+
+Use `~/lab` for non-canonical checkouts you intentionally want to edit on a secondary machine.
+
+Suggested shape:
+
+- `~/lab/dotfiles` — a scratch or experimental mirror of the dotfiles repo
+- `~/lab/fragpaper` — only if you want to develop fragpaper on that host
+- `~/lab/<other-project>` — any other temporary or exploratory checkout that should not be treated as the authoritative source
+
+Rules:
+
+1. Anything under `~/lab` may be dirty and divergent.
+2. Nothing in `~/lab` is the source of truth unless you explicitly promote it back to datacore.
+3. Runtime-only machines should not need `~/lab` at all.
+4. If a thing is only there to run, keep it out of `~/lab` and install it as a product instead.
+
+This keeps the mental model simple: canonical projects stay canonical, lab trees stay disposable, and installed products stay installed.
+
 For example:
 
 - `dotfiles` and `datacore-config` are canonical projects.

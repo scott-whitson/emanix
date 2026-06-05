@@ -73,6 +73,7 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **Firefox + Obsidian:** first-class desktop apps; install flow brings them up on a fresh Debian box
 - **Bootstrap helpers:** `bootstrap.sh` / `repair.sh` for fresh-clone flow; `dot-bootstrap` / `dot-repair` for shell PATH flow
 - **Installed products:** fragpaper runs as a user service on zord; it is treated as a runtime product, not a project checkout
+- **Lab checkouts:** use `~/lab/<name>` for intentionally non-canonical mirrors you want to edit on secondary machines
 - **Ventoy kit:** `ventoy/bootstrap.sh` for datacore enrollment + dotfiles bootstrap on blank machines
 - **Bootstrap contract:** `docs/specs/datacore-bootstrap.openapi.yaml`
 - **Bootstrap backend design:** `docs/specs/datacore-bootstrap-backend.md`
