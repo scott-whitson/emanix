@@ -36,22 +36,34 @@ FRAGPAPER_BIN="${FRAGPAPER_BIN:-$HOME/.local/opt/fragpaper/bin/fragpaper}"
 FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/projects/fragpaper}"
 SHADERS_DIR="${FRAGPAPER_SHADERS_DIR:-$FRAGPAPER_SRC/shaders}"
 
-if [[ ! -x "$FRAGPAPER_BIN" ]]; then
-    if command -v fragpaper >/dev/null 2>&1; then
-        FRAGPAPER_BIN="$(command -v fragpaper)"
-    else
-        echo "fragpaper-launch: fragpaper binary not found at $FRAGPAPER_BIN" >&2
-        exit 1
-    fi
-fi
-
 if [[ ! -r "$SHADERS_DIR/attractors.vert" ]] || [[ ! -r "$SHADERS_DIR/attractors.frag" ]]; then
     echo "fragpaper-launch: shader files missing in $SHADERS_DIR" >&2
     exit 1
 fi
 
-exec env RUST_LOG=info "$FRAGPAPER_BIN" \
-    --bg-color "$BG_COLOR" \
-    --palette "$PALETTE" \
-    "$SHADERS_DIR/attractors.vert" \
-    "$SHADERS_DIR/attractors.frag"
+if [[ -x "$FRAGPAPER_BIN" ]]; then
+    exec env RUST_LOG=info "$FRAGPAPER_BIN" \
+        --bg-color "$BG_COLOR" \
+        --palette "$PALETTE" \
+        "$SHADERS_DIR/attractors.vert" \
+        "$SHADERS_DIR/attractors.frag"
+fi
+
+if command -v fragpaper >/dev/null 2>&1; then
+    exec env RUST_LOG=info fragpaper \
+        --bg-color "$BG_COLOR" \
+        --palette "$PALETTE" \
+        "$SHADERS_DIR/attractors.vert" \
+        "$SHADERS_DIR/attractors.frag"
+fi
+
+if [[ -d "$FRAGPAPER_SRC/.git" ]] && command -v cargo >/dev/null 2>&1; then
+    exec env RUST_LOG=info cargo run --quiet --release --locked --manifest-path "$FRAGPAPER_SRC/Cargo.toml" -- \
+        --bg-color "$BG_COLOR" \
+        --palette "$PALETTE" \
+        "$SHADERS_DIR/attractors.vert" \
+        "$SHADERS_DIR/attractors.frag"
+fi
+
+echo "fragpaper-launch: fragpaper binary not found at $FRAGPAPER_BIN and cargo fallback unavailable" >&2
+exit 1
