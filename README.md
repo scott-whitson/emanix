@@ -20,7 +20,8 @@ Fresh box or reinstall:
 ./ventoy/bootstrap.sh --datacore-url https://datacore.example --device-name fjord --role desktop
 ```
 
-That flow phones home to datacore, gets short-lived bootstrap token, installs SSH trust, joins Headscale, transfers dotfiles, then hands off to `./bootstrap.sh`.
+That flow phones home to datacore, gets a short-lived bootstrap token, installs SSH trust, joins Headscale, transfers dotfiles, and hands off to `./bootstrap.sh`.
+When it finishes, reboot and run `dot-doctor`.
 Git-based fetches still try datacore mirror first, then upstream if mirror missing.
 
 ## Philosophy
@@ -71,9 +72,10 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **IB Gateway:** datacore-only; manual restart because relogin can trigger MFA
 - **Firefox + Obsidian:** first-class desktop apps; install flow brings them up on a fresh Debian box
 - **Bootstrap helpers:** `bootstrap.sh` / `repair.sh` for fresh-clone flow; `dot-bootstrap` / `dot-repair` for shell PATH flow
+- **Installed products:** fragpaper runs as a user service on zord; it is treated as a runtime product, not a project checkout
 - **Ventoy kit:** `ventoy/bootstrap.sh` for datacore enrollment + dotfiles bootstrap on blank machines
 - **Bootstrap contract:** `docs/specs/datacore-bootstrap.openapi.yaml`
 - **Bootstrap backend design:** `docs/specs/datacore-bootstrap-backend.md`
 - **Bootstrap plan:** `docs/plans/datacore-bootstrap-plan.md`
-- **Fjord→Zord runbook:** `docs/plans/fjord-zord-reinstall-runbook.md`
+- **Zord reinstall runbook:** `docs/plans/fjord-zord-reinstall-runbook.md`
 - **License:** none — private repo

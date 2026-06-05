@@ -38,6 +38,22 @@ These have personal state:
 | 5. Reversible and recoverable | Keep — this one is load-bearing for anyone |
 | 6. Modular like Framework | Keep — makes forking easier, which you're doing right now |
 
+## Project vs lab vs installed product
+
+A clean fork keeps three buckets separate:
+
+- **Canonical project** — source-bearing tree you actively develop; lives on datacore as the source of truth.
+- **Lab checkout** — a non-canonical editable mirror on another machine when you want to tinker without changing the canonical source.
+- **Installed product** — something you run, not something you develop on that host.
+
+For example:
+
+- `dotfiles` and `datacore-config` are canonical projects.
+- `~/lab/<name>` can host a non-canonical checkout when you want an editable copy elsewhere.
+- `fragpaper` on zord is an installed product: it should run as a background service, but zord does not need to carry a `~/projects/fragpaper` checkout unless you intentionally want to debug the source there.
+
+This distinction matters because it keeps runtime hosts simple and keeps only real development trees in project space.
+
 ## Minimal fork path
 
 If you want the cheapest possible fork that still works:
