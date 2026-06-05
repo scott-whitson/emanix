@@ -77,6 +77,7 @@ Every file in `base/bin/.local/bin/` is symlinked to `~/.local/bin/<name>` by `i
 | Wrapper | Purpose |
 |---|---|
 | `fragpaper-launch` | Launches fragpaper with the active theme's BG_COLOR + PALETTE |
+| `hypr-brightness` | Adjusts laptop brightness with brightnessctl/light/sysfs fallbacks; bound to F2/F3 and XF86 brightness keys |
 | `hypr-cheatsheet` | Fuzzel viewer for Hyprland keybindings; sources from `~/docs/vault/Whitsgrove/Hyprland Cheatsheet.md` (bound to `$mod + Shift + /`) |
 | `hypr-rename-workspace` | Fuzzel prompt → `hyprctl dispatch renameworkspace <id> "<id> <label>"` (bound to `$mod + r`) |
 | `helix` | Wrapper that prefers `hx` on Debian but still supports a native `helix` binary |

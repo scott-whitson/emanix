@@ -59,3 +59,25 @@ for path in \
         printf '  %-42s missing\n' "$path"
     fi
 done
+
+printf 'brightness:\n'
+if command -v brightnessctl >/dev/null 2>&1; then
+    printf '  brightnessctl: present\n'
+else
+    printf '  brightnessctl: missing\n'
+fi
+if command -v light >/dev/null 2>&1; then
+    printf '  light: present\n'
+else
+    printf '  light: missing\n'
+fi
+if [[ -d /sys/class/backlight ]]; then
+    printf '  backlight devices:'
+    for d in /sys/class/backlight/*; do
+        [[ -d "$d" ]] || continue
+        printf ' %s' "$(basename "$d")"
+    done
+    printf '\n'
+else
+    printf '  backlight devices: none\n'
+fi
