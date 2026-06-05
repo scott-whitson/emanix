@@ -61,11 +61,11 @@ If you already have a working clone, skip Ventoy and just `cd ~/dotfiles` before
 
 | # | Script | Purpose | Interactive? |
 |---|---|---|---|
-| 01 | `01-core.sh` | Installs core Debian packages: build-essential, cargo, rustc, pkg-config, libgtk-4-dev, libadwaita-1-dev, blueprint-compiler, libnotify-bin, git, stow, zsh, curl/wget/unzip/rsync/openssh-client/gnupg, fzf, zoxide, rclone, hx, neovim, qalc, Noto fonts. Then installs `uv` from apt if available, else the official binary installer; installs JetBrains Mono from apt if available, else a Nerd Font fallback in `~/.local/share/fonts/`. | sudo password |
+| 01 | `01-core.sh` | Installs core Debian packages: build-essential, cargo, rustc, pkg-config, libgtk-4-dev, libadwaita-1-dev, libgtk4-layer-shell-dev, blueprint-compiler, libnotify-bin, git, stow, zsh, curl/wget/unzip/rsync/openssh-client/gnupg, fzf, zoxide, rclone, hx, neovim, qalc, Noto fonts. Then installs `uv` from apt if available, else the official binary installer; installs JetBrains Mono from apt if available, else a Nerd Font fallback in `~/.local/share/fonts/`. | sudo password |
 | 03 | `03-system.sh` | Installs Oh My Zsh (non-interactive, keeps existing `.zshrc`), clones zsh-autosuggestions and zsh-syntax-highlighting plugins, sets zsh as the default shell via `chsh`, and warns if `pam_systemd_home` auth is active anywhere under `/etc/pam.d/`. | `chsh` may prompt |
 | 04 | `04-hyprland.sh` | Installs Hyprland compositor stack: hyprland, hyprlock, hypridle, hyprpaper, xdg-desktop-portal-hyprland, hyprpolkitagent. | sudo password |
-| 05 | `05-desktop.sh` | Installs desktop support packages: Firefox ESR, Obsidian, waybar, mako-notifier, fuzzel, ghostty (via Debian repo fallback if needed), grim/slurp/wl-clipboard, PipeWire + WirePlumber + pipewire-pulse, brightnessctl, playerctl. | sudo password |
-| 06 | `06-tools.sh` | Runs `uv sync` on `tools/`, builds `window-picker`, checks Node/npm from apt, clones fragpaper, and clones kickstart.nvim to `~/.config/nvim` if missing. Appends the theme opt-in line to `init.lua` (idempotent). | None |
+| 05 | `05-desktop.sh` | Installs desktop support packages: Firefox ESR, Obsidian, waybar, mako-notifier, fuzzel, ghostty (via Debian repo fallback if needed), grim/slurp/wl-clipboard, PipeWire + WirePlumber + pipewire-pulse, brightnessctl, playerctl, and a backlight udev rule so brightness keys work without root. | sudo password |
+| 06 | `06-tools.sh` | Runs `uv sync` on `tools/`, builds `window-picker` after installing the GTK layer-shell dev dependency, checks Node/npm from apt, clones fragpaper, and clones kickstart.nvim to `~/.config/nvim` if missing. Appends the theme opt-in line to `init.lua` (idempotent). | None |
 | 07 | `07-pi.sh` | Installs pi coding agent via `npm install -g --prefix ~/.local @earendil-works/pi-coding-agent`. Uses system Node/npm from apt. | None |
 | 08 | `08-stow-base.sh` | Stows every package under `base/*/` into `$HOME` using `--adopt`; auto-stashes any existing `base/` edits, then restores them after stow so install can continue. | None |
 | 10 | `10-theme.sh` | Applies the active theme via `bin/dot-theme-set`. On first run defaults to `catppuccin-mocha`; on re-install re-applies whatever `~/.config/dotfiles/active-theme` records. | None |
@@ -101,14 +101,14 @@ DOTFILES=~/dotfiles bash ~/dotfiles/install/NN-name.sh
 
 ## First-run manual steps
 
-The orchestrator prints these at the end; listed here for completeness:
+The orchestrator prints this at the end; listed here for completeness:
 
 1. Log out and back in for zsh to take effect
-2. If you need extra SSH identities beyond Ventoy bootstrap, add them manually
+2. Reboot, then run `dot-doctor`
 
 ## What the orchestrator does NOT do
 
 - Disk partitioning / bootloader / encryption — see [Chapter 06 — Recovery](06-recovery.md)
-- SSH keygen for base bootstrap identity (Ventoy bootstrap handles that)
+- SSH trust bootstrap is handled by Ventoy (it generates and registers the machine key during enrollment)
 - Tailscale enrollment inside repo install (`sudo tailscale up`); Ventoy bootstrap handles enrollment before handing off
 - Kickstart.nvim fork selection — defaults to upstream `nvim-lua/kickstart.nvim`; if you fork on your own GitHub, edit `install/06-tools.sh`'s `KICKSTART_URL`

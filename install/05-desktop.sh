@@ -57,6 +57,33 @@ install_obsidian() {
 	sudo apt install -y "$tmp/obsidian.deb"
 }
 
+install_backlight_permissions() {
+	local rule=/etc/udev/rules.d/90-backlight-permissions.rules
+	local tmp
+	tmp="$(mktemp)"
+	cat >"$tmp" <<'EOF'
+# Allow members of the video group to adjust backlight brightness.
+ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness"
+ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"
+EOF
+	if [[ ! -f "$rule" ]] || ! cmp -s "$tmp" "$rule"; then
+		log "installing backlight udev permissions rule"
+		sudo install -D -m 0644 "$tmp" "$rule"
+		sudo udevadm control --reload-rules
+		sudo udevadm trigger --subsystem-match=backlight || true
+	fi
+	rm -f "$tmp"
+}
+
+ensure_video_group() {
+	if id -nG "$USER" | tr ' ' '\n' | grep -qx video; then
+		return 0
+	fi
+	log "adding $USER to the video group for backlight access"
+	sudo usermod -aG video "$USER"
+	warn "video group membership will take effect after you log out and back in"
+}
+
 log "installing desktop support packages"
 need_pkg \
 	firefox-esr \
@@ -66,5 +93,7 @@ need_pkg \
 	brightnessctl playerctl \
 	fonts-noto fonts-noto-color-emoji
 
+install_backlight_permissions
+ensure_video_group
 install_ghostty
 install_obsidian
