@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# bin/dot-context — print a small, trusted snapshot of the current dotfiles state.
+# Useful when switching between datacore and zord or when repo paths differ.
+set -euo pipefail
+
+resolve_dotfiles() {
+    if [[ -n "${DOTFILES:-}" ]] && [[ -d "${DOTFILES}/.git" ]]; then
+        printf '%s' "$DOTFILES"
+        return 0
+    fi
+
+    for candidate in "$(cd "$(dirname "$0")/.." && pwd)" "$HOME/dotfiles" "$HOME/projects/dotfiles"; do
+        if [[ -d "$candidate/.git" ]]; then
+            printf '%s' "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+DOTFILES_DIR="$(resolve_dotfiles 2>/dev/null || true)"
+HOSTNAME_SHORT="$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo unknown)"
+CURRENT_DIR="$(pwd)"
+
+printf 'host: %s\n' "$HOSTNAME_SHORT"
+printf 'user: %s\n' "${USER:-unknown}"
+printf 'cwd: %s\n' "$CURRENT_DIR"
+
+if [[ -n "$DOTFILES_DIR" ]]; then
+    printf 'dotfiles: %s\n' "$DOTFILES_DIR"
+    printf 'branch: %s\n' "$(git -C "$DOTFILES_DIR" branch --show-current 2>/dev/null || echo unknown)"
+    printf 'commit: %s\n' "$(git -C "$DOTFILES_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    printf 'status: %s\n' "$(git -C "$DOTFILES_DIR" status --short 2>/dev/null | wc -l | tr -d ' ') modified line(s)"
+else
+    printf 'dotfiles: not found\n'
+fi
+
+printf 'repo layout: '
+if [[ -d "$HOME/dotfiles/.git" ]]; then
+    printf '~/dotfiles '
+fi
+if [[ -d "$HOME/projects/dotfiles/.git" ]]; then
+    printf '~/projects/dotfiles '
+fi
+printf '\n'
+
+printf 'symlinks:\n'
+for path in \
+    "$HOME/.local/bin/hypr-brightness" \
+    "$HOME/.local/bin/fragpaper-launch" \
+    "$HOME/.config/hypr/hyprland.conf" \
+    "$HOME/.config/hypr/theme.conf"; do
+    if [[ -L "$path" ]]; then
+        printf '  %-42s -> %s\n' "$path" "$(readlink "$path")"
+    elif [[ -e "$path" ]]; then
+        printf '  %-42s exists (not a symlink)\n' "$path"
+    else
+        printf '  %-42s missing\n' "$path"
+    fi
+done

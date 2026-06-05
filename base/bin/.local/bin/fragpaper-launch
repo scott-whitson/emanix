@@ -7,7 +7,17 @@
 
 set -u
 
-DOTFILES="${DOTFILES:-$HOME/dotfiles}"
+if [[ -n "${DOTFILES:-}" ]]; then
+    DOTFILES="$DOTFILES"
+else
+    for candidate in "$HOME/projects/dotfiles" "$HOME/dotfiles"; do
+        if [[ -d "$candidate/themes" ]]; then
+            DOTFILES="$candidate"
+            break
+        fi
+    done
+    DOTFILES="${DOTFILES:-$HOME/projects/dotfiles}"
+fi
 ACTIVE_THEME_FILE="$HOME/.config/dotfiles/active-theme"
 
 BG_COLOR="#1e1e2e"
@@ -25,6 +35,20 @@ fi
 FRAGPAPER_BIN="${FRAGPAPER_BIN:-$HOME/.local/opt/fragpaper/bin/fragpaper}"
 FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/projects/fragpaper}"
 SHADERS_DIR="${FRAGPAPER_SHADERS_DIR:-$FRAGPAPER_SRC/shaders}"
+
+if [[ ! -x "$FRAGPAPER_BIN" ]]; then
+    if command -v fragpaper >/dev/null 2>&1; then
+        FRAGPAPER_BIN="$(command -v fragpaper)"
+    else
+        echo "fragpaper-launch: fragpaper binary not found at $FRAGPAPER_BIN" >&2
+        exit 1
+    fi
+fi
+
+if [[ ! -r "$SHADERS_DIR/attractors.vert" ]] || [[ ! -r "$SHADERS_DIR/attractors.frag" ]]; then
+    echo "fragpaper-launch: shader files missing in $SHADERS_DIR" >&2
+    exit 1
+fi
 
 exec env RUST_LOG=info "$FRAGPAPER_BIN" \
     --bg-color "$BG_COLOR" \
