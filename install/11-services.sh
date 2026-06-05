@@ -26,6 +26,16 @@ for unit_file in "$UNIT_DIR"/*.timer "$UNIT_DIR"/*.service; do
 		continue
 	fi
 	log "enabling $unit_name"
+	if [[ "$unit_name" == fragpaper.service ]]; then
+		if output="$(systemctl --user enable "$unit_name" 2>&1)"; then
+			printf '%s\n' "$output" | grep -v '^Created symlink' || true
+			log "deferring $unit_name start to Hyprland session autostart"
+		else
+			printf '%s\n' "$output" >&2
+			exit 1
+		fi
+		continue
+	fi
 	if output="$(systemctl --user enable --now "$unit_name" 2>&1)"; then
 		printf '%s\n' "$output" | grep -v '^Created symlink' || true
 	else

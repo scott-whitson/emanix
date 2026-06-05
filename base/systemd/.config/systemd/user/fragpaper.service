@@ -1,0 +1,13 @@
+[Unit]
+Description=Fragpaper wallpaper daemon
+After=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/fragpaper-launch
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

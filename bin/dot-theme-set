@@ -124,16 +124,13 @@ if [[ -f "$gtk_conf" ]]; then
     gsettings set org.gnome.desktop.interface gtk-theme    "${GTK_THEME:-Adwaita}"   2>/dev/null || true
 fi
 
-# --- Relaunch fragpaper (it has no live reload) ---
-if pgrep -x fragpaper &>/dev/null; then
-    pkill -TERM -x fragpaper 2>/dev/null || true
-    for _ in 1 2 3 4 5 6 7 8 9 10; do
-        pgrep -x fragpaper &>/dev/null || break
-        sleep 0.1
-    done
+# --- Refresh fragpaper wallpaper daemon ---
+if systemctl --user --quiet is-enabled fragpaper.service 2>/dev/null || systemctl --user list-unit-files fragpaper.service >/dev/null 2>&1; then
+    systemctl --user restart fragpaper.service 2>/dev/null || systemctl --user start fragpaper.service 2>/dev/null || true
+else
+    # fragpaper-launch reads active-theme + fragpaper.conf now (Task 5)
+    setsid -f bash -c '~/.local/bin/fragpaper-launch > /tmp/fragpaper-debug.log 2>&1' &>/dev/null || true
 fi
-# fragpaper-launch reads active-theme + fragpaper.conf now (Task 5)
-setsid -f bash -c '~/.local/bin/fragpaper-launch > /tmp/fragpaper-debug.log 2>&1' &>/dev/null || true
 
 # --- Run theme-specific post-set hook if present ---
 if [[ -x "$THEME_DIR/post-set.sh" ]]; then

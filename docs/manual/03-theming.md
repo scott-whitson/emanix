@@ -61,7 +61,7 @@ themes/catppuccin-mocha/
 5. Sed-rewrites the `theme = "..."` line in `~/.config/helix/config.toml` to the value in `helix-theme`.
 6. If `$OBSIDIAN_VAULT` is set in the active profile's `profile.conf`, JSON-patches the vault's `.obsidian/appearance.json` with the value in `obsidian-theme`.
 7. Sources `gtk.conf` and runs `gsettings` for `color-scheme` and `gtk-theme`.
-8. Kills + relaunches fragpaper via `fragpaper-launch` (which reads the new `active-theme` marker).
+8. Restarts the `fragpaper.service` user unit so the wallpaper picks up the new `active-theme` marker (with a fallback to `fragpaper-launch` if the service is unavailable).
 9. Runs `themes/<name>/post-set.sh` if present and executable.
 10. Sends reload signals: `hyprctl reload`, `SIGUSR2` to waybar/ghostty, `makoctl reload`, `SIGUSR1` to helix.
 
@@ -114,7 +114,7 @@ If this ever annoys you enough, three escape hatches:
 
 ## Fragpaper integration
 
-Fragpaper is a GPU shader wallpaper generator (not a static image). Each theme provides `BG_COLOR` and `PALETTE` (`dark` or `light`) via `fragpaper.conf`. `fragpaper-launch` reads the active theme and passes them to the installed fragpaper binary, reading shader files directly from `~/projects/fragpaper/shaders/`.
+Fragpaper is a GPU shader wallpaper generator (not a static image). Each theme provides `BG_COLOR` and `PALETTE` (`dark` or `light`) via `fragpaper.conf`. `fragpaper.service` starts automatically in Hyprland and `fragpaper-launch` reads the active theme and passes it to the installed fragpaper binary, reading shader files directly from `~/projects/fragpaper/shaders/`.
 
 If fragpaper isn't installed, theme switching still works — fragpaper relaunch is `|| true` guarded and the rest of the system doesn't care.
 
