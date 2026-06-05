@@ -20,11 +20,13 @@ fi
 # Runtime desktops keep fragpaper as an installed product and cache the
 # checkout under ~/.local/share/fragpaper instead of ~/projects.
 HOST_NAME="${HOSTNAME%%.*}"
+FRAGPAPER_RUNTIME_SRC="$HOME/.local/share/fragpaper"
+FRAGPAPER_PROJECT_SRC="$HOME/projects/fragpaper"
 if [[ -z "${FRAGPAPER_SRC:-}" ]]; then
 	if [[ "$HOST_NAME" == "datacore" ]]; then
-		FRAGPAPER_SRC="$HOME/projects/fragpaper"
+		FRAGPAPER_SRC="$FRAGPAPER_PROJECT_SRC"
 	else
-		FRAGPAPER_SRC="$HOME/.local/share/fragpaper"
+		FRAGPAPER_SRC="$FRAGPAPER_RUNTIME_SRC"
 	fi
 fi
 FRAGPAPER_OPT="${FRAGPAPER_OPT:-$HOME/.local/opt/fragpaper}"
@@ -45,6 +47,25 @@ tree_fingerprint() {
 		find "$root" -type f ! -path "$root/target/*" ! -name '.build-state' -print0 | sort -z | xargs -0 cksum
 	} | cksum | awk '{print $1}'
 }
+
+if [[ "$HOST_NAME" != "datacore" ]] && [[ -z "${FRAGPAPER_SRC:-}" || "$FRAGPAPER_SRC" == "$FRAGPAPER_RUNTIME_SRC" ]]; then
+	if [[ -d "$FRAGPAPER_PROJECT_SRC/.git" ]]; then
+		if [[ -d "$FRAGPAPER_RUNTIME_SRC/.git" ]]; then
+			log "removing stale fragpaper checkout from ~/projects on runtime desktop"
+			rm -rf "$FRAGPAPER_PROJECT_SRC"
+		else
+			log "migrating fragpaper checkout from ~/projects to ~/.local/share/fragpaper"
+			mkdir -p "$(dirname "$FRAGPAPER_RUNTIME_SRC")"
+			if mv "$FRAGPAPER_PROJECT_SRC" "$FRAGPAPER_RUNTIME_SRC"; then
+				:
+			else
+				warn "fragpaper migration failed; skipping optional fragpaper install"
+				FRAGPAPER_SRC=""
+			fi
+		fi
+	fi
+	FRAGPAPER_SRC="$FRAGPAPER_RUNTIME_SRC"
+fi
 
 if [[ -d "$FRAGPAPER_SRC/.git" ]]; then
 	log "fragpaper source already present at $FRAGPAPER_SRC"

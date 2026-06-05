@@ -2,7 +2,7 @@
 # fragpaper-launch — launches fragpaper with the current theme's bg + palette.
 # Reads ~/.config/dotfiles/active-theme, then sources
 # ~/dotfiles/themes/<active>/fragpaper.conf for BG_COLOR and PALETTE.
-# Uses local ~/projects/fragpaper shader repo directly.
+# Uses the best available shader checkout (runtime cache on desktops, canonical repo on datacore/dev boxes).
 # Falls back to Catppuccin Mocha defaults if no active theme is set.
 
 set -u
@@ -34,14 +34,19 @@ fi
 
 FRAGPAPER_BIN="${FRAGPAPER_BIN:-$HOME/.local/opt/fragpaper/bin/fragpaper}"
 FRAGPAPER_SRC="${FRAGPAPER_SRC:-}"
+HOST_NAME="${HOSTNAME%%.*}"
 if [[ -z "$FRAGPAPER_SRC" ]]; then
-    for candidate in "$HOME/.local/share/fragpaper" "$HOME/projects/fragpaper"; do
-        if [[ -d "$candidate" ]]; then
-            FRAGPAPER_SRC="$candidate"
-            break
-        fi
-    done
-    FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/.local/share/fragpaper}"
+    if [[ "$HOST_NAME" == "datacore" ]]; then
+        for candidate in "$HOME/projects/fragpaper" "$HOME/.local/share/fragpaper"; do
+            if [[ -d "$candidate" ]]; then
+                FRAGPAPER_SRC="$candidate"
+                break
+            fi
+        done
+        FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/projects/fragpaper}"
+    else
+        FRAGPAPER_SRC="$HOME/.local/share/fragpaper"
+    fi
 fi
 SHADERS_DIR="${FRAGPAPER_SHADERS_DIR:-$FRAGPAPER_SRC/shaders}"
 

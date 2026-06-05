@@ -54,7 +54,7 @@ A small Rust binary that renders a window picker overlay for Hyprland. Built by 
 
 ### fragpaper
 
-GPU shader wallpaper renderer for Wayland. `install/06-tools.sh` uses `~/projects/fragpaper` on datacore, but on runtime desktops it caches the checkout under `~/.local/share/fragpaper` instead of creating `~/projects`. It builds a release binary and installs it to `~/.local/opt/fragpaper/bin/fragpaper`. Fragpaper runs as a user systemd service (`fragpaper.service`) started automatically from Hyprland; on runtime-only hosts like zord it is just an installed product and does not need a project checkout unless you are actively debugging it. `fragpaper-launch` reads shaders from the best available checkout (`~/.local/share/fragpaper` first, then `~/projects/fragpaper` on datacore/dev machines) and falls back to `cargo run --release` if the installed binary is missing.
+GPU shader wallpaper renderer for Wayland. `install/06-tools.sh` uses `~/projects/fragpaper` on datacore, but on runtime desktops it caches the checkout under `~/.local/share/fragpaper` instead of creating `~/projects`. It builds a release binary and installs it to `~/.local/opt/fragpaper/bin/fragpaper`. Fragpaper runs as a user systemd service (`fragpaper.service`) started automatically from Hyprland; on runtime-only hosts like zord it is just an installed product and does not need a project checkout unless you are actively debugging it. `fragpaper-launch` reads shaders from the best available checkout (`~/.local/share/fragpaper` on runtime desktops, `~/projects/fragpaper` on datacore/dev machines) and falls back to `cargo run --release` if the installed binary is missing.
 
 Runtime launcher:
 
