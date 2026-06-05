@@ -4,6 +4,12 @@ Scott Whitson's personal Linux setup. Debian + Hyprland. Opinionated, documented
 
 This is a private repo built for one user, but written as if a stranger could fork it. See [`docs/manual/08-roll-your-own.md`](docs/manual/08-roll-your-own.md) if you're that stranger.
 
+## Path conventions
+
+- **`~/projects` on datacore** — canonical source trees
+- **`~/lab` on secondary dev machines** — non-canonical editable mirrors
+- **Installed products** — runtime-only deployments on machines like zord; no project checkout required unless you are actively developing that product
+
 ## Quickstart
 
 Existing Debian box:

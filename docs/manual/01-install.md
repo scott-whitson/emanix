@@ -32,6 +32,16 @@ cd ~/dotfiles
 The repo orchestrator exports `DOTFILES`, then runs every `install/NN-*.sh` in lexical order.
 Git-based fetches try datacore mirror first, then fall back to upstream if mirror missing.
 
+### Host path convention
+
+Use these paths consistently:
+
+- `~/projects/<name>` on datacore: canonical projects
+- `~/lab/<name>` on non-canonical developer machines: editable mirrors you can experiment in
+- runtime-only products on zord: install to system/user locations, not `~/projects`
+
+Fragpaper on zord is the example of a runtime-only product: it should run as a service and does not require a `~/projects/fragpaper` checkout unless you are deliberately developing it there.
+
 ## fjord sample run
 
 Use this as a clean reinstall exercise on `fjord`.

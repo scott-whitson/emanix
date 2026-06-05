@@ -1,95 +1,119 @@
-# Fjord → Zord reinstall runbook
+# Zord reinstall runbook
 
-Runbook for full wipe/reinstall/retest on current client box.
+Runbook for the full wipe, reinstall, and retest cycle on the current client machine named `zord`.
 
 ## Goal
 
-Prove fresh machine can enroll through datacore, join Headscale, exchange SSH trust both ways, fetch dotfiles, and finish bootstrap.
+Prove that a fresh Debian machine can:
 
-After that, rename `fjord` to `zord`.
+- enroll through datacore
+- join Headscale
+- establish passwordless SSH in both directions
+- fetch dotfiles
+- complete bootstrap successfully
+
+During reinstall, name machine `zord` so hostname matches from first boot.
+
+## Path convention for the reinstall
+
+- datacore remains the canonical source tree host (`~/projects/...`)
+- a temporary lab tree is optional on developer machines (`~/lab/...`)
+- zord should only keep installed products and runtime state; it does not need project checkouts for things like fragpaper unless you are explicitly debugging them
 
 ## Preconditions
 
-Before wipe:
-- Datacore bootstrap portal reachable
-- `stacks/bootstrap-portal` deployed and healthy
-- `ventoy/bootstrap.sh` current on USB
-- `fjord` still boots today
-- Datacore SSH trust path proven once
-- `honcho-health` available on datacore if you want memory checks during/after
+Before wiping anything, make sure:
 
-## Phase 1 — portal smoke
+- the datacore bootstrap portal is reachable
+- `stacks/bootstrap-portal` is deployed and healthy
+- the current `ventoy/bootstrap.sh` is on the USB
+- `fjord` still boots normally
+- the datacore SSH trust path has been proven at least once
+- `honcho-health` is available on datacore if you want memory checks during or after the process
 
-1. On datacore, ensure portal up:
+## Phase 1: portal smoke test
+
+1. On datacore, make sure the portal is up:
+
    ```bash
    cd ~/projects/datacore-config
    bash bootstrap/23-bootstrap-portal.sh
    ```
 
-2. Confirm portal health:
+2. Confirm the portal health endpoint works:
+
    ```bash
    curl -fsS http://127.0.0.1:8010/health
    ```
 
-3. Smoke test contract:
-   - create bootstrap session
-   - approve in browser
-   - confirm response returns:
+3. Smoke-test the bootstrap contract:
+   - create a bootstrap session
+   - approve it in the browser
+   - confirm the response includes:
      - `bootstrap_token`
      - `headscale_login_server`
      - `ssh_trust_bundle`
-   - confirm completion callback works
-   - confirm `authorized_keys.datacore` receives machine pubkey
+   - confirm the completion callback works
+   - confirm `authorized_keys.datacore` receives the machine public key
 
-## Phase 2 — Ventoy retest on fresh machine
+## Phase 2: Ventoy retest on fresh machine
 
-1. Wipe/reinstall Debian on target box.
-2. Boot Ventoy USB.
-3. Run:
+1. Wipe and reinstall Debian on the target machine.
+
+2. Boot into the newly installed Debian system, then mount the Ventoy USB if needed.
+
+3. Run `ventoy/bootstrap.sh` from the USB mount or copied local path:
+
    ```bash
    ./ventoy/bootstrap.sh \
      --datacore-url https://datacore.example \
-     --device-name fjord \
+     --device-name zord \
      --role desktop
    ```
-4. Approve device in datacore browser page.
-5. Verify after bootstrap:
-   - Headscale connected
-   - `ssh datacore` works from machine
-   - datacore can SSH back without password
+
+4. Approve the device in the datacore browser page.
+
+5. After bootstrap completes, verify:
+   - Headscale is connected
+   - `ssh datacore` works from the machine
+   - datacore can SSH back without a password
    - `dot-doctor` passes
 
-## Phase 3 — rename cutover
+## Phase 3: verify `zord` install
 
-Only after phase 2 succeeds:
+During the reinstall, set hostname to `zord` from the start.
 
-1. Change hostname from `fjord` to `zord`.
-2. Update datacore device name / portal device label if needed.
+After the Ventoy retest succeeds:
+
+1. Verify the installed system already reports hostname `zord`.
+2. Update datacore device name or portal label if needed.
 3. Verify:
-   - `ssh zord` from datacore works
-   - `ssh datacore` from zord works
-   - bootstrap and trust still survive reboot
+   - `ssh zord` works from datacore
+   - `ssh datacore` works from `zord`
+   - the bootstrap and SSH trust survive reboot
 
-## Phase 4 — follow-up
+## Phase 4: follow-up
 
-After `zord` is stable:
-- add phase 2 sync plane
+Once `zord` is stable, move on to phase 2 sync work:
+
 - heartbeat
 - bundle request/download
 - drift detection
 - policy updates
+- selective sync
 
 ## Stop rules
 
-Stop and fix before rename if any of these fail:
+Stop and fix the issue before verifying `zord` if any of these fail:
+
 - portal contract mismatch
-- SSH trust missing either direction
-- Headscale join fails
-- dotfiles bootstrap fails
-- `dot-doctor` fails
+- SSH trust missing in either direction
+- Headscale join failure
+- dotfiles bootstrap failure
+- `dot-doctor` failure
 
 ## Short version
 
-**No portal smoke, no wipe.**
-**No SSH trust, no rename.**
-**No clean Ventoy retest, no zord cutover.**
+- No portal smoke, no wipe
+- No SSH trust, no rename
+- No clean Ventoy retest, no `zord` verification
