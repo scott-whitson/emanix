@@ -114,7 +114,7 @@ If this ever annoys you enough, three escape hatches:
 
 ## Fragpaper integration
 
-Fragpaper is a GPU shader wallpaper generator (not a static image). Each theme provides `BG_COLOR` and `PALETTE` (`dark` or `light`) via `fragpaper.conf`. `fragpaper.service` starts automatically in Hyprland and `fragpaper-launch` reads the active theme and passes it to the installed fragpaper binary, reading shader files directly from `~/projects/fragpaper/shaders/`.
+Fragpaper is a GPU shader wallpaper generator (not a static image). Each theme provides `BG_COLOR` and `PALETTE` (`dark` or `light`) via `fragpaper.conf`. `fragpaper.service` starts automatically in Hyprland and `fragpaper-launch` reads the active theme and passes it to the installed fragpaper binary, reading shader files from the best available checkout (`~/.local/share/fragpaper` on runtime desktops, `~/projects/fragpaper` on datacore/dev machines).
 
 If fragpaper isn't installed, theme switching still works — fragpaper relaunch is `|| true` guarded and the rest of the system doesn't care.
 

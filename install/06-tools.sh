@@ -16,9 +16,17 @@ fi
 # beyond what base/bin/ already provides.
 
 # --- fragpaper source clone + install ---
-# Source lives in ~/projects/fragpaper (local repo); launcher reads shaders directly from there.
-# We only build/install binary here. Build stamp tracks commit + dirty tree state.
-FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/projects/fragpaper}"
+# Canonical development lives in ~/projects/fragpaper on datacore.
+# Runtime desktops keep fragpaper as an installed product and cache the
+# checkout under ~/.local/share/fragpaper instead of ~/projects.
+HOST_NAME="${HOSTNAME%%.*}"
+if [[ -z "${FRAGPAPER_SRC:-}" ]]; then
+	if [[ "$HOST_NAME" == "datacore" ]]; then
+		FRAGPAPER_SRC="$HOME/projects/fragpaper"
+	else
+		FRAGPAPER_SRC="$HOME/.local/share/fragpaper"
+	fi
+fi
 FRAGPAPER_OPT="${FRAGPAPER_OPT:-$HOME/.local/opt/fragpaper}"
 FRAGPAPER_REPO="${FRAGPAPER_REPO:-https://github.com/scott-whitson/fragpaper.git}"
 
@@ -71,11 +79,13 @@ fi
 WP_DIR="$DOTFILES/tools/window-picker"
 WP_BIN="$WP_DIR/target/release/window-picker"
 if [[ -d "$WP_DIR" ]]; then
-	WP_STAMP="$WP_DIR/.build-state"
-	WP_STATE="$(tree_fingerprint "$WP_DIR")"
-	if [[ -x "$WP_BIN" ]] && [[ -f "$WP_STAMP" ]] && [[ "$(cat "$WP_STAMP" 2>/dev/null)" == "$WP_STATE" ]]; then
-		log "window-picker already built at state $WP_STATE"
+	if ! pkg-config --exists gtk4-layer-shell-0; then
+		warn "gtk4-layer-shell dev package missing; skipping optional window-picker build"
+	elif [[ -x "$WP_BIN" ]] && [[ -f "$WP_DIR/.build-state" ]] && [[ "$(cat "$WP_DIR/.build-state" 2>/dev/null)" == "$(tree_fingerprint "$WP_DIR")" ]]; then
+		log "window-picker already built at current tree state"
 	else
+		WP_STAMP="$WP_DIR/.build-state"
+		WP_STATE="$(tree_fingerprint "$WP_DIR")"
 		log "building window-picker (Rust release)"
 		if (cd "$WP_DIR" && cargo build --release --locked); then
 			printf '%s\n' "$WP_STATE" >"$WP_STAMP"

@@ -33,7 +33,16 @@ if [[ -f "$ACTIVE_THEME_FILE" ]]; then
 fi
 
 FRAGPAPER_BIN="${FRAGPAPER_BIN:-$HOME/.local/opt/fragpaper/bin/fragpaper}"
-FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/projects/fragpaper}"
+FRAGPAPER_SRC="${FRAGPAPER_SRC:-}"
+if [[ -z "$FRAGPAPER_SRC" ]]; then
+    for candidate in "$HOME/.local/share/fragpaper" "$HOME/projects/fragpaper"; do
+        if [[ -d "$candidate" ]]; then
+            FRAGPAPER_SRC="$candidate"
+            break
+        fi
+    done
+    FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/.local/share/fragpaper}"
+fi
 SHADERS_DIR="${FRAGPAPER_SHADERS_DIR:-$FRAGPAPER_SRC/shaders}"
 
 if [[ ! -r "$SHADERS_DIR/attractors.vert" ]] || [[ ! -r "$SHADERS_DIR/attractors.frag" ]]; then

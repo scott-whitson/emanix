@@ -69,7 +69,7 @@ For example:
 
 - `dotfiles` and `datacore-config` are canonical projects.
 - `~/lab/<name>` can host a non-canonical checkout when you want an editable copy elsewhere.
-- `fragpaper` on zord is an installed product: it should run as a background service, but zord does not need to carry a `~/projects/fragpaper` checkout unless you intentionally want to debug the source there.
+- `fragpaper` on zord is an installed product: it should run as a background service, and if it needs a local checkout cache it should live under `~/.local/share/fragpaper`, not `~/projects/fragpaper`, unless you intentionally want to debug the source there.
 
 This distinction matters because it keeps runtime hosts simple and keeps only real development trees in project space.
 
