@@ -7,7 +7,7 @@ This is a private repo built for one user, but written as if a stranger could fo
 ## Path conventions
 
 - **`~/projects` on datacore** — canonical source trees
-- **`~/lab` on secondary dev machines** — non-canonical editable mirrors
+- **`~/lab` on secondary dev machines** — non-canonical editable mirrors; `dot-bootstrap` creates the root `~/lab` directory for you so you have one consistent place to put them
 - **Installed products** — runtime-only deployments on machines like zord; no project checkout required unless you are actively developing that product
 
 ## Quickstart

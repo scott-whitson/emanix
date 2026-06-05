@@ -64,5 +64,10 @@ if [[ "$sync" -eq 1 ]]; then
 	fi
 fi
 
+if [[ ! -d "$HOME/lab" ]]; then
+	printf '[dot-bootstrap] creating ~/lab for non-canonical checkouts\n' >&2
+	mkdir -p "$HOME/lab"
+fi
+
 printf '==> ./install.sh\n'
 exec "$DOTFILES/install.sh"
