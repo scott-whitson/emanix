@@ -14,6 +14,16 @@ fi
 
 systemctl --user daemon-reload
 
+if systemctl --user list-unit-files syncthing.service >/dev/null 2>&1; then
+	log "enabling syncthing.service"
+	if output="$(systemctl --user enable --now syncthing.service 2>&1)"; then
+		printf '%s\n' "$output" | grep -v '^Created symlink' || true
+	else
+		printf '%s\n' "$output" >&2
+		exit 1
+	fi
+fi
+
 for unit_file in "$UNIT_DIR"/*.timer "$UNIT_DIR"/*.service; do
 	[[ -e "$unit_file" ]] || continue
 	unit_name="$(basename "$unit_file")"

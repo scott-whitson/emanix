@@ -10,4 +10,5 @@ need_pkg \
 	hypridle \
 	hyprpaper \
 	xdg-desktop-portal-hyprland \
-	hyprpolkitagent
+	hyprpolkitagent \
+	hyprland-guiutils

@@ -107,6 +107,8 @@ need_pkg \
 	grim slurp wl-clipboard \
 	pipewire wireplumber pipewire-pulse \
 	brightnessctl playerctl \
+	ffmpeg libavcodec-extra gstreamer1.0-libav \
+	syncthing \
 	fonts-noto fonts-noto-color-emoji
 
 install_backlight_permissions

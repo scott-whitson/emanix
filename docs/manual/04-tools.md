@@ -71,6 +71,16 @@ FRAGPAPER_SRC=~/projects/fragpaper       # datacore/dev machines
 FRAGPAPER_SHADERS_DIR=$FRAGPAPER_SRC/shaders
 ```
 
+### syncthing
+
+Syncthing is the local file-sync layer for your docs vault. The install flow brings up the user service and expects the synced docs tree to live at `~/docs`, which is what Obsidian opens. The canonical setup shares that folder from datacore to runtime desktops; the runtime desktop only needs the synced files, not a project checkout.
+
+Useful paths:
+
+- Config/state: `~/.local/state/syncthing/`
+- Synced docs folder: `~/docs`
+- Obsidian vault: `~/docs/vault`
+
 ## base/bin/ — stowed wrappers
 
 Every file in `base/bin/.local/bin/` is symlinked to `~/.local/bin/<name>` by `install/08-stow-base.sh`. (Populate this table from the Step 1 inspection. Expected contents as of now — double-check against actual):
