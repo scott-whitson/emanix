@@ -21,11 +21,11 @@ ensure_node_npm
 PI_AGENT_DIR="$HOME/.local/lib/node_modules/@earendil-works/pi-coding-agent"
 PI_AGENT_CLI="$PI_AGENT_DIR/dist/cli.js"
 
-if [[ ! -x "$PI_AGENT_CLI" ]]; then
+if [[ ! -r "$PI_AGENT_CLI" ]] || ! timeout 5s node "$PI_AGENT_CLI" --version >/dev/null 2>&1; then
 	log "installing pi coding agent via npm"
 	npm install -g --prefix "$HOME/.local" --ignore-scripts @earendil-works/pi-coding-agent
 else
-	log "pi coding agent already installed: $PI_AGENT_CLI"
+	log "pi coding agent already installed and healthy: $PI_AGENT_CLI"
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
