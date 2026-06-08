@@ -3,6 +3,20 @@
 set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
+if is_server; then
+	log "skipping Hyprland stack on server host"
+	exit 0
+fi
+
+install_if_available() {
+	local pkg="$1"
+	if apt-cache show "$pkg" >/dev/null 2>&1; then
+		need_pkg "$pkg"
+	else
+		warn "skipping $pkg; not available in configured apt sources"
+	fi
+}
+
 log "installing Hyprland stack"
 need_pkg \
 	hyprland \
@@ -10,5 +24,5 @@ need_pkg \
 	hypridle \
 	hyprpaper \
 	xdg-desktop-portal-hyprland \
-	hyprpolkitagent \
-	hyprland-guiutils
+	hyprpolkitagent
+install_if_available hyprland-guiutils

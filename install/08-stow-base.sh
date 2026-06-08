@@ -13,56 +13,30 @@ fi
 log "stowing base/* packages"
 cd "$DOTFILES"
 
-skip_pkg() {
-	local pkg="$1"
-	for skipped in ${PROFILE_BASE_STOW_SKIP:-}; do
-		[[ "$skipped" == "$pkg" ]] && return 0
-	done
-	return 1
-}
-
-stow_conflicts() {
-	local pkg="$1" conflicts=0
-	# Collect target directories that stow would create, deepest first,
-	# so we can remove existing non-stow directories before stow runs.
-	local dirs_to_clean=()
-	while IFS= read -r -d '' file; do
-		rel="${file#base/$pkg/}"
-		target="$HOME/$rel"
-		if [[ -e "$target" ]] && [[ ! -L "$target" ]]; then
-			if [[ -d "$target" ]]; then
-				dirs_to_clean+=("$target")
-			else
-				backup="$target.pre-stow.$(date +%s)"
-				log "backing up existing $target to $(basename "$backup")"
-				mv "$target" "$backup"
-				conflicts=$((conflicts + 1))
-			fi
-		elif [[ -L "$target" ]]; then
-			rm -f "$target"
-		fi
-	done < <(find "base/$pkg" -type f -print0)
-	# Remove conflicting directories deepest-first so parents can be recreated.
-	local sorted
-	sorted=$(printf '%s\n' "${dirs_to_clean[@]}" | awk '{print length, $0}' | sort -rn | cut -d' ' -f2-)
-	while IFS= read -r dir; do
-		[[ -z "$dir" ]] && continue
-		log "removing existing directory $dir for stow"
-		rm -rf "$dir"
-	done <<<"$sorted"
-	return $conflicts
-}
-
 for pkg_path in base/*/; do
 	pkg_name="$(basename "$pkg_path")"
 
-	if skip_pkg "$pkg_name"; then
-		log "skipping $pkg_name per profile"
+	if ! is_server && [[ "$pkg_name" == "ib" ]]; then
+		log "skipping $pkg_name on $HOST_NAME (server-only)"
 		continue
 	fi
 
-	stow_conflicts "$pkg_name"
+	if [[ "$pkg_name" == "git" ]]; then
+		local_gitconfig_local="$HOME/.gitconfig.local"
+		if [[ -e "$local_gitconfig_local" ]]; then
+			if [[ ! -L "$local_gitconfig_local" ]]; then
+				backup="$local_gitconfig_local.pre-stow.$(date +%s)"
+				log "backing up existing ~/.gitconfig.local to $(basename "$backup")"
+				mv "$local_gitconfig_local" "$backup"
+			else
+				rm -f "$local_gitconfig_local"
+			fi
+		fi
+	fi
 
+	# --adopt absorbs existing files at $HOME so stow can succeed on fresh
+	# installs (Oh My Zsh drops a default .zshrc, etc.); the git checkout
+	# below restores the repo's intended content.
 	stow -d base -t "$HOME" --no-folding --adopt "$pkg_name" 2>/dev/null ||
 		stow -d base -t "$HOME" --no-folding "$pkg_name"
 done

@@ -3,6 +3,11 @@
 set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
+if is_server; then
+	log "skipping workstation desktop packages on server host"
+	exit 0
+fi
+
 ensure_griffo_repo() {
 	local keyring=/etc/apt/trusted.gpg.d/debian.griffo.io.gpg
 	local list=/etc/apt/sources.list.d/debian.griffo.io.list
@@ -24,7 +29,7 @@ ensure_griffo_repo() {
 
 install_ghostty() {
 	local candidate
-	candidate="$(apt-cache policy ghostty 2>/dev/null | awk '/Candidate:/ {print $2; exit}')"
+	candidate="$(apt-cache show ghostty 2>/dev/null >/dev/null && apt-cache policy ghostty 2>/dev/null | awk '/Candidate:/ {print $2; exit}')"
 	if [[ -n "$candidate" && "$candidate" != "(none)" ]]; then
 		need_pkg ghostty
 		return 0

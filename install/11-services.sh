@@ -5,13 +5,6 @@ source "$(dirname "$0")/_common.sh"
 
 # base/systemd/ stows to ~/.config/systemd/user/*.service + *.timer
 UNIT_DIR="$HOME/.config/systemd/user"
-skip_service() {
-	local unit="$1"
-	for prefix in ${PROFILE_SERVICE_SKIP_PREFIXES:-}; do
-		[[ "$unit" == "$prefix"* ]] && return 0
-	done
-	return 1
-}
 
 if [[ ! -d "$UNIT_DIR" ]]; then
 	log "no user systemd unit directory ($UNIT_DIR); skipping"
@@ -37,8 +30,8 @@ for unit_file in "$UNIT_DIR"/*.timer "$UNIT_DIR"/*.service; do
 		log "skipping template unit $unit_name"
 		continue
 	fi
-	if skip_service "$unit_name"; then
-		log "skipping $unit_name per profile"
+	if ! is_server && [[ "$unit_name" == ib-* || "$unit_name" == minne-ib-* ]]; then
+		log "skipping $unit_name on $HOST_NAME (server-only)"
 		continue
 	fi
 	log "enabling $unit_name"

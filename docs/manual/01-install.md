@@ -1,6 +1,6 @@
 # Chapter 01 — Install
 
-From a clean Debian Testing install to a running Hyprland desktop in about an hour. The installer is a ~30-line orchestrator (`install.sh`) that runs numbered scripts in lexical order. Each script is independently runnable and idempotent; re-running `./install.sh` is safe.
+From a clean Debian Testing install to a running desktop in about an hour. The installer is a numbered orchestrator (`install.sh`) that runs scripts in lexical order. Each script is independently runnable and idempotent; re-running `./install.sh` is safe.
 
 ## Prerequisites
 
@@ -29,21 +29,8 @@ cd ~/dotfiles
 ./bootstrap.sh
 ```
 
-The repo orchestrator exports `DOTFILES`, selects a profile, and then runs the `install/NN-*.sh` scripts listed by that profile manifest.
-Profiles live in `install/profiles/*.sh`; the default profile is auto-detected from the environment/host, but `--profile` or `DOTFILES_PROFILE` can override it.
+The repo orchestrator exports `DOTFILES`, then runs every `install/NN-*.sh` in lexical order.
 Git-based fetches try datacore mirror first, then fall back to upstream if mirror missing.
-
-### Profiles
-
-| Profile | Runs |
-|---|---|
-| `server` | `01-core`, `03-system`, `06-tools`, `07-pi`, `08-stow-base`, `10-theme`, `11-services`, `12-ibgateway`, `13-docs-sync` |
-| `desktop` | `01-core`, `03-system`, `04-hyprland`, `05-desktop`, `06-tools`, `07-pi`, `08-stow-base`, `10-theme`, `11-services`, `13-docs-sync` |
-| `wsl` | `01-core`, `03-system`, `06-tools`, `07-pi`, `08-stow-base`, `10-theme` |
-
-Use `server` on datacore, `desktop` on the workstation, and `wsl` for the Windows WSL image.
-
-If you're rebuilding datacore itself, use `~/projects/datacore-config/RECOVERY.md` for the host-specific recovery order after the dotfiles bootstrap.
 
 ### Host path convention
 
@@ -80,21 +67,27 @@ Use this as a clean reinstall exercise on `fjord`.
 
 If you already have a working clone, skip Ventoy and just `cd ~/dotfiles` before `./bootstrap.sh`.
 
+## Host classes
+
+The installer branches by host class:
+
+- `server` — canonical projects host; includes IB Gateway
+- `workstation` — Hyprland + desktop apps + user services
+
 ## What each script does
 
 | # | Script | Purpose | Interactive? |
 |---|---|---|---|
 | 01 | `01-core.sh` | Installs core Debian packages: build-essential, cargo, rustc, pkg-config, libgtk-4-dev, libadwaita-1-dev, libgtk4-layer-shell-dev, blueprint-compiler, libnotify-bin, git, stow, zsh, curl/wget/unzip/rsync/openssh-client/gnupg, fzf, zoxide, rclone, hx, neovim, qalc, Noto fonts. Then installs `uv` from apt if available, else the official binary installer; installs JetBrains Mono from apt if available, else a Nerd Font fallback in `~/.local/share/fonts/`. | sudo password |
 | 03 | `03-system.sh` | Installs Oh My Zsh (non-interactive, keeps existing `.zshrc`), clones zsh-autosuggestions and zsh-syntax-highlighting plugins, sets zsh as the default shell via `chsh`, and warns if `pam_systemd_home` auth is active anywhere under `/etc/pam.d/`. | `chsh` may prompt |
-| 04 | `04-hyprland.sh` | Installs Hyprland compositor stack: hyprland, hyprlock, hypridle, hyprpaper, xdg-desktop-portal-hyprland, hyprpolkitagent, hyprland-guiutils. | sudo password |
-| 05 | `05-desktop.sh` | Installs desktop support packages: Firefox ESR, Obsidian, waybar, mako-notifier, fuzzel, ghostty (via Debian repo fallback if needed), grim/slurp/wl-clipboard, PipeWire + WirePlumber + pipewire-pulse, brightnessctl, playerctl, ffmpeg + libavcodec-extra + gstreamer1.0-libav, Syncthing, plus a backlight udev trigger + root service so brightness keys work without root. | sudo password |
-| 06 | `06-tools.sh` | Runs `uv sync` on `tools/`, builds `window-picker` after installing the GTK layer-shell dev dependency, checks Node/npm from apt, and handles fragpaper as a product cache: datacore keeps `~/projects/fragpaper`, runtime desktops use `~/.local/share/fragpaper` and avoid `~/projects`. It also clones kickstart.nvim to `~/.config/nvim` if missing. Appends the theme opt-in line to `init.lua` (idempotent). | None |
-| 07 | `07-pi.sh` | Installs pi coding agent via `npm install -g --prefix ~/.local @earendil-works/pi-coding-agent`. Uses system Node/npm from apt. | None |
+| 04 | `04-hyprland.sh` | Workstation-only. Installs the Hyprland compositor stack: hyprland, hyprlock, hypridle, hyprpaper, xdg-desktop-portal-hyprland, hyprpolkitagent. `hyprland-guiutils` is best-effort when available. | sudo password |
+| 05 | `05-desktop.sh` | Workstation-only. Installs desktop support packages: Firefox ESR, Obsidian, waybar, mako-notifier, fuzzel, ghostty (via Debian repo fallback if needed), grim/slurp/wl-clipboard, PipeWire + WirePlumber + pipewire-pulse, brightnessctl, playerctl, ffmpeg + libavcodec-extra + gstreamer1.0-libav, Syncthing, plus a backlight udev trigger + root service so brightness keys work without root. | sudo password |
+| 06 | `06-tools.sh` | Runs `uv sync` on `tools/`, builds `window-picker` after installing the GTK layer-shell dev dependency, checks Node/npm from apt, and handles fragpaper as a product cache: server keeps `~/projects/fragpaper`, workstations use `~/.local/share/fragpaper` and avoid `~/projects`. It also clones kickstart.nvim to `~/.config/nvim` if missing. Appends the theme opt-in line to `init.lua` (idempotent). | None |
+| 07 | `07-pi.sh` | Ensures node/npm are present, installs the pi coding agent via `npm install -g --prefix ~/.local @earendil-works/pi-coding-agent`, and relies on the stowed `~/.local/bin/pi` launcher. | None |
 | 08 | `08-stow-base.sh` | Stows every package under `base/*/` into `$HOME` using `--adopt`; auto-stashes any existing `base/` edits, then restores them after stow so install can continue. | None |
 | 10 | `10-theme.sh` | Applies the active theme via `bin/dot-theme-set`. On first run defaults to `catppuccin-mocha`; on re-install re-applies whatever `~/.config/dotfiles/active-theme` records. | None |
-| 11 | `11-services.sh` | Runs `systemctl --user daemon-reload` then enables and starts every `*.timer` and `*.service` found in `~/.config/systemd/user/`. | None |
-| 12 | `12-ibgateway.sh` | Datacore-only. Installs IB Gateway + IBC into `/opt`, writes per-user config templates, and prints next steps on datacore; skips on fjord and other non-gateway hosts. | sudo for `/opt` writes |
-| 13 | `13-docs-sync.sh` | Sets up Syncthing for the docs vault: creates `~/docs`, initializes Syncthing identity if needed, and pairs the runtime host with datacore so Obsidian has live content. | None |
+| 11 | `11-services.sh` | Runs `systemctl --user daemon-reload` then enables and starts every `*.timer` and `*.service` found in `~/.config/systemd/user/`. Server-only IB units are skipped on workstations. | None |
+| 12 | `12-ibgateway.sh` | Server-only. Installs IB Gateway + IBC into `/opt`, writes per-user config templates, and prints next steps on the server; skips on workstations. | sudo for `/opt` writes |
 
 ## Idempotence
 
