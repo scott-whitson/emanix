@@ -10,6 +10,19 @@ plugins=(
 
 source $ZSH/oh-my-zsh.sh
 
+# --- TERM fallback (SSH clients may not forward TERM, new installs may have
+#     no terminfo at all — without this, zsh/OMZ can misrender prompts over SSH
+#     and ghostty terminfo may be missing on Debian minimal installs) ---
+if [[ -z "$TERM" || "$TERM" == "dumb" ]]; then
+  export TERM=ghostty
+fi
+if [[ "$TERM" == "ghostty" && ! -f "$HOME/.terminfo/g/ghostty" ]]; then
+  mkdir -p "$HOME/.terminfo/x" "$HOME/.terminfo/g"
+  infocmp ghostty 2>/dev/null > /tmp/ghostty.ti 2>/dev/null
+  tic -x -o "$HOME/.terminfo" /tmp/ghostty.ti 2>/dev/null
+  ln -sf ../x/xterm-ghostty "$HOME/.terminfo/g/ghostty" 2>/dev/null
+fi
+
 # --- Theme overrides (after oh-my-zsh loads) ---
 PROMPT=""
 [[ -n "$SSH_CONNECTION" ]] && PROMPT+="%{$fg[yellow]%}%m%{$reset_color%} "
