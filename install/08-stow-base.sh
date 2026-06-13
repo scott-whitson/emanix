@@ -21,6 +21,25 @@ skip_pkg() {
 	return 1
 }
 
+stow_conflicts() {
+	local pkg="$1" conflicts=0
+	# Check every file stow would create under $HOME for existing non-symlink targets.
+	while IFS= read -r -d '' file; do
+		rel="${file#base/$pkg/}"
+		target="$HOME/$rel"
+		if [[ -e "$target" ]] && [[ ! -L "$target" ]]; then
+			backup="$target.pre-stow.$(date +%s)"
+			log "backing up existing $target to $(basename "$backup")"
+			mv "$target" "$backup"
+			conflicts=$((conflicts + 1))
+		elif [[ -L "$target" ]]; then
+			# Remove stale symlink so stow can recreate it cleanly.
+			rm -f "$target"
+		fi
+	done < <(find "base/$pkg" -type f -print0)
+	return $conflicts
+}
+
 for pkg_path in base/*/; do
 	pkg_name="$(basename "$pkg_path")"
 
@@ -29,28 +48,8 @@ for pkg_path in base/*/; do
 		continue
 	fi
 
-	if [[ "$pkg_name" == "git" ]]; then
-		local_gitconfig_local="$HOME/.gitconfig.local"
-		local_gitignore="$HOME/.config/git/ignore"
-		if [[ -e "$local_gitconfig_local" ]]; then
-			if [[ ! -L "$local_gitconfig_local" ]]; then
-				backup="$local_gitconfig_local.pre-stow.$(date +%s)"
-				log "backing up existing ~/.gitconfig.local to $(basename "$backup")"
-				mv "$local_gitconfig_local" "$backup"
-			else
-				rm -f "$local_gitconfig_local"
-			fi
-		fi
-		if [[ -e "$local_gitignore" ]] && [[ ! -L "$local_gitignore" ]]; then
-			backup="$local_gitignore.pre-stow.$(date +%s)"
-			log "backing up existing ~/.config/git/ignore to $(basename "$backup")"
-			mv "$local_gitignore" "$backup"
-		fi
-	fi
+	stow_conflicts "$pkg_name"
 
-	# --adopt absorbs existing files at $HOME so stow can succeed on fresh
-	# installs (Oh My Zsh drops a default .zshrc, etc.); the git checkout
-	# below restores the repo's intended content.
 	stow -d base -t "$HOME" --no-folding --adopt "$pkg_name" 2>/dev/null ||
 		stow -d base -t "$HOME" --no-folding "$pkg_name"
 done
