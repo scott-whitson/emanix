@@ -29,8 +29,21 @@ cd ~/dotfiles
 ./bootstrap.sh
 ```
 
-The repo orchestrator exports `DOTFILES`, then runs every `install/NN-*.sh` in lexical order.
+The repo orchestrator exports `DOTFILES`, selects a profile, and then runs the `install/NN-*.sh` scripts listed by that profile manifest.
+Profiles live in `install/profiles/*.sh`; the default profile is auto-detected from the environment/host, but `--profile` or `DOTFILES_PROFILE` can override it.
 Git-based fetches try datacore mirror first, then fall back to upstream if mirror missing.
+
+### Profiles
+
+| Profile | Runs |
+|---|---|
+| `server` | `01-core`, `03-system`, `06-tools`, `07-pi`, `08-stow-base`, `10-theme`, `11-services`, `12-ibgateway`, `13-docs-sync` |
+| `desktop` | `01-core`, `03-system`, `04-hyprland`, `05-desktop`, `06-tools`, `07-pi`, `08-stow-base`, `10-theme`, `11-services`, `13-docs-sync` |
+| `wsl` | `01-core`, `03-system`, `06-tools`, `07-pi`, `08-stow-base`, `10-theme` |
+
+Use `server` on datacore, `desktop` on the workstation, and `wsl` for the Windows WSL image.
+
+If you're rebuilding datacore itself, use `~/projects/datacore-config/RECOVERY.md` for the host-specific recovery order after the dotfiles bootstrap.
 
 ### Host path convention
 

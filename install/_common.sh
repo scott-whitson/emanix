@@ -94,3 +94,44 @@ clone_if_missing() {
 	log "cloning $url -> $dest"
 	git_clone_into "$url" "$dest" "$branch"
 }
+
+# --- Profile helpers ---
+profile_manifest_path() {
+	local profile="$1"
+	printf '%s/install/profiles/%s.sh' "$DOTFILES" "$profile"
+}
+
+is_wsl() {
+	[[ -n "${WSL_DISTRO_NAME:-}" ]] && return 0
+	[[ -r /proc/version ]] && grep -qi microsoft /proc/version
+}
+
+default_dotfiles_profile() {
+	if is_wsl; then
+		printf '%s' wsl
+		return 0
+	fi
+
+	case "${HOSTNAME%%.*}" in
+	datacore)
+		printf '%s' server
+		;;
+	*)
+		printf '%s' desktop
+		;;
+	esac
+}
+
+load_profile_manifest() {
+	local profile="$1" manifest
+	manifest="$(profile_manifest_path "$profile")"
+	if [[ ! -f "$manifest" ]]; then
+		die "unknown dotfiles profile: $profile"
+	fi
+	unset PROFILE_NAME PROFILE_DESCRIPTION PROFILE_SCRIPTS
+	declare -ga PROFILE_SCRIPTS=()
+	source "$manifest"
+	if [[ ${#PROFILE_SCRIPTS[@]} -eq 0 ]]; then
+		die "profile '$profile' did not define PROFILE_SCRIPTS"
+	fi
+}

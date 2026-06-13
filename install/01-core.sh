@@ -52,7 +52,7 @@ install_jetbrains_mono() {
 log "installing core Debian packages"
 need_pkg \
 	build-essential cargo rustc pkg-config \
-	libgtk-4-dev libadwaita-1-dev blueprint-compiler libnotify-bin \
+	libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev blueprint-compiler libnotify-bin \
 	git stow zsh \
 	curl wget unzip rsync openssh-client gnupg \
 	nodejs npm \

@@ -7,6 +7,8 @@ It captures current state, phase split, and open decisions before backend work s
 
 Make blank Debian machine boot from Ventoy, enroll in datacore, join Headscale, fetch dotfiles, and finish bootstrap without manual password entry for long auth keys.
 
+For the host cutover sequence itself, see `~/projects/datacore-config/docs/debian-cutover-checklist.md`.
+
 After bootstrap, **datacore and target machine must both be able to SSH into each other without password prompts**.
 
 ## Current state

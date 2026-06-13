@@ -7,8 +7,14 @@ This is a private repo built for one user, but written as if a stranger could fo
 ## Path conventions
 
 - **`~/projects` on datacore** — canonical source trees
+- **`~/docs` on every synced machine** — Syncthing mirror for vault / personal docs
+- **`~/projects/datacore-config` on datacore** — machine-specific bootstrap, service wiring, and runtime overlay for this host
 - **`~/lab` on secondary dev machines** — non-canonical editable mirrors; `dot-bootstrap` creates the root `~/lab` directory for you so you have one consistent place to put them
 - **Installed products** — runtime-only deployments on machines like zord; no project checkout required unless you are actively developing that product
+
+Top-level `/home/scott` should stay sparse: docs, projects, and dotfiles/runtime config only. Anything transient should be archived or moved into a service-owned tree.
+
+For the exact split between portable user config and datacore-only config, see [`docs/ownership-contract.md`](docs/ownership-contract.md).
 
 ## Quickstart
 
@@ -28,6 +34,7 @@ Fresh box or reinstall:
 
 That flow phones home to datacore, gets a short-lived bootstrap token, installs SSH trust, joins Headscale, transfers dotfiles, and hands off to `./bootstrap.sh`.
 When it finishes, reboot and run `dot-doctor`.
+For a datacore reinstall, follow `~/projects/datacore-config/RECOVERY.md` after the dotfiles bootstrap.
 Git-based fetches still try datacore mirror first, then upstream if mirror missing.
 
 ## Philosophy
@@ -78,6 +85,7 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **IB Gateway:** datacore-only; manual restart because relogin can trigger MFA
 - **Firefox + Obsidian:** first-class desktop apps; install flow brings them up on a fresh Debian box
 - **Bootstrap helpers:** `bootstrap.sh` / `repair.sh` for fresh-clone flow; `dot-bootstrap` / `dot-repair` for shell PATH flow
+- **Pi assets:** canonical Pi themes/skills/settings live under `base/pi/`; datacore validates them during bootstrap
 - **Installed products:** fragpaper runs as a user service on zord; it is treated as a runtime product, not a project checkout
 - **Lab checkouts:** use `~/lab/<name>` for intentionally non-canonical mirrors you want to edit on secondary machines
 - **Ventoy kit:** `ventoy/bootstrap.sh` for datacore enrollment + dotfiles bootstrap on blank machines

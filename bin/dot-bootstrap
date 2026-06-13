@@ -2,37 +2,43 @@
 # bin/dot-bootstrap — datacore-first sync + full install bootstrap
 #
 # Usage:
-#   dot-bootstrap            # sync origin if possible, then run ./install.sh
-#   dot-bootstrap --no-sync  # skip git pull, just run ./install.sh
+#   dot-bootstrap [--profile <name>] [--no-sync]
 set -euo pipefail
 
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$DOTFILES"
 
 sync=1
-case "${1:-}" in
-	--no-sync)
-		sync=0
-		shift
-		;;
-	"" )
-		;;
-	-h|--help)
-		echo "Usage: dot-bootstrap [--no-sync]"
-		exit 0
-		;;
-	*)
-		echo "dot-bootstrap: unknown arg '${1}'" >&2
-		echo "Usage: dot-bootstrap [--no-sync]" >&2
-		exit 2
-		;;
-esac
-
-if [[ $# -gt 0 ]]; then
-	echo "dot-bootstrap: too many args" >&2
-	echo "Usage: dot-bootstrap [--no-sync]" >&2
-	exit 2
-fi
+profile_arg=""
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		--no-sync)
+			sync=0
+			shift
+			;;
+		--profile)
+			[[ $# -ge 2 ]] || { echo "dot-bootstrap: --profile requires a value" >&2; exit 2; }
+			profile_arg="$2"
+			shift 2
+			;;
+		--profile=*)
+			profile_arg="${1#*=}"
+			shift
+			;;
+		"" )
+			shift
+			;;
+		-h|--help)
+			echo "Usage: dot-bootstrap [--profile <name>] [--no-sync]"
+			exit 0
+			;;
+		*)
+			echo "dot-bootstrap: unknown arg '${1}'" >&2
+			echo "Usage: dot-bootstrap [--profile <name>] [--no-sync]" >&2
+			exit 2
+			;;
+	esac
+done
 
 remote="$(git remote get-url origin 2>/dev/null || true)"
 branch="$(git branch --show-current 2>/dev/null || true)"
@@ -69,5 +75,10 @@ if [[ ! -d "$HOME/lab" ]]; then
 	mkdir -p "$HOME/lab"
 fi
 
+install_args=()
+if [[ -n "$profile_arg" ]]; then
+	install_args+=(--profile "$profile_arg")
+fi
+
 printf '==> ./install.sh\n'
-exec "$DOTFILES/install.sh"
+exec "$DOTFILES/install.sh" "${install_args[@]}"

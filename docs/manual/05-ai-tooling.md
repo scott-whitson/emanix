@@ -8,6 +8,13 @@ Tenet #4: **AI-augmented by default.** The pi coding agent is a first-class tool
 - **Agent config** — `base/pi/.pi/agent/AGENTS.md`, stowed to `~/.pi/agent/AGENTS.md`
 - **Extensions** — `base/pi/.pi/agent/extensions/remember.ts`, stowed to `~/.pi/agent/extensions/`
 
+## Ownership and bootstrap
+
+- Portable Pi assets live in `base/pi/` inside this repo.
+- Datacore-specific bootstrap lives in `~/projects/datacore-config` and validates that the Pi assets were installed correctly on this host.
+- The runtime target `~/.pi/agent` is generated state, not the canonical source.
+- See [`../../docs/ownership-contract.md`](../../docs/ownership-contract.md) for the full split.
+
 ## Install order dependency
 
 `install/07-pi.sh` uses system `npm` and installs pi into `~/.local`, so `~/.local/bin` must be on PATH (the shell setup already does this).

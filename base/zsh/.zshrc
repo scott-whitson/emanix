@@ -107,18 +107,21 @@ qt() {
     echo "Quarterly tracker not found in $OBSIDIAN_VAULT (or its Quarterly/ subdir): $name"
     return 1
   fi
-  # Pick an editor: $EDITOR, then a fallback chain
-  local editor="$EDITOR"
-  if ! command -v "$editor" >/dev/null 2>&1; then
-    editor=""
-    for cand in helix hx micro nvim vim nano; do
-      if command -v "$cand" >/dev/null 2>&1; then editor="$cand"; break; fi
-    done
+
+  local open_cmd=""
+  for cand in hx helix nvim vim nano; do
+    if command -v "$cand" >/dev/null 2>&1; then
+      open_cmd="$cand"
+      break
+    fi
+  done
+
+  if [[ -z "$open_cmd" ]]; then
+    echo "No editor found (tried hx, helix, nvim, vim, nano)"
+    return 1
   fi
-  if [[ -z "$editor" ]]; then
-    echo "No editor found (tried helix, hx, micro, nvim, vim, nano)"; return 1
-  fi
-  "$editor" "$file"
+
+  "$open_cmd" "$file"
 }
 
 # --- Tools ---

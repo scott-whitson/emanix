@@ -3,6 +3,7 @@
 #
 # Usage:
 #   dot-repair --all
+#   dot-repair --profile wsl --all
 #   dot-repair 03-system
 #   dot-repair 05-desktop.sh 06-tools
 set -euo pipefail
@@ -11,10 +12,45 @@ DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
 export DOTFILES
 
 usage() {
-	echo "Usage: dot-repair --all | <install-script> [more...]" >&2
-	echo "Examples: dot-repair 03-system 06-tools" >&2
+	echo "Usage: dot-repair [--profile <name>] --all | <install-script> [more...]" >&2
+	echo "Examples: dot-repair --profile wsl --all" >&2
+	echo "          dot-repair 03-system 06-tools" >&2
 	echo "          dot-repair 05-desktop.sh" >&2
 }
+
+profile_arg="${DOTFILES_PROFILE:-}"
+all=0
+names=()
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		--profile)
+			[[ $# -ge 2 ]] || { echo "dot-repair: --profile requires a value" >&2; exit 2; }
+			profile_arg="$2"
+			shift 2
+			;;
+		--profile=*)
+			profile_arg="${1#*=}"
+			shift
+			;;
+		--all)
+			all=1
+			shift
+			;;
+		-h|--help)
+			usage
+			exit 0
+			;;
+		*)
+			names+=("$1")
+			shift
+			;;
+	esac
+done
+
+if [[ "$all" -eq 1 && ${#names[@]} -gt 0 ]]; then
+	echo "dot-repair: --all cannot be combined with explicit script names" >&2
+	exit 2
+fi
 
 run_script() {
 	local name="$1" script
@@ -27,22 +63,30 @@ run_script() {
 	bash "$script"
 }
 
-case "${1:-}" in
-	--all)
-		shift
+if [[ "$all" -eq 1 ]]; then
+	if [[ -n "$profile_arg" ]]; then
+		source "$DOTFILES/install/_common.sh"
+		load_profile_manifest "$profile_arg"
+		export PROFILE_NAME PROFILE_DESCRIPTION PROFILE_ENABLE_FRAGPAPER PROFILE_FRAGPAPER_SRC PROFILE_BASE_STOW_SKIP PROFILE_SERVICE_SKIP_PREFIXES
+		export DOTFILES_PROFILE="$profile_arg"
+		for script_name in "${PROFILE_SCRIPTS[@]}"; do
+			run_script "$script_name"
+			done
+	else
 		for script in "$DOTFILES"/install/[0-9][0-9]-*.sh; do
 			[[ -e "$script" ]] || continue
 			echo ">>> $(basename "$script")"
 			bash "$script"
 		done
-		;;
-	""|-h|--help)
-		usage
-		exit 0
-		;;
-	*)
-		for name in "$@"; do
-			run_script "$name"
-		done
-		;;
-esac
+	fi
+	exit 0
+fi
+
+if [[ ${#names[@]} -eq 0 ]]; then
+	usage
+	exit 0
+fi
+
+for name in "${names[@]}"; do
+	run_script "$name"
+done

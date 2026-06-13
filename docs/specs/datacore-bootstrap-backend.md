@@ -208,6 +208,8 @@ Suggested properties:
 
 Datacore should return `headscale_login_server` from the approved session.
 
+For normal enrollment, the portal should also mint a real Headscale preauth key at approval time and return it as the `bootstrap_token` used by `tailscale up --authkey`.
+
 Backend choices:
 1. Datacore stores fixed Headscale login server in config.
 2. Datacore computes it per environment or host class.

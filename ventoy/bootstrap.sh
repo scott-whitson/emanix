@@ -674,7 +674,7 @@ if [[ "$FLOW_MODE" == "legacy" ]]; then
 	join_headscale_legacy
 	acquire_dotfiles
 	run_dotfiles_bootstrap
-	msg "Ventoy bootstrap complete (legacy mode)"
+	msg "Ventoy bootstrap complete (legacy mode); reboot and run dot-doctor"
 	exit 0
 fi
 
@@ -690,4 +690,4 @@ join_headscale_datacore
 acquire_dotfiles
 run_dotfiles_bootstrap
 complete_bootstrap_session
-msg "Ventoy bootstrap complete"
+msg "Ventoy bootstrap complete; reboot and run dot-doctor"

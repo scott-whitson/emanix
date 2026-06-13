@@ -16,19 +16,12 @@ fi
 # beyond what base/bin/ already provides.
 
 # --- fragpaper source clone + install ---
-# Canonical development lives in ~/projects/fragpaper on datacore.
-# Runtime desktops keep fragpaper as an installed product and cache the
-# checkout under ~/.local/share/fragpaper instead of ~/projects.
-HOST_NAME="${HOSTNAME%%.*}"
+# Profile manifests decide whether fragpaper is a canonical project checkout
+# or a runtime product cache by setting PROFILE_FRAGPAPER_SRC.
+FRAGPAPER_ENABLED="${PROFILE_ENABLE_FRAGPAPER:-1}"
+FRAGPAPER_SRC="${PROFILE_FRAGPAPER_SRC:-${FRAGPAPER_SRC:-$HOME/.local/share/fragpaper}}"
 FRAGPAPER_RUNTIME_SRC="$HOME/.local/share/fragpaper"
 FRAGPAPER_PROJECT_SRC="$HOME/projects/fragpaper"
-if [[ -z "${FRAGPAPER_SRC:-}" ]]; then
-	if [[ "$HOST_NAME" == "datacore" ]]; then
-		FRAGPAPER_SRC="$FRAGPAPER_PROJECT_SRC"
-	else
-		FRAGPAPER_SRC="$FRAGPAPER_RUNTIME_SRC"
-	fi
-fi
 FRAGPAPER_OPT="${FRAGPAPER_OPT:-$HOME/.local/opt/fragpaper}"
 FRAGPAPER_REPO="${FRAGPAPER_REPO:-https://github.com/scott-whitson/fragpaper.git}"
 
@@ -48,58 +41,60 @@ tree_fingerprint() {
 	} | cksum | awk '{print $1}'
 }
 
-if [[ "$HOST_NAME" != "datacore" ]] && [[ -z "${FRAGPAPER_SRC:-}" || "$FRAGPAPER_SRC" == "$FRAGPAPER_RUNTIME_SRC" ]]; then
-	if [[ -d "$FRAGPAPER_PROJECT_SRC/.git" ]]; then
-		if [[ -d "$FRAGPAPER_RUNTIME_SRC/.git" ]]; then
-			log "removing stale fragpaper checkout from ~/projects on runtime desktop"
-			rm -rf "$FRAGPAPER_PROJECT_SRC"
-		else
-			log "migrating fragpaper checkout from ~/projects to ~/.local/share/fragpaper"
-			mkdir -p "$(dirname "$FRAGPAPER_RUNTIME_SRC")"
-			if mv "$FRAGPAPER_PROJECT_SRC" "$FRAGPAPER_RUNTIME_SRC"; then
-				:
+if [[ "$FRAGPAPER_ENABLED" -eq 1 ]]; then
+	if [[ "$FRAGPAPER_SRC" == "$FRAGPAPER_RUNTIME_SRC" ]]; then
+		if [[ -d "$FRAGPAPER_PROJECT_SRC/.git" ]]; then
+			if [[ -d "$FRAGPAPER_RUNTIME_SRC/.git" ]]; then
+				log "removing stale fragpaper checkout from ~/projects on runtime desktop"
+				rm -rf "$FRAGPAPER_PROJECT_SRC"
 			else
-				warn "fragpaper migration failed; skipping optional fragpaper install"
-				FRAGPAPER_SRC=""
+				log "migrating fragpaper checkout from ~/projects to ~/.local/share/fragpaper"
+				mkdir -p "$(dirname "$FRAGPAPER_RUNTIME_SRC")"
+				if mv "$FRAGPAPER_PROJECT_SRC" "$FRAGPAPER_RUNTIME_SRC"; then
+					:
+				else
+					warn "fragpaper migration failed; skipping optional fragpaper install"
+					FRAGPAPER_SRC=""
+				fi
 			fi
 		fi
 	fi
-	FRAGPAPER_SRC="$FRAGPAPER_RUNTIME_SRC"
-fi
 
-if [[ -d "$FRAGPAPER_SRC/.git" ]]; then
-	log "fragpaper source already present at $FRAGPAPER_SRC"
-else
-	log "fragpaper source missing; cloning into $FRAGPAPER_SRC"
-	mkdir -p "$(dirname "$FRAGPAPER_SRC")"
-	if ! clone_if_missing "$FRAGPAPER_REPO" "$FRAGPAPER_SRC"; then
-		warn "fragpaper clone failed; skipping optional fragpaper install"
-		FRAGPAPER_SRC=""
-	fi
-fi
-
-if [[ -n "$FRAGPAPER_SRC" && -d "$FRAGPAPER_SRC" ]]; then
-	FRAGPAPER_BIN="$FRAGPAPER_OPT/bin/fragpaper"
-	FRAGPAPER_STAMP="$FRAGPAPER_OPT/.build-state"
-	FRAGPAPER_STATE="$(repo_fingerprint "$FRAGPAPER_SRC")"
-	if [[ -x "$FRAGPAPER_BIN" ]] && [[ -f "$FRAGPAPER_STAMP" ]] && [[ "$(cat "$FRAGPAPER_STAMP" 2>/dev/null)" == "$FRAGPAPER_STATE" ]]; then
-		log "fragpaper already built at state $FRAGPAPER_STATE"
+	if [[ -d "$FRAGPAPER_SRC/.git" ]]; then
+		log "fragpaper source already present at $FRAGPAPER_SRC"
 	else
-		log "building fragpaper release"
-		if (cd "$FRAGPAPER_SRC" && cargo build --release --locked); then
-			install -d -m 0755 "$FRAGPAPER_OPT/bin"
-			install -m 0755 "$FRAGPAPER_SRC/target/release/fragpaper" "$FRAGPAPER_BIN"
-			printf '%s\n' "$FRAGPAPER_STATE" >"$FRAGPAPER_STAMP"
+		log "fragpaper source missing; cloning into $FRAGPAPER_SRC"
+		mkdir -p "$(dirname "$FRAGPAPER_SRC")"
+		if ! clone_if_missing "$FRAGPAPER_REPO" "$FRAGPAPER_SRC"; then
+			warn "fragpaper clone failed; skipping optional fragpaper install"
+			FRAGPAPER_SRC=""
+		fi
+	fi
+
+	if [[ -n "$FRAGPAPER_SRC" && -d "$FRAGPAPER_SRC" ]]; then
+		FRAGPAPER_BIN="$FRAGPAPER_OPT/bin/fragpaper"
+		FRAGPAPER_STAMP="$FRAGPAPER_OPT/.build-state"
+		FRAGPAPER_STATE="$(repo_fingerprint "$FRAGPAPER_SRC")"
+		if [[ -x "$FRAGPAPER_BIN" ]] && [[ -f "$FRAGPAPER_STAMP" ]] && [[ "$(cat "$FRAGPAPER_STAMP" 2>/dev/null)" == "$FRAGPAPER_STATE" ]]; then
+			log "fragpaper already built at state $FRAGPAPER_STATE"
 		else
-			warn "fragpaper build failed; skipping optional fragpaper install"
+			log "building fragpaper release"
+			if (cd "$FRAGPAPER_SRC" && cargo build --release --locked); then
+				install -d -m 0755 "$FRAGPAPER_OPT/bin"
+				install -m 0755 "$FRAGPAPER_SRC/target/release/fragpaper" "$FRAGPAPER_BIN"
+				printf '%s\n' "$FRAGPAPER_STATE" >"$FRAGPAPER_STAMP"
+			else
+				warn "fragpaper build failed; skipping optional fragpaper install"
+			fi
 		fi
 	fi
 fi
 
 # --- Build tools/window-picker (Rust binary) ---
+WP_ENABLED="${PROFILE_ENABLE_WINDOW_PICKER:-1}"
 WP_DIR="$DOTFILES/tools/window-picker"
 WP_BIN="$WP_DIR/target/release/window-picker"
-if [[ -d "$WP_DIR" ]]; then
+if [[ "$WP_ENABLED" -eq 1 ]] && [[ -d "$WP_DIR" ]]; then
 	if ! pkg-config --exists gtk4-layer-shell-0; then
 		warn "gtk4-layer-shell dev package missing; skipping optional window-picker build"
 	elif [[ -x "$WP_BIN" ]] && [[ -f "$WP_DIR/.build-state" ]] && [[ "$(cat "$WP_DIR/.build-state" 2>/dev/null)" == "$(tree_fingerprint "$WP_DIR")" ]]; then

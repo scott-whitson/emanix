@@ -11,13 +11,13 @@ pgrep -x ollama > /dev/null || (ollama serve &>/dev/null &)
 
 # --- Work laptop sync ---
 # See: Obsidian vault → computing/Work Laptop Sync.md
-# Host alias "swhitson-11l-1" must resolve (NetBird / tailscale / ssh config).
-WORK_HOST="scott@swhitson-11l-1"
+# Host alias "swhitson-11l" must resolve (NetBird / tailscale / ssh config).
+WORK_HOST="scott@swhitson-11l"
 WORK_REMOTE_DIR="~/projects"
-WORK_LOCAL_DIR="$HOME/projects/work"
-WORK_RSYNC_EXCLUDES=(--exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='.git')
+WORK_LOCAL_DIR="$HOME/work"
+WORK_RSYNC_EXCLUDES=(--exclude='node_modules' --exclude='.venv' --exclude='__pycache__' --exclude='.git' --exclude='clients')
 
-# Pull all projects from work laptop into ~/projects/work
+# Mirror all projects from the work laptop into ~/work.
 work-pull() {
   rsync -avz --progress "${WORK_RSYNC_EXCLUDES[@]}" \
     "${WORK_HOST}:${WORK_REMOTE_DIR}/" "${WORK_LOCAL_DIR}/"
@@ -25,13 +25,18 @@ work-pull() {
 
 # Push a specific project back to the work laptop.
 # Usage: work-push pearl-platform
-#        work-push clients/rubber-v2
+#        work-push cd-connect
+# `clients/` is intentionally blocked and stays outside this workflow.
 work-push() {
   if [ -z "$1" ]; then
-    echo "Usage: work-push <project-path-relative-to-projects/work>"
+    echo "Usage: work-push <project-path-relative-to-work>"
     return 1
   fi
   local project="$1"
+  if [[ "$project" == clients || "$project" == clients/* ]]; then
+    echo "Blocked by exclude policy: clients"
+    return 1
+  fi
   if [ ! -d "${WORK_LOCAL_DIR}/${project}" ]; then
     echo "Not found: ${WORK_LOCAL_DIR}/${project}"
     return 1

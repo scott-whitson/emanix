@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.78.0",
-  "defaultProvider": "openai",
-  "defaultModel": "gpt-5.4-mini",
+  "defaultProvider": "openrouter",
+  "defaultModel": "openrouter/owl-alpha",
   "defaultThinkingLevel": "medium",
   "packages": [
     "npm:pi-web-access",
@@ -18,7 +18,8 @@
       ]
     },
     "npm:pi-intercom",
-    "npm:pi-lens"
+    "npm:pi-lens",
+    "https://github.com/noctuid/pi-hindsight"
   ],
   "enabledModels": [
     "openai/gpt-5.4-mini",

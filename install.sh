@@ -1,29 +1,71 @@
 #!/usr/bin/env bash
-# install.sh — orchestrator that runs install/*.sh in order.
+# install.sh — orchestrator that runs install/*.sh according to a profile.
 #
 # Usage:
-#   ./install.sh
+#   ./install.sh [--profile <name>]
+#   DOTFILES_PROFILE=wsl ./install.sh
 #
-# Each install/*.sh is independently runnable. Re-runs are idempotent
-# (apt --no-install-recommends, stow -R, systemctl --now etc.). See docs/manual/01-install.md
-# for the script-by-script walkthrough.
+# Profiles live under install/profiles/*.sh and define which numbered install
+# scripts should run for the current environment.
 
 set -euo pipefail
 
 DOTFILES="$(cd "$(dirname "$0")" && pwd)"
 export DOTFILES
 
-echo "=== dotfiles bootstrap ==="
+profile_arg=""
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+	--profile)
+		[[ $# -ge 2 ]] || {
+			echo "install.sh: --profile requires a value" >&2
+			exit 2
+		}
+		profile_arg="$2"
+		shift 2
+		;;
+	--profile=*)
+		profile_arg="${1#*=}"
+		shift
+		;;
+	-h | --help)
+		echo "Usage: ./install.sh [--profile <name>]"
+		echo "       DOTFILES_PROFILE=<name> ./install.sh"
+		echo ""
+		echo "Available profiles: server, desktop, wsl"
+		exit 0
+		;;
+	*)
+		echo "install.sh: unknown arg '$1'" >&2
+		echo "Usage: ./install.sh [--profile <name>]" >&2
+		exit 2
+		;;
+	esac
+done
 
-# --- Run each install/*.sh in lexical order ---
-for script in "$DOTFILES"/install/[0-9][0-9]-*.sh; do
-	echo ""
-	echo ">>> $(basename "$script")"
+source "$DOTFILES/install/_common.sh"
+
+profile="${profile_arg:-${DOTFILES_PROFILE:-$(default_dotfiles_profile)}}"
+load_profile_manifest "$profile"
+
+export PROFILE_NAME PROFILE_DESCRIPTION PROFILE_ENABLE_FRAGPAPER PROFILE_FRAGPAPER_SRC PROFILE_BASE_STOW_SKIP PROFILE_SERVICE_SKIP_PREFIXES
+export DOTFILES_PROFILE="$profile"
+
+printf '=== dotfiles bootstrap (%s) ===\n' "$profile"
+if [[ -n "${PROFILE_DESCRIPTION:-}" ]]; then
+	printf 'Profile: %s\n' "$PROFILE_DESCRIPTION"
+fi
+
+for script_name in "${PROFILE_SCRIPTS[@]}"; do
+	script="$DOTFILES/install/${script_name}.sh"
+	if [[ ! -f "$script" ]]; then
+		echo "install.sh: missing script $script" >&2
+		exit 1
+	fi
+	printf '\n>>> %s\n' "$(basename "$script")"
 	bash "$script"
 done
 
-echo ""
-echo "=== Done! ==="
-echo "Manual steps:"
-echo "  1. Set up SSH keys: ssh-keygen -t ed25519"
-echo "  2. Log out and back in for zsh to take effect"
+printf '\n=== Done! ===\n'
+printf 'Manual steps:\n'
+printf '  1. Log out and back in for zsh to take effect\n'

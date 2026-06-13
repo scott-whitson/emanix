@@ -13,17 +13,25 @@ fi
 log "stowing base/* packages"
 cd "$DOTFILES"
 
-host_name="${HOSTNAME%%.*}"
+skip_pkg() {
+	local pkg="$1"
+	for skipped in ${PROFILE_BASE_STOW_SKIP:-}; do
+		[[ "$skipped" == "$pkg" ]] && return 0
+	done
+	return 1
+}
+
 for pkg_path in base/*/; do
 	pkg_name="$(basename "$pkg_path")"
 
-	if [[ "$host_name" != "datacore" ]] && [[ "$pkg_name" == "ib" || "$pkg_name" == "systemd" ]]; then
-		log "skipping $pkg_name on $host_name (datacore-only)"
+	if skip_pkg "$pkg_name"; then
+		log "skipping $pkg_name per profile"
 		continue
 	fi
 
 	if [[ "$pkg_name" == "git" ]]; then
 		local_gitconfig_local="$HOME/.gitconfig.local"
+		local_gitignore="$HOME/.config/git/ignore"
 		if [[ -e "$local_gitconfig_local" ]]; then
 			if [[ ! -L "$local_gitconfig_local" ]]; then
 				backup="$local_gitconfig_local.pre-stow.$(date +%s)"
@@ -32,6 +40,11 @@ for pkg_path in base/*/; do
 			else
 				rm -f "$local_gitconfig_local"
 			fi
+		fi
+		if [[ -e "$local_gitignore" ]] && [[ ! -L "$local_gitignore" ]]; then
+			backup="$local_gitignore.pre-stow.$(date +%s)"
+			log "backing up existing ~/.config/git/ignore to $(basename "$backup")"
+			mv "$local_gitignore" "$backup"
 		fi
 	fi
 

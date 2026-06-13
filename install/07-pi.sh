@@ -3,7 +3,8 @@ set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
 # Pi coding agent install + client config sync on workstation and datacore.
-# Actual files live in dotfiles source tree and are stowed into ~/.pi.
+# Actual files live in the dotfiles source tree and are stowed into ~/.pi.
+# Datacore also runs a verification step in datacore-config after dotfiles install.
 
 if ! command -v npm &>/dev/null; then
 	die "npm missing; install nodejs npm in 01-core.sh"
