@@ -49,7 +49,7 @@ stow_conflicts() {
 		[[ -z "$dir" ]] && continue
 		log "removing existing directory $dir for stow"
 		rm -rf "$dir"
-	done <<< "$sorted"
+	done <<<"$sorted"
 	return $conflicts
 }
 
