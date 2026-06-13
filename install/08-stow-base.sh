@@ -23,20 +23,33 @@ skip_pkg() {
 
 stow_conflicts() {
 	local pkg="$1" conflicts=0
-	# Check every file stow would create under $HOME for existing non-symlink targets.
+	# Collect target directories that stow would create, deepest first,
+	# so we can remove existing non-stow directories before stow runs.
+	local dirs_to_clean=()
 	while IFS= read -r -d '' file; do
 		rel="${file#base/$pkg/}"
 		target="$HOME/$rel"
 		if [[ -e "$target" ]] && [[ ! -L "$target" ]]; then
-			backup="$target.pre-stow.$(date +%s)"
-			log "backing up existing $target to $(basename "$backup")"
-			mv "$target" "$backup"
-			conflicts=$((conflicts + 1))
+			if [[ -d "$target" ]]; then
+				dirs_to_clean+=("$target")
+			else
+				backup="$target.pre-stow.$(date +%s)"
+				log "backing up existing $target to $(basename "$backup")"
+				mv "$target" "$backup"
+				conflicts=$((conflicts + 1))
+			fi
 		elif [[ -L "$target" ]]; then
-			# Remove stale symlink so stow can recreate it cleanly.
 			rm -f "$target"
 		fi
 	done < <(find "base/$pkg" -type f -print0)
+	# Remove conflicting directories deepest-first so parents can be recreated.
+	local sorted
+	sorted=$(printf '%s\n' "${dirs_to_clean[@]}" | awk '{print length, $0}' | sort -rn | cut -d' ' -f2-)
+	while IFS= read -r dir; do
+		[[ -z "$dir" ]] && continue
+		log "removing existing directory $dir for stow"
+		rm -rf "$dir"
+	done <<< "$sorted"
 	return $conflicts
 }
 
