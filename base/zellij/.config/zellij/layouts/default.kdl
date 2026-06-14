@@ -1,0 +1,11 @@
+// Default layout: zellaude tab bar on top (tabs + Claude activity),
+// no bottom status bar — keybinding hints live in the zellij-forgot
+// cheatsheet (Ctrl y) instead.
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="file:/home/scott/.config/zellij/plugins/zellaude.wasm"
+        }
+        children
+    }
+}

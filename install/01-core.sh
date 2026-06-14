@@ -116,7 +116,7 @@ need_pkg \
 	build-essential cargo rustc pkg-config \
 	libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev blueprint-compiler libnotify-bin \
 	git stow zsh \
-	curl wget unzip rsync openssh-client gnupg \
+	curl wget unzip rsync openssh-client gnupg jq \
 	nodejs npm \
 	fzf zoxide rclone \
 	hx neovim qalc \

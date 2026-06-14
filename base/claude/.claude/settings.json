@@ -1,0 +1,64 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+    ],
+    "Notification": [
+      { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+    ],
+    "Stop": [
+      { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+    ],
+    "SessionEnd": [
+      { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+    ]
+  }
+}
