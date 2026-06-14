@@ -24,10 +24,14 @@ zk_arch() {
 }
 
 install_zk() {
-	local arch tag url tmp
+	local arch tag url tmp api_json
 	arch="$(zk_arch)"
-	tag="$(curl -fsSL "https://api.github.com/repos/$ZK_REPO/releases/latest" |
-		grep -m1 '"tag_name":' | sed 's/.*: *"//; s/".*//')"
+	# Fetch the release JSON fully before parsing — piping curl straight into a
+	# short-circuiting reader (grep -m1/head) makes curl fail with EPIPE under
+	# `set -o pipefail`. A release object has exactly one "tag_name".
+	api_json="$(curl -fsSL "https://api.github.com/repos/$ZK_REPO/releases/latest")" ||
+		die "could not fetch latest zk release info"
+	tag="$(sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' <<<"$api_json")"
 	[[ -n "$tag" ]] || die "could not resolve latest zk release tag"
 	url="https://github.com/$ZK_REPO/releases/download/$tag/zk-$tag-linux-$arch.tar.gz"
 	log "installing zk $tag ($arch)"
