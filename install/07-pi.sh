@@ -21,4 +21,4 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 printf '%s\n' "Pi config source: ${ROOT_DIR}"
 printf '%s\n' "Ensure ~/.pi/agent/settings.json is stowed from dotfiles source."
-printf '%s\n' "Set HONCHO_URL to http://datacore.scottwhitson.ts.net:8008 on both machines."
+printf '%s\n' "Ensure ~/.pi/agent/settings.json and ~/.pi/agent/extensions/pi-hindsight/ are stowed from dotfiles source."
