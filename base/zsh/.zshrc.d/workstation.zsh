@@ -1,6 +1,13 @@
 # --- Personal profile ---
 
-export OBSIDIAN_VAULT="$HOME/docs/vault/Whitsgrove"
+# Vault location is machine-specific:
+#   work-laptop WSL (Debian/Ubuntu)  -> OneDrive `docs` (synced by OneDrive)
+#   personal desktops                -> Whitsgrove vault (synced by Syncthing)
+if [[ -n "$WSL_DISTRO_NAME" ]]; then
+  export OBSIDIAN_VAULT="/mnt/c/Users/swhitson.CENTRALDATA/OneDrive - Central Data Systems, Inc/docs"
+else
+  export OBSIDIAN_VAULT="$HOME/docs/vault/Whitsgrove"
+fi
 
 # Auto-start ollama if not running
 pgrep -x ollama > /dev/null || (ollama serve &>/dev/null &)

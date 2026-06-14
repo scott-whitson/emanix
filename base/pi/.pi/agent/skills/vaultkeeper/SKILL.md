@@ -15,8 +15,10 @@ Read [references/vault-config.md](references/vault-config.md) for vault paths, c
 Set the vault path variable for all commands:
 
 ```bash
-VAULT="/home/scott/docs/vault/Whitsgrove"
+VAULT="${OBSIDIAN_VAULT:?set OBSIDIAN_VAULT}"
 ```
+
+This follows the machine's `$OBSIDIAN_VAULT` (set in `workstation.zsh`): the OneDrive `docs` vault on the work-laptop WSL, or the Whitsgrove vault on personal desktops.
 
 Before doing anything else, re-index the vault:
 

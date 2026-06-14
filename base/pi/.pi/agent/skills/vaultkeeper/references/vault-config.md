@@ -2,7 +2,7 @@
 
 ## Paths
 
-- **Vault root:** `/home/scott/docs/vault/Whitsgrove`
+- **Vault root:** `$OBSIDIAN_VAULT` — set per-machine in `workstation.zsh`. On the work-laptop WSL this is the OneDrive `docs` vault (`/mnt/c/Users/swhitson.CENTRALDATA/OneDrive - Central Data Systems, Inc/docs`); on personal desktops it is `~/docs/vault/Whitsgrove`.
 - **zk binary:** `zk` (on PATH at `~/.local/bin/zk`)
 - **zk config:** `<vault-root>/.zk/config.toml`
 
@@ -19,7 +19,7 @@
 All commands must be run with `--notebook-dir` pointing to the vault root, or `cd` into the vault first.
 
 ```bash
-VAULT="/home/scott/docs/vault/Whitsgrove"
+VAULT="${OBSIDIAN_VAULT:?set OBSIDIAN_VAULT}"
 ```
 
 | Task | Command |
