@@ -109,6 +109,12 @@ REMOTE
 }
 
 log "preparing Syncthing docs sync"
+
+if ! command -v syncthing >/dev/null 2>&1; then
+	warn "syncthing not installed; skipping docs sync (install via 01-core.sh or 05-desktop.sh)"
+	exit 0
+fi
+
 mkdir -p "$DOCS_FOLDER_PATH" "$DOCS_FOLDER_PATH/vault"
 ensure_syncthing_identity
 ensure_local_service

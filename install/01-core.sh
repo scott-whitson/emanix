@@ -120,6 +120,7 @@ need_pkg \
 	nodejs npm \
 	fzf zoxide rclone \
 	hx neovim qalc \
+	syncthing \
 	fontconfig fonts-noto fonts-noto-color-emoji fonts-dejavu-core
 
 install_uv
