@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install/06-tools.sh — uv tools/, window-picker build, Node, kickstart.nvim bootstrap
+# install/06-tools.sh — uv tools/, window-picker build, Node
 set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
@@ -119,32 +119,5 @@ if ! command -v npm &>/dev/null; then
 	warn "npm missing; install npm via apt in 01-core.sh"
 fi
 
-# --- kickstart.nvim bootstrap ---
-NVIM_DIR="$HOME/.config/nvim"
-KICKSTART_URL="https://github.com/nvim-lua/kickstart.nvim.git"
-# NOTE: once Scott forks kickstart on his own GitHub, swap the URL above for
-# his fork's clone URL. The fork is the intended long-term source.
-
-if [[ ! -d "$NVIM_DIR" ]] || [[ -z "$(ls -A "$NVIM_DIR" 2>/dev/null)" ]]; then
-	log "cloning kickstart.nvim to $NVIM_DIR"
-	if ! GIT_TERMINAL_PROMPT=0 clone_if_missing "$KICKSTART_URL" "$NVIM_DIR"; then
-		warn "kickstart clone failed; skipping optional nvim bootstrap"
-	fi
-else
-	log "nvim config directory already exists; skipping kickstart clone"
-fi
-
-# Ensure the theme opt-in line is present at the end of init.lua.
-# Idempotent: only appends if the line isn't already there.
-INIT_LUA="$NVIM_DIR/init.lua"
-OPT_IN_LINE="pcall(require, 'dotfiles-theme')"
-if [[ -f "$INIT_LUA" ]]; then
-	if ! grep -qF "$OPT_IN_LINE" "$INIT_LUA"; then
-		log "appending theme opt-in to $INIT_LUA"
-		printf '\n-- Dotfiles theme opt-in (see themes/*/nvim.lua)\n%s\n' "$OPT_IN_LINE" >>"$INIT_LUA"
-	else
-		log "theme opt-in line already present in init.lua"
-	fi
-else
-	warn "no init.lua at $INIT_LUA; theme opt-in not injected"
-fi
+# Neovim is installed by install/02-neovim.sh; its LazyVim config is the
+# base/nvim stow package (deployed by 08-stow-base) and themed by 10-theme.sh.
