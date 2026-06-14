@@ -11,6 +11,7 @@ export PROFILE_SERVICE_SKIP_PREFIXES="ib minne-ib"
 # shellcheck disable=SC2034
 PROFILE_SCRIPTS=(
 	01-core
+	02-neovim
 	03-system
 	04-hyprland
 	05-desktop

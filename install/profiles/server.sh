@@ -11,6 +11,7 @@ export PROFILE_SERVICE_SKIP_PREFIXES=""
 # shellcheck disable=SC2034
 PROFILE_SCRIPTS=(
 	01-core
+	02-neovim
 	03-system
 	06-tools
 	07-pi
