@@ -52,6 +52,15 @@ Default subreddits live in `REDDIT_SUBS` in `tools/news.py`.
 
 A small Rust binary that renders a window picker overlay for Hyprland. Built by `install/06-tools.sh`. Binary path: `~/dotfiles/tools/window-picker/target/release/window-picker`.
 
+### cheatsheet / weather — mpv dependency
+
+`hypr-cheatsheet` and `hypr-weather` both render to an `mpv` window (forced float, mpv title `hypr-weather-sat` / `hypr-cheatsheet`). These install/05-desktop.sh now includes `mpv` as a desktop package. If you swap mpv for another viewer, update:
+
+- `base/bin/.local/bin/hypr-cheatsheet`
+- `base/bin/.local/bin/hypr-weather`
+- `base/hypr/.config/hypr/hyprland.conf` `windowrule` entries
+- `install/05-desktop.sh`
+
 ### fragpaper
 
 GPU shader wallpaper renderer for Wayland. `install/06-tools.sh` uses `~/projects/fragpaper` on datacore, but on runtime desktops it caches the checkout under `~/.local/share/fragpaper` instead of creating `~/projects`. It builds a release binary and installs it to `~/.local/opt/fragpaper/bin/fragpaper`. Fragpaper runs as a user systemd service (`fragpaper.service`) started automatically from Hyprland; on runtime-only hosts like zord it is just an installed product and does not need a project checkout unless you are actively debugging it. `fragpaper-launch` reads shaders from the best available checkout (`~/.local/share/fragpaper` on runtime desktops, `~/projects/fragpaper` on datacore/dev machines) and falls back to `cargo run --release` if the installed binary is missing.
@@ -89,8 +98,12 @@ Every file in `base/bin/.local/bin/` is symlinked to `~/.local/bin/<name>` by `i
 |---|---|
 | `fragpaper-launch` | Launches fragpaper with the active theme's BG_COLOR + PALETTE |
 | `hypr-brightness` | Adjusts laptop brightness with brightnessctl/light/sysfs fallbacks; bound to F2/F3 and XF86 brightness keys |
+| `hypr-calc` | Quick calculator popup (bound to `$mod + c`) |
 | `hypr-cheatsheet` | Fuzzel viewer for Hyprland keybindings; sources from `~/docs/vault/Whitsgrove/Hyprland Cheatsheet.md` (bound to `$mod + Shift + /`) |
+| `hypr-or-cost` | OpenRouter 7-day cost summary (bound to `$mod + u`) |
 | `hypr-rename-workspace` | Fuzzel prompt → `hyprctl dispatch renameworkspace <id> "<id> <label>"` (bound to `$mod + r`) |
+| `hypr-weather` | Phoenix NY weather — NWS forecast notification + NOAA satellite/radar slideshow via `mpv` (bound to `$mod + n`) |
+| `hypr-wifi` | WiFi connection helper in Ghostty (bound to `$mod + i`) |
 | `helix` | Wrapper that prefers `hx` on Debian but still supports a native `helix` binary |
 | `firefox` | Wrapper that prefers installed Firefox, then Firefox ESR, then Flatpak Firefox |
 | `obsidian` | Wrapper that prefers installed Obsidian, then `/opt/Obsidian`, then Flatpak Obsidian |

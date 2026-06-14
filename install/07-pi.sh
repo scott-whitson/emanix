@@ -2,30 +2,19 @@
 set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
-# Pi coding agent install + client config sync on workstation and server.
-# Actual files live in dotfiles source tree and are stowed into ~/.pi.
+# Pi coding agent install + client config sync on workstation and datacore.
+# Actual files live in the dotfiles source tree and are stowed into ~/.pi.
+# Datacore also runs a verification step in datacore-config after dotfiles install.
 
-ensure_node_npm() {
-	if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
-		return 0
-	fi
-	log "node/npm missing; installing nodejs + npm from apt"
-	need_pkg nodejs npm
-	if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
-		die "node/npm still missing after apt install; check PATH and apt state"
-	fi
-}
+if ! command -v npm &>/dev/null; then
+	die "npm missing; install nodejs npm in 01-core.sh"
+fi
 
-ensure_node_npm
-
-PI_AGENT_DIR="$HOME/.local/lib/node_modules/@earendil-works/pi-coding-agent"
-PI_AGENT_CLI="$PI_AGENT_DIR/dist/cli.js"
-
-if [[ ! -r "$PI_AGENT_CLI" ]] || ! timeout 5s node "$PI_AGENT_CLI" --version >/dev/null 2>&1; then
+if ! command -v pi &>/dev/null; then
 	log "installing pi coding agent via npm"
 	npm install -g --prefix "$HOME/.local" --ignore-scripts @earendil-works/pi-coding-agent
 else
-	log "pi coding agent already installed and healthy: $PI_AGENT_CLI"
+	log "pi already on PATH: $(pi --version 2>&1 | head -1)"
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

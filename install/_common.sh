@@ -5,25 +5,9 @@
 set -euo pipefail
 
 # --- Required env (set by install.sh orchestrator) ---
-if [[ -z "${DOTFILES:-}" ]]; then
-	if [[ -n "${BASH_SOURCE[1]:-}" ]]; then
-		DOTFILES="$(cd "$(dirname "${BASH_SOURCE[1]}")/.." && pwd)"
-	else
-		DOTFILES="$(cd "$(dirname "$0")/.." && pwd)"
-	fi
-fi
-export DOTFILES
+: "${DOTFILES:?DOTFILES must be set (orchestrator sets this)}"
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
-HOST_NAME="${HOSTNAME%%.*}"
-HOST_CLASS="${HOST_CLASS:-workstation}"
-if [[ "$HOST_NAME" == "datacore" ]]; then
-	HOST_CLASS="server"
-fi
-export HOST_NAME HOST_CLASS
 DATACORE_GIT_ROOT="${DATACORE_GIT_ROOT:-scott@datacore:~/projects}"
-
-is_server() { [[ "$HOST_CLASS" == server ]]; }
-is_workstation() { [[ "$HOST_CLASS" == workstation ]]; }
 
 # --- Log helpers ---
 log() { printf '\033[1;34m[%s]\033[0m %s\n' "$(basename "${BASH_SOURCE[1]:-install}")" "$*"; }

@@ -4,7 +4,7 @@ set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
 if is_server; then
-	log "skipping workstation desktop packages on server host"
+	log "skipping workstation desktop packages on server"
 	exit 0
 fi
 
@@ -112,7 +112,7 @@ need_pkg \
 	grim slurp wl-clipboard \
 	pipewire wireplumber pipewire-pulse \
 	brightnessctl playerctl \
-	ffmpeg libavcodec-extra gstreamer1.0-libav \
+	ffmpeg libavcodec-extra gstreamer1.0-libav mpv \
 	syncthing \
 	fonts-noto fonts-noto-color-emoji
 

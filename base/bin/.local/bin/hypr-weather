@@ -16,7 +16,7 @@ curl -sfLo "$CACHE_DIR/airmass.jpg" \
   "https://cdn.star.nesdis.noaa.gov/GOES16/ABI/SECTOR/ne/AirMass/latest.jpg" &
 curl -sfLo "$CACHE_DIR/radar.gif" \
   "https://radar.weather.gov/ridge/standard/NORTHEAST_loop.gif" &
-img_pids=$!
+img_pids="$!"
 
 # --- Fetch hourly forecast (fast, serial) ---
 forecast_json=$(curl -sf -H "User-Agent: $UA" "https://api.weather.gov/points/${LAT},${LON}")
@@ -37,13 +37,15 @@ for p in d['properties']['periods'][:8]:
 ")"
 
 # --- Wait for images to finish, then open mpv slideshow ---
-wait $img_pids 2>/dev/null || true
+wait "$img_pids" 2>/dev/null || true
+wait 2>/dev/null || true
 
-mpv --image-display-duration=6 \
+mpv --force-window=yes \
+    --image-display-duration=6 \
     --loop=inf \
     --no-audio \
     --title=hypr-weather-sat \
     --geometry=1000x900 \
     "$CACHE_DIR/satellite.jpg" \
     "$CACHE_DIR/airmass.jpg" \
-    "$CACHE_DIR/radar.gif" 2>/dev/null &disown
+    "$CACHE_DIR/radar.gif" >/dev/null 2>&1 &

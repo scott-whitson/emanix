@@ -27,11 +27,6 @@ fi
 
 source "$(dirname "$0")/_common.sh"
 
-if ! is_server; then
-	log "skipping IB Gateway on $HOST_NAME; server is gateway host"
-	exit 0
-fi
-
 GW_ROOT="/opt/ibgateway"
 IBC_ROOT="/opt/ibc"
 GW_INSTALLER_URL="https://download2.interactivebrokers.com/installers/ibgateway/stable-standalone/ibgateway-stable-standalone-linux-x64.sh"
