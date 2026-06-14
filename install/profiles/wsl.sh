@@ -14,5 +14,6 @@ PROFILE_SCRIPTS=(
 	06-tools
 	07-pi
 	08-stow-base
+	09-zk
 	10-theme
 )
