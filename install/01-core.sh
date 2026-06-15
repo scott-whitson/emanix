@@ -117,11 +117,16 @@ need_pkg \
 	libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev blueprint-compiler libnotify-bin \
 	git stow zsh \
 	curl wget unzip rsync openssh-client gnupg jq \
-	nodejs npm \
+	nodejs \
 	fzf zoxide rclone \
 	hx neovim qalc \
 	syncthing \
 	fontconfig fonts-noto fonts-noto-color-emoji fonts-dejavu-core
+
+# npm is bundled with NodeSource nodejs; only install Debian npm if nodejs came from Debian
+if ! command -v npm >/dev/null 2>&1; then
+	need_pkg npm
+fi
 
 install_uv
 install_jetbrains_mono
