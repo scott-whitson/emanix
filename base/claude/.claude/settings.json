@@ -49,16 +49,32 @@
       }
     ],
     "UserPromptSubmit": [
-      { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+      {
+        "hooks": [
+          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+        ]
+      }
     ],
     "Notification": [
-      { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+      {
+        "hooks": [
+          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+        ]
+      }
     ],
     "Stop": [
-      { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+      {
+        "hooks": [
+          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+        ]
+      }
     ],
     "SessionEnd": [
-      { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+      {
+        "hooks": [
+          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+        ]
+      }
     ]
   }
 }
