@@ -3,7 +3,9 @@
 # Vault location is machine-specific:
 #   work-laptop WSL (Debian/Ubuntu)  -> OneDrive `docs` (synced by OneDrive)
 #   personal desktops                -> Whitsgrove vault (synced by Syncthing)
-if [[ -n "$WSL_DISTRO_NAME" ]]; then
+# Detect WSL via /proc/version (kernel-level "microsoft" marker) rather than
+# $WSL_DISTRO_NAME, which isn't reliably exported to every shell.
+if grep -qiE '(microsoft|wsl)' /proc/version 2>/dev/null; then
   export OBSIDIAN_VAULT="/mnt/c/Users/swhitson.CENTRALDATA/OneDrive - Central Data Systems, Inc/docs"
 else
   export OBSIDIAN_VAULT="$HOME/docs/vault/Whitsgrove"
