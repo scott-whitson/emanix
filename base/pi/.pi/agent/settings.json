@@ -1,36 +1,24 @@
 {
-  "lastChangelogVersion": "0.78.0",
+  "lastChangelogVersion": "0.79.0",
   "defaultProvider": "openrouter",
-  "defaultModel": "openrouter/owl-alpha",
-  "defaultThinkingLevel": "medium",
+  "defaultModel": "deepseek/deepseek-v4-flash",
+  "defaultThinkingLevel": "high",
   "packages": [
     "npm:pi-web-access",
     "npm:pi-subagents",
     "npm:@juicesharp/rpiv-todo",
-    "npm:pi-caveman",
     "npm:@juicesharp/rpiv-ask-user-question",
-    {
-      "source": "npm:gentle-pi",
-      "extensions": [
-        "gentle-ai.ts",
-        "sdd-init.ts",
-        "skill-registry.ts"
-      ]
-    },
     "npm:pi-intercom",
     "npm:pi-lens",
     "https://github.com/noctuid/pi-hindsight"
   ],
   "enabledModels": [
-    "openai/gpt-5.4-mini",
-    "openai/gpt-5.4",
-    "openai/gpt-5.4-nano"
+    "openrouter/openai/gpt-5.4-mini",
+    "openrouter/openai/gpt-5.4",
+    "openrouter/openai/gpt-5.4-nano",
+    "openrouter/openrouter/free",
+    "openrouter/openrouter/owl-alpha",
+    "openrouter/deepseek/deepseek-v4-flash"
   ],
-  "theme": "catppuccin-mocha",
-  "honcho": {
-    "enabled": true,
-    "url": "http://datacore.scottwhitson.ts.net:8008",
-    "workspace": "pi",
-    "policy": "query before answer when personalized memory likely helps; write only curated durable facts, decisions, and preferences"
-  }
+  "theme": "catppuccin-mocha"
 }
