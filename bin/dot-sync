@@ -33,11 +33,18 @@ if ! git pull --rebase --autostash; then
     exit 1
 fi
 
-echo "==> restowing base/"
-"$DOTFILES/bin/dot-restow" --all
-
 echo "==> pushing"
 git push
+
+# Restow is best-effort: git is already converged across machines above. Some
+# apps (pi, zellij) rewrite their config in place, replacing stow's symlink with
+# a real file — that conflicts on restow but must NOT fail the sync or spam the
+# hourly timer. Surface it and move on; resolve with `dot-restow <pkg>`.
+echo "==> restowing base/ (best-effort)"
+if ! "$DOTFILES/bin/dot-restow" --all; then
+    echo "    !! restow hit a conflict — git is synced, but some configs were not re-linked." >&2
+    echo "       a real file is shadowing a stow symlink; fix with: dot-restow <pkg>" >&2
+fi
 
 echo ""
 echo "==> dot-sync complete — $(git log -1 --format='%h %s')"
