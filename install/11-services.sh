@@ -37,6 +37,13 @@ for unit_file in "$UNIT_DIR"/*.timer "$UNIT_DIR"/*.service; do
 		log "skipping template unit $unit_name"
 		continue
 	fi
+	# A .service with no [Install] section is triggered by its .timer/.socket,
+	# not enabled directly — `systemctl enable` errors on it. Skip; the paired
+	# .timer (enabled above) pulls it in. (e.g. dot-sync.service, minne-ib-restart.service)
+	if [[ "$unit_name" == *.service ]] && ! grep -q '^\[Install\]' "$unit_file"; then
+		log "skipping $unit_name (timer-triggered, no [Install])"
+		continue
+	fi
 	if skip_service "$unit_name"; then
 		log "skipping $unit_name per profile"
 		continue
