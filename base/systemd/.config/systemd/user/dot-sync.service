@@ -1,0 +1,6 @@
+[Unit]
+Description=Sync dotfiles with the datacore hub (commit/pull/restow/push)
+
+[Service]
+Type=oneshot
+ExecStart=%h/dotfiles/bin/dot-sync

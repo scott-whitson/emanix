@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# bin/dot-update — system update + re-stow everything
-# Runs: apt update/full-upgrade, then dot-restow --all.
+# bin/dot-update — system update + dotfiles sync.
+# Runs: apt update/full-upgrade, then dot-sync (git commit/pull/restow/push).
 set -euo pipefail
 
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -10,8 +10,8 @@ sudo apt update
 sudo apt full-upgrade -y
 
 echo ""
-echo "==> dot-restow --all"
-"$DOTFILES/bin/dot-restow" --all
+echo "==> dot-sync"
+"$DOTFILES/bin/dot-sync"
 
 echo ""
 echo "==> dot-update complete"

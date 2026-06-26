@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# bin/dot-sync — converge this machine's dotfiles with the datacore hub.
+# Commits any local changes, pulls (rebase + autostash), re-stows, then pushes.
+#
+# This is the git layer that dot-update/dot-restow lack: those only touch the
+# local working tree, so machines drift until something pulls/pushes. Run this
+# on every machine (swhitson-11l / zord / datacore) to keep base/ in sync.
+#
+# Usage:
+#   dot-sync                 # auto-commit local changes, sync, push
+#   dot-sync "message"       # custom commit message for local changes
+set -euo pipefail
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
+cd "$DOTFILES"
+
+msg="${1:-sync from $(hostname) $(date +%Y-%m-%dT%H:%M)}"
+
+echo "==> committing local changes (if any)"
+if [[ -n "$(git status --porcelain)" ]]; then
+    git add -A
+    git commit -m "$msg" --quiet
+    echo "    committed: $msg"
+else
+    echo "    nothing to commit"
+fi
+
+echo "==> pulling (rebase + autostash)"
+if ! git pull --rebase --autostash; then
+    echo "    !! rebase conflict — aborting to leave a clean tree" >&2
+    git rebase --abort 2>/dev/null || true
+    echo "    resolve manually: cd $DOTFILES && git pull --rebase" >&2
+    exit 1
+fi
+
+echo "==> restowing base/"
+"$DOTFILES/bin/dot-restow" --all
+
+echo "==> pushing"
+git push
+
+echo ""
+echo "==> dot-sync complete — $(git log -1 --format='%h %s')"

@@ -4,7 +4,12 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+          {
+            "type": "command",
+            "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh",
+            "timeout": 5,
+            "async": true
+          }
         ]
       }
     ],
@@ -12,7 +17,12 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+          {
+            "type": "command",
+            "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh",
+            "timeout": 5,
+            "async": true
+          }
         ]
       }
     ],
@@ -20,7 +30,12 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+          {
+            "type": "command",
+            "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh",
+            "timeout": 5,
+            "async": true
+          }
         ]
       }
     ],
@@ -28,7 +43,12 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+          {
+            "type": "command",
+            "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh",
+            "timeout": 5,
+            "async": true
+          }
         ]
       }
     ],
@@ -36,7 +56,12 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+          {
+            "type": "command",
+            "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh",
+            "timeout": 5,
+            "async": true
+          }
         ]
       }
     ],
@@ -44,37 +69,63 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+          {
+            "type": "command",
+            "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh",
+            "timeout": 5,
+            "async": true
+          }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+          {
+            "type": "command",
+            "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh",
+            "timeout": 5,
+            "async": true
+          }
         ]
       }
     ],
     "Notification": [
       {
         "hooks": [
-          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+          {
+            "type": "command",
+            "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh",
+            "timeout": 5,
+            "async": true
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+          {
+            "type": "command",
+            "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh",
+            "timeout": 5,
+            "async": true
+          }
         ]
       }
     ],
     "SessionEnd": [
       {
         "hooks": [
-          { "type": "command", "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh", "timeout": 5, "async": true }
+          {
+            "type": "command",
+            "command": "/home/scott/.config/zellij/plugins/zellaude-hook.sh",
+            "timeout": 5,
+            "async": true
+          }
         ]
       }
     ]
-  }
+  },
+  "tui": "fullscreen"
 }
