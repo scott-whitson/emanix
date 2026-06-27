@@ -48,8 +48,18 @@ source "$DOTFILES/install/_common.sh"
 profile="${profile_arg:-${DOTFILES_PROFILE:-$(default_dotfiles_profile)}}"
 load_profile_manifest "$profile"
 
-export PROFILE_NAME PROFILE_DESCRIPTION PROFILE_ENABLE_FRAGPAPER PROFILE_FRAGPAPER_SRC PROFILE_BASE_STOW_SKIP PROFILE_SERVICE_SKIP_PREFIXES
+export PROFILE_NAME PROFILE_DESCRIPTION PROFILE_ENABLE_FRAGPAPER PROFILE_FRAGPAPER_SRC PROFILE_BASE_STOW_SKIP PROFILE_SERVICE_SKIP_PREFIXES PROFILE_SYNC_PULL_ONLY
 export DOTFILES_PROFILE="$profile"
+
+# Pull-only machines (e.g. the work WSL box) consume dotfiles but never push;
+# dot-sync reads this marker. Profiles set PROFILE_SYNC_PULL_ONLY=1 to opt in.
+dotfiles_cfg="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles"
+if [[ "${PROFILE_SYNC_PULL_ONLY:-0}" == 1 ]]; then
+	mkdir -p "$dotfiles_cfg"
+	touch "$dotfiles_cfg/pull-only"
+else
+	rm -f "$dotfiles_cfg/pull-only"
+fi
 
 printf '=== dotfiles bootstrap (%s) ===\n' "$profile"
 if [[ -n "${PROFILE_DESCRIPTION:-}" ]]; then

@@ -1,18 +1,51 @@
 #!/usr/bin/env bash
-# bin/dot-sync — converge this machine's dotfiles with the datacore hub.
-# Commits any local changes, pulls (rebase + autostash), re-stows, then pushes.
+# bin/dot-sync — converge this machine's dotfiles with the GitHub hub.
 #
-# This is the git layer that dot-update/dot-restow lack: those only touch the
-# local working tree, so machines drift until something pulls/pushes. Run this
-# on every machine (swhitson-11l / zord / datacore) to keep base/ in sync.
+# Normal mode:    commit local changes -> pull (rebase+autostash) -> push -> restow.
+# Pull-only mode: if ~/.config/dotfiles/pull-only exists, this machine only
+#   CONSUMES dotfiles (pull + restow) and never commits or pushes. Used on the
+#   work WSL box, which has no personal GitHub credential and authors no config.
+#   The marker is created by install.sh for profiles with PROFILE_SYNC_PULL_ONLY=1.
 #
 # Usage:
-#   dot-sync                 # auto-commit local changes, sync, push
+#   dot-sync                 # auto-commit local changes, sync, push (normal mode)
 #   dot-sync "message"       # custom commit message for local changes
 set -euo pipefail
 
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$DOTFILES"
+
+PULL_ONLY_MARKER="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/pull-only"
+
+pull_rebase() {
+    echo "==> pulling (rebase + autostash)"
+    if ! git pull --rebase --autostash; then
+        echo "    !! rebase conflict — aborting to leave a clean tree" >&2
+        git rebase --abort 2>/dev/null || true
+        echo "    resolve manually: cd $DOTFILES && git pull --rebase" >&2
+        exit 1
+    fi
+}
+
+# Best-effort: some apps (pi, zellij) rewrite their config in place, replacing
+# stow's symlink with a real file — that conflicts on restow but must NOT fail
+# the sync or spam the hourly timer. Surface it and move on.
+restow_best_effort() {
+    echo "==> restowing base/ (best-effort)"
+    if ! "$DOTFILES/bin/dot-restow" --all; then
+        echo "    !! restow hit a conflict — some configs were not re-linked." >&2
+        echo "       a real file is shadowing a stow symlink; fix with: dot-restow <pkg>" >&2
+    fi
+}
+
+if [[ -f "$PULL_ONLY_MARKER" ]]; then
+    echo "==> pull-only mode (this machine consumes dotfiles; never commits/pushes)"
+    pull_rebase
+    restow_best_effort
+    echo ""
+    echo "==> dot-sync complete (pull-only) — $(git log -1 --format='%h %s')"
+    exit 0
+fi
 
 msg="${1:-sync from $(hostname) $(date +%Y-%m-%dT%H:%M)}"
 
@@ -25,26 +58,12 @@ else
     echo "    nothing to commit"
 fi
 
-echo "==> pulling (rebase + autostash)"
-if ! git pull --rebase --autostash; then
-    echo "    !! rebase conflict — aborting to leave a clean tree" >&2
-    git rebase --abort 2>/dev/null || true
-    echo "    resolve manually: cd $DOTFILES && git pull --rebase" >&2
-    exit 1
-fi
+pull_rebase
 
 echo "==> pushing"
 git push
 
-# Restow is best-effort: git is already converged across machines above. Some
-# apps (pi, zellij) rewrite their config in place, replacing stow's symlink with
-# a real file — that conflicts on restow but must NOT fail the sync or spam the
-# hourly timer. Surface it and move on; resolve with `dot-restow <pkg>`.
-echo "==> restowing base/ (best-effort)"
-if ! "$DOTFILES/bin/dot-restow" --all; then
-    echo "    !! restow hit a conflict — git is synced, but some configs were not re-linked." >&2
-    echo "       a real file is shadowing a stow symlink; fix with: dot-restow <pkg>" >&2
-fi
+restow_best_effort
 
 echo ""
 echo "==> dot-sync complete — $(git log -1 --format='%h %s')"

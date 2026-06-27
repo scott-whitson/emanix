@@ -6,6 +6,9 @@ PROFILE_DESCRIPTION="Debian WSL profile"
 export PROFILE_ENABLE_FRAGPAPER=0
 export PROFILE_ENABLE_WINDOW_PICKER=0
 export PROFILE_BASE_STOW_SKIP="ib systemd pi"
+# Work box: no personal GitHub credential, authors no config — dot-sync only
+# consumes (pull + restow), never commits/pushes. install.sh sets the marker.
+export PROFILE_SYNC_PULL_ONLY=1
 export PROFILE_SERVICE_SKIP_PREFIXES=""
 # shellcheck disable=SC2034
 PROFILE_SCRIPTS=(
