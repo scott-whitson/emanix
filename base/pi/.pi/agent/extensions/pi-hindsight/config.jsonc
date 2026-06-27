@@ -1,0 +1,20 @@
+{
+  // pi-hindsight config — version-controlled in dotfiles, stowed to
+  // ~/.pi/agent/extensions/pi-hindsight/config.jsonc (single source of truth across machines).
+  //
+  // apiUrl: self-hosted hindsight on datacore. Resolves on datacore + arch via tailscale MagicDNS.
+  //   NOTE: NOT reachable from the laptop (userspace tailscale = no route to datacore's tailnet IP).
+  "apiUrl": "http://datacore:8888",
+  // Server requires NO client auth. If you ever enable auth or use Hindsight cloud,
+  // set the HINDSIGHT_API_KEY env var (it overrides this) rather than committing a secret.
+  "apiKey": "local",
+  "bankId": "pi-work",
+  "constantTags": ["harness:pi", "user:scott"],
+  "observationScopes": [["harness:pi"]],
+  "autoRecallTags": ["harness:pi"],
+  "autoRecallTagsMatch": "any_strict",
+  "autoRecallPersist": false,
+  "autoRecallDisplay": false,
+  "maxRecallTokens": 2048,
+  "toolsEnabled": ["retain", "recall", "reflect"]
+}
