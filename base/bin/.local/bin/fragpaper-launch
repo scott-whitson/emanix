@@ -1,83 +1,83 @@
 #!/usr/bin/env bash
-# fragpaper-launch — launches fragpaper with the current theme's bg + palette.
-# Reads ~/.config/dotfiles/active-theme, then sources
-# ~/dotfiles/themes/<active>/fragpaper.conf for BG_COLOR and PALETTE.
-# Uses the best available shader checkout (runtime cache on desktops, canonical repo on datacore/dev boxes).
-# Falls back to Catppuccin Mocha defaults if no active theme is set.
+# fragpaper-launch — one-shot launcher for manual use or systemd.
+# Kills stale instances, then execs fragpaper directly.
+#
+# Usage: fragpaper-launch [--kill]
+#   --kill  only kill stale instances, don't start
 
 set -u
 
-if [[ -n "${DOTFILES:-}" ]]; then
-    DOTFILES="$DOTFILES"
-else
-    for candidate in "$HOME/projects/dotfiles" "$HOME/dotfiles"; do
-        if [[ -d "$candidate/themes" ]]; then
-            DOTFILES="$candidate"
-            break
-        fi
-    done
-    DOTFILES="${DOTFILES:-$HOME/projects/dotfiles}"
-fi
-ACTIVE_THEME_FILE="$HOME/.config/dotfiles/active-theme"
-
-BG_COLOR="#1e1e2e"
-PALETTE="dark"
-
-if [[ -f "$ACTIVE_THEME_FILE" ]]; then
-    active=$(<"$ACTIVE_THEME_FILE")
-    conf="$DOTFILES/themes/$active/fragpaper.conf"
-    if [[ -f "$conf" ]]; then
-        # shellcheck source=/dev/null
-        . "$conf"
-    fi
-fi
-
+FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/.local/share/fragpaper}"
 FRAGPAPER_BIN="${FRAGPAPER_BIN:-$HOME/.local/opt/fragpaper/bin/fragpaper}"
-FRAGPAPER_SRC="${FRAGPAPER_SRC:-}"
-HOST_NAME="${HOSTNAME%%.*}"
-if [[ -z "$FRAGPAPER_SRC" ]]; then
-    if [[ "$HOST_NAME" == "datacore" ]]; then
-        for candidate in "$HOME/projects/fragpaper" "$HOME/.local/share/fragpaper"; do
-            if [[ -d "$candidate" ]]; then
-                FRAGPAPER_SRC="$candidate"
-                break
-            fi
-        done
-        FRAGPAPER_SRC="${FRAGPAPER_SRC:-$HOME/projects/fragpaper}"
-    else
-        FRAGPAPER_SRC="$HOME/.local/share/fragpaper"
-    fi
-fi
-SHADERS_DIR="${FRAGPAPER_SHADERS_DIR:-$FRAGPAPER_SRC/shaders}"
 
-if [[ ! -r "$SHADERS_DIR/attractors.vert" ]] || [[ ! -r "$SHADERS_DIR/attractors.frag" ]]; then
-    echo "fragpaper-launch: shader files missing in $SHADERS_DIR" >&2
+# ── Kill stale instances ────────────────────────────────────────────────────
+kill_stale() {
+    local pids
+    pids=$(pgrep -f "fragpaper" 2>/dev/null || true)
+    if [[ -n "$pids" ]]; then
+        echo "fragpaper-launch: killing stale: $pids" >&2
+        echo "$pids" | xargs kill 2>/dev/null
+        sleep 1
+        pids=$(pgrep -f "fragpaper" 2>/dev/null || true)
+        [[ -n "$pids" ]] && echo "$pids" | xargs kill -9 2>/dev/null && sleep 1
+    fi
+}
+
+kill_stale
+
+[[ "${1:-}" == "--kill" ]] && exit 0
+
+# ── Find binary ─────────────────────────────────────────────────────────────
+bin=""
+if [[ -x "$FRAGPAPER_BIN" ]]; then
+    bin="$FRAGPAPER_BIN"
+elif command -v fragpaper >/dev/null 2>&1; then
+    bin="$(command -v fragpaper)"
+elif [[ -f "$FRAGPAPER_SRC/target/release/fragpaper" ]]; then
+    bin="$FRAGPAPER_SRC/target/release/fragpaper"
+fi
+
+if [[ -z "$bin" ]]; then
+    echo "fragpaper-launch: no binary found" >&2
     exit 1
 fi
 
-if [[ -x "$FRAGPAPER_BIN" ]]; then
-    exec env RUST_LOG=info "$FRAGPAPER_BIN" \
-        --bg-color "$BG_COLOR" \
-        --palette "$PALETTE" \
-        "$SHADERS_DIR/attractors.vert" \
-        "$SHADERS_DIR/attractors.frag"
+# ── Theme ──────────────────────────────────────────────────────────────────
+DOTFILES="${DOTFILES:-}"
+if [[ -z "$DOTFILES" ]]; then
+    for c in "$HOME/projects/dotfiles" "$HOME/dotfiles"; do
+        [[ -d "$c/themes" ]] && DOTFILES="$c" && break
+    done
+    DOTFILES="${DOTFILES:-$HOME/projects/dotfiles}"
 fi
 
-if command -v fragpaper >/dev/null 2>&1; then
-    exec env RUST_LOG=info fragpaper \
-        --bg-color "$BG_COLOR" \
-        --palette "$PALETTE" \
-        "$SHADERS_DIR/attractors.vert" \
-        "$SHADERS_DIR/attractors.frag"
+BG_COLOR="#1a1b26"
+PALETTE="dark"
+ACTIVE_THEME_FILE="$HOME/.config/dotfiles/active-theme"
+if [[ -f "$ACTIVE_THEME_FILE" ]]; then
+    active=$(<"$ACTIVE_THEME_FILE")
+    conf="$DOTFILES/themes/$active/fragpaper.conf"
+    [[ -f "$conf" ]] && . "$conf"
 fi
 
-if [[ -d "$FRAGPAPER_SRC/.git" ]] && command -v cargo >/dev/null 2>&1; then
-    exec env RUST_LOG=info cargo run --quiet --release --locked --manifest-path "$FRAGPAPER_SRC/Cargo.toml" -- \
-        --bg-color "$BG_COLOR" \
-        --palette "$PALETTE" \
-        "$SHADERS_DIR/attractors.vert" \
-        "$SHADERS_DIR/attractors.frag"
-fi
-
-echo "fragpaper-launch: fragpaper binary not found at $FRAGPAPER_BIN and cargo fallback unavailable" >&2
-exit 1
+# ── Playlist (absolute paths) ──────────────────────────────────────────────
+exec env RUST_LOG=info "$bin" \
+    --bg-color "$BG_COLOR" \
+    --palette "$PALETTE" \
+    --playlist \
+    "$FRAGPAPER_SRC/shaders/mandelbrot.frag:90" \
+    "$FRAGPAPER_SRC/shaders/julia.frag:90" \
+    "$FRAGPAPER_SRC/shaders/burningship.frag:60" \
+    "$FRAGPAPER_SRC/shaders/clifford.frag:60" \
+    "$FRAGPAPER_SRC/shaders/gradient.frag:60" \
+    "$FRAGPAPER_SRC/shaders/waveform.frag:45" \
+    "$FRAGPAPER_SRC/shaders/mist.frag:45" \
+    ca:45 \
+    coral:60 \
+    highlife:45 \
+    morley:45 \
+    gliders:60 \
+    glidersrandom:60 \
+    rd:90 \
+    lenia:60 \
+    "$FRAGPAPER_SRC/shaders/attractors.vert:$FRAGPAPER_SRC/shaders/attractors.frag:90"

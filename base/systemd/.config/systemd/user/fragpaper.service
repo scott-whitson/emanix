@@ -1,13 +1,16 @@
 [Unit]
-Description=Fragpaper wallpaper daemon
+Description=Fragpaper live wallpaper
 After=graphical-session.target
-ConditionEnvironment=WAYLAND_DISPLAY
+PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/fragpaper-launch
-Restart=always
-RestartSec=2
+ExecStart=%h/.local/share/fragpaper/target/release/fragpaper --bg-color "#1a1b26" --palette dark --playlist %h/.local/share/fragpaper/shaders/mandelbrot.frag:90 %h/.local/share/fragpaper/shaders/julia.frag:90 %h/.local/share/fragpaper/shaders/burningship.frag:60 %h/.local/share/fragpaper/shaders/gradient.frag:60 %h/.local/share/fragpaper/shaders/waveform.frag:45 %h/.local/share/fragpaper/shaders/mist.frag:45 ca:45 coral:60 highlife:45 morley:45 gliders:60 glidersrandom:60 rd:90 lenia:60 %h/.local/share/fragpaper/shaders/attractors.vert:%h/.local/share/fragpaper/shaders/attractors.frag:90
+ExecStop=/usr/bin/pkill -9 -f fragpaper
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=10
+Environment="RUST_LOG=info"
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

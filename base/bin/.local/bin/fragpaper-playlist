@@ -1,0 +1,23 @@
+#!/bin/bash
+# Simple fragpaper launcher — no systemd, no nohup, just run it
+cd /home/scott/.local/share/fragpaper || exit 1
+exec ./target/release/fragpaper \
+    --bg-color "#1a1b26" \
+    --palette dark \
+    --playlist \
+    shaders/mandelbrot.frag:90 \
+    shaders/julia.frag:90 \
+    shaders/burningship.frag:60 \
+    shaders/clifford.frag:60 \
+    shaders/gradient.frag:60 \
+    shaders/waveform.frag:45 \
+    shaders/mist.frag:45 \
+    ca:45 \
+    coral:60 \
+    highlife:45 \
+    morley:45 \
+    gliders:60 \
+    glidersrandom:60 \
+    rd:90 \
+    lenia:60 \
+    shaders/attractors.vert:shaders/attractors.frag:90
