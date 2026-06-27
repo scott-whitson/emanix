@@ -1,6 +1,0 @@
-[Unit]
-Description=Scheduled IB Gateway restart (disabled — MFA surprise guard)
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/true

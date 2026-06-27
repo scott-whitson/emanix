@@ -71,7 +71,7 @@ If you already have a working clone, skip Ventoy and just `cd ~/dotfiles` before
 
 The installer branches by host class:
 
-- `server` — canonical projects host; includes IB Gateway
+- `server` — canonical projects host; IB Gateway is installed separately by datacore-config
 - `workstation` — Hyprland + desktop apps + user services
 
 ## What each script does
@@ -87,7 +87,6 @@ The installer branches by host class:
 | 08 | `08-stow-base.sh` | Stows every package under `base/*/` into `$HOME` using `--adopt`; auto-stashes any existing `base/` edits, then restores them after stow so install can continue. | None |
 | 10 | `10-theme.sh` | Applies the active theme via `bin/dot-theme-set`. On first run defaults to `catppuccin-mocha`; on re-install re-applies whatever `~/.config/dotfiles/active-theme` records. | None |
 | 11 | `11-services.sh` | Runs `systemctl --user daemon-reload` then enables and starts every `*.timer` and `*.service` found in `~/.config/systemd/user/`. Server-only IB units are skipped on workstations. | None |
-| 12 | `12-ibgateway.sh` | Server-only. Installs IB Gateway + IBC into `/opt`, writes per-user config templates, and prints next steps on the server; skips on workstations. | sudo for `/opt` writes |
 
 ## Idempotence
 

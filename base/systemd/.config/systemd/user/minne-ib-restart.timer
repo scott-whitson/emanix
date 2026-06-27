@@ -1,7 +1,0 @@
-[Unit]
-Description=Restart IB Gateway weekdays at 09:00 for predictable 2FA (disabled)
-
-[Timer]
-OnCalendar=Mon..Fri 09:00 America/New_York
-Persistent=false
-AccuracySec=1min

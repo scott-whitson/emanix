@@ -19,6 +19,5 @@ PROFILE_SCRIPTS=(
 	09-zk
 	10-theme
 	11-services
-	12-ibgateway
 	13-docs-sync
 )
