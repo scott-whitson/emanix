@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bin/dot-bootstrap — datacore-first sync + full install bootstrap
+# bin/dot-bootstrap — pull latest dotfiles and run install
 #
 # Usage:
 #   dot-bootstrap [--profile <name>] [--no-sync]
@@ -42,14 +42,10 @@ done
 
 remote="$(git remote get-url origin 2>/dev/null || true)"
 branch="$(git branch --show-current 2>/dev/null || true)"
-sync_target="$remote"
 
 if [[ -z "$remote" ]]; then
 	printf '[dot-bootstrap] no git origin configured; skipping sync\n' >&2
 	sync=0
-elif [[ "$remote" == *github.com* ]]; then
-	printf '[dot-bootstrap] origin points GitHub; pulling via datacore mirror first\n' >&2
-	sync_target="scott@datacore:~/projects/dotfiles"
 fi
 
 if [[ "$sync" -eq 1 ]]; then
@@ -57,14 +53,9 @@ if [[ "$sync" -eq 1 ]]; then
 		printf '[dot-bootstrap] cannot determine current branch; skipping sync\n' >&2
 		sync=0
 	else
-		printf '==> git pull --ff-only %s %s\n' "$sync_target" "$branch"
-		if ! git pull --ff-only "$sync_target" "$branch"; then
-			if [[ -n "$remote" ]] && [[ "$remote" != "$sync_target" ]]; then
-				printf '[dot-bootstrap] datacore mirror failed; falling back to origin\n' >&2
-				git pull --ff-only "$remote" "$branch"
-			else
-				exit 1
-			fi
+		printf '==> git pull --ff-only %s %s\n' "$remote" "$branch"
+		if ! git pull --ff-only "$remote" "$branch"; then
+			exit 1
 		fi
 		printf '\n'
 	fi

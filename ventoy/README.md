@@ -1,81 +1,76 @@
 # Ventoy bootstrap kit
 
-Portable first-run helper for Debian machines.
+Portable first-run installer for any Debian machine (datacore, zord, WSL, bare metal).
 
-## Default flow
+## What this does
 
-This script is the blank-machine bootstrap path:
+1. Reads a GitHub PAT from `.pat` on this USB
+2. Prompts for profile (desktop / server / WSL)
+3. Clones dotfiles from GitHub
+4. Runs `./install.sh --profile <name>`
 
-1. Start `bootstrap.sh`
-2. Enter datacore URL, device name, and role if not passed on CLI
-3. Open datacore verification URL in browser
-4. Sign in, approve device, and receive short-lived bootstrap token
-5. Install SSH trust bundle and join Headscale
-6. Fetch dotfiles from datacore
-7. Run repo `./bootstrap.sh`
+That's it. No datacore enrollment, no Headscale, no SSH trust bundles — those
+live in `datacore-config` on the server. This USB is portable and
+machine-agnostic.
+
+## Setup
+
+### 1. Create `.pat` on the USB
+
+```bash
+# On any machine, after plugging in the Ventoy USB:
+echo 'ghp_YourPersonalAccessToken' > /path/to/ventoy/.pat
+chmod 600 /path/to/ventoy/.pat
+```
+
+Get a PAT at <https://github.com/settings/tokens> — "repo" scope for private
+repos, no scopes needed for public.
+
+### 2. Boot the target machine from Ventoy
+
+After the live environment is up:
+
+```bash
+cd /path/to/ventoy
+./bootstrap.sh
+```
+
+Or non-interactive:
+
+```bash
+./bootstrap.sh --profile server
+```
+
+## Profiles
+
+| Profile  | Use case                    | Installs                                            |
+|----------|-----------------------------|-----------------------------------------------------|
+| desktop  | Workstation with Hyprland   | Full stack: Hyprland, Waybar, desktop services      |
+| server   | Headless Debian server      | Core, tools, services — no GUI                      |
+| wsl      | Debian under Windows        | Core, tools, services — no GUI, no Hyprland         |
 
 ## Layout
 
-Copy this directory to Ventoy USB root, or keep it wherever you want and run `bootstrap.sh` from here.
-
-Optional local mirror:
-
 ```text
 ventoy/
-├── bootstrap.sh
-├── README.md
-└── dotfiles/        # optional full repo mirror for offline or fallback use
+├── bootstrap.sh          # installer (run this)
+├── .pat.example          # instructions for creating .pat
+├── .pat                  # your GitHub PAT (chmod 600, gitignored)
+└── README.md             # this file
 ```
 
-## Use
+## After install
 
 ```bash
-./bootstrap.sh \
-  --datacore-url https://datacore.example \
-  --device-name fjord \
-  --role desktop
+# Verify everything landed correctly:
+~/dotfiles/bin/dot-doctor
+
+# Pull latest + restow (normal machines):
+~/dotfiles/bin/dot-sync
 ```
 
-If flags are omitted, script prompts for datacore URL, device name, and role.
+## What's NOT on this USB
 
-## Datacore response
-
-Enrollment session should return:
-- `verification_url`
-- `device_code`
-- `bootstrap_token`
-- `headscale_login_server`
-- `ssh_trust_bundle`
-- `dotfiles_archive_url` or `dotfiles_git_url`
-- optional `device_id`
-- optional `hostname`
-
-Client also sends its `machine_ssh_public_key` during enrollment so datacore can install reciprocal SSH trust.
-
-Archive fetch is tried first, then git URL, then local USB mirror.
-
-## Legacy rescue mode
-
-If datacore enrollment is unavailable, use manual Headscale fallback:
-
-```bash
-./bootstrap.sh \
-  --legacy-login-server https://headscale.example \
-  --legacy-headscale-authkey YOUR_AUTH_KEY
-```
-
-## Options
-
-```bash
-./bootstrap.sh --help
-```
-
-Useful flags:
-- `--datacore-url URL` — datacore bootstrap portal base URL
-- `--device-name NAME` — enrolled machine name
-- `--role ROLE` — device profile/role
-- `--target DIR` — install repo into alternate dir
-- `--source DIR` — point at alternate local mirror
-- `--no-browser` — suppress browser opener
-- `--no-headscale` — skip Headscale join after approval
-- `--legacy-login-server URL` / `--legacy-headscale-authkey KEY` — manual rescue path
+- **Server config** (Headscale, SSH trust, Docker stacks) → `datacore-config` repo
+- **dotfiles mirror** — cloned fresh from GitHub every time
+- **Machine-specific secrets** — managed per-machine after install

@@ -1,5 +1,6 @@
 .claude/
 ventoy/dotfiles/
+ventoy/.pat
 
 # Python build artifacts
 **/__pycache__/
