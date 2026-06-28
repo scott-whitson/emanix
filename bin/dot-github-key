@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# bin/dot-github-key — make this machine a GitHub push peer.
+#
+# A fresh box bootstraps with a read-only token (pull only). Run this once on a
+# machine that should AUTHOR config: it generates an ed25519 key if absent, shows
+# the public half to add at github.com/settings/keys, verifies auth, then repoints
+# the dotfiles origin to SSH GitHub. Read-only consumer boxes don't need this.
+set -euo pipefail
+
+KEY="${HOME}/.ssh/id_ed25519"
+DOTFILES="${DOTFILES:-$HOME/dotfiles}"
+REPO_SSH="git@github.com:scott-whitson/dotfiles.git"
+
+msg() { printf '\033[1;34m[github-key]\033[0m %s\n' "$*"; }
+die() { printf '\033[1;31m[github-key]\033[0m %s\n' "$*" >&2; exit 1; }
+
+mkdir -p "$HOME/.ssh"
+chmod 700 "$HOME/.ssh"
+
+if [[ ! -f "$KEY" ]]; then
+	msg "generating ed25519 key at $KEY"
+	ssh-keygen -t ed25519 -N '' -f "$KEY" -C "$(hostname -s)"
+fi
+
+echo
+msg "Add this public key at https://github.com/settings/keys (New SSH key):"
+echo
+cat "$KEY.pub"
+echo
+read -rp "Press Enter once it's added to GitHub... " _
+
+msg "verifying GitHub auth"
+if ssh -o StrictHostKeyChecking=accept-new -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+	msg "authenticated as a GitHub peer ✓"
+else
+	die "GitHub auth failed — confirm the key was added to your account, then re-run"
+fi
+
+if [[ -d "$DOTFILES/.git" ]]; then
+	git -C "$DOTFILES" remote set-url origin "$REPO_SSH"
+	git -C "$DOTFILES" fetch origin
+	git -C "$DOTFILES" branch --set-upstream-to=origin/main main 2>/dev/null || true
+	msg "origin -> $REPO_SSH, tracking origin/main"
+fi
+msg "done — this machine can now push to GitHub"

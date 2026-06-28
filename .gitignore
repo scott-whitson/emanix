@@ -17,3 +17,6 @@ tools/window-picker/.build-state
 
 # Large binary assets (not version-controlled; see docs for download instructions)
 tools/vosk-models/*/
+
+# Fresh-install read-only PAT (USB only; never commit)
+ventoy/github-token
