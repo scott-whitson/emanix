@@ -83,3 +83,8 @@ fi
 if [[ -f "$DOTFILES/base/git/.gitconfig.local" ]]; then
 	ln -sfn "$DOTFILES/base/git/.gitconfig.local" "$HOME/.gitconfig.local"
 fi
+
+# Ensure ~/.pi/agent/themes/ exists for dot-theme-set to symlink into.
+# Pi agent theme JSONs are no longer stowed — they're generated from each
+# theme's colors.toml by gen-pi-theme.py. The dir must pre-exist for symlinks.
+mkdir -p "$HOME/.pi/agent/themes"

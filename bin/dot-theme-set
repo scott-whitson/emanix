@@ -94,7 +94,23 @@ PY
     fi
 fi
 
-# --- Pi: update agent settings.json theme ---
+# --- Pi agent: generate theme from colors.toml + symlink into place ---
+# The pi-agent theme JSON is derived from colors.toml (single source of truth)
+# so it can never drift from the rest of the theme. We regenerate on every
+# switch (cheap + idempotent) and symlink the result into ~/.pi/agent/themes/.
+pi_themes_dir="$HOME/.pi/agent/themes"
+gen_script="$DOTFILES/bin/gen-pi-theme.py"
+if [[ -x "$gen_script" ]]; then
+    # Generate pi-agent-theme.json next to colors.toml
+    "$gen_script" "$THEME_DIR" >/dev/null 2>&1 || true
+    generated="$THEME_DIR/pi-agent-theme.json"
+    if [[ -f "$generated" ]]; then
+        mkdir -p "$pi_themes_dir"
+        ln -sfn "$generated" "$pi_themes_dir/$THEME_NAME.json"
+    fi
+fi
+
+# Update settings.json to point at the new theme name.
 pi_settings="$HOME/.pi/agent/settings.json"
 if command -v python3 &>/dev/null; then
     python3 - "$pi_settings" "$THEME_NAME" <<'PY' || true
