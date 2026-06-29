@@ -9,7 +9,7 @@ set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
 NVIM_REPO="neovim/neovim"
-NVIM_OPT="$HOME/.local/opt/nvim"
+NVIM_OPT="$HOME/.local/nvim"
 NVIM_BIN="$HOME/.local/bin/nvim"
 
 nvim_asset() {
