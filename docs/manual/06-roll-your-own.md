@@ -1,4 +1,4 @@
-# Chapter 08 — Roll Your Own
+# Chapter 06 — Roll Your Own
 
 This system is private and personal. But it was written public-shaped — with the discipline of an outside reader in mind — so if you want to fork it, you can. This chapter is your map.
 
@@ -27,7 +27,7 @@ These have personal state:
 
 ## Which tenets you'd likely rewrite
 
-[Chapter 07 — Philosophy](07-philosophy.md) lists six tenets. A forker's path through them:
+[Chapter 05 — Philosophy](05-philosophy.md) lists seven tenets. A forker's path through them:
 
 | Tenet | Forker's likely response |
 |---|---|
@@ -80,7 +80,7 @@ If you want the cheapest possible fork that still works:
 1. `git clone <this repo>` to your own.
 2. Edit `base/git/.gitconfig.local` — your name + email.
 3. Edit `base/zsh/.zshrc.d/workstation.zsh` — your aliases, remove work-pull/work-push, remove jrnl alias.
-4. Delete `base/pi/` and `install/07-pi.sh`, and remove tenet #4 from `docs/manual/07-philosophy.md`. Or set up your own pi config if you use it.
+4. Delete `base/pi/` and `install/07-pi.sh`, and remove tenet #4 from `docs/manual/05-philosophy.md`. Or set up your own pi config if you use it.
 5. Edit `install/01-core.sh` to match your desired package set.
 6. Rewrite `README.md` — the file you're reading points at docs Scott wrote for himself. You need your own.
 7. `./install.sh`.
@@ -93,4 +93,4 @@ If you want the cheapest possible fork that still works:
 
 ## Attribution
 
-Fork freely; attribution appreciated but not required. The spec + plans in `docs/superpowers/` walk through how this system was built, which may save you time if you're making similar decisions.
+Fork freely; attribution appreciated but not required.

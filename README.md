@@ -2,7 +2,7 @@
 
 Scott Whitson's personal Linux setup. Debian + Hyprland. Opinionated, documented, reversible.
 
-This is a private repo built for one user, but written as if a stranger could fork it. See [`docs/manual/08-roll-your-own.md`](docs/manual/08-roll-your-own.md) if you're that stranger.
+This is a private repo built for one user, but written as if a stranger could fork it. See [`docs/manual/06-roll-your-own.md`](docs/manual/06-roll-your-own.md) if you're that stranger.
 
 ## Path conventions
 
@@ -13,8 +13,6 @@ This is a private repo built for one user, but written as if a stranger could fo
 - **Installed products** — runtime-only deployments on machines like zord; no project checkout required unless you are actively developing that product
 
 Top-level `/home/scott` should stay sparse: docs, projects, and dotfiles/runtime config only. Anything transient should be archived or moved into a service-owned tree.
-
-For the exact split between portable user config and datacore-only config, see [`docs/ownership-contract.md`](docs/ownership-contract.md).
 
 ## Quickstart
 
@@ -39,7 +37,7 @@ Git-based fetches still try datacore mirror first, then upstream if mirror missi
 
 ## Philosophy
 
-Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) for the expanded version:
+Seven tenets. Read [`docs/manual/05-philosophy.md`](docs/manual/05-philosophy.md) for the expanded version:
 
 1. Local-first, data-owned
 2. Debian + Hyprland, no apologies
@@ -47,6 +45,7 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 4. AI-augmented by default (pi coding agent)
 5. Reversible and recoverable
 6. Modular like Framework
+7. Clear ownership — dotfiles vs datacore-config vs runtime state
 
 ## Manual
 
@@ -55,11 +54,9 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 | [01 — Install](docs/manual/01-install.md) | Fresh Debian Testing → running workstation |
 | [02 — Keybindings](docs/manual/02-keybindings.md) | Every binding, by surface |
 | [03 — Theming](docs/manual/03-theming.md) | Theme system + `dot-theme-set` + `dot-theme-toggle` |
-| [04 — Tools](docs/manual/04-tools.md) | `tools/` uv project + `bin/dot-*` helpers |
-| [05 — AI Tooling](docs/manual/05-ai-tooling.md) | pi coding agent + skills |
-| [06 — Recovery](docs/manual/06-recovery.md) | Historical recovery notes |
-| [07 — Philosophy](docs/manual/07-philosophy.md) | The 6 tenets, expanded |
-| [08 — Roll Your Own](docs/manual/08-roll-your-own.md) | Fork guide |
+| [04 — Tools](docs/manual/04-tools.md) | `tools/` uv project + `bin/dot-*` helpers, plus AI tooling |
+| [05 — Philosophy](docs/manual/05-philosophy.md) | 7 tenets + ownership model |
+| [06 — Roll Your Own](docs/manual/06-roll-your-own.md) | Fork guide |
 
 ## Structure
 
@@ -74,12 +71,12 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 ├── base/                    # stow packages
 ├── themes/                  # catppuccin-mocha + catppuccin-latte
 ├── tools/                   # uv project + Rust window-picker
-└── docs/                    # manual + specs + plans
+└── docs/                    # manual
 ```
 
 ## Status
 
-- **Last reorg:** Debian port + recovery cleanup, 2026-06-01
+- **Last reorg:** docs consolidation, 2026-06-30
 - **Active theme:** catppuccin-mocha (toggle with `$mod+Shift+T`)
 - **Health check:** `dot-doctor`
 - **IB Gateway:** datacore-only; manual restart because relogin can trigger MFA
@@ -89,8 +86,4 @@ Six tenets. Read [`docs/manual/07-philosophy.md`](docs/manual/07-philosophy.md) 
 - **Installed products:** fragpaper runs as a user service on zord; it is treated as a runtime product, not a project checkout
 - **Lab checkouts:** use `~/lab/<name>` for intentionally non-canonical mirrors you want to edit on secondary machines
 - **Ventoy kit:** `ventoy/bootstrap.sh` for datacore enrollment + dotfiles bootstrap on blank machines
-- **Bootstrap contract:** `docs/specs/datacore-bootstrap.openapi.yaml`
-- **Bootstrap backend design:** `docs/specs/datacore-bootstrap-backend.md`
-- **Bootstrap plan:** `docs/plans/datacore-bootstrap-plan.md`
-- **Zord reinstall runbook:** `docs/plans/fjord-zord-reinstall-runbook.md`
 - **License:** none — private repo

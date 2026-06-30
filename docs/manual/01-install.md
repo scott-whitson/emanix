@@ -124,7 +124,7 @@ The orchestrator prints this at the end; listed here for completeness:
 
 ## What the orchestrator does NOT do
 
-- Disk partitioning / bootloader / encryption — see [Chapter 06 — Recovery](06-recovery.md)
+- Disk partitioning / bootloader / encryption — see the Debian recovery docs in your vault (`~/docs/vault/Whitsgrove/Debian Recovery - Minimum Viable System.md`)
 - SSH trust bootstrap is handled by Ventoy (it generates and registers the machine key during enrollment)
 - Tailscale enrollment inside repo install (`sudo tailscale up`); Ventoy bootstrap handles enrollment before handing off
 - Kickstart.nvim fork selection — defaults to upstream `nvim-lua/kickstart.nvim`; if you fork on your own GitHub, edit `install/06-tools.sh`'s `KICKSTART_URL`

@@ -3,17 +3,7 @@
 set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
-# --- uv sync the tools/ project ---
-if [[ -f "$DOTFILES/tools/pyproject.toml" ]]; then
-	log "uv sync tools/"
-	(cd "$DOTFILES/tools" && uv sync --quiet --locked)
-else
-	warn "tools/pyproject.toml not found; skipping uv sync"
-fi
-
-# Wrapper scripts are expected at $DOTFILES/base/bin/.local/bin/ (stowed later).
-# The tools/ project exposes them via uv-managed entry points; no symlinks needed
-# beyond what base/bin/ already provides.
+# Wrapper scripts are at $DOTFILES/base/bin/.local/bin/ and are stowed by install/08-stow-base.sh.
 
 # --- fragpaper source clone + install ---
 # Profile manifests decide whether fragpaper is a canonical project checkout
