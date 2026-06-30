@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+exec uv run --project "$HOME/dotfiles/tools/news" "$HOME/dotfiles/tools/news/news.py" "$@"
