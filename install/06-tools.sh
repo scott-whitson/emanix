@@ -5,6 +5,14 @@ source "$(dirname "$0")/_common.sh"
 
 # Wrapper scripts are at $DOTFILES/base/bin/.local/bin/ and are stowed by install/08-stow-base.sh.
 
+# --- uv sync per-project tools ---
+for tooldir in news photo-tools; do
+	if [[ -f "$DOTFILES/tools/$tooldir/pyproject.toml" ]]; then
+		log "uv sync tools/$tooldir/"
+		(cd "$DOTFILES/tools/$tooldir" && uv sync --quiet --locked)
+	fi
+done
+
 # --- fragpaper source clone + install ---
 # Profile manifests decide whether fragpaper is a canonical project checkout
 # or a runtime product cache by setting PROFILE_FRAGPAPER_SRC.
