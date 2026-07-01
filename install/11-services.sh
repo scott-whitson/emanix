@@ -5,6 +5,28 @@ source "$(dirname "$0")/_common.sh"
 
 # base/systemd/ stows to ~/.config/systemd/user/*.service + *.timer
 UNIT_DIR="$HOME/.config/systemd/user"
+
+# Deploy drop-in overrides for package-provided units (syncthing, hyprpolkitagent)
+# These live in base/systemd/.config/systemd/user/<unit>.d/ and are not stowed
+# because the base unit comes from a package, not from dotfiles.
+install_unit_overrides() {
+	local src_dir="$DOTFILES/base/systemd/.config/systemd/user"
+	for unit_d in "$src_dir"/*.service.d; do
+		[[ -d "$unit_d" ]] || continue
+		local unit_name="$(basename "${unit_d%.d}")"
+		local dest="$UNIT_DIR/$unit_name.d"
+		mkdir -p "$dest"
+		for f in "$unit_d"/*; do
+			[[ -f "$f" ]] || continue
+			local fname="$(basename "$f")"
+			if [[ -f "$dest/$fname" ]] && diff -q "$f" "$dest/$fname" >/dev/null 2>&1; then
+				continue
+			fi
+			log "installing override: $unit_name.d/$fname"
+			cp "$f" "$dest/$fname"
+		done
+	done
+}
 skip_service() {
 	local unit="$1"
 	for prefix in ${PROFILE_SERVICE_SKIP_PREFIXES:-}; do
@@ -18,6 +40,30 @@ if [[ ! -d "$UNIT_DIR" ]]; then
 	exit 0
 fi
 
+# Deploy drop-in overrides for package-provided units and wireplumber config
+install_unit_overrides
+
+# Deploy wireplumber monitor/property overrides from base/wireplumber/
+install_wireplumber_config() {
+	local src="$DOTFILES/base/wireplumber/.config/wireplumber"
+	local dest="$HOME/.config/wireplumber"
+	[[ -d "$src" ]] || return 0
+	for wp_d in "$src"/*; do
+		[[ -d "$wp_d" ]] || continue
+		local wp_name="$(basename "$wp_d")"
+		mkdir -p "$dest/$wp_name"
+		for f in "$wp_d"/*; do
+			[[ -f "$f" ]] || continue
+			local fname="$(basename "$f")"
+			if [[ -f "$dest/$wp_name/$fname" ]] && diff -q "$f" "$dest/$wp_name/$fname" >/dev/null 2>&1; then
+				continue
+			fi
+			log "installing wireplumber config: $wp_name/$fname"
+			cp "$f" "$dest/$wp_name/$fname"
+		done
+	done
+}
+install_wireplumber_config
 systemctl --user daemon-reload
 
 if systemctl --user list-unit-files syncthing.service >/dev/null 2>&1; then
