@@ -59,9 +59,9 @@ Workspace names render in waybar's `hyprland/workspaces` module via `"format": "
 | `$mod + o` | Obsidian (`~/.local/bin/obsidian`) |
 | `$mod + i` | WiFi connection helper (`ghostty -e ~/.local/bin/hypr-wifi`) |
 | `$mod + c` | Quick calculator (`~/.local/bin/hypr-calc`) |
-| `$mod + n` | Phoenix NY weather + NOAA satellite (`~/.local/bin/hypr-weather`) |
-| `$mod + u` | OpenRouter 7-day cost (`~/.local/bin/hypr-or-cost`) |
-| `$mod + p` | Pi AI coding assistant (`ghostty -e pi`) |
+| `$mod + n` | Phoenix NY weather + NOAA imagery in Emacs (`scott/weather-frame`) |
+| `$mod + u` | OpenRouter 7-day cost in Emacs (`scott/openrouter-cost-frame`) |
+| `$mod + p` | Pi agent in Emacs vterm (`scott/pi-frame`) |
 | `$mod + Tab` | Window picker (`~/.local/bin/window-picker`) |
 | `$mod + Shift + /` | Keybindings cheatsheet popup (`hypr-cheatsheet`; reads `~/docs/vault/Whitsgrove/Hyprland Cheatsheet.md`) |
 | `$mod + Escape` | Lock screen (`hyprlock`) |

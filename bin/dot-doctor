@@ -44,6 +44,13 @@ check "~/.config/hypr/theme.conf is live symlink" "[[ -L \"\$HOME/.config/hypr/t
 # --- AI tooling check ---
 check "pi on PATH"  "command -v pi"
 
+# --- Nix + Emacs pilot checks ---
+check "nix installed"          "command -v nix || [[ -x /nix/var/nix/profiles/default/bin/nix ]]"
+check "emacs daemon active"    "systemctl --user is-active --quiet emacs"
+check "emacsclient responds"   "[[ -x \$HOME/.nix-profile/bin/emacsclient ]] && \$HOME/.nix-profile/bin/emacsclient -e t"
+check "emacs config symlinked" "[[ -L \$HOME/.config/emacs/init.el ]]"
+check "org-roam db present"    "[[ -f \$HOME/.config/emacs/org-roam.db ]]"
+
 echo ""
 if [[ "$failures" -eq 0 ]]; then
     printf '%sAll checks passed.%s\n' "$GREEN" "$RESET"
