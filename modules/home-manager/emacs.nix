@@ -49,12 +49,21 @@ in
     defaultEditor = true;
   };
 
+  # liveElisp: symlink into the checkout for live editing; otherwise copy
+  # the elisp (which lives in-repo, next to this module) into the store so
+  # hosts without a dotfiles checkout still get a working emacs config.
   xdg.configFile."emacs/early-init.el".source =
-    config.lib.file.mkOutOfStoreSymlink "${emacsDir}/early-init.el";
+    if config.scott.dotfiles.liveElisp
+    then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/early-init.el"
+    else ./emacs/early-init.el;
   xdg.configFile."emacs/init.el".source =
-    config.lib.file.mkOutOfStoreSymlink "${emacsDir}/init.el";
+    if config.scott.dotfiles.liveElisp
+    then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/init.el"
+    else ./emacs/init.el;
   xdg.configFile."emacs/lisp".source =
-    config.lib.file.mkOutOfStoreSymlink "${emacsDir}/lisp";
+    if config.scott.dotfiles.liveElisp
+    then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/lisp"
+    else ./emacs/lisp;
 
   # Emacs is still starting from the legacy ~/.emacs.d path on this machine,
   # so keep compatibility symlinks there until the daemon is fully migrated.

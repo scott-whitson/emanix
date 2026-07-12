@@ -26,8 +26,11 @@
     );
 
     # Point EWM at our Emacs config in the dotfiles repo.
+    # ~/.config/emacs is populated by home-manager in both liveElisp modes
+    # (symlinks to the checkout, or store copies) — never point at the repo
+    # directly; it does not exist on every host.
     extraEmacsArgs =
-      "--init-directory /home/scott/dotfiles/modules/home-manager/emacs";
+      "--init-directory /home/scott/.config/emacs";
   };
 
   # Required by EWM: Mesa/EGL for the compositor's graphics backend.

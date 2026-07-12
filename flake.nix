@@ -86,6 +86,9 @@
                 useUserPackages = true;
                 users.scott = {
                   imports = [ ./home/scott/default.nix ];
+                  # No dotfiles checkout lives on this box — bake elisp into
+                  # the store instead of symlinking into the repo.
+                  scott.dotfiles.liveElisp = false;
                 };
               };
             }

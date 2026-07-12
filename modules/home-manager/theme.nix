@@ -24,6 +24,11 @@
         default = "desktop";
         description = "Dotfiles profile name (desktop, server, wsl)";
       };
+      liveElisp = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Symlink emacs elisp out-of-store from the dotfiles checkout for live editing. Disable on hosts with no checkout; elisp is then copied into the store (edits need a rebuild).";
+      };
     };
   };
 
