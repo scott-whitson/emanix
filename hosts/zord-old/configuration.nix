@@ -18,6 +18,10 @@
   # Zsh — must be enabled at NixOS level so the shell is in PATH.
   programs.zsh.enable = true;
 
+  # Auto-login on the console: the LUKS passphrase already gates the machine,
+  # and the EWM launch hook (modules/nixos/ewm.nix) takes over tty1.
+  services.getty.autologinUser = "scott";
+
   # User
   users.users.scott = {
     isNormalUser = true;

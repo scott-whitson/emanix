@@ -33,6 +33,18 @@
       "--init-directory /home/scott/.config/emacs";
   };
 
+  # Launch EWM directly from the tty1 login shell, INSIDE the logind session
+  # scope. The shipped systemd user unit runs outside any session and cannot
+  # acquire DRM master without a display manager (verified on zord-old:
+  # direct ewm-launch works, unit path gets EACCES / instant seat drop).
+  # LIBSEAT_BACKEND=logind pinned so a stray seatd can never steal the pick.
+  # EWM exit/crash ends the login; getty + autologin restart it.
+  environment.loginShellInit = ''
+    if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+      exec env LIBSEAT_BACKEND=logind /run/current-system/sw/bin/ewm-launch
+    fi
+  '';
+
   # Required by EWM: Mesa/EGL for the compositor's graphics backend.
   hardware.graphics.enable = true;
 

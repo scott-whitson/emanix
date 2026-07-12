@@ -14,6 +14,15 @@
   # Theme
   scott.theme = "catppuccin-mocha";
 
+  # Cursor theme — without one, Wayland/GTK apps warn (Gdk: unable to load
+  # sb_v_double_arrow...) and some cursor shapes go missing under EWM.
+  home.pointerCursor = {
+    package = pkgs.adwaita-icon-theme;
+    name = "Adwaita";
+    size = 24;
+    gtk.enable = true;
+  };
+
   # Dotfiles config
   scott.dotfiles = {
     path = "${config.home.homeDirectory}/dotfiles";
