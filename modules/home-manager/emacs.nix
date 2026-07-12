@@ -5,8 +5,8 @@ let
   # snapshot resolves org-9.8.6 with a stale hash, so we override the source
   # explicitly until the package set is regenerated upstream.
   orgSrc = pkgs.fetchurl {
-    url = "https://elpa.gnu.org/packages/org-9.8.6.tar";
-    sha256 = "sha256-kqh8S5DZr8ZQX7P//eISddFi7TyLH5IYUoo5NBNhiWE=";
+    url = "https://elpa.gnu.org/packages/org-9.8.7.tar";
+    sha256 = "sha256-bYBtYtZkvZYG1qhPWBTBcWoH0xW+NW4m4m5ime5w+vg=";
   };
 
   emacsOverrides = self: super: {
