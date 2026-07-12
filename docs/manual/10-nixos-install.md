@@ -62,7 +62,7 @@ The live ISO uses DHCP by default. If you need Wi-Fi:
 iwctl
 # device list
 # station wlan0 scan
-# station wlan0 connect "your-ssid"
+# station wlan0 connect "whitsgrove"
 # exit
 ```
 
@@ -145,16 +145,23 @@ sudo swapon /dev/mapper/cryptswap
 
 ### 7. Get the dotfiles
 
+The dotfiles repo is already on the Ventoy USB at `/dotfiles/`.
+Mount the Ventoy data partition and copy it over:
+
 ```bash
-# Enter a shell with git
-sudo nix-shell -p git
+# Mount the Ventoy data partition (the exFAT one, ~60 GB)
+sudo mount /dev/sda1 /mnt/usb
 
-# Clone the dotfiles repo
-git clone https://github.com/your-org/dotfiles /mnt/etc/dotfiles
+# Copy the dotfiles to the target system
+sudo cp -a /mnt/usb/dotfiles /mnt/etc/dotfiles
 
-# If using SSH, copy your key from the Ventoy data partition first
-# (Ventoy data partition is usually auto-mounted at /run/media)
+# Verify the flake is there
+ls /mnt/etc/dotfiles/flake.nix
 ```
+
+> **Note:** If `/dev/sda1` doesn't exist, check `lsblk` to find the
+> Ventoy USB device. It's the ~60 GB exFAT partition. The small 32 MB
+> partition is the EFI boot sector — ignore it.
 
 ### 8. Generate hardware config
 
@@ -243,19 +250,19 @@ managed by Home Manager or Syncthing:
 
 ```bash
 # Mount the Ventoy USB data partition
-sudo mount /dev/sda1 /mnt  # adjust device if needed
+sudo mount /dev/sda1 /mnt/usb  # adjust device if needed
 
 # Restore SSH keys
-cp -a /mnt/backup/.ssh ~/
+cp -a /mnt/usb/backup/.ssh ~/
 chmod 600 ~/.ssh/id_ed25519
 chmod 644 ~/.ssh/*.pub ~/.ssh/*.pem 2>/dev/null
 
 # Pi agent config is on the USB but synced via Syncthing going forward.
 # Only copy it now if you want a warm start without waiting for sync:
-# cp -a /mnt/backup/.pi ~/
+# cp -a /mnt/usb/backup/.pi ~/
 
 # Unmount the USB
-sudo umount /mnt
+sudo umount /mnt/usb
 ```
 
 ### What's already set up by Home Manager (no manual restore needed)
