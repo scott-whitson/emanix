@@ -7,7 +7,17 @@
     enable = true;
 
     # Build Emacs with our packages + EWM's module bundled in.
-    emacsPackage = pkgs.emacsWithPackages (epkgs:
+    # emacsPackagesFor replaces the removed top-level pkgs.emacsWithPackages
+    # alias (and builds pgtk/Wayland emacs, right for a Wayland compositor).
+    # The org override mirrors the ELPA pin in modules/home-manager/emacs.nix.
+    emacsPackage = ((pkgs.emacsPackagesFor pkgs.emacs-pgtk).overrideScope (eself: esuper: {
+      org = esuper.org.overrideAttrs (_old: {
+        src = pkgs.fetchurl {
+          url = "https://elpa.gnu.org/packages/org-9.8.7.tar";
+          sha256 = "sha256-bYBtYtZkvZYG1qhPWBTBcWoH0xW+NW4m4m5ime5w+vg=";
+        };
+      });
+    })).emacsWithPackages (epkgs:
       (with epkgs; [
         meow vertico orderless consult marginalia embark embark-consult corfu
         dirvish magit org-roam org catppuccin-theme markdown-mode
