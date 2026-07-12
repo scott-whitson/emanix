@@ -15,18 +15,13 @@
     ../../modules/nixos/desktop.nix
   ];
 
-  # EWM (smithay) must acquire DRM master; logind refuses that to a systemd
-  # user unit launched from a TTY. seatd grants the seat instead — libseat
-  # picks it up automatically over the logind backend.
-  services.seatd.enable = true;
-
   # Zsh — must be enabled at NixOS level so the shell is in PATH.
   programs.zsh.enable = true;
 
   # User
   users.users.scott = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "docker" "video" "seat" ];
+    extraGroups = [ "wheel" "networkmanager" "docker" "video" ];
     shell = pkgs.zsh;
   };
 
