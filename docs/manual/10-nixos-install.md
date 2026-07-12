@@ -236,12 +236,45 @@ reboot
 # In Ghostty: pi → Pi agent with images
 ```
 
-### 13. Post-install
+### 13. Restore user data from USB backup
+
+After first boot, mount the Ventoy USB and restore files that aren't
+managed by Home Manager or Syncthing:
+
+```bash
+# Mount the Ventoy USB data partition
+sudo mount /dev/sda1 /mnt  # adjust device if needed
+
+# Restore SSH keys
+cp -a /mnt/backup/.ssh ~/
+chmod 600 ~/.ssh/id_ed25519
+chmod 644 ~/.ssh/*.pub ~/.ssh/*.pem 2>/dev/null
+
+# Pi agent config is on the USB but synced via Syncthing going forward.
+# Only copy it now if you want a warm start without waiting for sync:
+# cp -a /mnt/backup/.pi ~/
+
+# Unmount the USB
+sudo umount /mnt
+```
+
+### What's already set up by Home Manager (no manual restore needed)
+
+| Config | Managed by |
+|--------|-----------|
+| Emacs (`~/.config/emacs/`) | HM — symlinked from dotfiles repo |
+| Ghostty (`~/.config/ghostty/`) | HM — theme + config |
+| Zsh (`~/.zshrc`) | HM — init, plugins, env vars |
+| Git (`~/.gitconfig`) | HM — aliases, email, ignores |
+| Packages | HM — ripgrep, fd, ffmpeg, emacs, etc. |
+| Org notes (`~/docs/org/`) | Syncthing (auto-syncs with datacore) |
+
+### 14. Post-install
 
 - Run `sudo nix-collect-garbage` periodically to trim the store
 - btrfs compression is already on (`compress=zstd` on all subvolumes)
 
-### 14. Verify compression savings
+### 15. Verify compression savings
 
 ```bash
 sudo compsize /nix/store
