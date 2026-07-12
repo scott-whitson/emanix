@@ -12,14 +12,19 @@ Three flavors of user-space tooling in this repo:
 
 A small Rust binary that renders a window picker overlay for Hyprland. Built by `install/06-tools.sh`. Binary path: `~/dotfiles/tools/window-picker/target/release/window-picker`.
 
-### cheatsheet / weather — mpv dependency
+### cheatsheet — mpv dependency
 
-`hypr-cheatsheet` and `hypr-weather` both render to an `mpv` window (forced float, mpv title `hypr-weather-sat` / `hypr-cheatsheet`). These install/05-desktop.sh now includes `mpv` as a desktop package. If you swap mpv for another viewer, update:
+`hypr-cheatsheet` renders to an `mpv` window (forced float, mpv title `hypr-cheatsheet`). install/05-desktop.sh includes `mpv` as a desktop package. If you swap mpv for another viewer, update:
 
 - `base/bin/.local/bin/hypr-cheatsheet`
-- `base/bin/.local/bin/hypr-weather`
 - `base/hypr/.config/hypr/hyprland.conf` `windowrule` entries
 - `install/05-desktop.sh`
+
+(Weather imagery used to render through mpv too; it now renders natively inside Emacs — see "Emacs surfaces" below.)
+
+### Emacs surfaces
+
+The weather (`$mod + n`), OpenRouter cost (`$mod + u`), and pi (`$mod + p`) popups are elisp commands in `modules/home-manager/emacs/lisp/` (`scott/weather-frame`, `scott/openrouter-cost-frame`, `scott/pi-frame`), invoked from Hyprland via `emacsclient -e` against the Emacs daemon. ERT tests live in `modules/home-manager/emacs/test/`.
 
 ### fragpaper
 
@@ -60,9 +65,7 @@ Every file in `base/bin/.local/bin/` is symlinked to `~/.local/bin/<name>` by `i
 | `hypr-brightness` | Adjusts laptop brightness with brightnessctl/light/sysfs fallbacks; bound to F2/F3 and XF86 brightness keys |
 | `hypr-calc` | Quick calculator popup (bound to `$mod + c`) |
 | `hypr-cheatsheet` | Fuzzel viewer for Hyprland keybindings; sources from `~/docs/vault/Whitsgrove/Hyprland Cheatsheet.md` (bound to `$mod + Shift + /`) |
-| `hypr-or-cost` | OpenRouter 7-day cost summary (bound to `$mod + u`) |
 | `hypr-rename-workspace` | Fuzzel prompt → `hyprctl dispatch renameworkspace <id> "<id> <label>"` (bound to `$mod + r`) |
-| `hypr-weather` | Phoenix NY weather — NWS forecast notification + NOAA satellite/radar slideshow via `mpv` (bound to `$mod + n`) |
 | `hypr-wifi` | WiFi connection helper in Ghostty (bound to `$mod + i`) |
 | `helix` | Wrapper that prefers `hx` on Debian but still supports a native `helix` binary |
 | `firefox` | Wrapper that prefers installed Firefox, then Firefox ESR, then Flatpak Firefox |

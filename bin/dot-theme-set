@@ -153,6 +153,14 @@ if [[ -x "$THEME_DIR/post-set.sh" ]]; then
     bash "$THEME_DIR/post-set.sh" || true
 fi
 
+# --- Emacs: switch catppuccin flavor in the running daemon (best-effort) ---
+EMACSCLIENT="$HOME/.nix-profile/bin/emacsclient"
+if [[ -x "$EMACSCLIENT" ]]; then
+    emacs_flavor="mocha"
+    [[ "$VARIANT" == "light" ]] && emacs_flavor="latte"
+    "$EMACSCLIENT" -e "(scott/theme-set \"$emacs_flavor\")" &>/dev/null || true
+fi
+
 # --- Reload running apps (best-effort) ---
 command -v hyprctl  &>/dev/null && hyprctl reload &>/dev/null || true
 command -v makoctl  &>/dev/null && makoctl reload 2>/dev/null || true

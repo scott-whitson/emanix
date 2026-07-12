@@ -38,6 +38,9 @@ export PATH="$HOME/.local/bin:$PATH"
 # --- Editor (used by git commit, sudoedit, crontab -e, qt(), etc.) ---
 export EDITOR=helix
 export VISUAL=helix
+alias ec='emacsclient -c'   # GUI Emacs Client
+alias et='emacsclient -t'   # Terminal Emacs Client
+
 [[ -d /snap/bin ]] && export PATH="/snap/bin:$PATH"
 
 # --- Go (XDG-ified GOPATH — keeps ~/go out of $HOME) ---
@@ -153,3 +156,5 @@ unset _nvm_cmd
 for f in ~/.zshrc.d/*.zsh(N); do source "$f"; done
 
 [ -f ~/.secrets ] && source ~/.secrets
+export PATH="$HOME/.local/nvim/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
