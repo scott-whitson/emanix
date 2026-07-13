@@ -45,15 +45,16 @@
         echo "EWM flapped — normal shell (rm /tmp/.ewm-flap and log out to re-arm)"
       else
         # One EWM per boot-session: a stale daemon holds DRM master and
-        # starves every new launch (pgtk daemon shows as bare 'emacs').
-        pkill -u "$USER" -x emacs 2>/dev/null && sleep 1
+        # starves every new launch. NB: the nix wrapper truncates comm to
+        # '.emacs-30.2-wra', so match the full command line, never -x emacs.
+        pkill -u "$USER" -f "bin/emacs --fg-daemon" 2>/dev/null && sleep 1
         _t0=$(date +%s)
         env LIBSEAT_BACKEND=logind /run/current-system/sw/bin/ewm-launch
         # pgtk emacs DETACHES from the wrapper on daemon start. This login
         # session is the seat lease — hold it open while the daemon lives,
         # or the compositor loses DRM master the moment we exit.
         sleep 2
-        while pgrep -u "$USER" -x emacs >/dev/null 2>&1; do sleep 3; done
+        while pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1; do sleep 3; done
         if [ $(( $(date +%s) - _t0 )) -lt 15 ]; then
           touch /tmp/.ewm-flap   # died fast — next login gets a shell
         fi
