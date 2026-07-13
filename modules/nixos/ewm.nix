@@ -20,7 +20,7 @@
     })).emacsWithPackages (epkgs:
       (with epkgs; [
         meow vertico orderless consult marginalia embark embark-consult corfu
-        dirvish magit org-roam org catppuccin-theme markdown-mode
+        dirvish magit org-roam org catppuccin-theme markdown-mode vterm
       ])
       ++ [ config.programs.ewm.ewmPackage ]
     );

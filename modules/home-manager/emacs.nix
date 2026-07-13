@@ -40,6 +40,7 @@ in
       org-roam
       catppuccin-theme
       markdown-mode # transition: vault is still .md until the conversion sub-project
+      vterm # native module built by nix; M-x package-install can't do this
     ];
   };
 
