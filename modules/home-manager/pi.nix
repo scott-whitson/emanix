@@ -5,13 +5,18 @@
   # Pi itself is installed via npm (not packaged in nixpkgs), so this module
   # only manages the config files. The actual install happens during bootstrap
   # (install/07-pi.sh for Phase 1; a post-install hook for Phase 2).
-  home.file.".pi/agent/settings.json" = {
-    text = builtins.toJSON {
-      theme = config.scott.theme;
-      model = "gemini-2.5-flash";
-      # Other settings from base/pi/ go here
-    };
-  };
+  # settings.json is SEEDED, not owned: pi mutates it at runtime (model
+  # toggles, lastChangelogVersion), so a read-only store symlink breaks pi —
+  # and without the real file's `packages` list, pi loads no extensions at
+  # all (found 2026-07-13: zord-old had a {theme,model} stub → no hindsight
+  # bar). After the first activation the machine's copy is authoritative;
+  # it is stignored from the pi-agent sync, so per-machine drift is fine.
+  home.activation.piSettingsSeed = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    if [ ! -f "$HOME/.pi/agent/settings.json" ] || [ -L "$HOME/.pi/agent/settings.json" ]; then
+      run rm -f "$HOME/.pi/agent/settings.json"
+      run install -m 600 ${../../base/pi/.pi/agent/settings.json} "$HOME/.pi/agent/settings.json"
+    fi
+  '';
 
   home.file.".pi/agent/AGENTS.md" = {
     # Flake-relative path literal (not a string): the file is copied into the
@@ -55,6 +60,7 @@
       /chains
       /epimetheus
       /run-history.jsonl
+      /extensions/pi-hindsight/queues
 
       // Temp files
       /settings.json.tmp
