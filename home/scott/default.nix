@@ -17,8 +17,8 @@
   # Cursor theme — without one, Wayland/GTK apps warn (Gdk: unable to load
   # sb_v_double_arrow...) and some cursor shapes go missing under EWM.
   home.pointerCursor = {
-    package = pkgs.adwaita-icon-theme;
-    name = "Adwaita";
+    package = pkgs.catppuccin-cursors.mochaDark;
+    name = "catppuccin-mocha-dark-cursors"; # must match the dir in share/icons
     size = 24;
     gtk.enable = true;
   };

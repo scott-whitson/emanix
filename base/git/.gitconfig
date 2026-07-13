@@ -4,3 +4,7 @@
 	path = ~/.gitconfig.local
 [user]
 	email = scott@scottwhitson.com
+[safe]
+	directory = /mnt/usb/dotfiles
+	directory = /home/scott/dotfiles-usb-snapshot
+	directory = /mnt/usb/dotfiles
