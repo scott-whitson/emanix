@@ -47,6 +47,10 @@
     # Notifications
     libnotify
 
+    # Terminal — config lives in ghostty.nix; the package (and its XDG
+    # desktop entry, which EWM's s-d launcher needs) is installed here.
+    ghostty
+
     # Fonts
     jetbrains-mono
     nerd-fonts.jetbrains-mono
