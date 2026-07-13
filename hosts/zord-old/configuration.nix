@@ -22,6 +22,12 @@
   # and the EWM launch hook (modules/nixos/ewm.nix) takes over tty1.
   services.getty.autologinUser = "scott";
 
+  # SSH — remote administration from datacore (key) or LAN (password).
+  services.openssh.enable = true;
+  users.users.scott.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHeRiEMkgSu+cBXTs7ekkJdT5JzJYCfDadrpFgDFn560 scott@datacore"
+  ];
+
   # User
   users.users.scott = {
     isNormalUser = true;
