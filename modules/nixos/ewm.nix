@@ -41,7 +41,25 @@
   # EWM exit/crash ends the login; getty + autologin restart it.
   environment.loginShellInit = ''
     if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-      exec env LIBSEAT_BACKEND=logind /run/current-system/sw/bin/ewm-launch
+      # A crashed prior iteration can leave the emacs daemon alive holding
+      # DRM master (logind doesn't kill user processes at logout) — every
+      # later launch would then run unprivileged and give up. Clear it.
+      pkill -u "$USER" -f ewm-start-module 2>/dev/null && sleep 1
+      # Flap guard: two consecutive sub-15s exits drop to a normal shell
+      # instead of an autologin crash loop.
+      _ewm_started=$(date +%s)
+      env LIBSEAT_BACKEND=logind /run/current-system/sw/bin/ewm-launch
+      if [ $(( $(date +%s) - _ewm_started )) -lt 15 ]; then
+        if [ -e /tmp/.ewm-flap ]; then
+          echo "EWM exited twice within 15s — dropping to shell (rm /tmp/.ewm-flap to re-arm)"
+        else
+          touch /tmp/.ewm-flap
+          exit 0
+        fi
+      else
+        rm -f /tmp/.ewm-flap
+        exit 0
+      fi
     fi
   '';
 

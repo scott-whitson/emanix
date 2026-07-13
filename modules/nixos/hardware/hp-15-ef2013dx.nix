@@ -17,6 +17,11 @@
   # Kernel
   boot.kernelParams = [ "quiet" ];
 
+  # Load amdgpu in the initrd so the GPU is fully initialized before
+  # userspace starts — EWM launches from tty1 autologin at boot and loses
+  # the DRM-master race against late GPU bring-up otherwise.
+  boot.initrd.kernelModules = [ "amdgpu" ];
+
   # AMD GPU — RADV (Mesa) is the default Vulkan driver.
   # hardware.graphics.enable is set by ewm.nix (required for EWM).
 
