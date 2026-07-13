@@ -35,6 +35,14 @@
       // Non-portable — API keys, per-machine auth
       /auth.json
 
+      // Owned by home-manager/stow per host (nix store symlinks on NixOS —
+      // syncing these caused the settings.json sync-conflict of 2026-07-11)
+      /settings.json
+      /AGENTS.md
+
+      // Generated per machine by the theme switcher
+      /themes/
+
       // Architecture-specific install artifacts — reinstall via pi packages on each machine
       /npm/
       /git/

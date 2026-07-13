@@ -42,6 +42,33 @@
   };
   services.resolved.enable = true;
 
+  # Syncthing — pi session sync with datacore (folder "pi-agent").
+  # Device IDs are public keys, safe to commit. Per-machine files
+  # (auth.json, HM-owned settings.json/AGENTS.md, themes/) are excluded
+  # by the .stignore that pi.nix writes into the folder.
+  # Pairing is two-sided: datacore must also add this host's device ID
+  # and share the folder (REST API or GUI on datacore:8384).
+  services.syncthing = {
+    enable = true;
+    user = "scott";
+    group = "users";
+    dataDir = "/home/scott";
+    configDir = "/home/scott/.local/state/syncthing";
+    openDefaultPorts = true;
+    overrideDevices = true;
+    overrideFolders = true;
+    settings = {
+      devices.datacore.id =
+        "FXOPHIF-EMJAP6C-CLI6PB4-HCLUDMK-RJ3PXLE-GIV4IJ7-3NMTE35-YHRNIAI";
+      folders.pi-agent = {
+        id = "pi-agent";
+        label = "pi-agent";
+        path = "/home/scott/.pi/agent";
+        devices = [ "datacore" ];
+      };
+    };
+  };
+
   # User
   users.users.scott = {
     isNormalUser = true;
