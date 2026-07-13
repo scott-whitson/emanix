@@ -89,6 +89,9 @@
                   # No dotfiles checkout lives on this box — bake elisp into
                   # the store instead of symlinking into the repo.
                   scott.dotfiles.liveElisp = false;
+                  # EWM's emacs is the daemon on this host; the standalone
+                  # editor-daemon service would race it for the server socket.
+                  services.emacs.enable = false;
                 };
               };
             }

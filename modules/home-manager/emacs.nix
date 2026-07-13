@@ -44,7 +44,10 @@ in
   };
 
   services.emacs = {
-    enable = true;
+    # mkDefault: EWM hosts must disable this — EWM's emacs IS the daemon,
+    # and two daemons race for the same server socket (loser exits; when
+    # that's EWM's emacs, the whole compositor goes down with it).
+    enable = lib.mkDefault true;
     client.enable = true;
     defaultEditor = true;
   };
