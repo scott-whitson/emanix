@@ -164,11 +164,44 @@ rec {
        will be ported here when the waybar.nix module is written. */
   '';
 
+  # swaylock config (colors are RRGGBB[AA], no leading '#').
+  # Ring/text states follow upstream catppuccin/swaylock conventions.
+  swaylock = palette:
+    let c = name: builtins.substring 1 6 palette.colors.${name};
+    in ''
+      ignore-empty-password
+      indicator-radius=100
+      indicator-idle-visible
+      color=${c "crust"}
+      inside-color=${c "base"}
+      inside-clear-color=${c "base"}
+      inside-ver-color=${c "base"}
+      inside-wrong-color=${c "base"}
+      ring-color=${c "lavender"}
+      ring-clear-color=${c "rosewater"}
+      ring-caps-lock-color=${c "peach"}
+      ring-ver-color=${c "blue"}
+      ring-wrong-color=${c "maroon"}
+      key-hl-color=${c "green"}
+      bs-hl-color=${c "rosewater"}
+      text-color=${c "text"}
+      text-clear-color=${c "rosewater"}
+      text-caps-lock-color=${c "peach"}
+      text-ver-color=${c "blue"}
+      text-wrong-color=${c "maroon"}
+      line-color=00000000
+      line-clear-color=00000000
+      line-ver-color=00000000
+      line-wrong-color=00000000
+      separator-color=00000000
+    '';
+
   # Given a palette, produce the full theme config set.
   mkTheme = palette: {
     ghostty = ghostty palette;
     hyprland = hyprland palette;
     mako = mako palette;
+    swaylock = swaylock palette;
     waybarCSS = waybarCSS palette;
     variant = palette.variant;
     colors = palette.colors;

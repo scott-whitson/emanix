@@ -70,5 +70,14 @@
   environment.systemPackages = with pkgs; [
     wl-clipboard
     brightnessctl
+    # Screen lock (ext-session-lock): swayidle fires swaylock on logind's
+    # before-sleep (lid close → suspend) and on loginctl lock-session.
+    # swayidle is started from emacs (lisp/scott-ewm.el) so it inherits
+    # WAYLAND_DISPLAY and dies with the session. Config: swaylock.nix (HM).
+    swaylock
+    swayidle
   ];
+
+  # Without a PAM service entry swaylock can lock but never UNLOCK.
+  security.pam.services.swaylock = { };
 }

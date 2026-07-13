@@ -7,6 +7,7 @@
     ./zsh.nix
     ./ghostty.nix
     ./packages.nix
+    ./swaylock.nix
     ./xdg.nix
 
     # Optional — enable as needed per machine

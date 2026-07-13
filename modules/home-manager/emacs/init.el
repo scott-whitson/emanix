@@ -195,3 +195,7 @@
   (scott/theme-init))
 (when (fboundp 'scott/modeline-mode)
   (scott/modeline-mode 1))
+
+;; EWM-only session glue (swayidle/swaylock) — no-op everywhere else.
+(when (featurep 'ewm)
+  (require 'scott-ewm nil :no-error))
