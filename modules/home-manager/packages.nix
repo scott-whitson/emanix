@@ -19,6 +19,7 @@
     # Developer tools
     gh
     lazygit
+    nodejs # pi coding agent runtime (pi itself: npm install per install/07-pi.sh)
     just
     nixd
     nixpkgs-fmt
