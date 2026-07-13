@@ -66,6 +66,12 @@
         path = "/home/scott/.pi/agent";
         devices = [ "datacore" ];
       };
+      folders.docs = {
+        id = "docs";
+        label = "docs";
+        path = "/home/scott/docs";
+        devices = [ "datacore" ];
+      };
     };
   };
 
