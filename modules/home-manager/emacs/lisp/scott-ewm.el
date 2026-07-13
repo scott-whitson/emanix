@@ -4,6 +4,11 @@
 ;; Session helpers that must run as emacs subprocesses so they inherit
 ;; WAYLAND_DISPLAY and end with the session.
 
+;; Input devices — libinput defaults to tap-to-click OFF; setopt (not
+;; setq) so the compositor refresh runs. See `ewm-input-config' doc for
+;; the full option set (natural-scroll, accel, xkb, per-device overrides).
+(setopt ewm-input-config '((touchpad :tap t)))
+
 (defun scott/lock-screen ()
   "Lock the screen with swaylock."
   (interactive)
