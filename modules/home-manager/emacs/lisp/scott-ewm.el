@@ -7,7 +7,7 @@
 ;; Input devices — libinput defaults to tap-to-click OFF; setopt (not
 ;; setq) so the compositor refresh runs. See `ewm-input-config' doc for
 ;; the full option set (natural-scroll, accel, xkb, per-device overrides).
-(setopt ewm-input-config '((touchpad :tap t)))
+(setopt ewm-input-config '((touchpad :tap t :natural-scroll t)))
 
 (defun scott/lock-screen ()
   "Lock the screen with swaylock."
