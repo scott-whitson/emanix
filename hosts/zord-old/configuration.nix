@@ -26,7 +26,12 @@
   services.openssh.enable = true;
   users.users.scott.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHeRiEMkgSu+cBXTs7ekkJdT5JzJYCfDadrpFgDFn560 scott@datacore"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINW1gKUfmcHDWf02SHUpZuIZEqq7qk4IJfmd8hlLAUQi swhitson-11l"
   ];
+
+  # Tailscale — datacore and swhitson-11l are MagicDNS names, not LAN DNS.
+  services.tailscale.enable = true;
+  services.resolved.enable = true;
 
   # User
   users.users.scott = {
