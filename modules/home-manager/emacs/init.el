@@ -19,7 +19,8 @@
 (column-number-mode 1)
 
 ;; Modeline clock + battery — no status bar under EWM.
-(setq display-time-format "%a %b %e %H:%M"
+;; Volume/wifi/cpu/ram/gpu segments live in lisp/scott-modeline.el.
+(setq display-time-format "%a %b %e %I:%M %p"
       display-time-default-load-average nil)
 (display-time-mode 1)
 (display-battery-mode 1)
@@ -188,7 +189,9 @@
 (global-set-key (kbd "C-c q") #'scott/open-quarterly-tracker)
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(scott-theme scott-weather scott-openrouter))
+(dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline))
   (require feature nil :no-error))
 (when (fboundp 'scott/theme-init)
   (scott/theme-init))
+(when (fboundp 'scott/modeline-mode)
+  (scott/modeline-mode 1))
