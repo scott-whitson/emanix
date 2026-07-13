@@ -30,7 +30,16 @@
   ];
 
   # Tailscale — datacore and swhitson-11l are MagicDNS names, not LAN DNS.
-  services.tailscale.enable = true;
+  # Control plane is self-hosted headscale (docker on datacore); there is
+  # no browser login. Fresh-install join ritual:
+  #   datacore$ docker exec headscale headscale preauthkeys create --user 1 --expiration 1h
+  #   here$     echo '<key>' | sudo tee /var/lib/tailscale-authkey
+  #             sudo systemctl restart tailscaled-autoconnect
+  services.tailscale = {
+    enable = true;
+    authKeyFile = "/var/lib/tailscale-authkey";
+    extraUpFlags = [ "--login-server=https://headscale.stonewallmapletree.com" ];
+  };
   services.resolved.enable = true;
 
   # User
