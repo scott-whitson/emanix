@@ -41,17 +41,19 @@
       /AGENTS.md
 
       // Generated per machine by the theme switcher
-      /themes/
+      // NB: no trailing slashes — syncthing ignores are not gitignore;
+      // "/npm/" matches nothing (verified 2026-07-13: dirs leaked to zord-old)
+      /themes
 
       // Architecture-specific install artifacts — reinstall via pi packages on each machine
-      /npm/
-      /git/
-      /bin/
+      /npm
+      /git
+      /bin
 
       // Local-only runtime state
-      /intercom/
-      /chains/
-      /epimetheus/
+      /intercom
+      /chains
+      /epimetheus
       /run-history.jsonl
 
       // Temp files
