@@ -51,6 +51,10 @@
     # desktop entry, which EWM's s-d launcher needs) is installed here.
     ghostty
 
+    # GUI apps
+    firefox
+    bitwarden-desktop
+
     # Fonts
     jetbrains-mono
     nerd-fonts.jetbrains-mono

@@ -17,6 +17,12 @@
 (recentf-mode 1)
 (global-auto-revert-mode 1)
 (column-number-mode 1)
+
+;; Modeline clock + battery — no status bar under EWM.
+(setq display-time-format "%a %b %e %H:%M"
+      display-time-default-load-average nil)
+(display-time-mode 1)
+(display-battery-mode 1)
 (setq display-line-numbers-type t)
 (add-hook 'prog-mode-hook #'display-line-numbers-mode)
 
