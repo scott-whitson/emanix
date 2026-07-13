@@ -13,6 +13,13 @@
   # Enable unfree (Steam, Nvidia, etc.)
   nixpkgs.config.allowUnfree = true;
 
+  # bitwarden-desktop rides an EOL electron that nixpkgs flags insecure.
+  # Version-pinned: when bitwarden bumps electron this goes stale and the
+  # build error names the new version to put here (or delete the line).
+  nixpkgs.config.permittedInsecurePackages = [
+    "electron-39.8.10"
+  ];
+
   # Steam
   programs.steam.enable = true;
 
