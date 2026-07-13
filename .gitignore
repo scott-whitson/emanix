@@ -21,3 +21,4 @@ tools/vosk-models/*/
 
 # Fresh-install read-only PAT (USB only; never commit)
 ventoy/github-token
+result

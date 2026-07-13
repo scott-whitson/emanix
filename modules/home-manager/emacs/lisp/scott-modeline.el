@@ -56,14 +56,27 @@
                        "/sys/class/drm/card*/device/gpu_busy_percent"))))
     (string-trim (with-temp-buffer (insert-file-contents f) (buffer-string)))))
 
-(defun scott/modeline--volume ()
-  "Sink volume percent as a string, \"mute\", or nil."
-  (when (executable-find "wpctl")
-    (let ((out (shell-command-to-string "wpctl get-volume @DEFAULT_AUDIO_SINK@")))
-      (when (string-match "Volume: \\([0-9.]+\\)\\(.*\\[MUTED\\]\\)?" out)
-        (if (match-string 2 out)
-            "mute"
-          (format "%d%%" (round (* 100 (string-to-number (match-string 1 out))))))))))
+(defvar scott/modeline--volume nil
+  "Cached volume string from the last wpctl poll.")
+
+(defun scott/modeline--poll-volume ()
+  "Refresh `scott/modeline--volume' asynchronously.
+Never blocks: in EWM this emacs IS the compositor, and a wedged
+pipewire behind a synchronous call would hiccup the whole desktop.
+The displayed value lags one update interval."
+  (when (and (executable-find "wpctl")
+             (not (get-process "scott-modeline-wpctl")))
+    (make-process
+     :name "scott-modeline-wpctl"
+     :command '("wpctl" "get-volume" "@DEFAULT_AUDIO_SINK@")
+     :noquery t
+     :filter (lambda (_proc out)
+               (setq scott/modeline--volume
+                     (when (string-match "Volume: \\([0-9.]+\\)\\(.*\\[MUTED\\]\\)?" out)
+                       (if (match-string 2 out)
+                           "mute"
+                         (format "%d%%" (round (* 100 (string-to-number
+                                                       (match-string 1 out))))))))))))
 
 (defun scott/modeline--wifi ()
   "\"✓\" when a wireless interface is up, \"✗\" when down, nil if none."
@@ -78,12 +91,13 @@
         "✓" "✗")))
 
 (defun scott/modeline--update ()
+  (scott/modeline--poll-volume)
   (setq scott/modeline-status
         (concat
          (mapconcat
           #'identity
           (delq nil
-                (list (when-let* ((v (scott/modeline--volume))) (concat "♪" v))
+                (list (when-let* ((v scott/modeline--volume)) (concat "♪" v))
                       (when-let* ((w (scott/modeline--wifi))) (concat "wifi" w))
                       (format "cpu%d%%" (scott/modeline--cpu))
                       (when-let* ((r (scott/modeline--ram))) (format "ram%d%%" r))

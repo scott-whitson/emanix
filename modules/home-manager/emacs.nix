@@ -69,14 +69,11 @@ in
     then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/lisp"
     else ./emacs/lisp;
 
-  # Emacs is still starting from the legacy ~/.emacs.d path on this machine,
-  # so keep compatibility symlinks there until the daemon is fully migrated.
-  home.file.".emacs.d/early-init.el".source =
-    config.lib.file.mkOutOfStoreSymlink "${config.xdg.configHome}/emacs/early-init.el";
-  home.file.".emacs.d/init.el".source =
-    config.lib.file.mkOutOfStoreSymlink "${config.xdg.configHome}/emacs/init.el";
-  home.file.".emacs.d/lisp".source =
-    config.lib.file.mkOutOfStoreSymlink "${config.xdg.configHome}/emacs/lisp";
+  # NO ~/.emacs.d mirror: emacs PREFERS ~/.emacs.d over ~/.config/emacs when
+  # both exist, so a compat mirror there makes every plain `emacs` (no
+  # --init-directory) run with separate runtime state — on zord-old this
+  # produced a second org-roam.db split from the EWM daemon's. ~/.config/emacs
+  # is the only config path; ~/.emacs.d must not exist.
 
   # Override the generated GUI desktop entry so launcher invocations open a
   # terminal-backed client instead of the unsupported pgtk/X11 frame path.

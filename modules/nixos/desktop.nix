@@ -4,9 +4,8 @@
   # Shared NixOS desktop module (Phase 2).
   # Home Manager is imported from flake.nix via home-manager.nixosModules.
 
-  # System packages
+  # System packages (docker CLI comes from virtualisation.docker.enable)
   environment.systemPackages = with pkgs; [
-    docker
     docker-compose
   ];
 
