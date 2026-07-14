@@ -27,12 +27,7 @@
       DOTFILES_PROFILE = "desktop";
     };
 
-    initExtraFirst = ''
-      # NixOS already sets up the Nix daemon paths; this initExtraFirst is
-      # only needed on Debian with standalone Nix.
-    '';
-
-    initExtra = ''
+    initContent = ''
       # dotfiles helpers on PATH
       export PATH="$DOTFILES/bin:$PATH"
 

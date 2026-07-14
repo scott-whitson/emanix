@@ -6,6 +6,8 @@
     mime.enable = true;
     mimeApps.enable = true;
 
+    setSessionVariables = true;
+
     userDirs = {
       enable = true;
       createDirectories = true;
