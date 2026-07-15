@@ -14,6 +14,10 @@
     ewm = {
       url = "https://codeberg.org/ezemtsov/ewm/archive/master.tar.gz";
     };
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -23,6 +27,7 @@
       home-manager,
       emacs-overlay,
       ewm,
+      disko,
       ...
     }:
     let
@@ -34,18 +39,27 @@
 
       lib = import ./lib { inherit pkgs; };
 
-      # Shared special args for both standalone HM and NixOS HM
       sharedSpecialArgs = { dotfilesLib = lib; };
+
+      hmModule = {
+        home-manager = {
+          extraSpecialArgs = sharedSpecialArgs;
+          useGlobalPkgs = true;
+          useUserPackages = true;
+          users.scott = {
+            imports = [ ./home/scott/default.nix ];
+          };
+        };
+      };
     in
     {
-      # --- Standalone Home Manager (still works on Debian / Phase 1) ---
+      # --- Standalone Home Manager ---
       homeConfigurations = {
         "scott@zord" = home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
           modules = [
             ./modules/home-manager
             ./home/scott/default.nix
-            # Don't import the host HM module here — it's only for NixOS.
           ];
           extraSpecialArgs = sharedSpecialArgs;
         };
@@ -53,70 +67,33 @@
 
       # --- NixOS configurations ---
       nixosConfigurations = {
-        # Datacore — headless server
-        datacore = nixpkgs.lib.nixosSystem {
-          inherit system;
-          specialArgs = sharedSpecialArgs;
-          modules = [
-            ./hosts/datacore/configuration.nix
-            home-manager.nixosModules.home-manager
-            {
-              home-manager = {
-                extraSpecialArgs = sharedSpecialArgs;
-                useGlobalPkgs = true;
-                useUserPackages = true;
-                users.scott = {
-                  imports = [ ./home/scott/default.nix ];
-                };
-              };
-            }
-          ];
-        };
-        # HP 15-ef2013dx — NixOS pilot, then backup machine
+        # HP 15-ef2013dx — backup machine
         zord-old = nixpkgs.lib.nixosSystem {
           inherit system;
           specialArgs = sharedSpecialArgs // { inherit ewm; };
           modules = [
             ./hosts/zord-old/configuration.nix
             home-manager.nixosModules.home-manager
-            {
-              home-manager = {
-                extraSpecialArgs = sharedSpecialArgs;
-                useGlobalPkgs = true;
-                useUserPackages = true;
-                users.scott = {
-                  imports = [ ./home/scott/default.nix ];
-                  # No dotfiles checkout lives on this box — bake elisp into
-                  # the store instead of symlinking into the repo.
-                  scott.dotfiles.liveElisp = false;
-                  # EWM's emacs is the daemon on this host; the standalone
-                  # editor-daemon service would race it for the server socket.
-                  services.emacs.enable = false;
-                };
-              };
-            }
+            hmModule
           ];
         };
 
-        # ThinkPad T14 Gen 5 AMD — daily driver (when it arrives)
+        # ThinkPad T14 Gen 5 AMD — daily driver
         zord = nixpkgs.lib.nixosSystem {
           inherit system;
           specialArgs = sharedSpecialArgs // { inherit ewm; };
           modules = [
             ./hosts/zord/configuration.nix
+            disko.nixosModules.disko
             home-manager.nixosModules.home-manager
-            {
-              home-manager = {
-                extraSpecialArgs = sharedSpecialArgs;
-                useGlobalPkgs = true;
-                useUserPackages = true;
-                users.scott = {
-                  imports = [ ./home/scott/default.nix ];
-                };
-              };
-            }
+            hmModule
           ];
         };
+      };
+
+      # --- Disko configurations (declarative disk partitioning) ---
+      diskoConfigurations = {
+        zord = import ./hosts/zord/disko.nix;
       };
 
       # --- Dev shell ---
