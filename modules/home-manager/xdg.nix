@@ -6,11 +6,10 @@
     mime.enable = true;
     mimeApps.enable = true;
 
-    setSessionVariables = true;
-
     userDirs = {
       enable = true;
       createDirectories = true;
+      setSessionVariables = true;
       documents = "$HOME/docs";
       download = "$HOME/Downloads";
       music = "$HOME/Music";
