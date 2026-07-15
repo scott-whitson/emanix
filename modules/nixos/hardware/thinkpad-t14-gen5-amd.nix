@@ -5,7 +5,7 @@
   # Ryzen 7 PRO 8840U, Radeon 780M.
 
   boot.kernelParams = [ "quiet" ];
-  boot.initrd.availableKernelModules = [ "nvme" "xhci_pci" "ahci" "usbhid" "usb_storage" "sd_mod" ];
+  boot.initrd.availableKernelModules = [ "nvme" "btrfs" "xhci_pci" "ahci" "usbhid" "usb_storage" "sd_mod" ];
   boot.initrd.kernelModules = [ "amdgpu" ];
   hardware.enableRedistributableFirmware = true;
 
