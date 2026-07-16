@@ -91,7 +91,7 @@
 
       # --- Disko configurations (declarative disk partitioning) ---
       diskoConfigurations = {
-        zord = import ./hosts/zord/disko.nix;
+        zord = import ./ioshi/hi-hardware/disko/eminix.nix;
       };
 
       # --- Dev shell ---

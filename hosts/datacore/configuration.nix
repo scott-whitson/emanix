@@ -5,7 +5,7 @@
   networking.hostName = "datacore";
 
   imports = [
-    ../../modules/nixos/server.nix
+    ../../ioshi/os-system/server.nix
   ];
 
   # Zsh for interactive use

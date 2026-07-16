@@ -10,7 +10,7 @@
   networking.hostName = "zord-old";
 
   imports = [
-    ../../modules/nixos/hardware/hp-15-ef2013dx.nix
+    ../../ioshi/hi-hardware/hp-15-ef2013dx.nix
     ../../ioshi/i-intelligence/ewm.nix
     ../../ioshi/os-system/base.nix
     ../../ioshi/os-system/desktop.nix
