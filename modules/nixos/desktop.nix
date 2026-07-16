@@ -28,6 +28,15 @@
   # Bluetooth
   hardware.bluetooth.enable = true;
 
+  # Input — touchpad (user preference, shared across hosts)
+  services.libinput = {
+    enable = true;
+    touchpad = {
+      naturalScrolling = true;
+      disableWhileTyping = true;
+    };
+  };
+
   # Audio
   security.rtkit.enable = true;
   services.pipewire = {

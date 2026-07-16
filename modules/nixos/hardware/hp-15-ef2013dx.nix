@@ -30,37 +30,11 @@
 
   # Wireless (RTL8821CE) — uses kernel's built-in rtw88 driver.
 
-  # Audio
-  security.rtkit.enable = true;
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
-    jack.enable = true;
-  };
-
-  # Bluetooth
-  hardware.bluetooth.enable = true;
-
-  # Touchpad
-  services.libinput = {
-    enable = true;
-    touchpad = {
-      naturalScrolling = true;
-      disableWhileTyping = true;
-    };
-  };
+  # Audio, Bluetooth, touchpad, and the bootloader live in desktop.nix.
 
   # Power management
   powerManagement.enable = true;
   services.power-profiles-daemon.enable = true;
-
-  # Bootloader
-  boot.loader = {
-    systemd-boot.enable = true;
-    efi.canTouchEfiVariables = true;
-  };
 
   # LUKS — single passphrase for root, one for swap
   boot.initrd.luks.devices = {
