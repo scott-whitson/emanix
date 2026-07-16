@@ -18,6 +18,7 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nixos-hardware.url = "github:NixOS/nixos-hardware";
   };
 
   outputs =
@@ -28,6 +29,7 @@
       emacs-overlay,
       ewm,
       disko,
+      nixos-hardware,
       ...
     }:
     let
@@ -80,6 +82,7 @@
           hostName = "eminix";
           hardware = ./ioshi/hi-hardware/lenovo-t14-gen5-amd.nix;
           extraModules = [
+            nixos-hardware.nixosModules.lenovo-thinkpad-t14-amd-gen5
             ./hosts/eminix/configuration.nix
             disko.nixosModules.disko
             ./ioshi/hi-hardware/disko/eminix.nix
