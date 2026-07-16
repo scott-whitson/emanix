@@ -6,7 +6,17 @@ NixOS ISO. Supersedes `docs/manual/10-nixos-install.md` (manual `parted`, pre-di
 and the pre-ioshi `docs/new-host-checklist.md`.
 
 Verified buildable on zord-old (2026-07-16):
-`.#nixosConfigurations.eminix.config.system.build.{diskoScript,toplevel}` both build.
+`.#nixosConfigurations.eminix.config.system.build.{diskoScript,toplevel}` both build,
+and a fresh-disk VM boot reaches multi-user with Home Manager activating cleanly.
+
+> ### ⚠ Two steps that silently break the install if skipped
+> Both are flagged inline below; calling them out here because they're the easy misses:
+> 1. **Disable Secure Boot** in the T14 firmware (§1.0). systemd-boot is unsigned — with
+>    Secure Boot on, the installed system won't boot.
+> 2. **Inject the pre-generated host key BEFORE `nixos-install`** (§4). Miss it and agenix
+>    can't decrypt on first boot, which *cascades* into a failed Home Manager activation
+>    (no Emacs/zsh config — a broken first-boot user environment). This exact failure was
+>    reproduced + confirmed in a VM boot test (2026-07-16).
 
 ---
 
@@ -38,6 +48,12 @@ Verified buildable on zord-old (2026-07-16):
 
 ## 1. Boot the installer
 
+0. **Firmware first (F1 at the ThinkPad logo → BIOS Setup):**
+   - **Security → Secure Boot → Disabled.** systemd-boot is not signed; with Secure Boot
+     on, the machine will refuse to boot the installed system. This is the #1 silent
+     "installed fine but won't boot" trap.
+   - Confirm **UEFI** boot mode (not Legacy/CSM).
+   - (Optional) note the boot-menu key: **F12**.
 1. Plug in the Ventoy USB, reboot, open the boot menu (**F12** / Enter on ThinkPad).
 2. Ventoy → `nixos-*-minimal-x86_64.iso`.
 3. Network: ethernet is automatic. Wi-Fi: `iwctl` → `station wlan0 connect <ssid>`.
@@ -63,18 +79,27 @@ disko prompts for the **LUKS passphrase** — set the disk-encryption passphrase
 When it finishes, the layout is mounted under `/mnt` (`/`, `/boot`, `/nix`, `/home`
 as btrfs subvolumes `@`/`@nix`/`@home`, zstd).
 
-## 4. Inject the pre-generated host key (BEFORE install)
+## 4. Inject the pre-generated host key (BEFORE install) — DO NOT SKIP
 
-Critical for agenix — the recipient pubkey in `secrets/secrets.nix` is this exact key.
-If NixOS generates a fresh host key instead, agenix decryption fails on first boot.
+The single easiest step to forget and the most damaging to miss. agenix decrypts secrets
+with this host's SSH key, and the recipient pubkey baked into `secrets/secrets.nix` is
+exactly `eminix_host_ed25519`. If `nixos-install` generates a *fresh* host key instead,
+agenix can't decrypt `openrouter-auth` on first boot — and that failure **cascades** into
+`Failed to start Home Manager environment for scott` (no Emacs config, no zsh config — a
+broken user environment). Reproduced + confirmed in a VM boot test (2026-07-16). Do this
+*before* `nixos-install` in §5.
 ```bash
 mkdir -p /mnt/etc/ssh
 cp /mnt-usb/eminix-keys/eminix_host_ed25519     /mnt/etc/ssh/ssh_host_ed25519_key
 cp /mnt-usb/eminix-keys/eminix_host_ed25519.pub /mnt/etc/ssh/ssh_host_ed25519_key.pub
 chmod 600 /mnt/etc/ssh/ssh_host_ed25519_key
+# sanity: this fingerprint MUST match ~/.ssh/eminix_host_ed25519.pub on your workstation
+ssh-keygen -lf /mnt/etc/ssh/ssh_host_ed25519_key.pub
 ```
 
 ## 5. Install
+
+> Do not run this until §4 is done — the host key must be in `/mnt/etc/ssh/` first.
 
 ```bash
 nixos-install --flake /tmp/dotfiles#eminix --no-root-password
@@ -122,3 +147,9 @@ cd ~/dotfiles && sudo nixos-rebuild switch --flake .#eminix
   is set by `ioshi/hi-hardware/lenovo-t14-gen5-amd.nix` (nixos-hardware does NOT set it).
 - **agenix identity** = `/etc/ssh/ssh_host_ed25519_key` (default). Losing the pre-generated
   key means re-keying the secret (`agenix -r`) with eminix's new host key.
+- **Secure Boot must stay off** (§1.0) — systemd-boot is unsigned. If a firmware update
+  ever re-enables it, the machine stops booting until you disable it again.
+- **agenix ↔ Home Manager**: the openrouter secret decrypts to `/run/agenix/openrouter-auth`
+  (NOT into `~/.pi/agent`, which HM owns); `pi.nix` symlinks `~/.pi/agent/auth.json` to it.
+  Don't "simplify" agenix back to `path = "…/.pi/agent/auth.json"` — that recreates the
+  root/scott ownership collision that breaks HM activation.
