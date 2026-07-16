@@ -7,8 +7,7 @@ let
   # config only (see emacs.nix). Exposed on the system PATH below so
   # emacsclient is available (EDITOR/VISUAL point at it via zsh.nix).
   theEmacs =
-    ((pkgs.emacsPackagesFor pkgs.emacs-pgtk).overrideScope emacsPkgs.orgOverride)
-    .emacsWithPackages (epkgs: emacsPkgs.list epkgs ++ [ config.programs.ewm.ewmPackage ]);
+    ((pkgs.emacsPackagesFor pkgs.emacs-pgtk).overrideScope emacsPkgs.orgOverride).emacsWithPackages (epkgs: emacsPkgs.list epkgs ++ [ config.programs.ewm.ewmPackage ]);
 in
 {
   imports = [ "${ewm}/nix/service.nix" ];

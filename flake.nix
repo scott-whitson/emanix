@@ -26,16 +26,15 @@
   };
 
   outputs =
-    {
-      self,
-      nixpkgs,
-      home-manager,
-      emacs-overlay,
-      ewm,
-      disko,
-      nixos-hardware,
-      agenix,
-      ...
+    { self
+    , nixpkgs
+    , home-manager
+    , emacs-overlay
+    , ewm
+    , disko
+    , nixos-hardware
+    , agenix
+    , ...
     }:
     let
       system = "x86_64-linux";
