@@ -59,32 +59,30 @@
           };
         };
       };
+
+      # Compose an eminix host: profile (os+i) + its hi layer.
+      mkHost = import ./lib/mkHost.nix {
+        inherit nixpkgs home-manager ewm nixpkgsModule hmModule sharedSpecialArgs system;
+      };
     in
     {
-      # --- NixOS configurations ---
+      # --- NixOS configurations — eminix instances ---
       nixosConfigurations = {
         # HP 15-ef2013dx — backup machine
-        zord-old = nixpkgs.lib.nixosSystem {
-          inherit system;
-          specialArgs = sharedSpecialArgs // { inherit ewm; };
-          modules = [
-            ./hosts/zord-old/configuration.nix
-            nixpkgsModule
-            home-manager.nixosModules.home-manager
-            hmModule
-          ];
+        zord-old = mkHost {
+          hostName = "zord-old";
+          hardware = ./ioshi/hi-hardware/hp-15-ef2013dx.nix;
+          extraModules = [ ./hosts/zord-old/configuration.nix ];
         };
 
         # ThinkPad T14 Gen 5 AMD — daily driver
-        zord = nixpkgs.lib.nixosSystem {
-          inherit system;
-          specialArgs = sharedSpecialArgs // { inherit ewm; };
-          modules = [
+        zord = mkHost {
+          hostName = "zord";
+          hardware = ./ioshi/hi-hardware/lenovo-t14-gen5-amd.nix;
+          extraModules = [
             ./hosts/zord/configuration.nix
-            nixpkgsModule
             disko.nixosModules.disko
-            home-manager.nixosModules.home-manager
-            hmModule
+            ./ioshi/hi-hardware/disko/eminix.nix
           ];
         };
       };

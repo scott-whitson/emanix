@@ -7,14 +7,8 @@
   #
   # Home Manager is imported from flake.nix via home-manager.nixosModules.
 
-  networking.hostName = "zord-old";
-
-  imports = [
-    ../../ioshi/hi-hardware/hp-15-ef2013dx.nix
-    ../../ioshi/i-intelligence/ewm.nix
-    ../../ioshi/os-system/base.nix
-    ../../ioshi/os-system/desktop.nix
-  ];
+  # Platform (os + i) comes from profiles/eminix.nix; hardware from mkHost.
+  # hostName is set by mkHost. Below: zord-old-specific services.
 
   # Auto-login on the console: the LUKS passphrase already gates the machine,
   # and the EWM launch hook (modules/nixos/ewm.nix) takes over tty1.
