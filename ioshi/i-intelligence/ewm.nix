@@ -13,6 +13,10 @@ in
 {
   imports = [ "${ewm}/nix/service.nix" ];
 
+  # Autologin scott on the console — LUKS already gates the machine, and the
+  # tty1 launch hook below takes over the session to start EWM.
+  services.getty.autologinUser = "scott";
+
   programs.ewm = {
     enable = true;
     emacsPackage = theEmacs;
