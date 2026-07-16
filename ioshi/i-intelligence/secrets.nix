@@ -1,14 +1,15 @@
 { ... }:
 {
-  # OpenRouter keys (read by scott-openrouter.el at ~/.pi/agent/auth.json).
-  # Decrypted at activation from secrets/openrouter-auth.age. Real values are
-  # inserted by `agenix -e secrets/openrouter-auth.age` — the committed file is
-  # a placeholder until then.
+  # OpenRouter keys (read by scott-openrouter.el + pi at ~/.pi/agent/auth.json).
+  # Decrypt to agenix's DEFAULT path (/run/agenix/openrouter-auth), scott-readable.
+  # We must NOT set path = "~/.pi/agent/auth.json": agenix would `mkdir -p` that
+  # dir as root during activation and collide with Home Manager (which owns
+  # ~/.pi/agent), failing HM activation on first boot (caught by a VM boot test).
+  # pi.nix symlinks ~/.pi/agent/auth.json -> this secret instead.
   age.secrets.openrouter-auth = {
     file = ../../secrets/openrouter-auth.age;
-    path = "/home/scott/.pi/agent/auth.json";
     owner = "scott";
     group = "users";
-    mode = "0600";
+    mode = "0400";
   };
 }
