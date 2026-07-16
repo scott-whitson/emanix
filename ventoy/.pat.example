@@ -1,7 +1,0 @@
-# Copy this file to .pat and paste your GitHub personal access token.
-# Get a PAT at https://github.com/settings/tokens (classic) — no scopes needed
-# for public repo; select "repo" for private.
-#
-#   cp .pat.example .pat
-#   echo 'ghp_YourTokenHere' > .pat
-#   chmod 600 .pat
