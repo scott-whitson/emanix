@@ -7,6 +7,7 @@
     ../ioshi/os-system/base.nix
     ../ioshi/os-system/desktop.nix
     ../ioshi/i-intelligence/ewm.nix
+    ../ioshi/i-intelligence/secrets.nix
     # Shared connectivity — every eminix instance is on the tailnet.
     ../ioshi/hi-hardware/net/tailscale.nix
     ../ioshi/hi-hardware/net/ssh.nix

@@ -19,6 +19,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nixos-hardware.url = "github:NixOS/nixos-hardware";
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -30,6 +34,7 @@
       ewm,
       disko,
       nixos-hardware,
+      agenix,
       ...
     }:
     let
@@ -64,7 +69,7 @@
 
       # Compose an eminix host: profile (os+i) + its hi layer.
       mkHost = import ./lib/mkHost.nix {
-        inherit nixpkgs home-manager ewm nixpkgsModule hmModule sharedSpecialArgs system;
+        inherit nixpkgs home-manager ewm agenix nixpkgsModule hmModule sharedSpecialArgs system;
       };
     in
     {
