@@ -204,6 +204,7 @@
 ;; of the (full-screen, under EWM) frame — a waybar, not a per-buffer bar.
 (when (fboundp 'scott/tab-bar-status)
   (setq tab-bar-format '(tab-bar-format-align-right scott/tab-bar-status))
+  (setq tab-bar-show t)   ; always show the panel, even with a single/zero tab
   (tab-bar-mode 1))
 
 ;; EWM-only session glue (swayidle/swaylock) — no-op everywhere else.
