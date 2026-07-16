@@ -32,14 +32,13 @@
     }:
     let
       system = "x86_64-linux";
-      pkgs = import nixpkgs {
-        inherit system;
-        overlays = [ emacs-overlay.overlays.default ];
-      };
+      # Only devShell + formatter use this; the NixOS systems build their own
+      # pkgs (with the overlay) via nixpkgsModule.
+      pkgs = nixpkgs.legacyPackages.${system};
 
-      lib = import ./lib { inherit pkgs; };
+      dotfilesLib = import ./lib;
 
-      sharedSpecialArgs = { dotfilesLib = lib; };
+      sharedSpecialArgs = { inherit dotfilesLib; };
 
       # Applied to both NixOS systems; Home Manager inherits it via
       # useGlobalPkgs. This is what actually gets the emacs-overlay onto the
@@ -62,18 +61,6 @@
       };
     in
     {
-      # --- Standalone Home Manager ---
-      homeConfigurations = {
-        "scott@zord" = home-manager.lib.homeManagerConfiguration {
-          inherit pkgs;
-          modules = [
-            ./modules/home-manager
-            ./home/scott/default.nix
-          ];
-          extraSpecialArgs = sharedSpecialArgs;
-        };
-      };
-
       # --- NixOS configurations ---
       nixosConfigurations = {
         # HP 15-ef2013dx — backup machine
