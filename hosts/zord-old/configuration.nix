@@ -11,7 +11,7 @@
 
   imports = [
     ../../modules/nixos/hardware/hp-15-ef2013dx.nix
-    ../../modules/nixos/ewm.nix
+    ../../ioshi/i-intelligence/ewm.nix
     ../../ioshi/os-system/base.nix
     ../../ioshi/os-system/desktop.nix
   ];

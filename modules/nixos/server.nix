@@ -3,7 +3,7 @@
 {
   # Shared NixOS server module (Phase 2).
   imports = [
-    ../../modules/home-manager
+    ../../ioshi/i-intelligence
   ];
 
   # Headless server

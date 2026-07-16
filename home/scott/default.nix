@@ -5,7 +5,7 @@
   # Imported from the NixOS host configs via home-manager.users.scott.
 
   imports = [
-    ../../modules/home-manager
+    ../../ioshi/i-intelligence
   ];
 
   home.username = "scott";
