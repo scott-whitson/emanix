@@ -1,4 +1,4 @@
-{ config, lib, pkgs, inputs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   # zord-old — HP 15-ef2013dx (Ryzen 5 5500U, 32 GB)

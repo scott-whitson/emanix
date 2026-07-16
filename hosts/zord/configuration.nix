@@ -1,4 +1,4 @@
-{ config, lib, pkgs, inputs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   networking.hostName = "zord";
@@ -7,44 +7,11 @@
     ../../modules/nixos/hardware/thinkpad-t14-gen5-amd.nix
     ../../modules/nixos/ewm.nix
     ../../modules/nixos/desktop.nix
+    # Single source of truth for the disk layout. Also referenced by
+    # flake.nix's diskoConfigurations.zord, so `disko` (partitioning) and the
+    # built system agree by construction.
+    ./disko.nix
   ];
-
-  disko.devices.disk.main = {
-    type = "disk";
-    device = "/dev/nvme0n1";
-    content = {
-      type = "gpt";
-      partitions = {
-        boot = {
-          size = "1G";
-          type = "EF00";
-          content = {
-            type = "filesystem";
-            format = "vfat";
-            mountpoint = "/boot";
-            mountOptions = [ "fmask=0077" "dmask=0077" ];
-          };
-        };
-        root = {
-          size = "100%";
-          content = {
-            type = "luks";
-            name = "cryptroot";
-            settings.allowDiscards = true;
-            content = {
-              type = "btrfs";
-              extraArgs = [ "-f" ];
-              subvolumes = {
-                "@" = { mountpoint = "/"; mountOptions = [ "compress=zstd" ]; };
-                "@nix" = { mountpoint = "/nix"; mountOptions = [ "compress=zstd" "noatime" ]; };
-                "@home" = { mountpoint = "/home"; mountOptions = [ "compress=zstd" ]; };
-              };
-            };
-          };
-        };
-      };
-    };
-  };
 
   programs.zsh.enable = true;
 
