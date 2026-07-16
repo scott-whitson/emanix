@@ -3,6 +3,9 @@
 {
   programs.zsh = {
     enable = true;
+    # Lock the legacy dotDir (home dir) to silence the 26.05 default-change
+    # warning without moving zsh's dotfiles. Revisit (XDG) in eminix v2.
+    dotDir = config.home.homeDirectory;
     enableCompletion = true;
     autosuggestion.enable = true;
     syntaxHighlighting.enable = true;

@@ -4,11 +4,13 @@
   programs.git = {
     enable = true;
     lfs.enable = true;
-    userName = "Scott Whitson";
-    userEmail = "scott@scottwhitson.com";
     # For local overrides (e.g. work email), users keep ~/.gitconfig.local
     includes = [{ path = "~/.gitconfig.local"; }];
-    extraConfig = {
+    settings = {
+      user = {
+        name = "Scott Whitson";
+        email = "scott@scottwhitson.com";
+      };
       core = { autocrlf = "input"; };
       init = { defaultBranch = "main"; };
       pull = { rebase = true; };
@@ -38,8 +40,10 @@
       fixup = "commit --fixup";
       squash = "commit --squash";
     };
-    diff-so-fancy = {
-      enable = true;
-    };
+  };
+
+  programs.diff-so-fancy = {
+    enable = true;
+    enableGitIntegration = true;
   };
 }
