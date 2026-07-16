@@ -1,3 +1,8 @@
+> **SUPERSEDED (2026-07-16).** This guide uses manual `parted` and a swap
+> partition — pre-disko, pre-ioshi. The current reproducible install is
+> [`docs/ioshi/eminix-install.md`](../ioshi/eminix-install.md) (disko + `nixos-install
+> --flake .#eminix`). Kept for history only.
+
 # NixOS Install Guide — zord-old (HP 15-ef2013dx)
 
 This guide covers replacing Debian with NixOS on the HP 15-ef2013dx

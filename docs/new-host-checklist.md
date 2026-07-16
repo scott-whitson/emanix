@@ -1,3 +1,8 @@
+> **Partly superseded (2026-07-16).** The flake now composes hosts via
+> `lib/mkHost` + `profiles/eminix.nix` (no per-host hardware file authoring), and
+> secrets are agenix. See [`docs/ioshi/eminix-install.md`](ioshi/eminix-install.md)
+> for the current end-to-end flow. The Tailnet/SSH steps below remain accurate.
+
 # New NixOS host checklist
 
 Everything the flake cannot do by itself, in order. Learned the hard way
