@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# eminix-firstboot — one-time post-install setup, run once after the first boot.
+# Joins the tailnet, prints the Syncthing device id to pair on datacore, and
+# clones the dotfiles to ~/dotfiles (liveElisp home). Safe to re-run.
+# Packaged onto PATH by ioshi/os-system/firstboot.nix.
+
+say() { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
+
+# 1. Tailnet (self-hosted headscale; login-server URL is baked into the flake).
+if tailscale status >/dev/null 2>&1; then
+  say "Tailscale already connected."
+else
+  say "Tailnet join. On datacore, mint a key:"
+  echo "    docker exec headscale headscale preauthkeys create --user 1 --expiration 1h"
+  read -rsp "Paste the preauthkey (hidden): " key || true; echo
+  if [ -n "$key" ]; then
+    printf '%s' "$key" | sudo tee /var/lib/tailscale-authkey >/dev/null
+    sudo systemctl restart tailscaled-autoconnect
+    sleep 2
+    tailscale status || true
+    sudo rm -f /var/lib/tailscale-authkey   # tailscale state holds the identity now
+  else
+    echo "  (skipped — no key entered)"
+  fi
+fi
+
+# 2. Syncthing pairing (two-sided — add this id on datacore:8384, share pi-agent + docs).
+say "Syncthing device id — add on datacore and share pi-agent + docs:"
+syncthing --device-id 2>/dev/null || echo "  (syncthing not up yet — 'systemctl status syncthing' then re-run)"
+
+# 3. Live-edit checkout (liveElisp symlinks ~/.config/emacs into ~/dotfiles).
+if [ -d "$HOME/dotfiles/.git" ]; then
+  say "dotfiles already present at $HOME/dotfiles."
+else
+  say "Cloning dotfiles to ~/dotfiles"
+  git clone git@github.com:scott-whitson/dotfiles "$HOME/dotfiles" \
+    || echo "  clone failed — add your github key, then: git clone git@github.com:scott-whitson/dotfiles ~/dotfiles"
+fi
+
+# 4. Verify secrets decrypted (proves the host-key injection worked).
+say "Sanity checks"
+if [ -r "$HOME/.pi/agent/auth.json" ] && ! grep -q REPLACE-ME "$HOME/.pi/agent/auth.json" 2>/dev/null; then
+  echo "  openrouter auth.json: decrypted ✓"
+else
+  echo "  openrouter auth.json: MISSING or placeholder — check agenix (host key) / that you ran 'agenix -e' before install"
+fi
+
+say "eminix first-boot complete."
