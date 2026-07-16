@@ -24,14 +24,16 @@ physical install, sudo on live hosts). Order matters.
       - `nix-store -qR /run/current-system | grep -c emacs.*-with-packages` → 1
       - `tailscale status`, `systemctl status syncthing`
 
-## 3. Install eminix on the physical T14
-- [ ] Follow `docs/ioshi/eminix-install.md` end to end. Key don't-forget:
-      - Stage a repo checkout AND `~/.ssh/eminix_host_ed25519{,.pub}` on the Ventoy USB.
-      - Inject the pre-gen host key to `/mnt/etc/ssh/ssh_host_ed25519_key` BEFORE
-        `nixos-install`, or agenix can't decrypt on first boot.
-- [ ] First boot: tailscale preauthkey join, pair Syncthing on datacore
-      (add eminix's device id + share pi-agent/docs), verify `~/.pi/agent/auth.json`.
-- [ ] Clone repo to `~/dotfiles` (liveElisp home).
+## 3. Install eminix on the physical T14 (now scripted)
+- [ ] Firmware: **disable Secure Boot**, confirm UEFI (the one thing the script can't do).
+- [ ] Stage on Ventoy: `git clone ~/dotfiles <V>/dotfiles` and
+      `cp ~/.ssh/eminix_host_ed25519{,.pub} <V>/eminix-keys/` (key beside the repo).
+- [ ] Boot the NixOS ISO, then one command:
+      `sudo bash /run/media/*/Ventoy/dotfiles/installer/fresh-eminix-install`
+      (handles disko + host-key inject + fingerprint check + nixos-install + reboot).
+- [ ] First boot: `eminix-firstboot` (tailnet join, Syncthing pairing id, repo clone,
+      auth.json check). Then pair the device id on datacore (`:8384`).
+- [ ] Full detail / manual fallback: `docs/ioshi/eminix-install.md`.
 
 ## 4. Housekeeping
 - [ ] Once eminix + zord-old are confirmed good, delete the zord-old safety backups:
