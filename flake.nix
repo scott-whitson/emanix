@@ -75,12 +75,12 @@
           extraModules = [ ./hosts/zord-old/configuration.nix ];
         };
 
-        # ThinkPad T14 Gen 5 AMD — daily driver
-        zord = mkHost {
-          hostName = "zord";
+        # ThinkPad T14 Gen 5 AMD — daily driver (the eminix platform)
+        eminix = mkHost {
+          hostName = "eminix";
           hardware = ./ioshi/hi-hardware/lenovo-t14-gen5-amd.nix;
           extraModules = [
-            ./hosts/zord/configuration.nix
+            ./hosts/eminix/configuration.nix
             disko.nixosModules.disko
             ./ioshi/hi-hardware/disko/eminix.nix
           ];
@@ -89,7 +89,7 @@
 
       # --- Disko configurations (declarative disk partitioning) ---
       diskoConfigurations = {
-        zord = import ./ioshi/hi-hardware/disko/eminix.nix;
+        eminix = import ./ioshi/hi-hardware/disko/eminix.nix;
       };
 
       # --- Dev shell ---
