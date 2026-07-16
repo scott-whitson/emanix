@@ -18,12 +18,16 @@
 (global-auto-revert-mode 1)
 (column-number-mode 1)
 
-;; Modeline clock + battery — no status bar under EWM.
-;; Volume/wifi/cpu/ram/gpu segments live in lisp/scott-modeline.el.
+;; Clock + battery for the EWM tab-bar panel (no status bar under EWM).
+;; Volume/wifi/cpu/ram/gpu segments live in lisp/scott-modeline.el; the whole
+;; lot renders in the tab-bar via scott/tab-bar-status, not the mode-line.
 (setq display-time-format "%a %b %e %I:%M %p"
       display-time-default-load-average nil)
 (display-time-mode 1)
 (display-battery-mode 1)
+;; Keep the per-window mode-line clean — the clock/battery/stats live in the
+;; tab-bar now. display-time/battery still update their *-string vars for it.
+(setq global-mode-string nil)
 (setq display-line-numbers-type t)
 (add-hook 'prog-mode-hook #'display-line-numbers-mode)
 
@@ -195,6 +199,12 @@
   (scott/theme-init))
 (when (fboundp 'scott/modeline-mode)
   (scott/modeline-mode 1))
+
+;; Frame-global panel: system stats + clock + battery, rendered ONCE at the top
+;; of the (full-screen, under EWM) frame — a waybar, not a per-buffer bar.
+(when (fboundp 'scott/tab-bar-status)
+  (setq tab-bar-format '(tab-bar-format-align-right scott/tab-bar-status))
+  (tab-bar-mode 1))
 
 ;; EWM-only session glue (swayidle/swaylock) — no-op everywhere else.
 (when (featurep 'ewm)

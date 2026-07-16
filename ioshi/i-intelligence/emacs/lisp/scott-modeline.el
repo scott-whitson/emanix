@@ -1,10 +1,14 @@
-;;; scott-modeline.el --- system status in the modeline -*- lexical-binding: t; -*-
+;;; scott-modeline.el --- system status for the EWM tab-bar panel -*- lexical-binding: t; -*-
 
 ;; EWM has no status bar; these segments replace waybar:
 ;; volume/mute, wifi, cpu%, ram%, gpu% (clock + battery come from
 ;; display-time-mode / display-battery-mode in init.el).
 ;; Everything reads sysfs/procfs except volume, which shells out to
 ;; wpctl — cheap enough at the update interval.
+;;
+;; The status is rendered in the frame-global TAB-BAR (see
+;; `scott/tab-bar-status', wired into `tab-bar-format' in init.el), not the
+;; per-window mode-line — so it shows once, not once per buffer/split.
 
 (defgroup scott/modeline nil
   "System status segments for the modeline."
@@ -106,22 +110,32 @@ The displayed value lags one update interval."
          "  "))
   (force-mode-line-update t))
 
+(defun scott/tab-bar-status ()
+  "Right-aligned tab-bar item: system stats + clock + battery.
+Frame-global — rendered once, unlike the per-window mode-line.
+Add to `tab-bar-format' (see init.el)."
+  `((global menu-item
+            ,(concat scott/modeline-status
+                     (or (bound-and-true-p display-time-string) "")
+                     "  "
+                     (or (bound-and-true-p battery-mode-line-string) "")
+                     " ")
+            ignore)))
+
 ;;;###autoload
 (define-minor-mode scott/modeline-mode
-  "Show volume, wifi, cpu, ram, and gpu status in the modeline."
+  "Poll volume/wifi/cpu/ram/gpu into `scott/modeline-status'.
+The value is displayed by `scott/tab-bar-status' in the tab-bar, not
+the mode-line; this mode only drives the refresh timer."
   :global t
   (if scott/modeline-mode
       (progn
-        (unless (memq 'scott/modeline-status global-mode-string)
-          (setq global-mode-string
-                (append (or global-mode-string '("")) '(scott/modeline-status))))
         (setq scott/modeline--prev-cpu nil)
         (setq scott/modeline--timer
               (run-at-time 0 scott/modeline-interval #'scott/modeline--update)))
     (when scott/modeline--timer
       (cancel-timer scott/modeline--timer)
-      (setq scott/modeline--timer nil))
-    (setq global-mode-string (delq 'scott/modeline-status global-mode-string))))
+      (setq scott/modeline--timer nil))))
 
 (provide 'scott-modeline)
 ;;; scott-modeline.el ends here
