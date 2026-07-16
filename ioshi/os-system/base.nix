@@ -25,5 +25,7 @@
     options = "--delete-older-than 30d";
   };
 
-  system.stateVersion = "24.11";
+  # NOTE: system.stateVersion is per-host — it records the release a machine was
+  # first installed under and must NOT be shared or bumped on an existing host.
+  # Set it in each hosts/<name>/configuration.nix.
 }
