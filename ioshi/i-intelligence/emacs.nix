@@ -1,61 +1,16 @@
 { config, lib, pkgs, ... }:
 
 let
-  # Temporary pin for the org ELPA tarball: the current nixpkgs/emacs-overlay
-  # snapshot resolves org-9.8.6 with a stale hash, so we override the source
-  # explicitly until the package set is regenerated upstream.
-  orgSrc = pkgs.fetchurl {
-    url = "https://elpa.gnu.org/packages/org-9.8.7.tar";
-    sha256 = "sha256-bYBtYtZkvZYG1qhPWBTBcWoH0xW+NW4m4m5ime5w+vg=";
-  };
-
-  emacsOverrides = self: super: {
-    org = super.org.overrideAttrs (_old: {
-      src = orgSrc;
-    });
-  };
-in
-
-let
-  # Elisp lives in the repo and is symlinked out-of-store so it can be
-  # edited live without a home-manager switch. Packages stay declarative.
-  emacsDir = "${config.scott.dotfiles.path}/modules/home-manager/emacs";
+  # Elisp lives in the repo and is symlinked out-of-store (liveElisp) so it can
+  # be edited without a home-manager switch. The Emacs BUILD is system-owned
+  # (ioshi/i-intelligence/ewm.nix, from emacs/packages.nix) — this module only
+  # delivers config.
+  emacsDir = "${config.scott.dotfiles.path}/ioshi/i-intelligence/emacs";
 in
 {
-  programs.emacs = {
-    overrides = emacsOverrides;
-    enable = true;
-    package = pkgs.emacs-pgtk; # native Wayland build
-    extraPackages = epkgs: with epkgs; [
-      meow
-      vertico
-      orderless
-      consult
-      marginalia
-      embark
-      embark-consult
-      corfu
-      dirvish
-      magit
-      org-roam
-      catppuccin-theme
-      markdown-mode # transition: vault is still .md until the conversion sub-project
-      vterm # native module built by nix; M-x package-install can't do this
-    ];
-  };
-
-  services.emacs = {
-    # mkDefault: EWM hosts must disable this — EWM's emacs IS the daemon,
-    # and two daemons race for the same server socket (loser exits; when
-    # that's EWM's emacs, the whole compositor goes down with it).
-    enable = lib.mkDefault true;
-    client.enable = true;
-    defaultEditor = true;
-  };
-
-  # liveElisp: symlink into the checkout for live editing; otherwise copy
-  # the elisp (which lives in-repo, next to this module) into the store so
-  # hosts without a dotfiles checkout still get a working emacs config.
+  # liveElisp: symlink into the checkout for live editing; otherwise copy the
+  # elisp (which lives in-repo next to this module) into the store so hosts
+  # without a checkout still get a working config.
   xdg.configFile."emacs/early-init.el".source =
     if config.scott.dotfiles.liveElisp
     then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/early-init.el"
@@ -70,13 +25,10 @@ in
     else ./emacs/lisp;
 
   # NO ~/.emacs.d mirror: emacs PREFERS ~/.emacs.d over ~/.config/emacs when
-  # both exist, so a compat mirror there makes every plain `emacs` (no
-  # --init-directory) run with separate runtime state — on zord-old this
-  # produced a second org-roam.db split from the EWM daemon's. ~/.config/emacs
+  # both exist, splitting runtime state (a second org-roam.db). ~/.config/emacs
   # is the only config path; ~/.emacs.d must not exist.
 
-  # Override the generated GUI desktop entry so launcher invocations open a
-  # terminal-backed client instead of the unsupported pgtk/X11 frame path.
+  # Launcher entry: terminal-backed client, not the pgtk/X11 frame path.
   home.file.".local/share/applications/emacsclient.desktop".text = ''
     [Desktop Entry]
     Categories=Development;TextEditor;
