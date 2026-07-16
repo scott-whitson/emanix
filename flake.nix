@@ -41,6 +41,15 @@
 
       sharedSpecialArgs = { dotfilesLib = lib; };
 
+      # Applied to both NixOS systems; Home Manager inherits it via
+      # useGlobalPkgs. This is what actually gets the emacs-overlay onto the
+      # machines (the top-level `pkgs` below is only for devShell/formatter).
+      nixpkgsModule = {
+        nixpkgs.overlays = [ emacs-overlay.overlays.default ];
+        nixpkgs.config.allowUnfree = true;
+        nixpkgs.config.permittedInsecurePackages = [ "electron-39.8.10" ];
+      };
+
       hmModule = {
         home-manager = {
           extraSpecialArgs = sharedSpecialArgs;
@@ -73,6 +82,7 @@
           specialArgs = sharedSpecialArgs // { inherit ewm; };
           modules = [
             ./hosts/zord-old/configuration.nix
+            nixpkgsModule
             home-manager.nixosModules.home-manager
             hmModule
           ];
@@ -84,6 +94,7 @@
           specialArgs = sharedSpecialArgs // { inherit ewm; };
           modules = [
             ./hosts/zord/configuration.nix
+            nixpkgsModule
             disko.nixosModules.disko
             home-manager.nixosModules.home-manager
             hmModule
