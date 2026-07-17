@@ -57,5 +57,39 @@ Idempotent; safe to call from init on every start."
 (dolist (secs '("2 sec" "4 sec" "6 sec" "10 sec" "15 sec"))
   (run-at-time secs nil #'scott/ewm-apply-touchpad))
 
+;; Output layout — the external HDMI monitor sits ABOVE the laptop panel, so
+;; the cursor crosses from the top edge of eDP-1 to the bottom edge of the
+;; external. Both panels are 1920 wide and share x=0, so their full width is a
+;; single seam (laptop 1920x1200 at y=0; external 1920x1080 stacked at
+;; y=-1080). Names are Make-Model-Serial strings (per `ewm-list-outputs'), not
+;; eDP-1/HDMI-A-1, so the mapping survives connector renumbering across replugs.
+;;
+;; Two mechanisms, for the same enumeration reason as the touchpad above:
+;;   (1) `ewm-output-config' is stored in the compositor and re-applied every
+;;       time an output connects (boot AND hotplug) — this is what makes
+;;       plugging the monitor in later Just Work.
+;;   (2) an imperative `ewm-configure-output' pass positions any output already
+;;       connected at load time. Guarded, so an unplugged monitor is a no-op.
+(defconst scott/ewm-laptop-output "Lenovo Group Limited 0x403D Unknown"
+  "Make-Model-Serial name of the built-in laptop panel (eDP-1).")
+(defconst scott/ewm-external-output "Philips Consumer Electronics Company PHL 271E1 0x0000098C"
+  "Make-Model-Serial name of the external HDMI monitor (HDMI-A-1).")
+
+(setopt ewm-output-config
+        (list (list scott/ewm-laptop-output
+                    :width 1920 :height 1200 :scale 1 :x 0 :y 0)
+              (list scott/ewm-external-output
+                    :width 1920 :height 1080 :scale 1 :x 0 :y -1080)))
+
+(defun scott/ewm-apply-output-layout ()
+  "Position any currently-connected output per the stacked layout.
+No-op (demoted) for an output that is not connected right now."
+  (with-demoted-errors "eminix output layout: %S"
+    (ewm-configure-output scott/ewm-laptop-output :x 0 :y 0))
+  (with-demoted-errors "eminix output layout: %S"
+    (ewm-configure-output scott/ewm-external-output :x 0 :y -1080)))
+
+(scott/ewm-apply-output-layout)
+
 (provide 'scott-ewm)
 ;;; scott-ewm.el ends here
