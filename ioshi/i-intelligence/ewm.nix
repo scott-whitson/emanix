@@ -44,7 +44,11 @@ in
         # '.emacs-30.2-wra', so match the full command line, never -x emacs.
         pkill -u "$USER" -f "bin/emacs --fg-daemon" 2>/dev/null && sleep 1
         _t0=$(date +%s)
-        env LIBSEAT_BACKEND=logind /run/current-system/sw/bin/ewm-launch
+        # XKB_DEFAULT_OPTIONS: wlroots reads this when it builds the keymap at
+        # compositor start, so keyboard xkb opts (CapsLock->Control) apply
+        # reliably — ewm-input-config's :xkb-options loads too late (after the
+        # keymap is already built) to take effect.
+        env LIBSEAT_BACKEND=logind XKB_DEFAULT_OPTIONS=ctrl:nocaps /run/current-system/sw/bin/ewm-launch
         # pgtk emacs DETACHES from the wrapper on daemon start. This login
         # session is the seat lease — hold it open while the daemon lives,
         # or the compositor loses DRM master the moment we exit.
