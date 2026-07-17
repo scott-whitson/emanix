@@ -207,6 +207,12 @@
   (setq tab-bar-show t)   ; always show the panel, even with a single/zero tab
   (tab-bar-mode 1))
 
-;; EWM-only session glue (swayidle/swaylock) — no-op everywhere else.
-(when (featurep 'ewm)
+;; EWM-only session glue (swayidle/swaylock + touchpad) — no-op elsewhere.
+;; EWM is loaded via `emacs --eval (require 'ewm)' which runs AFTER this init
+;; file, so `(featurep 'ewm)' is still nil here: a plain `when' guard skips
+;; the require and input/session glue never loads (symptom: tap-to-click and
+;; swayidle silently absent, (fboundp 'scott/ewm-start-swayidle) => nil).
+;; Defer to the moment the ewm feature actually arrives; on non-EWM hosts it
+;; never loads, so this stays a no-op there.
+(with-eval-after-load 'ewm
   (require 'scott-ewm nil :no-error))
