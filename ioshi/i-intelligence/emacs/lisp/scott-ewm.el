@@ -7,7 +7,8 @@
 ;; Input devices — libinput defaults to tap-to-click OFF; setopt (not
 ;; setq) so the compositor refresh runs. See `ewm-input-config' doc for
 ;; the full option set (natural-scroll, accel, xkb, per-device overrides).
-(setopt ewm-input-config '((touchpad :tap t :natural-scroll t)))
+(setopt ewm-input-config '((touchpad :tap t :natural-scroll t)
+                           (keyboard :xkb-options "ctrl:nocaps")))
 
 ;; At bare init the touchpad often isn't enumerated yet, so the compositor
 ;; refresh above no-ops and tap/natural-scroll don't take (confirmed on the
