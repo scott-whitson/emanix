@@ -7,8 +7,12 @@
 ;; Input devices — libinput defaults to tap-to-click OFF; setopt (not
 ;; setq) so the compositor refresh runs. See `ewm-input-config' doc for
 ;; the full option set (natural-scroll, accel, xkb, per-device overrides).
-(setopt ewm-input-config '((touchpad :tap t :natural-scroll t)
-                           (keyboard :xkb-options "ctrl:nocaps")))
+;; Touchpad only. Keyboard xkb options (CapsLock->Control) are set via
+;; XKB_DEFAULT_OPTIONS in ewm.nix, NOT here: putting :xkb-options in
+;; ewm-input-config makes the setter error on the live keymap rebuild and
+;; abort before the touchpad settings apply — which silently breaks
+;; tap-to-click. Do not re-add a (keyboard ...) entry with :xkb-options.
+(setopt ewm-input-config '((touchpad :tap t :natural-scroll t)))
 
 ;; At bare init the touchpad often isn't enumerated yet, so the compositor
 ;; refresh above no-ops and tap/natural-scroll don't take (confirmed on the
