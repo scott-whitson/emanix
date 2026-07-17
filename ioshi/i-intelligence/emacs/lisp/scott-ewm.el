@@ -9,6 +9,12 @@
 ;; the full option set (natural-scroll, accel, xkb, per-device overrides).
 (setopt ewm-input-config '((touchpad :tap t :natural-scroll t)))
 
+;; At bare init the touchpad often isn't enumerated yet, so the compositor
+;; refresh above no-ops and tap/natural-scroll don't take (confirmed on the
+;; T14: a manual re-`setopt` after login fixes it). Re-apply once a few seconds
+;; in, when the device is up — re-running setopt is idempotent.
+(run-at-time 3 nil (lambda () (setopt ewm-input-config ewm-input-config)))
+
 (defun scott/lock-screen ()
   "Lock the screen with swaylock."
   (interactive)
