@@ -176,19 +176,33 @@
           (t root))))
 
 (defun scott/open-quarterly-tracker ()
-  "Open the current-quarter tracker note."
+  "Open the current-quarter tracker note.
+If the note does not exist on this machine, do NOT silently create and
+save an empty template — that races with Syncthing: on a freshly-synced
+box the empty file can win the conflict and quarantine the real,
+populated note (happened 2026-07-16 with 2026-Q3). Instead confirm
+first, so an unsynced note gets a chance to arrive rather than be
+clobbered; only a genuinely new quarter gets a fresh template."
   (interactive)
   (let* ((name (scott/current-quarter-name))
-         (file (scott/current-quarter-file))
-         (new-file (not (file-exists-p file))))
-    (find-file file)
-    (when (and new-file (zerop (buffer-size)))
-      (insert ":PROPERTIES:\n:ID:       " (org-id-new) "\n:END:\n")
-      (insert "#+title: " name "\n\n")
-      (insert "* Goals\n\n")
-      (insert "* Active work\n\n")
-      (insert "* Notes\n\n")
-      (save-buffer))))
+         (file (scott/current-quarter-file)))
+    (if (file-exists-p file)
+        (find-file file)
+      (if (yes-or-no-p
+           (format "No %s note here — create it? (choose no if it may just be unsynced) "
+                   name))
+          (progn
+            (find-file file)
+            (when (zerop (buffer-size))
+              (insert ":PROPERTIES:\n:ID:       " (org-id-new) "\n:END:\n")
+              (insert "#+title: " name "\n\n")
+              (insert "* Goals\n\n")
+              (insert "* Active work\n\n")
+              (insert "* Notes\n\n")
+              (save-buffer)))
+        (message
+         "Not creating %s — waiting for sync. Re-run C-c q once it arrives."
+         name)))))
 
 (global-set-key (kbd "C-c q") #'scott/open-quarterly-tracker)
 
