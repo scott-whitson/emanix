@@ -21,6 +21,7 @@
     # ./mpv.nix
     ./systemd.nix
     ./pi.nix
+    ./ollama.nix
     # ./claude.nix
     # ./yt-dlp.nix
     # ./zellij.nix
