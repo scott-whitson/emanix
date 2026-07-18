@@ -19,6 +19,20 @@
       url = {
         "ssh://git@datacore:2222/" = { insteadOf = "ssh://datacore/"; };
       };
+      # git config [alias] section — moved here from the deprecated
+      # top-level programs.git.aliases (renamed to programs.git.settings.alias).
+      alias = {
+        lg = "log --oneline --graph --decorate --all";
+        st = "status -s";
+        ci = "commit -v";
+        co = "checkout";
+        br = "branch";
+        unstage = "reset HEAD --";
+        last = "log -1 HEAD";
+        amend = "commit --amend --no-edit";
+        fixup = "commit --fixup";
+        squash = "commit --squash";
+      };
     };
     ignores = [
       ".DS_Store"
@@ -28,18 +42,6 @@
       ".direnv"
       ".envrc"
     ];
-    aliases = {
-      lg = "log --oneline --graph --decorate --all";
-      st = "status -s";
-      ci = "commit -v";
-      co = "checkout";
-      br = "branch";
-      unstage = "reset HEAD --";
-      last = "log -1 HEAD";
-      amend = "commit --amend --no-edit";
-      fixup = "commit --fixup";
-      squash = "commit --squash";
-    };
   };
 
   programs.diff-so-fancy = {
