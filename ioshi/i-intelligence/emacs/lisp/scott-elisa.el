@@ -38,6 +38,10 @@
 (defun scott/elisa--setup ()
   "Load ELISA and point it at Ollama + the elisa framing. Idempotent."
   (require 'elisa)
+  ;; ELISA calls `ellama-context-add-*-quote-noninteractive', which live in
+  ;; ellama-context.el and are NOT autoloaded (ellama only requires that file
+  ;; lazily inside its own commands). Load it so those calls aren't void.
+  (require 'ellama-context)
   (setq elisa-chat-provider (scott/elisa--provider)
         elisa-embeddings-provider (make-llm-ollama :embedding-model "nomic-embed-text")
         elisa-chat-prompt-template
@@ -52,7 +56,7 @@
 ;;;###autoload
 (defun scott/elisa-ask (prompt)
   "Ask elisa a question, retrieving from `scott/elisa-collections'."
-  (interactive "sni> ")
+  (interactive "selisa> ")
   (unless scott/elisa--ready (scott/elisa--setup))
   (elisa-chat prompt scott/elisa-collections))
 
@@ -80,7 +84,7 @@
 ;;;###autoload
 (defun scott/elisa-ask-notes (prompt)
   "Ask elisa against the org-roam vault only (personal notes)."
-  (interactive "sni notes> ")
+  (interactive "selisa notes> ")
   (unless scott/elisa--ready (scott/elisa--setup))
   (elisa-async-parse-directory scott/elisa-org-directory)
   (elisa-chat prompt (list scott/elisa-org-directory)))
