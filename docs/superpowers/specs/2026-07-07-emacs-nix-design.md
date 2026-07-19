@@ -15,7 +15,7 @@ Phase 1 migration, proving the HM workflow before the existing stow packages mig
 ## Decisions (settled during brainstorming)
 
 | Question | Decision |
-|---|---|
+| --- | --- |
 | Vault format | **Convert to org-mode** (one-way; mobile becomes read-mostly, accepted tradeoff) |
 | Emacs config style | **Hand-rolled init.el, packages declared in Nix** via emacs-overlay — no second package manager |
 | Sequencing vs Nix migration | **Emacs is the pilot HM module**; roadmap beat order resumes after |
@@ -49,7 +49,7 @@ are dropped only once Emacs is proven as daily driver.
 ## 3. Core package set by role
 
 | Role | Replaces | Packages |
-|---|---|---|
+| --- | --- | --- |
 | Modal editing | Helix keybinds | meow |
 | File navigation | lf | dired + dirvish |
 | Minibuffer/search | fuzzel-ish fuzzy everything | vertico, orderless, consult, marginalia, embark |
@@ -119,7 +119,7 @@ step 6, which is why it is last and separately planned.
 
 **Why it's the logical endgame:** it collapses the desktop stack into the tool this
 design already makes central. Hyprland, fuzzel (→ minibuffer), the window-picker Rust
-tool, and possibly waybar (→ modeline/tab-bar) all become Emacs concerns. One config
+tool, and the top bar (→ modeline/tab-bar) all become Emacs concerns. One config
 language, one theme target, one keybinding system — the same unification argument as
 the Nix migration itself, applied to the desktop.
 

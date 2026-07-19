@@ -15,7 +15,7 @@ The dotfiles project already turns OS install into a declarative, reproducible, 
 The payoff:
 
 | Current (bash + stow) | NixOS + HM |
-|---|---|
+| --- | --- |
 | 11 numbered install scripts manually maintained | `environment.systemPackages` + `home.packages` from nixpkgs |
 | Theme system: per-app per-theme files + symlink switcher | Theme system: Nix function generates configs from a palette |
 | `stow` for dotfiles, but conflicts with HM writing the same paths | HM owns `~/.config/*` declaratively |
@@ -49,7 +49,6 @@ The dotfiles repo grows a flake alongside the existing layout. Old `install/` sc
 │   │   ├── helix.nix             # NEW: replaces base/helix/
 │   │   ├── ghostty.nix           # NEW: replaces base/ghostty/
 │   │   ├── hyprland.nix          # NEW: replaces base/hypr/
-│   │   ├── waybar.nix            # NEW: replaces base/waybar/
 │   │   ├── mako.nix              # NEW: replaces base/mako/
 │   │   ├── fuzzel.nix            # NEW: replaces base/fuzzel/
 │   │   ├── btop.nix              # NEW: replaces base/btop/
@@ -117,13 +116,13 @@ Each module in `modules/home-manager/<name>.nix`:
 **Current stow package → HM module mapping:**
 
 | Stow package | HM module | HM option(s) |
-|---|---|---|
+| --- | --- | --- |
 | `base/git/` | `modules/home-manager/git.nix` | `programs.git.*` |
 | `base/zsh/` | `modules/home-manager/zsh.nix` | `programs.zsh.*` + `programs.oh-my-zsh.*` |
 | `base/helix/` | `modules/home-manager/helix.nix` | `programs.helix.*` |
 | `base/ghostty/` | `modules/home-manager/ghostty.nix` | `home.file.".config/ghostty/config"` |
 | `base/hypr/` | `modules/home-manager/hyprland.nix` | `wayland.windowManager.hyprland.*` |
-| `base/waybar/` | `modules/home-manager/waybar.nix` | `programs.waybar.*` |
+| legacy desktop bar | archived | archived |
 | `base/mako/` | `modules/home-manager/mako.nix` | `services.mako.*` |
 | `base/fuzzel/` | `modules/home-manager/fuzzel.nix` | `programs.fuzzel.*` |
 | `base/btop/` | `modules/home-manager/btop.nix` | `programs.btop.*` |
@@ -180,7 +179,7 @@ The theme system moves from a directory of static per-app config files to a Nix 
 
   # Per-app config generators
   generators = {
-    waybar = palette: { ... };  # returns CSS string
+    tabBar = palette: { ... };  # returns EWM tab-bar styling
     ghostty = palette: { ... }; # returns INI string
     hyprland = palette: { ... }; # returns color variables section
     mako = palette: { ... };     # returns config text
@@ -189,7 +188,7 @@ The theme system moves from a directory of static per-app config files to a Nix 
 
   # Full theme derivation: given a palette, produce all app configs
   mkTheme = palette: {
-    waybarCSS = generators.waybar palette;
+    tabBarCSS = generators.tabBar palette;
     ghosttyConf = generators.ghostty palette;
     hyprColors = generators.hyprland palette;
     ...
@@ -224,10 +223,11 @@ For each stow package:
 4. `ghostty` — replaces `config`
 5. `btop`, `fuzzel` — stateless configs, easy
 6. `mako` — service, but HM handles `systemd.user.services.mako`
-7. `waybar` — CSS generation from theme palette
-8. `hyprland` — the big one: monitors, keybinds, windows rules, theme colors
-9. `systemd` user services + timers
-10. `pi`, `claude`, `xdg`, `yt-dlp`, `zellij` — stragglers
+7. `hyprland` — the big one: monitors, keybinds, windows rules, theme colors
+8. `systemd` user services + timers
+9. `hyprland` — the big one: monitors, keybinds, windows rules, theme colors
+10. `systemd` user services + timers
+11. `pi`, `claude`, `xdg`, `yt-dlp`, `zellij` — stragglers
 
 ### Step 6: Remove old install scripts (Phase 1 completion)
 
@@ -316,7 +316,7 @@ Or, for the in-place migration path (Debian → NixOS on the same machine), use 
 Some things don't benefit from Nix:
 
 | Thing | Why it stays | Where |
-|---|---|---|
+| --- | --- | --- |
 | Docker compose stacks | Distro-agnostic, already declarative | `~/projects/datacore-config/stacks/` |
 | `tools/` Python (uv) | uv manages its own deps, Nix would just provide `uv` | `~/projects/dotfiles/tools/` |
 | `tools/window-picker` (Rust) | Cargo manages its own deps | `~/projects/dotfiles/tools/` |
@@ -330,7 +330,7 @@ Some things don't benefit from Nix:
 After Phase 1 (`home-manager switch --flake .#scott@zord`):
 
 | Aspect | Before | After |
-|---|---|---|
+| --- | --- | --- |
 | Package install | `apt`, `curl | sh`,`cargo install` | `nix-env`, HM `home.packages` |
 | Config files | stow-managed in `base/<name>/` | HM-generated in `~/.config/<name>/` |
 | Theme switch | `dot-theme-set` symlinks static files | HM generates files from palette; slimmed `dot-theme-set` swaps symlinks |
@@ -343,7 +343,7 @@ After Phase 1 (`home-manager switch --flake .#scott@zord`):
 ## Risks & Mitigations
 
 | Risk | Mitigation |
-|---|---|
+| --- | --- |
 | HM writes overlap with existing stow files | HM's managed paths are explicitly scoped; stow won't touch paths HM claims. Migrate one at a time and verify.
 | Flake.nix syntax errors lock out home-manager | Test with `nix flake check` before `home-manager switch`. Keep old install/ as fallback.
 | Theme generator produces bad config | HM writes to temp paths first; review before symlinking. `dot-doctor` validates critical configs.

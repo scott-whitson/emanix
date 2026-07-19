@@ -51,6 +51,7 @@ docs/manual/04-tools.md                      # MODIFY: retired scripts, mpv note
 **Files:** none (system-level only: `/nix`, `/etc/nix/nix.conf`)
 
 **Interfaces:**
+
 - Consumes: nothing
 - Produces: working `nix` CLI with `nix-command flakes` enabled; every later task's `nix build` depends on this
 
@@ -91,12 +92,14 @@ No commit — nothing in the repo changed.
 ### Task 2: Flake wiring — emacs-overlay input + pilot trim
 
 **Files:**
+
 - Modify: `flake.nix`
 - Modify: `modules/home-manager/default.nix`
 - Modify: `home/scott/zord.nix:21-36`
 - Create: `flake.lock` (generated)
 
 **Interfaces:**
+
 - Consumes: Task 1's `nix` CLI
 - Produces: `pkgs` carries `emacs-overlay` (so `pkgs.emacs-pgtk` exists for Task 3); `modules/home-manager/default.nix` imports only `./theme.nix` (Task 3 adds `./emacs.nix`)
 
@@ -155,7 +158,6 @@ Replace the whole file with:
     # ./helix.nix
     # ./ghostty.nix
     # ./hyprland.nix
-    # ./waybar.nix
     # ./mako.nix
     # ./fuzzel.nix
     # ./btop.nix
@@ -221,12 +223,14 @@ git commit -m "feat(nix): add emacs-overlay input, trim HM imports to pilot set"
 ### Task 3: emacs.nix module + minimal config + first Home Manager switch
 
 **Files:**
+
 - Create: `modules/home-manager/emacs.nix`
 - Create: `modules/home-manager/emacs/early-init.el`
 - Create: `modules/home-manager/emacs/init.el` (minimal — Task 4 completes it)
 - Modify: `modules/home-manager/default.nix` (uncomment/add `./emacs.nix`)
 
 **Interfaces:**
+
 - Consumes: `pkgs.emacs-pgtk` from Task 2's overlay; `config.scott.dotfiles.path` option from `theme.nix`
 - Produces: running Emacs daemon (`systemctl --user` unit `emacs`); `~/.nix-profile/bin/emacsclient`; `~/.config/emacs/{early-init.el,init.el,lisp}` symlinked to the repo. Tasks 4–8 all talk to this daemon.
 
@@ -342,12 +346,14 @@ git commit -m "feat(emacs): pilot HM module — pgtk build, nix-declared package
 ### Task 4: Living config — meow, vertico stack, dired, magit, org + theme wiring
 
 **Files:**
+
 - Modify: `modules/home-manager/emacs/init.el` (full replacement)
 - Create: `modules/home-manager/emacs/lisp/scott-theme.el`
 - Modify: `bin/dot-theme-set` (reload section, after the helix block context — insert before the `# --- Reload running apps` block's `echo`; exact snippet below)
 - Delete: `modules/home-manager/emacs/lisp/.gitkeep`
 
 **Interfaces:**
+
 - Consumes: daemon + symlinks from Task 3; theme state marker `~/.config/dotfiles/active-theme` and `$VARIANT` variable inside `dot-theme-set`
 - Produces: `(scott/theme-set FLAVOR)` where FLAVOR is the string `"mocha"` or `"latte"`; init.el's `(dolist (feature '(scott-theme scott-weather scott-openrouter scott-pi)) (require feature nil :no-error))` hook that auto-loads the files Tasks 5–7 create
 
@@ -584,10 +590,12 @@ git commit -m "feat(emacs): living config — meow, vertico stack, dirvish, magi
 ### Task 5: scott-weather.el — native weather surface
 
 **Files:**
+
 - Create: `modules/home-manager/emacs/lisp/scott-weather.el`
 - Create: `modules/home-manager/emacs/test/scott-weather-test.el`
 
 **Interfaces:**
+
 - Consumes: init.el's `require` hook from Task 4 (file just needs to exist and `(provide 'scott-weather)`)
 - Produces: `(scott/weather)` interactive command rendering buffer `*weather*`; `(scott/weather-frame)` non-interactive entry point for Hyprland (creates a frame titled `emacs-weather`); pure `(scott-weather--format-periods PERIODS &optional ZONE)` → string
 
@@ -765,10 +773,12 @@ git commit -m "feat(emacs): scott/weather — native NWS + NOAA surface"
 ### Task 6: scott-openrouter.el — cost surface
 
 **Files:**
+
 - Create: `modules/home-manager/emacs/lisp/scott-openrouter.el`
 - Create: `modules/home-manager/emacs/test/scott-openrouter-test.el`
 
 **Interfaces:**
+
 - Consumes: `~/.pi/agent/auth.json` (keys `openrouter-management.key`, `openrouter.key` — same as the bash script)
 - Produces: `(scott/openrouter-cost)` interactive command rendering buffer `*openrouter*`; `(scott/openrouter-cost-frame)` for Hyprland (frame titled `emacs-openrouter`); pure `(scott-openrouter--summarize ACTIVITY KEY-DATA NOW)` → string
 
@@ -936,9 +946,11 @@ git commit -m "feat(emacs): scott/openrouter-cost — native 7-day cost surface"
 ### Task 7: scott-pi.el — pi agent in vterm
 
 **Files:**
+
 - Create: `modules/home-manager/emacs/lisp/scott-pi.el`
 
 **Interfaces:**
+
 - Consumes: `vterm` package (Task 3); `pi` on the login shell's PATH (vterm starts the user's shell, so `.zshrc` PATH setup applies)
 - Produces: `(scott/pi-toggle)` interactive command; `(scott/pi-frame)` for Hyprland (frame titled `emacs-pi`)
 
@@ -1003,6 +1015,7 @@ git commit -m "feat(emacs): scott/pi-toggle — pi agent in vterm"
 ### Task 8: Hyprland cutover — binds, windowrules, doctor, docs, retire bash surfaces
 
 **Files:**
+
 - Modify: `base/hypr/.config/hypr/hyprland.conf:101-102` (windowrules) and `:178-180` (binds)
 - Modify: `bin/dot-doctor` (after the `# --- AI tooling check ---` block)
 - Modify: `docs/manual/02-keybindings.md:59-63`
@@ -1010,6 +1023,7 @@ git commit -m "feat(emacs): scott/pi-toggle — pi agent in vterm"
 - Delete: `base/bin/.local/bin/hypr-weather`, `base/bin/.local/bin/hypr-or-cost`
 
 **Interfaces:**
+
 - Consumes: `scott/weather-frame`, `scott/openrouter-cost-frame`, `scott/pi-frame` (Tasks 5–7); running daemon
 - Produces: final keybind surface; `dot-doctor` guards for the new stack
 
@@ -1099,12 +1113,13 @@ Expected: all five new checks green (pre-existing failures unrelated to this wor
 `docs/manual/02-keybindings.md` — update the three rows:
 
 | binding | new text |
-|---|---|
+| --- | --- |
 | `$mod + n` | Phoenix NY weather + NOAA imagery in Emacs (`scott/weather-frame`) |
 | `$mod + u` | OpenRouter 7-day cost in Emacs (`scott/openrouter-cost-frame`) |
 | `$mod + p` | Pi agent in Emacs vterm (`scott/pi-frame`) |
 
 `docs/manual/04-tools.md`:
+
 - Remove the `hypr-weather` and `hypr-or-cost` rows from the tool table; add a short "Emacs surfaces" note pointing at `modules/home-manager/emacs/lisp/`.
 - Update the "cheatsheet / weather — mpv dependency" section (lines 15–20): only `hypr-cheatsheet` renders through mpv now; weather images render natively in Emacs.
 

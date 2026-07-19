@@ -31,12 +31,14 @@ docs/ioshi/                                     # install runbook + deploy check
 ## Build / deploy
 
 Validate any host without root:
+
 ```bash
 nix flake check
 nix build .#nixosConfigurations.eminix.config.system.build.toplevel
 ```
 
 Apply on a machine:
+
 ```bash
 sudo nixos-rebuild switch --flake .#eminix     # or .#zord-old
 ```
@@ -59,8 +61,8 @@ steps for the current rollout are in
   host key. See the deploy checklist for inserting the real OpenRouter keys.
 - The former **Debian + Hyprland** setup is being retired. The Debian install/
   bootstrap tooling has been removed; still legacy and unimported on the EWM hosts
-  are the Hyprland/waybar modules
-  (`ioshi/i-intelligence/{hyprland,waybar,fuzzel,mako}.nix`) and the `bin/dot-*`
-  theming helpers — their removal (plus the root `themes/`) is tracked follow-up.
+  are the Hyprland/fuzzel/mako modules (`ioshi/i-intelligence/{hyprland,fuzzel,mako}.nix`)
+  and the `bin/dot-*` theming helpers. The old desktop bar code has been archived
+  and is no longer part of the active path.
 - Older Debian-era guides under `docs/manual/` are kept for history with supersede
   banners where relevant.

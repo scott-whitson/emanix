@@ -32,7 +32,7 @@ Stable base, modern desktop. Debian Testing gives you current Hyprland and still
 
 - `install.sh` stays short because the distro choice is already made
 - `01-core.sh` is the Debian bootstrap step
-- `hx`, `rclone`, `uv`, `waybar`, and `hyprland` are installed from Debian packages where available
+- `hx`, `rclone`, `uv`, and `hyprland` are installed from Debian packages where available
 
 ## 3. Terminal-centric, keyboard-driven
 

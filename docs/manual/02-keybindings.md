@@ -13,7 +13,7 @@ Active layout: **master** (configured in `base/hypr/.config/hypr/hyprland.conf` 
 ### Window management
 
 | Binding | Action |
-|---|---|
+| --- | --- |
 | `$mod + h/j/k/l` | Move focus left / down / up / right |
 | `$mod + Shift + h/j/k/l` | Move window left / down / up / right |
 | `$mod + Ctrl + h` / `$mod + Ctrl + l` | Shrink / grow master area (`mfact ±0.05`, repeatable) |
@@ -28,7 +28,7 @@ Active layout: **master** (configured in `base/hypr/.config/hypr/hyprland.conf` 
 ### Master layout
 
 | Binding | Action |
-|---|---|
+| --- | --- |
 | `$mod + m` | Jump to/from the master window |
 | `$mod + Shift + Return` | Promote focused window to master (`swapwithmaster`) |
 | `$mod + y` | Cycle orientation (left → top → right → bottom → center) |
@@ -36,7 +36,7 @@ Active layout: **master** (configured in `base/hypr/.config/hypr/hyprland.conf` 
 ### Workspaces
 
 | Binding | Action |
-|---|---|
+| --- | --- |
 | `$mod + 1..9` | Switch to workspace 1–9 |
 | `$mod + Shift + 1..9` | Move window to workspace 1–9 (silent) |
 | `$mod + s` | Next workspace on monitor |
@@ -45,12 +45,12 @@ Active layout: **master** (configured in `base/hypr/.config/hypr/hyprland.conf` 
 | `$mod + Shift + -` | Move window to special workspace (scratchpad) |
 | `$mod + -` | Toggle special workspace |
 
-Workspace names render in waybar's `hyprland/workspaces` module via `"format": "{name}"`. Renames are session-local (lost on Hyprland exit).
+Workspace/frame names render in the compositor's top bar. Renames are session-local (lost on exit).
 
 ### Launchers
 
 | Binding | Action |
-|---|---|
+| --- | --- |
 | `$mod + Return` | Terminal (`$term`) |
 | `$mod + d` | App launcher (`$menu`) |
 | `$mod + w` | Firefox (`~/.local/bin/firefox`) |
@@ -64,6 +64,9 @@ Workspace names render in waybar's `hyprland/workspaces` module via `"format": "
 | `$mod + p` | Pi agent in Emacs vterm (`scott/pi-frame`) |
 | `$mod + Tab` | Window picker (`~/.local/bin/window-picker`) |
 | `$mod + Shift + /` | Keybindings cheatsheet popup (`hypr-cheatsheet`; reads `~/docs/vault/Whitsgrove/Hyprland Cheatsheet.md`) |
+| `Super + 1..9` | Switch or create frame slot 1–9 in EWM (on-demand slots per output strip) |
+| `Super + 0` | Switch or create frame slot 10 in EWM |
+| `Super + r` | Rename the current EWM workspace/slot in the top bar |
 | `$mod + Escape` | Lock screen (`hyprlock`) |
 | `Print` | Screenshot region → clipboard (`grim` + `slurp`) |
 | `Shift + Print` | Screenshot region → `~/downloads/screenshot-YYYYMMDD-HHMMSS.png` |
@@ -84,7 +87,7 @@ See [Chapter 03 — Theming](03-theming.md).
 ### System / other
 
 | Binding | Action |
-|---|---|
+| --- | --- |
 | `$mod + Shift + e` | Exit Hyprland |
 | `$mod + Shift + r` | Reload Hyprland config (`hyprctl reload`) |
 | `$mod + Shift + m` | Toggle trackpad (`trackpad-toggle`) |

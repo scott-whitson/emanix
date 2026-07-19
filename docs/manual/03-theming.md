@@ -23,7 +23,7 @@ themes/
 Three files in `~/.config/dotfiles/`:
 
 | File | Contents |
-|---|---|
+| --- | --- |
 | `active-theme` | Currently applied theme (used by `install/10-theme.sh` on re-install) |
 | `last-dark` | Most recent dark theme (source of truth for `dot-theme-toggle` when flipping to dark) |
 | `last-light` | Most recent light theme |
@@ -39,7 +39,7 @@ themes/catppuccin-mocha/
 ├── hypr.conf          # border colors → symlinked to ~/.config/hypr/theme.conf
 ├── hyprlock.conf      # full hyprlock screen → ~/.config/hypr/hyprlock.conf
 ├── ghostty.conf       # terminal palette → ~/.config/ghostty/theme.conf
-├── waybar.css         # status bar styles → ~/.config/waybar/style.css
+├── tab-bar.el         # EWM tab-bar styling + status rendering
 ├── mako.conf          # notification colors → ~/.config/mako/config
 ├── fuzzel.ini         # launcher colors → ~/.config/fuzzel/fuzzel.ini
 ├── btop.theme         # btop theme → ~/.config/btop/themes/active.theme
@@ -57,13 +57,13 @@ themes/catppuccin-mocha/
 1. Validates `themes/<name>/` exists; refuses unknown names.
 2. Reads `variant` (must be `dark` or `light`).
 3. Writes `~/.config/dotfiles/active-theme` = `<name>` and `last-<variant>` = `<name>`.
-4. Symlinks each per-app file into its target location (see anatomy table above).
+4. Symlinks each per-app file into its target location (see anatomy table above). The EWM top bar is refreshed from the running Emacs daemon; it is not a separate CSS-driven status bar.
 5. Sed-rewrites the `theme = "..."` line in `~/.config/helix/config.toml` to the value in `helix-theme`.
 6. If `$OBSIDIAN_VAULT` is set in the active profile's `profile.conf`, JSON-patches the vault's `.obsidian/appearance.json` with the value in `obsidian-theme`.
 7. Sources `gtk.conf` and runs `gsettings` for `color-scheme` and `gtk-theme`.
 8. Restarts the `fragpaper.service` user unit so the wallpaper picks up the new `active-theme` marker (with a fallback to `fragpaper-launch` if the service is unavailable).
 9. Runs `themes/<name>/post-set.sh` if present and executable.
-10. Sends reload signals: `hyprctl reload`, `SIGUSR2` to waybar/ghostty, `makoctl reload`, `SIGUSR1` to helix.
+10. Sends reload signals: `hyprctl reload`, `makoctl reload`, `SIGUSR1` to helix. EWM bar state is refreshed in the running Emacs daemon.
 
 ## How `dot-theme-toggle` works
 
@@ -114,7 +114,7 @@ If this ever annoys you enough, three escape hatches:
 
 ## Fragpaper integration
 
-Fragpaper is a GPU shader wallpaper generator (not a static image). Each theme provides `BG_COLOR` and `PALETTE` (`dark` or `light`) via `fragpaper.conf`. `fragpaper.service` starts automatically in Hyprland and `fragpaper-launch` reads the active theme and passes it to the installed fragpaper binary, reading shader files from the best available checkout (`~/.local/share/fragpaper` on runtime desktops, `~/projects/fragpaper` on datacore/dev machines).
+Fragpaper is a GPU shader wallpaper generator (not a static image). Each theme provides `BG_COLOR` and `PALETTE` (`dark` or `light`) via `fragpaper.conf`. `fragpaper.service` starts automatically in Hyprland and `fragpaper-launch` reads the active theme and passes it to the installed fragpaper binary, reading shader files from the best available checkout (`~/.local/share/fragpaper` on runtime desktops, `~/projects/fragpaper` on datacore/dev machines). The EWM top bar is updated from the running Emacs daemon, not through a separate status-bar CSS file.
 
 If fragpaper isn't installed, theme switching still works — fragpaper relaunch is `|| true` guarded and the rest of the system doesn't care.
 

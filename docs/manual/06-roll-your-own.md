@@ -10,7 +10,7 @@ These pieces don't depend on being Scott:
 - **The stow layout** (`base/` packages, `--no-folding` for composable dotfiles) — all packages live in one directory, no profile complexity
 - **The theme system** (`themes/<name>/` + `bin/dot-theme-set` + `bin/dot-theme-toggle`) — works with any palette; ship the themes you care about
 - **The `bin/dot-*` helpers** (`dot-restow`, `dot-update`, `dot-doctor`) — generic operations, not personal
-- **The Hyprland/Waybar/Mako/Fuzzel/Ghostty/btop base configs** — generic Wayland desktop, re-theme freely
+- **The Hyprland/Mako/Fuzzel/Ghostty/btop base configs** — generic Wayland desktop, re-theme freely
 
 ## Scott-specific (rip out or replace)
 
@@ -30,7 +30,7 @@ These have personal state:
 [Chapter 05 — Philosophy](05-philosophy.md) lists seven tenets. A forker's path through them:
 
 | Tenet | Forker's likely response |
-|---|---|
+| --- | --- |
 | 1. Local-first, data-owned | Probably keep — good tenet for anyone who values sovereignty |
 | 2. Debian + Hyprland, no apologies | Keep if you want Debian; rewrite to `<your-distro>` otherwise |
 | 3. Terminal-centric, keyboard-driven | Keep if this is how you work |
