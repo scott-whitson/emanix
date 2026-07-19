@@ -30,8 +30,8 @@
       src = pkgs.fetchFromGitHub {
         owner = "scott-whitson";
         repo = "elisa";
-        rev = "a8062adfce7bc8ce12e5714eb33925518d7fa18b";
-        hash = "sha256-aLInhQL9YK3C8OuAy2EVIX1ATfjUNVBpN3HqJzs5oZs=";
+        rev = "61dab4eaa592132e17bf0c06562ddc450aeb5fb4";
+        hash = "sha256-9dPYVT084JW1Q3BmLR5lA3lwxxb3Vi/s1DpkqxTdGGc=";
       };
     }))
     async # ELISA dep (Package-Requires); needed to load elisa.el for port testing

@@ -1,6 +1,6 @@
 { config, lib, pkgs, ... }:
 {
-  # Local inference host for ni (the eminix assistant). NixOS *system* service
+  # Local inference host for elisa (the eminix assistant). NixOS *system* service
   # (imported via profiles/eminix.nix, like ewm.nix/secrets.nix) — the
   # Home-Manager services.ollama module has no `loadModels`, only the system
   # module does. CPU-only: the Radeon 780M (gfx1103) is unsupported by ROCm,
