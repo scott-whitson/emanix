@@ -5,9 +5,6 @@
   # Platform (os + i) comes from profiles/eminix.nix; hardware + disko layout
   # are wired in flake.nix via lib/mkHost.
 
-  imports = [
-  ];
-
   # Fresh install (2026) — pin the current release.
   system.stateVersion = "26.11";
 
