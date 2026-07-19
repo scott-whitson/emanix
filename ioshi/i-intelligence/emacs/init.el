@@ -342,7 +342,7 @@ stripped and truncated for the bar."
     (setq n (replace-regexp-in-string "\\*\\'" "" n))
     (setq n (string-trim n))
     (if (string-empty-p n) "?"
-      (truncate-string-to-width n 14 nil nil "…"))))
+      (truncate-string-to-width n 10 nil nil "…"))))
 
 (defun scott/ewm-tab-bar-slots ()
   "Tab-bar segment listing EWM slots on the focused output, sorted by slot

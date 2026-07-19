@@ -137,7 +137,7 @@ The displayed value lags one update interval."
   "Return the rendered volume segment, if any."
   (when-let* ((v scott/modeline--volume))
     (if (string= v "mute")
-        "󰖁 mute"
+        "󰖁"
       (let* ((pct (string-to-number v))
              (icon (cond ((< pct 34) "󰕿")
                          ((< pct 67) "󰖀")
