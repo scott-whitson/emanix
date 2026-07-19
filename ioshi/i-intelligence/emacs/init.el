@@ -421,5 +421,11 @@ Returns nil off EWM, so it is a no-op in a plain Emacs frame."
     (define-key ewm-mode-map (kbd "s-q") #'scott/ewm-close-slot)
     ;; Launch Firefox into the current slot (was s-w under Hyprland).
     (define-key ewm-mode-map (kbd "s-w") #'scott/ewm-launch-firefox)
+    ;; Summon elisa (ask) from ANY slot. It must be a single intercepted key:
+    ;; the C-c i prefix can't reach Emacs from a focused Wayland surface (the
+    ;; follow-up key goes to the surface). C-c i still gives the full command
+    ;; set when a native Emacs frame is focused.
+    (when (fboundp 'scott/elisa-ask)
+      (define-key ewm-mode-map (kbd "s-i") #'scott/elisa-ask))
     (when (fboundp 'ewm--send-intercept-keys)
       (ewm--send-intercept-keys))))
