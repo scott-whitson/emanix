@@ -65,6 +65,11 @@ in
   # Required by EWM: Mesa/EGL for the compositor's graphics backend.
   hardware.graphics.enable = true;
 
+  # ni reads this to load the sqlite-vec (vec0) extension into ELISA's DB;
+  # keeps the /nix/store path in Nix so the liveElisp scott-ni.el stays
+  # store-path-free. Present in the login shell → inherited by the EWM daemon.
+  environment.sessionVariables.ELISA_VEC0_PATH = "${pkgs.sqlite-vec}/lib/vec0.so";
+
   # EWM runtime deps + the single Emacs (gives emacsclient on the system PATH).
   environment.systemPackages = with pkgs; [
     theEmacs
