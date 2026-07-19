@@ -59,7 +59,6 @@ link_if_present() {
 
 link_if_present "$THEME_DIR/hypr.conf"      "$HOME/.config/hypr/theme.conf"
 link_if_present "$THEME_DIR/hyprlock.conf"  "$HOME/.config/hypr/hyprlock.conf"
-link_if_present "$THEME_DIR/waybar.css"     "$HOME/.config/waybar/style.css"
 link_if_present "$THEME_DIR/ghostty.conf"   "$HOME/.config/ghostty/theme.conf"
 link_if_present "$THEME_DIR/fuzzel.ini"     "$HOME/.config/fuzzel/fuzzel.ini"
 link_if_present "$THEME_DIR/mako.conf"      "$HOME/.config/mako/config"
@@ -164,7 +163,6 @@ fi
 # --- Reload running apps (best-effort) ---
 command -v hyprctl  &>/dev/null && hyprctl reload &>/dev/null || true
 command -v makoctl  &>/dev/null && makoctl reload 2>/dev/null || true
-pkill -SIGUSR2 waybar   2>/dev/null || true
 pkill -SIGUSR2 ghostty  2>/dev/null || true
 pkill -SIGUSR1 -x hx    2>/dev/null || true
 pkill -SIGUSR1 -x helix 2>/dev/null || true

@@ -29,7 +29,6 @@
         "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE XDG_DATA_DIRS"
         "systemctl --user restart xdg-desktop-portal"
         "systemctl --user start hyprpolkitagent"
-        "waybar"
         "mako"
         "hypridle"
       ];

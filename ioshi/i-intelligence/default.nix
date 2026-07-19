@@ -13,7 +13,6 @@
     # Optional — enable as needed per machine
     # ./helix.nix
     # ./hyprland.nix
-    # ./waybar.nix
     # ./mako.nix
     # ./fuzzel.nix
     # ./btop.nix

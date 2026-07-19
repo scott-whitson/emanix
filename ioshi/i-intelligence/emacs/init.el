@@ -2,6 +2,32 @@
 ;; Packages are installed by Nix (modules/home-manager/emacs.nix).
 ;; This file only configures them.
 
+(eval-and-compile
+  (defvar display-time-format)
+  (defvar display-time-default-load-average)
+  (defvar display-line-numbers-type)
+  (defvar corfu-auto)
+  (defvar corfu-auto-delay)
+  (defvar dired-listing-switches)
+  (defvar dired-dwim-target)
+  (defvar org-directory)
+  (defvar org-roam-directory)
+  (defvar tab-bar-format)
+  (defvar tab-bar-show)
+  (defvar meow-cheatsheet-layout)
+  (declare-function ewm--focused-frame "ewm")
+  (declare-function ewm--strip-frames "ewm")
+  (declare-function ewm-frame-new "ewm")
+  (declare-function ewm-workspace-rename "ewm")
+  (declare-function ewm--strip-frames "ewm")
+  (declare-function ewm--send-intercept-keys "ewm-input")
+  (declare-function org-roam-capture "org-roam")
+  (declare-function org-roam-node-find "org-roam")
+  (declare-function org-roam-node-insert "org-roam")
+  (declare-function org-roam-db-autosync-mode "org-roam")
+  (declare-function embark-act "embark")
+  (declare-function embark-bindings "embark"))
+
 (add-to-list 'load-path (locate-user-emacs-file "lisp"))
 (setq custom-file (locate-user-emacs-file "custom.el"))
 (load custom-file :no-error)
@@ -18,17 +44,16 @@
 (global-auto-revert-mode 1)
 (column-number-mode 1)
 
-;; Clock + battery for the EWM tab-bar panel (no status bar under EWM).
-;; Volume/wifi/cpu/ram/gpu segments live in lisp/scott-modeline.el; the whole
-;; lot renders in the tab-bar via scott/tab-bar-status, not the mode-line.
-(setq display-time-format "%a %b %e %I:%M %p"
-      display-time-default-load-average nil)
+;; Clock + battery + status for the EWM tab-bar panel (no status bar under EWM).
+;; Volume/wifi/cpu/ram/gpu/clock/battery all render once in the tab-bar via
+;; scott/tab-bar-status, not the mode-line.
+(setq-default display-time-format "%a %b %e %I:%M %p"
+              display-time-default-load-average nil)
 (display-time-mode 1)
 (display-battery-mode 1)
-;; Keep the per-window mode-line clean — the clock/battery/stats live in the
-;; tab-bar now. display-time/battery still update their *-string vars for it.
+;; Keep the per-window mode-line clean — the panel lives in the tab-bar now.
 (setq global-mode-string nil)
-(setq display-line-numbers-type t)
+(setq-default display-line-numbers-type t)
 (add-hook 'prog-mode-hook #'display-line-numbers-mode)
 
 ;; --- Minibuffer completion: vertico + orderless + consult + marginalia + embark ---
@@ -52,7 +77,8 @@
 
 ;; --- In-buffer completion ---
 (global-corfu-mode 1)
-(setq corfu-auto t corfu-auto-delay 0.15)
+(setq corfu-auto t)
+(setq-default corfu-auto-delay 0.15)
 
 ;; --- Meow: modal editing (qwerty layout, per meow README) ---
 (require 'meow)
@@ -214,12 +240,154 @@ clobbered; only a genuinely new quarter gets a fresh template."
 (when (fboundp 'scott/modeline-mode)
   (scott/modeline-mode 1))
 
+;; Slots are generic: no app or name is tied to a number. Apps launch into
+;; whatever slot you're on (e.g. `s-w' → Firefox), and you name slots yourself
+;; with `s-r'.
+
+(defun scott/ewm-launch-firefox ()
+  "Launch Firefox in the current EWM session."
+  (interactive)
+  (start-process-shell-command
+   "firefox" nil
+   (or (executable-find "firefox")
+       (executable-find "firefox-esr")
+       "~/.local/bin/firefox")))
+
+;; Keyed slots: each frame carries its slot NUMBER in the `scott/ewm-slot'
+;; frame parameter, so `s-3' owns one specific frame rather than "the 3rd
+;; frame in the strip". Selecting slot 3 never conjures 1 and 2.
+;;
+;; No auto-close: under EWM a new frame inherits the current buffer (a
+;; terminal surface, not *scratch*), and focus is async/compositor-owned, so
+;; "reap the blank slot I just left" has no reliable trigger. Slots close
+;; explicitly via `scott/ewm-close-slot' (s-w); apps that exit are cleaned up
+;; by EWM's own close handler.
+
+(defun scott/ewm--slot-frame (slot output)
+  "Return the frame keyed to SLOT on OUTPUT, or nil."
+  (seq-find (lambda (f) (eql slot (frame-parameter f 'scott/ewm-slot)))
+            (ewm--strip-frames output)))
+
+(defun scott/ewm--goto (target)
+  "Focus TARGET and refresh the bar.
+The force-update defeats tab-bar's per-frame cache so the highlight
+tracks the switch."
+  (select-frame-set-input-focus target)
+  (force-mode-line-update t))
+
+(defun scott/ewm-close-slot ()
+  "Close the current EWM slot/frame.
+EWM's delete-frame handling refocuses a same-output neighbour and drops
+the frame from the strip; its advice refuses to close the last frame."
+  (interactive)
+  (unless (bound-and-true-p ewm--module-mode)
+    (user-error "EWM is not active"))
+  (delete-frame (if (fboundp 'ewm--focused-frame)
+                    (ewm--focused-frame)
+                  (selected-frame)))
+  (force-mode-line-update t))
+
+(defun scott/ewm-select-slot (slot)
+  "Focus the frame keyed to SLOT on the current output, creating it once.
+Slots are identified by number, not strip position, so selecting slot 3
+never creates 1 and 2."
+  (interactive "nSlot: ")
+  (unless (and (integerp slot) (>= slot 1))
+    (user-error "Slot must be a positive integer"))
+  (unless (bound-and-true-p ewm--module-mode)
+    (user-error "EWM is not active"))
+  (let* ((frame (if (fboundp 'ewm--focused-frame)
+                    (ewm--focused-frame)
+                  (selected-frame)))
+         (output (frame-parameter frame 'ewm-output)))
+    (unless output
+      (user-error "Current frame has no EWM output"))
+    ;; Adopt the leftmost frame as slot 1 (home) the first time, so it shows
+    ;; in the bar as a numbered slot.
+    (unless (scott/ewm--slot-frame 1 output)
+      (when-let* ((home (car (ewm--strip-frames output))))
+        (set-frame-parameter home 'scott/ewm-slot 1)))
+    (if-let* ((existing (scott/ewm--slot-frame slot output)))
+        (scott/ewm--goto existing)
+      (let ((before (ewm--strip-frames output)))
+        (ewm-frame-new)
+        (let ((new (car (seq-difference (ewm--strip-frames output) before))))
+          (unless new
+            (user-error "Slot %d creation failed" slot))
+          (set-frame-parameter new 'scott/ewm-slot slot)
+          (scott/ewm--goto new))))))
+
+(defun scott/ewm-rename-workspace (name)
+  "Rename the current EWM workspace/slot to NAME (shown in the tab bar).
+An empty NAME clears the custom label, falling back to the frame name."
+  (interactive "sWorkspace name: ")
+  (unless (bound-and-true-p ewm--module-mode)
+    (user-error "EWM is not active"))
+  (let ((frame (if (fboundp 'ewm--focused-frame)
+                   (ewm--focused-frame)
+                 (selected-frame))))
+    (ewm-workspace-rename name frame)
+    (set-frame-parameter frame 'ewm-workspace-name
+                         (unless (string-empty-p name) name))
+    (force-mode-line-update t)))
+
+(defun scott/ewm--slot-label (frame)
+  "Short display label for FRAME's slot.
+Prefers the tracked workspace name, else the frame name, decorations
+stripped and truncated for the bar."
+  (let ((n (or (frame-parameter frame 'ewm-workspace-name)
+               (frame-parameter frame 'name)
+               "")))
+    (setq n (replace-regexp-in-string "\\`\\*ewm:[ \t]*" "" n))
+    (setq n (replace-regexp-in-string "\\*\\'" "" n))
+    (setq n (string-trim n))
+    (if (string-empty-p n) "?"
+      (truncate-string-to-width n 14 nil nil "…"))))
+
+(defun scott/ewm-tab-bar-slots ()
+  "Tab-bar segment listing EWM slots on the focused output, sorted by slot
+number, current one highlighted, each clickable to focus it.
+Returns nil off EWM, so it is a no-op in a plain Emacs frame."
+  (when (fboundp 'ewm--focused-frame)
+    (let* ((focused (ewm--focused-frame))
+           (output (frame-parameter focused 'ewm-output))
+           (frames (and output (ewm--strip-frames output)))
+           (pos 0)
+           pairs)
+      ;; Pair each frame with its slot number (its `scott/ewm-slot' tag, or
+      ;; its strip position for any not-yet-adopted frame), then sort so the
+      ;; bar reads 1, 2, 3 … regardless of physical strip order.
+      (dolist (f frames)
+        (setq pos (1+ pos))
+        (push (cons (or (frame-parameter f 'scott/ewm-slot) pos) f) pairs))
+      (setq pairs (sort (nreverse pairs) (lambda (a b) (< (car a) (car b)))))
+      (mapcar
+       (lambda (pair)
+         (let* ((num (car pair))
+                (f (cdr pair))
+                (cur (eq f focused))
+                (label (format " %d:%s " num (scott/ewm--slot-label f)))
+                (face (if cur 'tab-bar-tab 'tab-bar-tab-inactive)))
+           (list (intern (format "ewm-slot-%d" num))
+                 'menu-item
+                 (propertize label 'face face)
+                 (lambda () (interactive) (scott/ewm--goto f)))))
+       pairs))))
+
 ;; Frame-global panel: system stats + clock + battery, rendered ONCE at the top
-;; of the (full-screen, under EWM) frame — a waybar, not a per-buffer bar.
+;; of the (full-screen, under EWM) frame — the actual bar.
 (when (fboundp 'scott/tab-bar-status)
-  (setq tab-bar-format '(tab-bar-format-align-right scott/tab-bar-status))
+  ;; Left: EWM slot list (scott/ewm-tab-bar-slots, no-op off EWM).
+  ;; Right: system stats + clock + battery.
+  (setq tab-bar-format '(scott/ewm-tab-bar-slots
+                         tab-bar-format-align-right
+                         scott/tab-bar-status))
   (setq tab-bar-show t)   ; always show the panel, even with a single/zero tab
   (tab-bar-mode 1))
+
+;; elisa — local, config-aware eminix assistant (Emacs/Linux/NixOS RAG via a
+;; sqlite-vec ELISA fork + ellama + local Ollama). Binds the C-c i map.
+(require 'scott-elisa nil :no-error)
 
 ;; EWM-only session glue (swayidle/swaylock + touchpad) — no-op elsewhere.
 ;; EWM is loaded via `emacs --eval (require 'ewm)' which runs AFTER this init
@@ -229,4 +397,26 @@ clobbered; only a genuinely new quarter gets a fresh template."
 ;; Defer to the moment the ewm feature actually arrives; on non-EWM hosts it
 ;; never loads, so this stays a no-op there.
 (with-eval-after-load 'ewm
-  (require 'scott-ewm nil :no-error))
+  (require 'scott-ewm nil :no-error)
+  (when (boundp 'ewm-mode-map)
+    ;; Super+number restores the old workspace-switch rhythm, but in EWM frame
+    ;; slots. Slots create on demand: super-3 opens/switches to slot 3.
+    (dotimes (i 9)
+      (let ((slot (1+ i)))
+        (define-key ewm-mode-map (kbd (format "s-%d" slot))
+          (lambda ()
+            (interactive)
+            (scott/ewm-select-slot slot)))))
+    (define-key ewm-mode-map (kbd "s-0")
+      (lambda ()
+        (interactive)
+        (scott/ewm-select-slot 10)))
+    ;; Rename the current frame/slot in the top bar.
+    (define-key ewm-mode-map (kbd "s-r") #'scott/ewm-rename-workspace)
+    ;; Close the current slot (manual lifecycle; no auto-close under EWM).
+    ;; s-q mirrors Hyprland's `$mod, Q, killactive' muscle memory.
+    (define-key ewm-mode-map (kbd "s-q") #'scott/ewm-close-slot)
+    ;; Launch Firefox into the current slot (was s-w under Hyprland).
+    (define-key ewm-mode-map (kbd "s-w") #'scott/ewm-launch-firefox)
+    (when (fboundp 'ewm--send-intercept-keys)
+      (ewm--send-intercept-keys))))
