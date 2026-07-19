@@ -15,6 +15,7 @@
 
   list = epkgs: with epkgs; [
     meow
+    avy
     vertico
     orderless
     consult

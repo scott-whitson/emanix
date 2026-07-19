@@ -81,6 +81,7 @@
 (setq-default corfu-auto-delay 0.15)
 
 ;; --- Meow: modal editing (qwerty layout, per meow README) ---
+(require 'avy)
 (require 'meow)
 (defun meow-setup ()
   (setq meow-cheatsheet-layout meow-cheatsheet-layout-qwerty)
@@ -118,6 +119,7 @@
    '("e" . meow-next-word)
    '("E" . meow-next-symbol)
    '("f" . meow-find)
+   '("F" . avy-goto-char-2)
    '("g" . meow-cancel-selection)
    '("G" . meow-grab)
    '("h" . meow-left)
@@ -169,6 +171,7 @@
 
 ;; --- Org + org-roam ---
 (require 'org)
+(setq org-return-follows-link t)
 (require 'org-id)
 ;; Org-roam root. Full vault migrated from the Obsidian vault
 ;; (~/docs/vault/Whitsgrove) on 2026-07-11 via ~/docs/convert-vault.py.
