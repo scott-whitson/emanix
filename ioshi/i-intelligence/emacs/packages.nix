@@ -26,6 +26,14 @@
     magit
     ellama
     llm
+    (elisa.overrideAttrs (_: {
+      src = pkgs.fetchFromGitHub {
+        owner = "scott-whitson";
+        repo = "elisa";
+        rev = "a8062adfce7bc8ce12e5714eb33925518d7fa18b";
+        hash = "sha256-aLInhQL9YK3C8OuAy2EVIX1ATfjUNVBpN3HqJzs5oZs=";
+      };
+    }))
     async # ELISA dep (Package-Requires); needed to load elisa.el for port testing
     plz   # ELISA/llm HTTP dep
     org-roam
