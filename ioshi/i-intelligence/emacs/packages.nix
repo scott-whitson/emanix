@@ -26,6 +26,8 @@
     magit
     ellama
     llm
+    async # ELISA dep (Package-Requires); needed to load elisa.el for port testing
+    plz   # ELISA/llm HTTP dep
     org-roam
     org
     catppuccin-theme
