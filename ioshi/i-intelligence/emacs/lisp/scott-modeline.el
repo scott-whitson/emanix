@@ -70,8 +70,11 @@
     (string-trim (with-temp-buffer (insert-file-contents f) (buffer-string)))) )
 
 (defun scott/modeline--clock ()
-  "Day, weekday, and 12-hour time with a trailing period."
-  (format-time-string "%e %a %I:%M."))
+  "Day, weekday, and 12-hour time; a trailing period marks PM.
+The period is the PM indicator, so it appears only in the afternoon
+\(24-hour hour >= 12: noon is PM, midnight is AM)."
+  (concat (format-time-string "%e %a %I:%M")
+          (if (>= (string-to-number (format-time-string "%H")) 12) "." "")))
 
 (defun scott/modeline--battery-icon (capacity)
   "Return a battery icon for CAPACITY."
