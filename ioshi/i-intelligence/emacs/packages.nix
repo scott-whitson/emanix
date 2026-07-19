@@ -24,6 +24,8 @@
     corfu
     dirvish
     magit
+    ellama
+    llm
     org-roam
     org
     catppuccin-theme
