@@ -70,6 +70,27 @@
       mkHost = import ./lib/mkHost.nix {
         inherit nixpkgs home-manager ewm agenix nixpkgsModule hmModule sharedSpecialArgs system;
       };
+
+      # Standalone Home-Manager homes for the foreign-distro nodes
+      # (Debian datacore, Debian WSL). Same home layer as eminix, headless.
+      hmPkgs = import nixpkgs {
+        inherit system;
+        overlays = [ emacs-overlay.overlays.default ];
+        config.allowUnfree = true;
+      };
+      mkHome = profile:
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = hmPkgs;
+          extraSpecialArgs = sharedSpecialArgs;
+          modules = [
+            ./home/scott/default.nix
+            {
+              scott.gui = false;
+              scott.standalone = true;
+              scott.dotfiles.profile = profile;
+            }
+          ];
+        };
     in
     {
       # --- NixOS configurations — eminix instances ---
@@ -92,6 +113,12 @@
             ./ioshi/hi-hardware/disko/eminix.nix
           ];
         };
+      };
+
+      # --- Standalone Home-Manager configurations (foreign distros) ---
+      homeConfigurations = {
+        "scott@datacore" = mkHome "server";
+        "scott@work" = mkHome "wsl";
       };
 
       # --- Disko configurations (declarative disk partitioning) ---

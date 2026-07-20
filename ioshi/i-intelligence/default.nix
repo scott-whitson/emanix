@@ -9,6 +9,7 @@
     ./packages.nix
     ./swaylock.nix
     ./xdg.nix
+    ./standalone.nix
 
     # Optional — enable as needed per machine
     # ./helix.nix
