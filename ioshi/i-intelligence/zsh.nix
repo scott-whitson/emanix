@@ -27,7 +27,7 @@
       VISUAL = "emacsclient";
       PAGER = "less";
       DOTFILES = "$HOME/dotfiles";
-      DOTFILES_PROFILE = "desktop";
+      DOTFILES_PROFILE = config.scott.dotfiles.profile;
     };
 
     initContent = ''
@@ -61,6 +61,18 @@
       if command -v starship &>/dev/null; then
         eval "$(starship init zsh)"
       fi
+
+      # Emacs clients. ec prefers the Wayland display: pgtk emacs over X11 is
+      # unsupported (warns, sporadic crashes) and picks X11 whenever $DISPLAY
+      # is set — which WSLg always does alongside $WAYLAND_DISPLAY.
+      ec() {
+        if [[ -n "$WAYLAND_DISPLAY" ]]; then
+          emacsclient -c -d "$WAYLAND_DISPLAY" "$@"
+        else
+          emacsclient -c "$@"
+        fi
+      }
+      et() { emacsclient -t "$@"; }
     '';
   };
 }
