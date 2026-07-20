@@ -28,6 +28,12 @@
         path = "/home/scott/docs";
         devices = [ "datacore" ];
       };
+      folders.downloads = {
+        id = "downloads";
+        label = "downloads";
+        path = "/home/scott/Downloads";
+        devices = [ "datacore" ];
+      };
     };
   };
 }
