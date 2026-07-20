@@ -8,6 +8,18 @@
       description = "Active theme name (must match a key in lib/themes.nix palettes)";
     };
 
+    gui = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Machine has a graphical session. Gates cursor theme, Wayland tools, GUI apps, swaylock, and ghostty config.";
+    };
+
+    standalone = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Home Manager runs standalone on a foreign distro (no eminix NixOS layer): install the Emacs build user-side, skip agenix-dependent files and the syncthing user service.";
+    };
+
     dotfiles = {
       path = lib.mkOption {
         type = lib.types.str;

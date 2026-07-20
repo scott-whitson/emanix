@@ -26,10 +26,9 @@
     deadnix
     statix
 
-    # Media
+    # Media (CLI)
     ffmpeg
     imagemagick
-    mpv
 
     # Network
     curl
@@ -38,6 +37,10 @@
     nmap
     iperf3
 
+    # Fonts — every node: pgtk emacs under WSLg reads nix-profile fonts
+    jetbrains-mono
+    nerd-fonts.jetbrains-mono
+  ] ++ lib.optionals config.scott.gui [
     # Wayland tools
     grim
     slurp
@@ -48,6 +51,9 @@
     # Notifications
     libnotify
 
+    # Media (GUI)
+    mpv
+
     # Terminal — config lives in ghostty.nix; the package (and its XDG
     # desktop entry, which EWM's s-d launcher needs) is installed here.
     ghostty
@@ -55,9 +61,5 @@
     # GUI apps
     firefox
     bitwarden-desktop
-
-    # Fonts
-    jetbrains-mono
-    nerd-fonts.jetbrains-mono
   ];
 }

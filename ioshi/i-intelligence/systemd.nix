@@ -2,7 +2,9 @@
 
 {
   systemd.user.services = {
-    syncthing = {
+    # Standalone nodes: datacore's syncthing is Debian-managed (it is the
+    # hub); the work WSL gets syncthing in Phase 3. Neither wants this unit.
+    syncthing = lib.mkIf (!config.scott.standalone) {
       Unit = {
         Description = "Syncthing file sync";
         After = [ "network-online.target" ];

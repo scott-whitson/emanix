@@ -22,8 +22,11 @@
   # secret at /run/agenix/openrouter-auth. HM owns this dir, so there is no
   # root/scott ownership collision (agenix no longer creates ~/.pi/agent).
   # .stignore already excludes /auth.json from Syncthing.
-  home.file.".pi/agent/auth.json".source =
-    config.lib.file.mkOutOfStoreSymlink "/run/agenix/openrouter-auth";
+  # agenix only exists on the NixOS nodes; standalone nodes manage
+  # ~/.pi/agent/auth.json by hand (it is stignored from sync anyway).
+  home.file.".pi/agent/auth.json" = lib.mkIf (!config.scott.standalone) {
+    source = config.lib.file.mkOutOfStoreSymlink "/run/agenix/openrouter-auth";
+  };
 
   home.file.".pi/agent/AGENTS.md" = {
     # Flake-relative path literal (not a string): the file is copied into the
