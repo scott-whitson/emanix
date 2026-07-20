@@ -2,6 +2,10 @@
 
 {
   # User-level packages installed via Home Manager.
+  # NB: element ORDER below is derivation-load-bearing for eminix — the gui
+  # splices sit exactly where those packages originally were. Reordering (or
+  # merging the gui blocks) changes the eminix system drv and forces a
+  # rebuild; re-check the toplevel drvPath if you restructure.
   # System-level packages (Hyprland, Docker, etc.) stay under apt for Phase 1
   # and move to the NixOS layer in Phase 2.
   home.packages = with pkgs; [

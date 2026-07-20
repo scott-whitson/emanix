@@ -77,6 +77,9 @@
         inherit system;
         overlays = [ emacs-overlay.overlays.default ];
         config.allowUnfree = true;
+        # Parity with nixpkgsModule: a future gui=true standalone home would
+        # otherwise fail eval on bitwarden-desktop's electron.
+        config.permittedInsecurePackages = [ "electron-39.8.10" ];
       };
       mkHome = profile:
         home-manager.lib.homeManagerConfiguration {

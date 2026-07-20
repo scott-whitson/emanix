@@ -24,6 +24,9 @@ Home-Manager from the same flake. See the spec:
 - Emacs runs as a user daemon: `systemctl --user {status,restart} emacs`
 - elisa: `ELISA_VEC0_PATH` is set, but chat needs an Ollama — deferred; not
   available on these nodes yet
+- pi auth: `~/.pi/agent/auth.json` is hand-managed on standalone nodes (the
+  agenix symlink only exists on NixOS hosts) — copy/create it manually or pi
+  won't authenticate
 
 ## Emacs access on the work-WSL (verified 2026-07-20)
 
