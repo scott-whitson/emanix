@@ -23,6 +23,10 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nixos-wsl = {
+      url = "github:nix-community/NixOS-WSL";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -34,6 +38,7 @@
     , disko
     , nixos-hardware
     , agenix
+    , nixos-wsl
     , ...
     }:
     let
@@ -117,6 +122,29 @@
             ./hosts/eminix/configuration.nix
             disko.nixosModules.disko
             ./ioshi/hi-hardware/disko/eminix.nix
+          ];
+        };
+
+        # NixOS-WSL on the work laptop — replaces the Debian WSL + scott@work
+        # standalone HM pair at cutover (spec 2026-07-21). Not an eminix
+        # instance (no EWM/hardware layer), so composed here, not via mkHost.
+        weasel = nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = sharedSpecialArgs;
+          modules = [
+            nixos-wsl.nixosModules.default
+            ./hosts/weasel/configuration.nix
+            nixpkgsModule
+            agenix.nixosModules.default
+            home-manager.nixosModules.home-manager
+            hmModule
+            {
+              home-manager.users.scott = {
+                scott.dotfiles.profile = "wsl";
+                scott.gui = false;
+                scott.ewm.enable = false;
+              };
+            }
           ];
         };
       };
