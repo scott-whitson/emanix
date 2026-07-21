@@ -117,9 +117,11 @@ Ordered; single-writer discipline is the invariant.
    idle on both; from then on weasel is the writer of `~/projects` and
    `~/docs/org/work`. Debian's syncthing is stopped and its device removed
    from datacore's folders.
-5. **Databases:** after the last Debian write, `pg_dump` each of the four
-   DBs on Debian, restore into weasel's declarative containers, re-run each
-   project's checks against them.
+5. **Databases:** after the last Debian write, `pg_dump` `pearl-platform-db`
+   on Debian and restore into weasel's one declarative container; for each
+   surviving worktree DB, bring it up via `docker compose up -d db` on
+   weasel and restore its dump the same way; re-run each project's checks
+   against them.
 6. **`~/clients` and unsynced home state:** one-time local copy Debian →
    weasel (tar stream between distros or via a Windows temp path, then
    delete the temp) of an explicit list: `~/clients`, `~/.ssh` (weasel
@@ -157,8 +159,9 @@ Ordered; single-writer discipline is the invariant.
   cleanly on the work laptop; eminix drvPath unchanged by the flag refactor.
 - `ec` opens the pgtk emacs GUI under WSLg; org-roam finds the work vault;
   magit, zellij, claude, pi all function as on Debian.
-- All four DBs answer on their compose-era ports with migrated data;
-  `docker system df` build cache stays under the 25 GB cap.
+- pearl-platform-db answers on 5434 with migrated data; surviving worktree
+  DBs answer on their compose-era ports; `docker system df` build cache
+  stays under the 25 GB cap.
 - `~/projects` and `~/docs/org/work` identical on weasel/datacore/eminix;
   weasel is the sole writer; Debian's device removed from datacore.
 - tailscaled (non-userspace) connects; WSL↔datacore direct connection

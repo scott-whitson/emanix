@@ -54,7 +54,7 @@ GIT_SSH_COMMAND="ssh -i /root/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-ne
 ```bash
 nixos-rebuild switch --flake /tmp/dotfiles#weasel
 ```
-Expected: builds the Emacs closure (long first build), switches, ends with activation output including home-manager. Exit weasel, `wsl --terminate weasel` (Scott), re-enter `wsl -d weasel` — now lands as user `scott` with zsh.
+Expected: builds the Emacs closure (long first build), switches, ends with activation output including home-manager. The switch exits NONZERO with three EXPECTED failures that self-heal later: the agenix activation snippet (no host key + not yet a recipient — Task 5), docker-pearl-platform-db.service (env file — Task 8), and tailscaled-autoconnect.service (authkey — Task 6). These are not stop conditions; only the Emacs/WSLg smoke test (Step 7) is. Exit weasel, `wsl --terminate weasel` (Scott), re-enter `wsl -d weasel` — now lands as user `scott` with zsh.
 
 6. Move the clone home + hand over SSH:
 
@@ -80,8 +80,9 @@ before any migration.
 systemctl --user status emacs.service --no-pager | head -3    # active (running)
 systemctl --user status syncthing.service --no-pager | head -3 # active (running)
 systemctl status docker.service --no-pager | head -3           # active (running)
-systemctl status tailscaled.service --no-pager | head -3       # active (auth pending — Task 6)
+systemctl status tailscaled.service --no-pager | head -3       # active (auth pending — Task 6; tailscaled-autoconnect.service failed is expected until then)
 systemctl status docker-pearl-platform-db.service --no-pager | head -3 # failing is EXPECTED (env file arrives in Task 8)
+test -f /run/agenix/openrouter-auth || echo "agenix activation snippet failure is EXPECTED until Task 5 (/run/agenix empty, ~/.pi/agent/auth.json a dangling symlink until then)"
 docker info --format '{{json .DefaultRuntime}}' >/dev/null && echo docker-ok
 ```
 
@@ -213,10 +214,14 @@ commitment) and the Windows-side finish.
   db` on weasel in each worktree, then dump/restore per DB. Skip and note
   any branch already merged/dead.
 - [ ] Home state one-time copy done: `clients .claude .pi .gitconfig.local
-  .zsh_history` (exhaustive list — nothing else copies), plus the md2org
-  audit log only (`md2org-conversion-log-20260721.txt` — NOT the whole
-  `~/.local/backups` dir; `cd-audit-premirror-20260720.git` holds dirty
-  history and must not propagate).
+  .zsh_history` (exhaustive list — nothing else copies; the tar excludes
+  `.pi/agent/auth.json` because on weasel it's an HM-managed symlink to
+  `/run/agenix/openrouter-auth` — copying Debian's plain file would replace
+  the symlink, breaking the next home-manager activation with an "existing
+  file in the way" conflict and re-introducing a plaintext key on disk),
+  plus the md2org audit log only (`md2org-conversion-log-20260721.txt` —
+  NOT the whole `~/.local/backups` dir; `cd-audit-premirror-20260720.git`
+  holds dirty history and must not propagate).
 - [ ] Dotfiles writer handoff confirmed: Debian's `~/dotfiles` clean, no
   unpushed commits. weasel's clone is now the working copy.
 - [ ] `pi` and `claude` reinstalled on weasel (pi: npm package under

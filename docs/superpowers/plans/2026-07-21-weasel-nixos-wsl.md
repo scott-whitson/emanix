@@ -399,7 +399,7 @@ GIT_SSH_COMMAND="ssh -i /root/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-ne
 ```bash
 nixos-rebuild switch --flake /tmp/dotfiles#weasel
 ```
-Expected: builds the Emacs closure (long first build), switches, ends with activation output including home-manager. Exit weasel, `wsl --terminate weasel` (Scott), re-enter `wsl -d weasel` — now lands as user `scott` with zsh.
+Expected: builds the Emacs closure (long first build), switches, ends with activation output including home-manager. The switch exits NONZERO with three EXPECTED failures that self-heal later: the agenix activation snippet (no host key + not yet a recipient — Task 5), docker-pearl-platform-db.service (env file — Task 8), and tailscaled-autoconnect.service (authkey — Task 6). These are not stop conditions; only the Emacs/WSLg smoke test (Step 7) is. Exit weasel, `wsl --terminate weasel` (Scott), re-enter `wsl -d weasel` — now lands as user `scott` with zsh.
 
 - [ ] **Step 6: Move the clone home + hand over SSH**
 
@@ -422,8 +422,9 @@ On weasel: `ec` → the Emacs GUI must open as a Wayland (WSLg) window with corr
 systemctl --user status emacs.service --no-pager | head -3    # active (running)
 systemctl --user status syncthing.service --no-pager | head -3 # active (running)
 systemctl status docker.service --no-pager | head -3           # active (running)
-systemctl status tailscaled.service --no-pager | head -3       # active (auth pending — Task 6)
+systemctl status tailscaled.service --no-pager | head -3       # active (auth pending — Task 6; tailscaled-autoconnect.service failed is expected until then)
 systemctl status docker-pearl-platform-db.service --no-pager | head -3 # failing is EXPECTED (env file arrives in Task 8)
+test -f /run/agenix/openrouter-auth || echo "agenix activation snippet failure is EXPECTED until Task 5 (/run/agenix empty, ~/.pi/agent/auth.json a dangling symlink until then)"
 docker info --format '{{json .DefaultRuntime}}' >/dev/null && echo docker-ok
 ```
 
@@ -569,9 +570,12 @@ For each live worktree (`chat-interrupt` :5435, `kb-cores` :5444, `ap-automation
 ```bash
 # on weasel — pull from Debian via interop; .ssh already arrived in Task 4
 /mnt/c/Windows/System32/wsl.exe -d Debian -u scott -- tar -C /home/scott -cf - \
+  --exclude='.pi/agent/auth.json' \
   clients .claude .pi .gitconfig.local .zsh_history \
   | tar -xf - -C /home/scott
 ```
+The exclude is required: on weasel `~/.pi/agent/auth.json` is an HM-managed symlink to `/run/agenix/openrouter-auth`, and Debian's plain file would otherwise replace it, breaking the next home-manager activation with an "existing file in the way" conflict and re-introducing a plaintext key on disk.
+
 (If `echo $HISTFILE` on Debian names a different path than `~/.zsh_history`, copy that path instead.) Then copy the md2org audit log only (NOT the whole backups dir — `cd-audit-premirror-20260720.git` holds dirty history and must not propagate):
 
 ```bash
