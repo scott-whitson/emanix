@@ -2,24 +2,6 @@
 
 {
   systemd.user.services = {
-    # Standalone nodes: datacore's syncthing is Debian-managed (it is the
-    # hub); the work WSL gets syncthing in Phase 3. Neither wants this unit.
-    syncthing = lib.mkIf (!config.scott.standalone) {
-      Unit = {
-        Description = "Syncthing file sync";
-        After = [ "network-online.target" ];
-        Wants = [ "network-online.target" ];
-      };
-      Service = {
-        ExecStart = "${pkgs.syncthing}/bin/syncthing -no-browser -no-restart -logflags=0";
-        Restart = "on-failure";
-        RestartSec = 5;
-      };
-      Install = {
-        WantedBy = [ "default.target" ];
-      };
-    };
-
     # Other user services currently managed by base/systemd/* will be migrated
     # here as they are ported from stow to HM.
   };

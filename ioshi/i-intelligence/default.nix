@@ -10,6 +10,7 @@
     ./swaylock.nix
     ./xdg.nix
     ./standalone.nix
+    ./syncthing.nix
 
     # Optional — enable as needed per machine
     # ./helix.nix
