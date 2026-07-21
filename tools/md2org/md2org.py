@@ -72,6 +72,8 @@ def restore(text, tokens, resolve, log):
     for i, (bang, name, anchor, alias) in enumerate(tokens):
         name = name.strip()
         if bang:
+            if anchor:
+                log.append(f"    anchor dropped: [[{bang}{name}{anchor}]]")
             link = f"[[file:{name}]]"
         else:
             target = resolve(name)
@@ -143,11 +145,13 @@ def cmd_convert(vault):
         index.setdefault(Path(md_rel).stem.lower(), []).append((md_rel, uid))
 
     log = [f"conversion run {datetime.datetime.now().isoformat()}"]
+    converted = skipped = failed = 0
     for md_rel, uid, org_rel in entries:
         src, dst = vault / md_rel, vault / org_rel
         if dst.exists():
-            sys.exit(f"refusing to overwrite existing {dst}")
-        log.append(f"{md_rel} -> {org_rel} ({uid})")
+            log.append(f"    already converted, skipping: {md_rel}")
+            skipped += 1
+            continue
 
         def resolve(name, _here=Path(md_rel).parent):
             cands = index.get(name.strip().lower(), [])
@@ -158,22 +162,34 @@ def cmd_convert(vault):
                     return cand_uid
             return None
 
-        meta, body, dropped = split_frontmatter(src.read_text())
+        try:
+            meta, body, dropped = split_frontmatter(src.read_text())
+            title = meta.get("title", Path(md_rel).stem)
+            protected, tokens = protect(body)
+            org = convert_body(protected)
+        except subprocess.CalledProcessError as e:
+            stderr = e.stderr or str(e)
+            first_line = stderr.splitlines()[0] if stderr else ""
+            log.append(f"    PANDOC-FAILED: {md_rel}: {first_line}")
+            failed += 1
+            continue
+
+        log.append(f"{md_rel} -> {org_rel} ({uid})")
         for key in dropped:
             log.append(f"    frontmatter key dropped: {key}")
-        title = meta.get("title", Path(md_rel).stem)
-        protected, tokens = protect(body)
-        org = convert_body(protected)
         org = restore(org, tokens, resolve, log)
         org = drop_dup_heading(org, title)
         dst.parent.mkdir(parents=True, exist_ok=True)
         dst.write_text(org_header(uid, title, meta.get("tags", [])) + org)
+        converted += 1
 
     with (vault / LOG_NAME).open("a") as f:
         f.write("\n".join(log) + "\n")
     dangling = sum(1 for l in log if "dangling" in l)
-    print(f"converted {len(entries)} notes; {dangling} dangling links; "
-          f"log: {vault / LOG_NAME}")
+    print(f"converted {converted} notes ({skipped} skipped, {failed} failed); "
+          f"{dangling} dangling links; log: {vault / LOG_NAME}")
+    if failed > 0:
+        sys.exit(1)
 
 
 def cmd_delete_md(vault):

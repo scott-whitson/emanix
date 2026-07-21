@@ -83,6 +83,11 @@ class TestWikilinks(unittest.TestCase):
         out, _ = self.roundtrip("![[Pasted image 1.png]]")
         self.assertEqual(out, "[[file:Pasted image 1.png]]")
 
+    def test_embed_anchor_logged(self):
+        out, log = self.roundtrip("![[Doc.pdf#page=2]]")
+        self.assertEqual(out, "[[file:Doc.pdf]]")
+        self.assertTrue(any("anchor" in line for line in log))
+
 
 class TestHeader(unittest.TestCase):
     def test_header_and_filetags(self):
@@ -137,10 +142,51 @@ class TestEndToEnd(unittest.TestCase):
             self.assertFalse(list((vault / "Templates").glob("*.org")))
             log = (vault / ".conversion-log.txt").read_text()
             self.assertIn("author", log)                    # dropped key logged
+
+            # re-running convert must be idempotent: never overwrite, just skip
+            before = client_org_path = next(p for p in orgs if "client" in p.name)
+            before_content = before.read_text()
+            r = run("convert")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("skipped", r.stdout)
+            after_content = client_org_path.read_text()
+            self.assertEqual(before_content, after_content)
+
             r = run("delete-md")
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertFalse((vault / "Client.md").exists())
             self.assertTrue((vault / "Templates" / "T.md").exists())  # never deleted
+
+
+class TestPandocFailure(unittest.TestCase):
+    def test_pandoc_failure_continues(self):
+        with tempfile.TemporaryDirectory() as d:
+            vault = Path(d)
+            (vault / "Good.md").write_text("# Good\n\nGood body.\n")
+            (vault / "Bad.md").write_text("# Bad\n\nBad body.\n")
+
+            def fake_convert_body(body):
+                if "Bad body" in body:
+                    raise subprocess.CalledProcessError(1, "pandoc", stderr="boom")
+                return "converted body\n"
+
+            orig_convert_body = md2org.convert_body
+            md2org.convert_body = fake_convert_body
+            try:
+                try:
+                    md2org.cmd_convert(vault)
+                    exit_code = 0
+                except SystemExit as e:
+                    exit_code = e.code
+            finally:
+                md2org.convert_body = orig_convert_body
+
+            self.assertEqual(exit_code, 1)
+            orgs = list(vault.glob("*.org"))
+            self.assertEqual(len(orgs), 1)
+            self.assertIn("good", orgs[0].name.lower())
+            log = (vault / ".conversion-log.txt").read_text()
+            self.assertIn("PANDOC-FAILED", log)
 
 
 if __name__ == "__main__":
