@@ -31,7 +31,10 @@ OS underneath, hand-managed docker/syncthing/tailscale) retires.
   flake's nixpkgs.
 - `nixosConfigurations.weasel` = nixos-wsl module + `hosts/weasel/` +
   home-manager NixOS module importing the existing `ioshi` home layer with
-  `scott.dotfiles.profile = "wsl"`, `scott.gui = true`.
+  `scott.dotfiles.profile = "wsl"`, `scott.gui = false` — matching today's
+  working `scott@work` exactly (the `gui` flag gates cursor theme, swaylock,
+  ghostty, and GUI apps; the pgtk Emacs GUI is installed by the non-EWM
+  emacs module regardless and runs under WSLg as it does today).
 - weasel is the dotfiles **writer** (as the Debian WSL is today): it edits
   `~/dotfiles` and rebuilds directly from the local clone. No 3-hop
   propagation for its own rebuilds; pushes to GitHub feed datacore/eminix as
@@ -65,13 +68,17 @@ never reorder).
   `daemonSettings.builder.gc = { enabled = true; defaultKeepStorage = "25GB"; }`
   (the cap installed by hand on Debian 2026-07-21, now declarative).
 - **Dev databases:** `virtualisation.oci-containers.backend = "docker"`;
-  four containers on image `pgvector/pgvector:pg16` — `pearl-platform-db`,
-  `kb-cores-db`, `chat-interrupt-db`, `ap-automation-phase1-db`. Ports,
-  environment (POSTGRES_USER/PASSWORD/DB), and volume paths are read from
-  each project's compose file at plan-writing time and fixed in the plan
-  verbatim. Volumes live under `/var/lib/pearl-db/` etc. (plain bind mounts —
-  no named-volume opacity). Projects' compose files remain for ad-hoc
-  containers; the always-on DBs stop being hand-tended.
+  ONE declarative container — `pearl-platform-db` (image
+  `pgvector/pgvector:pg16`, host port 5434, the project's long-lived DB),
+  volume as a plain bind mount under `/var/lib/pearl-db` (no named-volume
+  opacity). The other three current DBs (`chat-interrupt-db` :5435,
+  `kb-cores-db` :5444, `ap-automation-phase1-db`) are **branch-scoped
+  worktree DBs** — they stay compose-managed, recreated on demand per
+  worktree, their data migrated at cutover only if the branch is still
+  alive. (Decision revised 2026-07-21 during planning, with approval: the
+  original "all four declarative" assumed four independent projects; three
+  turned out to be worktrees of pearl-platform, and baking branch-scoped
+  DBs into the flake would mean a flake edit per feature branch.)
 - **Tailscale:** `services.tailscale.enable = true` — real tailscaled
   (kernel tun works in WSL2), replacing the userspace daemon. One-time
   `tailscale up` auth on weasel (new node).
