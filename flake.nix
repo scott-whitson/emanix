@@ -62,6 +62,9 @@
           useUserPackages = true;
           users.scott = {
             imports = [ ./home/scott/default.nix ];
+            # eminix instances run the system-owned EWM Emacs. mkDefault so a
+            # non-EWM NixOS host (weasel) can opt out while reusing hmModule.
+            scott.ewm.enable = nixpkgs.lib.mkDefault true;
           };
         };
       };

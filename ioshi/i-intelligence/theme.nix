@@ -17,7 +17,13 @@
     standalone = lib.mkOption {
       type = lib.types.bool;
       default = false;
-      description = "Home Manager runs standalone on a foreign distro (no eminix NixOS layer): install the Emacs build user-side, skip agenix-dependent files and the syncthing user service.";
+      description = "Home Manager runs standalone on a foreign distro (no NixOS layer): skip agenix-dependent files (pi auth.json symlink). Which Emacs to install is scott.ewm.enable's decision, not this flag's.";
+    };
+
+    ewm.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "This machine's Emacs is the system-owned EWM build (ewm.nix). When false, the home layer installs the non-EWM pgtk Emacs and runs the daemon as a systemd user service (standalone.nix).";
     };
 
     dotfiles = {
