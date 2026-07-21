@@ -21,6 +21,7 @@ versioned hub) to eminix. Spec:
   the tailnet); small-change latency of 30s–3min is normal.
 - The old Obsidian vault was folded into `~/docs/org/work` and the OneDrive
   copy renamed `docs-retired-20260720` (2026-07-20); Emacs/org owns work
-  notes now (files stay `.md` until a conversion project).
+  notes now (converted to org-roam `.org` on 2026-07-21 — see
+  `docs/superpowers/specs/2026-07-21-work-vault-md-to-org-design.md`).
 - WSL syncthing is HM-managed (`ioshi/i-intelligence/syncthing.nix`);
   datacore is Debian-managed (REST); eminix is the NixOS module.
