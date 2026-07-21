@@ -532,7 +532,7 @@ Expected: `ALL-REGISTERED: 110 nodes`. `MISSING …` → STOP and report.
 ```bash
 cd ~/docs/org/work
 grep -roh '\[\[id:[^]]*\]' --include='*.org' . | wc -l
-grep -rn '\[\[' --include='*.org' . | grep -vE '\[\[(id:|roam:|file:|https?://|\*)' | head -5; echo raw-scan-done
+grep -rn '\[\[' --include='*.org' . | grep -vE '\[\[(id:|roam:|file:|https?://|mailto:|#|\*)' | head -5; echo raw-scan-done
 ```
 
 Expected: the `id:` count ≥ the resolved-link count implied by Task 2 (report both numbers); the raw scan prints NOTHING before `raw-scan-done` (no unconverted `[[…]]` forms). Hits → STOP and report them.
