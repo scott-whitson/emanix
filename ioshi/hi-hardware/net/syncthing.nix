@@ -34,6 +34,12 @@
         path = "/home/scott/Downloads";
         devices = [ "datacore" ];
       };
+      folders.work-projects = {
+        id = "work-projects";
+        label = "work-projects";
+        path = "/home/scott/projects/work";
+        devices = [ "datacore" ];
+      };
     };
   };
 }
