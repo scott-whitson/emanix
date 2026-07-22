@@ -12,7 +12,11 @@
     ../../ioshi/i-intelligence/secrets.nix
   ];
 
-  networking.hostName = "weasel";
+  # Hostname comes via wsl.conf, NOT networking.hostName: NixOS setting the
+  # hostname at activation breaks WSL's systemd user-session bootstrap when
+  # another distro is running (NixOS-WSL#888 — our exact symptom: user@1000
+  # EBUSY, WSL squatting the cgroup with a hidden-pidns session).
+  networking.hostName = "";
 
   wsl = {
     enable = true;
@@ -22,6 +26,7 @@
       # plan9 tuning): metadata mounts + no Windows PATH pollution.
       automount.options = "metadata,uid=1000,gid=1000,umask=022,fmask=11,case=off,msize=262144";
       interop.appendWindowsPath = false;
+      network.hostname = "weasel";
     };
   };
 
