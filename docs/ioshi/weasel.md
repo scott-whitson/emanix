@@ -299,10 +299,21 @@ git push
   Post-rebuild weasel registers interop properly; keeping weasel running
   (instead of letting it idle-stop and re-boot) avoids repeats during
   bootstrap.
-- **Shared network namespace with Debian (until retirement):** weasel's
-  tailscale uses interface `weasel0` (Debian's tailscaled owns
-  `tailscale0`) and sshd listens on **2222** (Debian holds 22). Configured
-  in `hosts/weasel/configuration.nix`.
+- **Shared network namespace with Debian (until retirement):** sshd
+  listens on **2222** (Debian holds 22); syncthing runs on **GUI 8385 /
+  sync 22001** (Debian owns 8384/22000 — two instances crash-collide
+  otherwise); tailscale runs **userspace-networking** — two kernel-mode
+  tailscaleds fight over routing table 52 and the 100.100.100.100
+  MagicDNS route, and weasel's daemon winning BLACKHOLED Debian's DNS
+  (repaired with `sudo systemctl restart tailscaled` on Debian).
+  Configured in `hosts/weasel/configuration.nix` + the flake's weasel HM
+  block. AFTER RETIREMENT: flip tailscale to kernel mode (real interface
+  name); ports can stay.
+- **weasel session activity tramples Debian's user@1000** (WSL#10205
+  class): Debian's emacs/syncthing user services die whenever weasel
+  boots/logs in. Self-serve heal on Debian:
+  `sudo /usr/local/sbin/fix-user-session` (NOPASSWD, installed
+  2026-07-22, like fix-wslinterop). Dies with Debian's retirement.
 - **Seeded `~root/.ssh` needs `chown -R root:root`** after the tar copy —
   tar preserves scott's uid and ssh refuses a config file it doesn't own
   ("Bad owner or permissions").
