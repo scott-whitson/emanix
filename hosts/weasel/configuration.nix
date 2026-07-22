@@ -61,6 +61,33 @@
   # even when no WSL session has been opened yet (headless starts).
   users.users.scott.linger = true;
 
+  # WSL 2.6+ "user session" machinery pre-populates user@1000.service's
+  # cgroup with its own hidden-pidns processes when a session is requested
+  # during boot, and systemd 260's clone-into-cgroup spawn then fails with
+  # "Failed to spawn executor: Device or resource busy" — no user manager,
+  # so no emacs/syncthing (microsoft/WSL#13186 lineage; verified live
+  # 2026-07-22 on WSL 2.7.3). cgroup.kill clears the squatters (it reaches
+  # foreign pid namespaces); once user@1000 is genuinely active, later WSL
+  # session requests see it and do not squat again.
+  systemd.services.wsl-user-session-rescue = {
+    description = "Heal user@1000 after WSL session-cgroup squatting";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "multi-user.target" ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      sleep 15
+      if [ "$(systemctl is-active user@1000.service)" != active ]; then
+        cg=/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service
+        if [ -d "$cg" ]; then
+          echo 1 > "$cg/cgroup.kill" 2>/dev/null || true
+          sleep 2
+        fi
+        systemctl reset-failed user@1000.service 2>/dev/null || true
+        systemctl start user@1000.service
+      fi
+    '';
+  };
+
   virtualisation.docker = {
     enable = true;
     daemon.settings = {
