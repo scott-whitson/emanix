@@ -47,9 +47,18 @@
   services.tailscale.interfaceName = "weasel0";
   services.openssh.ports = [ 2222 ];
 
-  # WSL's session bootstrap does not reliably create a logind session, so
-  # user services (emacs daemon, syncthing) would never start. Lingering
-  # boots scott's user manager unconditionally.
+  # WSL's session bootstrap execs a HARDCODED /usr/bin/systemctl to start
+  # the user session (microsoft/WSL#13236); NixOS has no /usr/bin/systemctl,
+  # so WSL falls back to hand-parking session processes in a self-made
+  # user@1000.service cgroup — which then blocks systemd's real user manager
+  # with "Failed to spawn executor: Device or resource busy". The symlink
+  # lets WSL's call succeed, so emacs/syncthing user services can live.
+  systemd.tmpfiles.rules = [
+    "L+ /usr/bin/systemctl - - - - /run/current-system/sw/bin/systemctl"
+  ];
+
+  # Belt to the symlink's suspenders: lingering boots scott's user manager
+  # even when no WSL session has been opened yet (headless starts).
   users.users.scott.linger = true;
 
   virtualisation.docker = {
