@@ -40,11 +40,16 @@
   # ALL WSL2 distros share one network namespace with the Windows host's VM,
   # so weasel collides with the Debian distro until Debian retires
   # (found live, first boot 2026-07-22):
-  # - Debian's tailscaled owns the tun device "tailscale0" — weasel's
-  #   tailscaled gets EBUSY without its own interface name.
+  # - Two kernel-mode tailscaleds fight over routing table 52 and the
+  #   100.100.100.100 MagicDNS route — weasel's daemon (accept-dns=false)
+  #   won and BLACKHOLED Debian's DNS. Userspace networking adds no tun and
+  #   no routes: zero interference, still direct QUIC to datacore.
+  #   AFTER DEBIAN RETIRES: flip to a real interface name for kernel-mode
+  #   WireGuard (e.g. "tailscale0").
   # - Debian's sshd holds port 22 — weasel's sshd cannot bind it.
-  # After Debian is unregistered these could revert, but there's no need to.
-  services.tailscale.interfaceName = "weasel0";
+  # - Debian's syncthing owns GUI 8384 / sync 22000 — weasel's moved to
+  #   8385/22001 (flake.nix weasel HM block).
+  services.tailscale.interfaceName = "userspace-networking";
   services.openssh.ports = [ 2222 ];
 
   # WSL's session bootstrap execs a HARDCODED /usr/bin/systemctl to start
