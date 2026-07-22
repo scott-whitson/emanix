@@ -32,6 +32,21 @@
   services.resolved.enable = lib.mkForce false;
   services.tailscale.extraUpFlags = [ "--accept-dns=false" ];
 
+  # ALL WSL2 distros share one network namespace with the Windows host's VM,
+  # so weasel collides with the Debian distro until Debian retires
+  # (found live, first boot 2026-07-22):
+  # - Debian's tailscaled owns the tun device "tailscale0" — weasel's
+  #   tailscaled gets EBUSY without its own interface name.
+  # - Debian's sshd holds port 22 — weasel's sshd cannot bind it.
+  # After Debian is unregistered these could revert, but there's no need to.
+  services.tailscale.interfaceName = "weasel0";
+  services.openssh.ports = [ 2222 ];
+
+  # WSL's session bootstrap does not reliably create a logind session, so
+  # user services (emacs daemon, syncthing) would never start. Lingering
+  # boots scott's user manager unconditionally.
+  users.users.scott.linger = true;
+
   virtualisation.docker = {
     enable = true;
     daemon.settings = {

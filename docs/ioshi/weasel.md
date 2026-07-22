@@ -32,11 +32,9 @@ wsl --import weasel $env:LOCALAPPDATA\wsl\weasel $env:USERPROFILE\Downloads\nixo
 ```
 If `--import` rejects the `.wsl` file (older WSL): `wsl --install --from-file $env:USERPROFILE\Downloads\nixos.wsl` and adjust the distro name below to what it registers (`wsl -l -v`).
 
-3. Sparse vhdx from day one (weasel must be stopped; it is — never started):
-
-```powershell
-wsl --manage weasel --set-sparse true
-```
+3. Sparse vhdx: **skipped** (2026-07-22). Current WSL gates sparse VHDs
+   behind `--allow-unsafe` over data-corruption reports — see Gotchas.
+   Compact manually when the vhdx ever bloats.
 
 4. First boot, seed SSH key, clone dotfiles (Scott: `wsl -d weasel`, default user `nixos`):
 
@@ -288,7 +286,30 @@ git push
   GlazeWM `msrdc` ignore rule both carry over as-is from the Debian setup
   (see `docs/ioshi/standalone-hm.md`) — no new gotchas introduced by the
   NixOS-WSL move.
-- **`wsl --manage weasel --set-sparse true` requires the distro stopped.**
-  weasel must never have been started before this runs (it isn't, at
-  import time) — do this immediately after `wsl --import`, before first
-  boot.
+- **Sparse vhdx SKIPPED (2026-07-22 decision).** Current WSL disables
+  sparse VHDs over data-corruption reports; forcing needs
+  `--set-sparse true --allow-unsafe`. Not worth the risk on the primary
+  work distro — compact manually when needed (fstrim inside, then the
+  usual vhdx compaction, see `docs`/memory for the Debian recipe).
+- **Stock-image boots wipe `WSLInterop` for EVERY distro.** binfmt_misc is
+  global across WSL2 distros; the unconfigured NixOS-WSL image's boot can
+  drop the entry, which breaks running `*.exe` from Debian too
+  (`exec format error`). Restore from any affected distro with:
+  `sudo sh -c "echo ':WSLInterop:M::MZ::/init:PF' > /proc/sys/fs/binfmt_misc/register"`.
+  Post-rebuild weasel registers interop properly; keeping weasel running
+  (instead of letting it idle-stop and re-boot) avoids repeats during
+  bootstrap.
+- **Shared network namespace with Debian (until retirement):** weasel's
+  tailscale uses interface `weasel0` (Debian's tailscaled owns
+  `tailscale0`) and sshd listens on **2222** (Debian holds 22). Configured
+  in `hosts/weasel/configuration.nix`.
+- **Seeded `~root/.ssh` needs `chown -R root:root`** after the tar copy —
+  tar preserves scott's uid and ssh refuses a config file it doesn't own
+  ("Bad owner or permissions").
+- **User services need lingering.** WSL's session bootstrap doesn't
+  reliably create logind sessions ("Failed to start the systemd user
+  session"), so emacs/syncthing user units never start.
+  `users.users.scott.linger = true` (in the weasel host config) boots the
+  user manager unconditionally. A stale pre-rebuild `user@1000` from the
+  image's `nixos` user can sit in `failed (Result: resources)` — cleared
+  by the first `wsl --terminate weasel` + restart after the rebuild.
