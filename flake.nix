@@ -143,6 +143,14 @@
                 scott.dotfiles.profile = "wsl";
                 scott.gui = false;
                 scott.ewm.enable = false;
+                # Shared network namespace with the Debian distro until it
+                # retires: move this instance's syncthing off Debian's ports
+                # (GUI 8384, sync 22000) or the two crash-collide.
+                services.syncthing.guiAddress = "127.0.0.1:8385";
+                services.syncthing.settings.options.listenAddresses = [
+                  "tcp://0.0.0.0:22001"
+                  "quic://0.0.0.0:22001"
+                ];
               };
             }
           ];
