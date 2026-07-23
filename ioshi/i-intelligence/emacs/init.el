@@ -242,6 +242,12 @@ clobbered; only a genuinely new quarter gets a fresh template."
 ;; under EWM too; s-d remains on eminix).
 (when (fboundp 'scott/launch-app)
   (global-set-key (kbd "C-c o") #'scott/launch-app))
+
+;; Frame title must ALWAYS contain "emacs": GlazeWM's ignore rule on the
+;; work laptop matches WSLg windows by title to leave the Emacs frame
+;; unmanaged (the default title is bare "%b" once a second frame exists,
+;; which would silently re-enroll Emacs into tiling). Harmless elsewhere.
+(setq frame-title-format '("%b — emacs@" system-name))
 (when (fboundp 'scott/theme-init)
   (scott/theme-init))
 (when (fboundp 'scott/modeline-mode)
