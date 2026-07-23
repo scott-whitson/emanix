@@ -236,8 +236,12 @@ clobbered; only a genuinely new quarter gets a fresh template."
 (global-set-key (kbd "C-c q") #'scott/open-quarterly-tracker)
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline))
+(dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline scott-launcher))
   (require feature nil :no-error))
+;; App launcher — the EWM s-d experience on every machine (C-c o works
+;; under EWM too; s-d remains on eminix).
+(when (fboundp 'scott/launch-app)
+  (global-set-key (kbd "C-c o") #'scott/launch-app))
 (when (fboundp 'scott/theme-init)
   (scott/theme-init))
 (when (fboundp 'scott/modeline-mode)
