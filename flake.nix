@@ -146,6 +146,9 @@
                 # Real Linux terminal under WSLg (same flake-themed ghostty
                 # as eminix) — gui stays false, this opts in surgically.
                 scott.ghostty.enable = true;
+                # Persistent ssh sessions from eminix land in zellij
+                # (zellaude bar; config deployed live from base/zellij).
+                scott.zellij.enable = true;
                 # Shared network namespace with the Debian distro until it
                 # retires: move this instance's syncthing off Debian's ports
                 # (GUI 8384, sync 22000) or the two crash-collide.
