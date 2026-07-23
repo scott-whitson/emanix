@@ -83,13 +83,19 @@ Expected: both print `false`. (Weasel flips in Task 2.)
 
 - [ ] **Step 4: Verify eminix closure is unchanged (flag-off no-op proof)**
 
+**Amended 2026-07-23:** the original full-build comparison compiled eminix's desktop
+closure (bitwarden-desktop, ewm-core — not in the public cache) from source inside
+weasel's 7.6 GiB VM and OOM-crashed WSL twice. Compare derivation paths via eval
+instead — an identical `.drvPath` proves identical output with nothing built:
+
 ```bash
-git stash && nix build .#nixosConfigurations.eminix.config.system.build.toplevel --no-link --print-out-paths > /tmp/claude-1000/-home-scott/2ed4dea7-a466-43b2-ad9d-8edf005738c1/scratchpad/eminix-before
-git stash pop && nix build .#nixosConfigurations.eminix.config.system.build.toplevel --no-link --print-out-paths > /tmp/claude-1000/-home-scott/2ed4dea7-a466-43b2-ad9d-8edf005738c1/scratchpad/eminix-after
-diff /tmp/claude-1000/-home-scott/2ed4dea7-a466-43b2-ad9d-8edf005738c1/scratchpad/eminix-before /tmp/claude-1000/-home-scott/2ed4dea7-a466-43b2-ad9d-8edf005738c1/scratchpad/eminix-after
+git stash && nix eval --raw .#nixosConfigurations.eminix.config.system.build.toplevel.drvPath > /tmp/claude-1000/-home-scott/2ed4dea7-a466-43b2-ad9d-8edf005738c1/scratchpad/eminix-drv-before
+git stash pop && nix eval --raw .#nixosConfigurations.eminix.config.system.build.toplevel.drvPath > /tmp/claude-1000/-home-scott/2ed4dea7-a466-43b2-ad9d-8edf005738c1/scratchpad/eminix-drv-after
+diff /tmp/claude-1000/-home-scott/2ed4dea7-a466-43b2-ad9d-8edf005738c1/scratchpad/eminix-drv-before /tmp/claude-1000/-home-scott/2ed4dea7-a466-43b2-ad9d-8edf005738c1/scratchpad/eminix-drv-after
 ```
 
-Expected: `diff` prints nothing (identical store path).
+Expected: `diff` prints nothing (identical .drv path). Never `nix build` the eminix
+toplevel on weasel — it OOMs the VM.
 
 - [ ] **Step 5: Commit**
 
