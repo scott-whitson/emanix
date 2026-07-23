@@ -24,7 +24,7 @@
     ./pi.nix
     # ./claude.nix
     # ./yt-dlp.nix
-    # ./zellij.nix
+    ./zellij.nix
   ];
 
   # Give `home-manager` a CLI after the first bootstrap switch.
