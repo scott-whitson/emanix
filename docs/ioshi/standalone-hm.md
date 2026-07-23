@@ -39,10 +39,15 @@ GUI path works — with three gotchas found in live testing:
   is unsupported (a "pure-GTK under X" warning on every launch, sporadic
   crash risk, keyboard quirks). The `ec` shell function (zsh.nix) passes the
   Wayland display explicitly; verified frames report `GdkWaylandDisplay`.
-- **GlazeWM must not manage WSLg windows.** They are RDP-remoted through
-  `msrdc.exe` and don't honor tiling resizes (window stays small/unusable).
-  The GlazeWM config (`C:\Users\swhitson.CENTRALDATA\.glzr\glazewm\config.yaml`)
-  has a `window_rules` ignore for `window_process: msrdc`.
+- **GlazeWM must not manage the WSLg EMACS window** — the pgtk frame is
+  RDP-remoted through `msrdc.exe` and doesn't honor tiling resizes (window
+  stays small/unusable). Other WSLg windows (ghostty, ...) tile FINE and
+  want managing. Since 2026-07-23 the GlazeWM config
+  (`C:\Users\swhitson.CENTRALDATA\.glzr\glazewm\config.yaml`) ignores
+  `window_process: msrdc` + `window_title` regex `(?i)emacs` — and init.el
+  pins `frame-title-format` to always contain "emacs" (the default
+  collapses to bare `%b` with multiple frames, which would silently
+  re-enroll Emacs into tiling).
 - **Known limitation:** the WSLg window would not move to the external
   monitors in testing (stuck on the laptop display). Unresolved; revisit
   after the Wayland-native + GlazeWM-ignore changes.

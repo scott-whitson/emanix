@@ -282,10 +282,11 @@ git push
   the pearl-platform main checkout now collides with it — use the
   declarative DB instead. Worktree DBs on their own ports (5435, 5444,
   ...) are unaffected.
-- **`ec` / WSLg unchanged:** the Wayland-first `ec` launcher and the
-  GlazeWM `msrdc` ignore rule both carry over as-is from the Debian setup
-  (see `docs/ioshi/standalone-hm.md`) — no new gotchas introduced by the
-  NixOS-WSL move.
+- **`ec` / WSLg:** the Wayland-first `ec` launcher carries over as-is. The
+  GlazeWM ignore rule narrowed 2026-07-23: only the Emacs WSLg window is
+  ignored (matched by `msrdc` process + `(?i)emacs` title, backed by a
+  pinned `frame-title-format`); other WSLg windows (ghostty via `C-c o`)
+  are tiled by GlazeWM — details in `docs/ioshi/standalone-hm.md`.
 - **Sparse vhdx SKIPPED (2026-07-22 decision).** Current WSL disables
   sparse VHDs over data-corruption reports; forcing needs
   `--set-sparse true --allow-unsafe`. Not worth the risk on the primary
