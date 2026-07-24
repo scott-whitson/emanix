@@ -49,10 +49,11 @@ in
         # reliably — ewm-input-config's :xkb-options loads too late (after the
         # keymap is already built) to take effect.
         env LIBSEAT_BACKEND=logind XKB_DEFAULT_OPTIONS=ctrl:nocaps /run/current-system/sw/bin/ewm-launch
-        # pgtk emacs DETACHES from the wrapper on daemon start. This login
-        # session is the seat lease — hold it open while the daemon lives,
-        # or the compositor loses DRM master the moment we exit.
+        # pgtk emacs DETACHES from the wrapper on daemon start. Import
+        # session env vars into systemd so user services (xdg-desktop-portal,
+        # etc.) inherit DISPLAY/WAYLAND_DISPLAY.
         sleep 2
+        systemctl --user import-environment WAYLAND_DISPLAY DISPLAY 2>/dev/null || true
         while pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1; do sleep 3; done
         if [ $(( $(date +%s) - _t0 )) -lt 15 ]; then
           touch /tmp/.ewm-flap   # died fast — next login gets a shell
@@ -70,6 +71,11 @@ in
   # store-path-free. Present in the login shell → inherited by the EWM daemon.
   environment.sessionVariables.ELISA_VEC0_PATH = "${pkgs.sqlite-vec}/lib/vec0.so";
 
+  # XWayland display — X11 apps (Steam, etc.) use this to find XWayland.
+  # XWayland is started from the loginShellInit below, after the compositor
+  # is up.
+  environment.sessionVariables.DISPLAY = ":0";
+
   # EWM runtime deps + the single Emacs (gives emacsclient on the system PATH).
   environment.systemPackages = with pkgs; [
     theEmacs
@@ -81,6 +87,9 @@ in
     # WAYLAND_DISPLAY and dies with the session. Config: swaylock.nix (HM).
     swaylock
     swayidle
+    # XWayland — EWM is a wlroots compositor; X11 apps (Steam, etc.)
+    # need this to run under Wayland.
+    xwayland
   ];
 
   # Without a PAM service entry swaylock can lock but never UNLOCK.

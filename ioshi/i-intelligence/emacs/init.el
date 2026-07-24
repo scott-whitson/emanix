@@ -44,6 +44,12 @@
 (global-auto-revert-mode 1)
 (column-number-mode 1)
 
+;; Window navigation & resizing (Shift+arrows)
+(global-set-key (kbd "S-<left>")  \='shrink-window-horizontally)
+(global-set-key (kbd "S-<right>") \='enlarge-window-horizontally)
+(global-set-key (kbd "S-<down>")  \='shrink-window)
+(global-set-key (kbd "S-<up>")    \='enlarge-window)
+
 ;; Clock + battery + status for the EWM tab-bar panel (no status bar under EWM).
 ;; Volume/wifi/cpu/ram/gpu/clock/battery all render once in the tab-bar via
 ;; scott/tab-bar-status, not the mode-line.
@@ -188,6 +194,42 @@
   (global-set-key (kbd "C-c n c") #'org-roam-capture))
 (global-set-key (kbd "C-c a") #'org-agenda)
 
+;; --- Org agenda: notable dates calendar ---
+(setq org-agenda-files (list (expand-file-name "Dates.org" org-directory)))
+(setq org-agenda-include-diary nil)           ; we use org files, not diary
+(setq org-deadline-warning-days 14)            ; default lead time
+(setq org-agenda-skip-deadline-if-done t)
+(setq org-agenda-skip-scheduled-if-done t)     ; don't show done recurring items
+;; Show SCHEDULED items as reminders on the day-of (not a deadline)
+(setq org-agenda-scheduled-leaders '("" "(S%2d earlier)"))
+(setq org-agenda-prefix-format
+      '((agenda . " %i %-12:c%?-12t% s")
+        (todo   . " %i %-12:c")
+        (tags   . " %i %-12:c")
+        (search . " %i %-12:c")))
+
+;; Custom agenda commands:
+;;   C-c a o  → yearly overview (all notable dates this year)
+;;   C-c a m  → month calendar
+;;   C-c a w  → week calendar
+(setq org-agenda-custom-commands
+      '(("o" "Notable dates (year)"
+         ((agenda ""
+                  ((org-agenda-span 365)
+                   (org-agenda-start-day "2026-01-01")
+                   (org-deadline-warning-days 0))))
+         ((org-agenda-files (list (expand-file-name "Dates.org" org-directory)))))
+        ("m" "Month calendar"
+         ((agenda "" ((org-agenda-span 'month))))
+         ((org-agenda-files (list (expand-file-name "Dates.org" org-directory)))))
+        ("w" "Week agenda"
+         ((agenda ""))
+         ((org-agenda-files (list (expand-file-name "Dates.org" org-directory)))))))
+
+;; --- Calendar sync (Python tool) ---
+;; The Google Calendar sync will be handled by a small Python tool.
+;; Emacs should stay focused on editing Dates.org and launching the tool.
+
 (defun scott/current-quarter-name (&optional time)
   "Return the current quarter name in YYYY-QN format."
   (let* ((time (or time (current-time)))
@@ -235,8 +277,17 @@ clobbered; only a genuinely new quarter gets a fresh template."
 
 (global-set-key (kbd "C-c q") #'scott/open-quarterly-tracker)
 
+(defun scott/calendar-sync ()
+  "Launch the Python calendar sync tool."
+  (interactive)
+  (start-process-shell-command
+   "calendar-sync" nil
+   (expand-file-name "~/dotfiles/bin/calendar-sync") "sync"))
+
+(global-set-key (kbd "C-c c") #'scott/calendar-sync)
+
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline scott-launcher))
+(dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline scott-launcher scott-pi))
   (require feature nil :no-error))
 ;; App launcher — the EWM s-d experience on every machine (C-c o works
 ;; under EWM too; s-d remains on eminix).
@@ -431,6 +482,16 @@ Returns nil off EWM, so it is a no-op in a plain Emacs frame."
     (define-key ewm-mode-map (kbd "s-q") #'scott/ewm-close-slot)
     ;; Launch Firefox into the current slot (was s-w under Hyprland).
     (define-key ewm-mode-map (kbd "s-w") #'scott/ewm-launch-firefox)
+    ;; Super+Enter: open Ghostty terminal (muscle memory from Hyprland).
+    (define-key ewm-mode-map (kbd "s-<return>")
+      (lambda ()
+        (interactive)
+        (start-process "ghostty" nil "ghostty")))
+    ;; Super+Shift+Enter: open Pi agent in Ghostty.
+    (define-key ewm-mode-map (kbd "s-S-<return>")
+      (lambda ()
+        (interactive)
+        (start-process "ghostty-pi" nil "ghostty" "-e" "pi")))
     ;; Summon elisa (ask) from ANY slot. It must be a single intercepted key:
     ;; the C-c i prefix can't reach Emacs from a focused Wayland surface (the
     ;; follow-up key goes to the surface). C-c i still gives the full command
