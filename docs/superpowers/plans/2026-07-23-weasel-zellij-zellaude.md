@@ -187,18 +187,19 @@ Expected: one match, inside the `SSH_CONNECTION`/`ZELLIJ`/`TERM != dumb` guard.
 
 ```bash
 ssh -o ProxyCommand='tailscale nc %h %p' eminix \
-  'ssh weasel "TERM=dumb zsh -ic \"echo ZJ=[\$ZELLIJ]\"" 2>/dev/null' | grep ZJ=
+  'ssh weasel "TERM=dumb zsh -ic \"echo ZJ=\${ZELLIJ:-unset}\"" 2>/dev/null' | grep ZJ=
 ```
 
-Expected: `ZJ=[]` (no zellij started).
+Expected: `ZJ=unset` (no zellij started). (Amended: the original `[$ZELLIJ]` form
+is a zsh glob char-class when the var is empty → NOMATCH error, never output.)
 
 - [ ] **Step 3: Local shells stay zellij-free**
 
 ```bash
-zsh -ic 'echo ZJ=[$ZELLIJ]'
+zsh -ic 'echo ZJ=${ZELLIJ:-unset}'
 ```
 
-Expected (no SSH_CONNECTION in a local/session shell): `ZJ=[]`.
+Expected (no SSH_CONNECTION in a local/session shell): `ZJ=unset`.
 
 - [ ] **Step 4: Manual smoke checklist (Scott, interactive — cannot be automated)**
 
