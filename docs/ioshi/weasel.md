@@ -292,6 +292,14 @@ git push
   `--set-sparse true --allow-unsafe`. Not worth the risk on the primary
   work distro — compact manually when needed (fstrim inside, then the
   usual vhdx compaction, see `docs`/memory for the Debian recipe).
+- **WSLg's compositor can die under a still-running distro** (seen
+  2026-07-26 after ~3 days uptime spanning a VM crash): the wayland-0/X0
+  socket FILES survive but nothing listens — every GUI app fails, and pgtk
+  emacs KILLS ITS OWN DAEMON when frame creation can't open the display
+  (`cannot open display: wayland-0`, then systemd restart-loops it).
+  Liveness tell: `/tmp/.X11-unix/X0` vanishes when WSLg is dead. Only fix:
+  `wsl --terminate weasel` + reopen. The `ec` function guards on the X0
+  probe and prints this instead of assassinating the daemon.
 - **Stock-image boots wipe `WSLInterop` for EVERY distro.** binfmt_misc is
   global across WSL2 distros; the unconfigured NixOS-WSL image's boot can
   drop the entry, which breaks running `*.exe` from Debian too

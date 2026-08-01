@@ -67,6 +67,15 @@
       # is set — which WSLg always does alongside $WAYLAND_DISPLAY.
       ec() {
         if [[ -n "$WAYLAND_DISPLAY" ]]; then
+          # WSLg's compositor can die while its socket FILES survive (seen
+          # 2026-07-26). pgtk emacs KILLS THE WHOLE DAEMON when a frame
+          # can't open its display, so probe liveness first: WSLg's X0
+          # socket vanishes exactly when the compositor is dead.
+          if [[ -d /mnt/wslg ]] && [[ ! -S /tmp/.X11-unix/X0 ]]; then
+            echo "ec: WSLg display looks dead (no /tmp/.X11-unix/X0) — restart the distro:" >&2
+            echo "    wsl --terminate weasel   (from PowerShell, then reopen)" >&2
+            return 1
+          fi
           emacsclient -c -d "$WAYLAND_DISPLAY" "$@"
         else
           emacsclient -c "$@"
