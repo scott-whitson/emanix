@@ -70,10 +70,16 @@ not fork-shaped.
   `WAYLAND_DISPLAY` from WSLg) — NOT the eminix tty1/getty/seat machinery
   (`ewm.nix` autologin/loginShellInit stays eminix-only).
 - The weasel Emacs currently runs as a systemd user daemon (standalone.nix
-  path). Nested EWM implies a SECOND emacs process (the compositor one) or
-  the daemon itself starting the compositor — v1: the launch script starts a
-  dedicated emacs process with `--init-directory` per eminix convention,
-  leaving the daemon untouched. Consolidation is a later decision.
+  path). ~~v1: dedicated emacs process; consolidation later~~ **AMENDED
+  2026-08-03 (Scott, post-Task-6 checkpoint): consolidation IS the
+  requirement.** The DAEMON loads the ewm elisp + module and starts the
+  compositor on demand via Task 4's selection arg
+  (`(ewm-start theme size "winit")` — no env needed). The EWM window is a
+  viewport into the daemon's one session: frames inside belong to it, apps
+  land as buffers among Scott's real buffers, standard window splits apply.
+  Usage model: fullscreen the EWM window and live inside it (the window is
+  the monitor, as on eminix). The dedicated test-process launch remains
+  only as a development harness.
 - GlazeWM: the EWM window title will contain "emacs" (frame-title pinned) →
   already ignored → floats; Scott fullscreens it (or a dedicated GlazeWM
   rule fullscreens it by title match). Revisit after feel-testing.
