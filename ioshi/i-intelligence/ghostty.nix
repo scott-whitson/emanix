@@ -11,7 +11,7 @@ in
     type = lib.types.bool;
     default = config.scott.gui;
     defaultText = "config.scott.gui";
-    description = "Install ghostty + its managed config. Defaults to the gui flag; weasel (gui=false) sets it true — WSLg renders it like any Wayland app.";
+    description = "Install ghostty + its managed config. Defaults to the gui flag; whistle (gui=false) sets it true — WSLg renders it like any Wayland app.";
   };
 
   config = lib.mkIf config.scott.ghostty.enable {

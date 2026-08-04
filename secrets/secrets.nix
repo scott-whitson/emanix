@@ -4,9 +4,11 @@ let
   # half must be injected at /etc/ssh/ssh_host_ed25519_key during install).
   eminix = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHiZAqCjE7nX2iXAlZDdZIzURl/X55ljlbpVHNlN9Za8 root@eminix";
   zordold = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBp0MtitZy/niGsNtI2BzKER7UtKT6R9+wMhrS/X2pdB root@zord-old";
-  weasel = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINp8VpIPlKLxcfPh1jvPc+LnFOnyQhTyxMulwQbTg2xA root@weasel";
+  # Key comment still reads root@weasel: the host was renamed 2026-08-04 but
+  # its SSH host key was NOT regenerated, so this string must stay verbatim.
+  whistle = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINp8VpIPlKLxcfPh1jvPc+LnFOnyQhTyxMulwQbTg2xA root@weasel";
   scott = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINW1gKUfmcHDWf02SHUpZuIZEqq7qk4IJfmd8hlLAUQi swhitson-11l";
 in
 {
-  "openrouter-auth.age".publicKeys = [ eminix zordold weasel scott ];
+  "openrouter-auth.age".publicKeys = [ eminix zordold whistle scott ];
 }

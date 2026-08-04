@@ -68,7 +68,7 @@
           users.scott = {
             imports = [ ./home/scott/default.nix ];
             # eminix instances run the system-owned EWM Emacs. mkDefault so a
-            # non-EWM NixOS host (weasel) can opt out while reusing hmModule.
+            # non-EWM NixOS host (whistle) can opt out while reusing hmModule.
             scott.ewm.enable = nixpkgs.lib.mkDefault true;
           };
         };
@@ -126,14 +126,15 @@
         };
 
         # NixOS-WSL on the work laptop — replaces the Debian WSL + scott@work
-        # standalone HM pair at cutover (spec 2026-07-21). Not an eminix
-        # instance (no EWM/hardware layer), so composed here, not via mkHost.
-        weasel = nixpkgs.lib.nixosSystem {
+        # standalone HM pair at cutover (spec 2026-07-21; the host was named
+        # weasel until 2026-08-04). Not an eminix instance (no EWM/hardware
+        # layer), so composed here, not via mkHost.
+        whistle = nixpkgs.lib.nixosSystem {
           inherit system;
           specialArgs = sharedSpecialArgs;
           modules = [
             nixos-wsl.nixosModules.default
-            ./hosts/weasel/configuration.nix
+            ./hosts/whistle/configuration.nix
             nixpkgsModule
             agenix.nixosModules.default
             home-manager.nixosModules.home-manager
@@ -166,7 +167,7 @@
       # --- Standalone Home-Manager configurations (foreign distros) ---
       homeConfigurations = {
         # datacore is the last standalone-HM node (Debian). The work-WSL's
-        # scott@work retired 2026-08-04 with the Debian distro — weasel
+        # scott@work retired 2026-08-04 with the Debian distro — whistle
         # (nixosConfigurations) replaced the pair.
         "scott@datacore" = mkHome "server";
       };

@@ -70,7 +70,7 @@
     # Picked up by fontconfig fallback; set-fontset-font is inert here.
     noto-fonts
   ]
-  # ghostty for non-gui hosts that opt in (weasel/WSLg). gui hosts already
+  # ghostty for non-gui hosts that opt in (whistle/WSLg). gui hosts already
   # get it from the gui block above — appended HERE so their list is
   # byte-identical (order is derivation-load-bearing, see Task-1 gate).
   ++ lib.optional (config.scott.ghostty.enable && !config.scott.gui) pkgs.ghostty;

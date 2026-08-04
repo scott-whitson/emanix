@@ -1,6 +1,6 @@
 ;;; scott-launcher.el --- XDG app launcher, EWM-s-d-style -*- lexical-binding: t; -*-
 
-;; The launcher half of EWM's s-d, portable to non-EWM machines (weasel).
+;; The launcher half of EWM's s-d, portable to non-EWM machines (whistle).
 ;; completing-read over XDG desktop entries, launch the pick. Under EWM the
 ;; new window becomes a buffer as usual; under WSLg it opens as its own
 ;; Wayland window — the launch UX is identical either way.

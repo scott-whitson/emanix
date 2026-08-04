@@ -73,7 +73,7 @@
           # socket vanishes exactly when the compositor is dead.
           if [[ -d /mnt/wslg ]] && [[ ! -S /tmp/.X11-unix/X0 ]]; then
             echo "ec: WSLg display looks dead (no /tmp/.X11-unix/X0) — restart the distro:" >&2
-            echo "    wsl --terminate weasel   (from PowerShell, then reopen)" >&2
+            echo "    wsl --terminate whistle   (from PowerShell, then reopen)" >&2
             return 1
           fi
           emacsclient -c -d "$WAYLAND_DISPLAY" "$@"

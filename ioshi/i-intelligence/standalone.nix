@@ -2,7 +2,7 @@
 
 let
   # Same package set as the eminix system build (ewm.nix), minus the EWM
-  # package — non-EWM machines (foreign-distro nodes AND weasel/NixOS-WSL)
+  # package — non-EWM machines (foreign-distro nodes AND whistle/NixOS-WSL)
   # have no compositor role.
   emacsPkgs = import ./emacs/packages.nix { inherit pkgs; };
   standaloneEmacs =

@@ -1,7 +1,8 @@
 { lib, ... }:
 
 {
-  # weasel — NixOS-WSL work distro (design spec 2026-07-21).
+  # whistle — NixOS-WSL work distro (design spec 2026-07-21, named weasel
+  # until the 2026-08-04 rename).
   # No hardware/disko/EWM layer: nixos-wsl supplies boot + mounts, WSLg
   # supplies the display. Home layer arrives via the flake's hmModule with
   # profile "wsl" (same home as the retired scott@work standalone config).
@@ -18,6 +19,11 @@
   # EBUSY, WSL squatting the cgroup with a hidden-pidns session).
   networking.hostName = "";
 
+  # networking.hostName must stay empty (above), which leaves the generation
+  # label reading "unnamed" — system.name restores a real label without
+  # touching the hostname WSL bootstraps against.
+  system.name = "whistle";
+
   wsl = {
     enable = true;
     defaultUser = "scott";
@@ -26,7 +32,7 @@
       # plan9 tuning): metadata mounts + no Windows PATH pollution.
       automount.options = "metadata,uid=1000,gid=1000,umask=022,fmask=11,case=off,msize=262144";
       interop.appendWindowsPath = false;
-      network.hostname = "weasel";
+      network.hostname = "whistle";
     };
   };
 
@@ -37,10 +43,10 @@
   services.resolved.enable = lib.mkForce false;
   services.tailscale.extraUpFlags = [ "--accept-dns=false" ];
 
-  # Debian retired 2026-08-04 — weasel is the only distro, so kernel-mode
+  # Debian retired 2026-08-04 — whistle is the only distro, so kernel-mode
   # WireGuard is safe again (during coexistence, two kernel tailscaleds
   # fought over routing table 52 and blackholed Debian's DNS; see
-  # docs/ioshi/weasel.md gotchas for the history). sshd stays on 2222 and
+  # docs/ioshi/whistle.md gotchas for the history). sshd stays on 2222 and
   # syncthing on 8385/22001 — nothing depends on the old numbers and the
   # muscle memory/config (eminix ssh config, datacore) already points here.
   services.tailscale.interfaceName = "tailscale0";
