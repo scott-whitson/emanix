@@ -246,6 +246,9 @@ clobbered; only a genuinely new quarter gets a fresh template."
 ;; Terminal in a buffer — the terminal answer on non-EWM machines (decided
 ;; 2026-08-04: a real terminal app can never be a buffer outside EWM's own
 ;; compositor, so vterm IS the "ghostty in a split"). C-u C-c t = new vterm.
+;; Explicit autoload: the nix-installed package's autoloads don't reliably
+;; reach the daemon session (observed 2026-08-04 — installed but M-x-less).
+(autoload 'vterm "vterm" "Open a vterm terminal buffer." t)
 (global-set-key (kbd "C-c t") #'vterm)
 
 ;; Frame title must ALWAYS contain "emacs": GlazeWM's ignore rule on the
