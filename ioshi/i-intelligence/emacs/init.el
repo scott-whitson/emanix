@@ -34,6 +34,10 @@
 
 ;; --- Basics ---
 (set-face-attribute 'default nil :family "JetBrainsMono Nerd Font" :height 110)
+;; Symbol coverage for TUIs in vterm (Claude Code's ⏵ ⏸ ⏺ ✻ ✦) comes from
+;; pkgs.noto-fonts via fontconfig fallback — see ../packages.nix. Deliberately
+;; NOT set-fontset-font: on this pgtk/ftcrhb build those calls are inert
+;; (verified — forcing a range to another family changes nothing).
 (setq make-backup-files nil
       auto-save-default nil
       create-lockfiles nil
@@ -250,6 +254,41 @@ clobbered; only a genuinely new quarter gets a fresh template."
 ;; reach the daemon session (observed 2026-08-04 — installed but M-x-less).
 (autoload 'vterm "vterm" "Open a vterm terminal buffer." t)
 (global-set-key (kbd "C-c t") #'vterm)
+
+;; Keep TUI symbols on the character grid (Claude Code, 2026-08-04).
+;; Measured against the 9px cell of JetBrainsMono Nerd Font, Claude Code emits
+;; several symbols that render 11-14px wide, shoving the rest of the line right:
+;; the media-control block (⏵ ⏸ ⏺ — mode indicators), ⎿ (tool-result corner),
+;; ✔ ✘, ◻ ◼, and the dingbat + braille spinner frames. No available font fixes
+;; this: nothing in nixpkgs draws that block at cell width, set-fontset-font is
+;; inert on this pgtk/ftcrhb build, and a proportional fallback cannot be
+;; rescaled to a fixed advance (one factor that fits ⏺ shrinks ⏵ to 5px).
+;; A display table sidesteps fonts entirely — redisplay substitutes a glyph
+;; JetBrains already draws at exactly 9px. Buffer text is untouched (copy/paste
+;; and search still see the original char); this is purely what gets painted.
+(require 'disp-table)
+
+(defvar scott/vterm-glyph-substitutions
+  '((?⏴ . ?◀) (?⏵ . ?▶) (?⏸ . ?‖) (?⏹ . ?■) (?⏺ . ?●)
+    (?⎿ . ?└) (?✔ . ?✓) (?✘ . ?✗) (?◻ . ?□) (?◼ . ?■))
+  "Alist of (WIDE-CHAR . CELL-WIDTH-CHAR) substitutions for vterm buffers.
+Each cdr is verified to render at the default face's cell width.")
+
+(defun scott/vterm-fix-glyph-widths ()
+  "Remap off-grid TUI symbols to cell-width glyphs in the current buffer."
+  (let ((dt (make-display-table)))
+    (pcase-dolist (`(,from . ,to) scott/vterm-glyph-substitutions)
+      (aset dt from (vector (make-glyph-code to))))
+    ;; Spinner frames: the dingbat (✳..✿) and braille (⠀..⣿) animations cycle
+    ;; through glyphs of differing widths, so the whole line jitters each tick.
+    ;; Collapse each set to one static cell-width mark.
+    (dotimes (i (1+ (- #x273F #x2733)))
+      (aset dt (+ #x2733 i) (vector (make-glyph-code ?*))))
+    (dotimes (i (1+ (- #x28FF #x2800)))
+      (aset dt (+ #x2800 i) (vector (make-glyph-code ?·))))
+    (setq buffer-display-table dt)))
+
+(add-hook 'vterm-mode-hook #'scott/vterm-fix-glyph-widths)
 
 ;; Frame title must ALWAYS contain "emacs": GlazeWM's ignore rule on the
 ;; work laptop matches WSLg windows by title to leave the Emacs frame

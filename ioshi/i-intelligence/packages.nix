@@ -63,6 +63,12 @@
     # Fonts — every node: pgtk emacs under WSLg reads nix-profile fonts
     jetbrains-mono
     nerd-fonts.jetbrains-mono
+    # Symbol fallback for TUIs in vterm (Claude Code's ⏵ ⏸ ⏺). No JetBrains
+    # face — nor Nerd Font's symbol set — covers the media-control block
+    # U+23F5/23F8/23FA, so emacs drew hex-tofu boxes. NotoSansSymbols2 (in
+    # this package) is the only thing in nixpkgs checked that has them.
+    # Picked up by fontconfig fallback; set-fontset-font is inert here.
+    noto-fonts
   ]
   # ghostty for non-gui hosts that opt in (weasel/WSLg). gui hosts already
   # get it from the gui block above — appended HERE so their list is
