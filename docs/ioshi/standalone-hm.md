@@ -7,7 +7,7 @@ Home-Manager from the same flake. See the spec:
 | Node | Flake attr | Profile | Notes |
 | --- | --- | --- | --- |
 | datacore | `scott@datacore` | server | syncthing/docker stay Debian-managed |
-| work-WSL | `scott@work` | wsl | EWM never; Windows is the compositor |
+| ~~work-WSL~~ | ~~`scott@work`~~ | wsl | RETIRED 2026-08-04 with the Debian distro — replaced by the `weasel` nixosConfiguration (see `docs/ioshi/weasel.md`) |
 
 ## Bootstrap (once per node)
 

@@ -165,8 +165,10 @@
 
       # --- Standalone Home-Manager configurations (foreign distros) ---
       homeConfigurations = {
+        # datacore is the last standalone-HM node (Debian). The work-WSL's
+        # scott@work retired 2026-08-04 with the Debian distro — weasel
+        # (nixosConfigurations) replaced the pair.
         "scott@datacore" = mkHome "server";
-        "scott@work" = mkHome "wsl";
       };
 
       # --- Disko configurations (declarative disk partitioning) ---

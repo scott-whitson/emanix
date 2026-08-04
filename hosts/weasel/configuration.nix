@@ -37,19 +37,13 @@
   services.resolved.enable = lib.mkForce false;
   services.tailscale.extraUpFlags = [ "--accept-dns=false" ];
 
-  # ALL WSL2 distros share one network namespace with the Windows host's VM,
-  # so weasel collides with the Debian distro until Debian retires
-  # (found live, first boot 2026-07-22):
-  # - Two kernel-mode tailscaleds fight over routing table 52 and the
-  #   100.100.100.100 MagicDNS route — weasel's daemon (accept-dns=false)
-  #   won and BLACKHOLED Debian's DNS. Userspace networking adds no tun and
-  #   no routes: zero interference, still direct QUIC to datacore.
-  #   AFTER DEBIAN RETIRES: flip to a real interface name for kernel-mode
-  #   WireGuard (e.g. "tailscale0").
-  # - Debian's sshd holds port 22 — weasel's sshd cannot bind it.
-  # - Debian's syncthing owns GUI 8384 / sync 22000 — weasel's moved to
-  #   8385/22001 (flake.nix weasel HM block).
-  services.tailscale.interfaceName = "userspace-networking";
+  # Debian retired 2026-08-04 — weasel is the only distro, so kernel-mode
+  # WireGuard is safe again (during coexistence, two kernel tailscaleds
+  # fought over routing table 52 and blackholed Debian's DNS; see
+  # docs/ioshi/weasel.md gotchas for the history). sshd stays on 2222 and
+  # syncthing on 8385/22001 — nothing depends on the old numbers and the
+  # muscle memory/config (eminix ssh config, datacore) already points here.
+  services.tailscale.interfaceName = "tailscale0";
   services.openssh.ports = [ 2222 ];
 
   # WSL's session bootstrap execs a HARDCODED /usr/bin/systemctl to start
