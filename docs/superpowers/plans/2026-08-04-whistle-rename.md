@@ -347,6 +347,16 @@ ssh datacore 'cd ~/projects/dotfiles && git pull --ff-only && git log --oneline 
 
 Expected: fast-forward succeeds. datacore's clone is several commits behind, so **unrelated commits will come along** — that is normal, not a problem. datacore's `homeConfigurations."scott@datacore"` is untouched by this rename, so no rebuild there is required.
 
+> **DEFERRED 2026-08-04.** The fast-forward failed: datacore's clone has
+> **diverged**, carrying 3 unpushed local commits (`b919ea0` IB Gateway /
+> Steam XWayland, `4e99c0d` pi declarative install, `beeab2f` Emacs bindings)
+> while missing 9 from `origin/main`. Those commits exist nowhere else — a
+> force-push to `main` would destroy them, and the pi/Emacs subject overlap
+> with later commits makes a rebase conflict-prone. Scott's call was to skip
+> this step and give datacore its own session. **The rename is unaffected:**
+> the repo change is pushed, and `homeConfigurations."scott@datacore"` does
+> not reference the renamed host.
+
 ---
 
 ### Task 3: Activate the new closure on this host
@@ -389,10 +399,14 @@ Expected: `hostname=whistle` from the first command, and **`weasel` from the sec
 - [ ] **Step 4: Verify the generation label**
 
 ```bash
+readlink -f /run/current-system
 sudo nix-env -p /nix/var/nix/profiles/system --list-generations | tail -3
 ```
 
-Expected: the newest generation is current (`(current)`) and no longer reads `unnamed`.
+Expected: the store path reads `nixos-system-whistle-<version>` — it was
+`nixos-system-unnamed-<version>` before `system.name` was set. Note that
+`--list-generations` prints no name column, so it confirms only that the new
+generation is `(current)`; the store path is where the name is visible.
 
 - [ ] **Step 5: Verify nothing else broke**
 
@@ -617,10 +631,10 @@ systemctl is-active sshd tailscaled; systemctl --user is-active syncthing
 systemctl is-system-running; sudo -n true && echo "sudo OK"
 docker ps --format '{{.Names}}\t{{.Status}}'
 /mnt/c/Windows/System32/cmd.exe /c echo interop-ok
-sudo nix-env -p /nix/var/nix/profiles/system --list-generations | tail -2
+readlink -f /run/current-system
 ```
 
-Expected: `whistle` (twice), `hostname=whistle`, tailnet `whistle` at `100.64.0.10`, all units active, system running, sudo OK, both DB containers `Up`, `interop-ok`, newest generation reading `whistle`.
+Expected: `whistle` (twice), `hostname=whistle`, tailnet `whistle` at `100.64.0.10`, all units active, system running, sudo OK, both DB containers `Up`, `interop-ok`, and a current-system path reading `nixos-system-whistle-<version>`.
 
 - [ ] **Step 2: Verify the agenix secret still decrypts**
 
