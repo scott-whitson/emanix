@@ -10,6 +10,10 @@
 
 **Spec:** `docs/superpowers/specs/2026-07-23-weasel-zellij-zellaude-design.md`
 
+> **Renamed:** this host was renamed `weasel` → `whistle` on 2026-08-04
+> (`docs/superpowers/specs/2026-08-04-whistle-rename-design.md`). The name
+> `weasel` below is preserved as the historical record.
+
 ## Global Constraints
 
 - Flag defaults **off**: eminix/zord/datacore closures must be byte-identical before vs after Task 1 (they don't set the flag).

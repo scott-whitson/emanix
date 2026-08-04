@@ -6,6 +6,10 @@
 needs the Debian WSL zellij experience for ssh sessions: persistent sessions that
 survive disconnects, zellaude tab bar with Claude activity, zellij-forgot cheatsheet.
 
+> **Renamed:** this host was renamed `weasel` → `whistle` on 2026-08-04
+> (`docs/superpowers/specs/2026-08-04-whistle-rename-design.md`). The name
+> `weasel` below is preserved as the historical record.
+
 ## Problem
 
 - weasel has no zellij installed and no `~/.config/zellij`.

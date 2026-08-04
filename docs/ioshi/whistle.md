@@ -1,14 +1,21 @@
-# weasel — NixOS-WSL work distro
+# whistle — NixOS-WSL work distro
 
-`weasel` is the third `nixosConfigurations` entry in this flake: a
+`whistle` is the third `nixosConfigurations` entry in this flake: a
 NixOS-WSL distro that replaces the Debian WSL + `scott@work` standalone
-Home-Manager pair on the work laptop. Unlike the standalone nodes, weasel
+Home-Manager pair on the work laptop. Unlike the standalone nodes, whistle
 is a full NixOS host — agenix, declarative docker/oci-containers, and the
 `ioshi` home layer arrive via the flake's `hmModule` (profile `wsl`, same
 home as the retired `scott@work`). Design spec:
 `docs/superpowers/specs/2026-07-21-weasel-nixos-wsl-design.md`; full
 implementation plan (archived once this runbook is verified):
 `docs/superpowers/plans/2026-07-21-weasel-nixos-wsl.md`.
+
+**Name history:** this host was called `weasel` from its 2026-07-22 cutover
+until 2026-08-04, when it was renamed `whistle`
+(`docs/superpowers/specs/2026-08-04-whistle-rename-design.md`). Dated specs
+and plans still say weasel deliberately. Commands below use the current name;
+anything older than 2026-08-04 in your shell history or the tailnet admin log
+will say weasel.
 
 This is the durable, standalone home for the import/bootstrap/cutover/
 retirement procedure — it must work even after the plan doc is gone.
@@ -28,7 +35,7 @@ curl -LO https://github.com/nix-community/NixOS-WSL/releases/latest/download/nix
 2. Import (Scott, PowerShell or `!` prefix — does NOT disturb running distros):
 
 ```powershell
-wsl --import weasel $env:LOCALAPPDATA\wsl\weasel $env:USERPROFILE\Downloads\nixos.wsl --version 2
+wsl --import whistle $env:LOCALAPPDATA\wsl\whistle $env:USERPROFILE\Downloads\nixos.wsl --version 2
 ```
 If `--import` rejects the `.wsl` file (older WSL): `wsl --install --from-file $env:USERPROFILE\Downloads\nixos.wsl` and adjust the distro name below to what it registers (`wsl -l -v`).
 
@@ -36,7 +43,7 @@ If `--import` rejects the `.wsl` file (older WSL): `wsl --install --from-file $e
    behind `--allow-unsafe` over data-corruption reports — see Gotchas.
    Compact manually when the vhdx ever bloats.
 
-4. First boot, seed SSH key, clone dotfiles (Scott: `wsl -d weasel`, default user `nixos`):
+4. First boot, seed SSH key, clone dotfiles (Scott: `wsl -d whistle`, default user `nixos`):
 
 ```bash
 sudo -i
@@ -50,14 +57,14 @@ GIT_SSH_COMMAND="ssh -i /root/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-ne
 5. First rebuild (creates user scott, applies everything):
 
 ```bash
-nixos-rebuild switch --flake /tmp/dotfiles#weasel
+nixos-rebuild switch --flake /tmp/dotfiles#whistle
 ```
-Expected: builds the Emacs closure (long first build), switches, ends with activation output including home-manager. The switch exits NONZERO with three EXPECTED failures that self-heal later: the agenix activation snippet (no host key + not yet a recipient — Task 5), docker-pearl-platform-db.service (env file — Task 8), and tailscaled-autoconnect.service (authkey — Task 6). These are not stop conditions; only the Emacs/WSLg smoke test (Step 7) is. Exit weasel, `wsl --terminate weasel` (Scott), re-enter `wsl -d weasel` — now lands as user `scott` with zsh.
+Expected: builds the Emacs closure (long first build), switches, ends with activation output including home-manager. The switch exits NONZERO with three EXPECTED failures that self-heal later: the agenix activation snippet (no host key + not yet a recipient — Task 5), docker-pearl-platform-db.service (env file — Task 8), and tailscaled-autoconnect.service (authkey — Task 6). These are not stop conditions; only the Emacs/WSLg smoke test (Step 7) is. Exit whistle, `wsl --terminate whistle` (Scott), re-enter `wsl -d whistle` — now lands as user `scott` with zsh.
 
 6. Move the clone home + hand over SSH:
 
 ```bash
-# as scott on weasel
+# as scott on whistle
 sudo mv /tmp/dotfiles /home/scott/dotfiles && sudo chown -R scott:users /home/scott/dotfiles
 sudo cp -r /root/.ssh /home/scott/.ssh && sudo chown -R scott:users /home/scott/.ssh
 chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_ed25519
@@ -67,7 +74,7 @@ sudo rm -rf /root/.ssh
 
 7. SMOKE TEST (Scott): WSLg + pgtk Emacs
 
-On weasel: `ec` → the Emacs GUI must open as a Wayland (WSLg) window with
+On whistle: `ec` → the Emacs GUI must open as a Wayland (WSLg) window with
 correct fonts. In it: `C-h v window-system RET` shows `pgtk`. If this
 fails, STOP the project here — Debian untouched, zero blast radius; debug
 before any migration.
@@ -86,22 +93,22 @@ docker info --format '{{json .DefaultRuntime}}' >/dev/null && echo docker-ok
 
 ## Rebuild
 
-weasel rebuilds from its own local clone — it is the dotfiles writer once
+whistle rebuilds from its own local clone — it is the dotfiles writer once
 the handoff below completes. No 3-hop (unlike datacore/eminix).
 
 ```bash
-sudo nixos-rebuild switch --flake ~/dotfiles#weasel
+sudo nixos-rebuild switch --flake ~/dotfiles#whistle
 ```
 
 ## agenix recipient flow
 
-Adds weasel as an agenix recipient. `secrets/secrets.nix` is edited on the
+Adds whistle as an agenix recipient. `secrets/secrets.nix` is edited on the
 Debian WSL clone, which is still the writer until the write handoff.
 
-1. Capture weasel's host key (net/ssh.nix enabled sshd → host keys exist):
+1. Capture whistle's host key (net/ssh.nix enabled sshd → host keys exist):
 
 ```bash
-# on weasel
+# on whistle
 sudo cat /etc/ssh/ssh_host_ed25519_key.pub
 ```
 
@@ -110,25 +117,29 @@ sudo cat /etc/ssh/ssh_host_ed25519_key.pub
 In `secrets/secrets.nix`, add above the `scott` line (key text from Step 1):
 
 ```nix
-  weasel = "ssh-ed25519 AAAA<weasel-host-key> root@weasel";
+  whistle = "ssh-ed25519 AAAA<whistle-host-key> root@<hostname-at-keygen>";
 ```
-and extend: `"openrouter-auth.age".publicKeys = [ eminix zordold weasel scott ];`
+
+The live entry's comment reads `root@weasel` — the key was generated before
+the 2026-08-04 rename and was deliberately **not** regenerated, so the stale
+comment is correct and must not be "fixed".
+and extend: `"openrouter-auth.age".publicKeys = [ eminix zordold whistle scott ];`
 
 ```bash
 cd /home/scott/dotfiles/secrets
 nix run github:ryantm/agenix -- --rekey -i /home/scott/.ssh/id_ed25519
 cd /home/scott/dotfiles
 git add secrets/secrets.nix secrets/openrouter-auth.age
-git commit -m "secrets: add weasel as openrouter-auth recipient"
+git commit -m "secrets: add whistle as openrouter-auth recipient"
 git push
 ```
 
-3. Rebuild weasel and verify decryption:
+3. Rebuild whistle and verify decryption:
 
 ```bash
-# on weasel
+# on whistle
 git -C ~/dotfiles pull --ff-only
-sudo nixos-rebuild switch --flake ~/dotfiles#weasel
+sudo nixos-rebuild switch --flake ~/dotfiles#whistle
 sudo test -f /run/agenix/openrouter-auth && echo secret-ok
 readlink ~/.pi/agent/auth.json    # expect /run/agenix/openrouter-auth
 ```
@@ -142,15 +153,15 @@ readlink ~/.pi/agent/auth.json    # expect /run/agenix/openrouter-auth
 ssh datacore "docker exec headscale headscale preauthkeys create --user 1 --expiration 1h"
 ```
 
-2. Place the key on weasel and connect:
+2. Place the key on whistle and connect:
 
 ```bash
-# on weasel — paste the key from Step 1
+# on whistle — paste the key from Step 1
 echo '<preauthkey>' | sudo tee /var/lib/tailscale-authkey >/dev/null
 sudo systemctl restart tailscaled-autoconnect
 sleep 5; tailscale status | head -5
 ```
-Expected: weasel listed plus datacore/eminix peers. Then:
+Expected: whistle listed plus datacore/eminix peers. Then:
 
 ```bash
 tailscale ping datacore   # expect pong, ideally direct
@@ -158,36 +169,36 @@ tailscale ping datacore   # expect pong, ideally direct
 
 ## syncthing join
 
-weasel joins as a second, read-side spoke. Debian REMAINS the writer
-throughout this step — weasel must not edit `~/projects` or
+whistle joins as a second, read-side spoke. Debian REMAINS the writer
+throughout this step — whistle must not edit `~/projects` or
 `~/docs/org/work` yet.
 
-1. weasel's device ID:
+1. whistle's device ID:
 
 ```bash
-# on weasel
+# on whistle
 syncthing --device-id
 ```
 
-2. Register weasel on datacore + attach folders (from Debian WSL). Follow
+2. Register whistle on datacore + attach folders (from Debian WSL). Follow
    the Phase 3 REST recipe in `docs/ioshi/work-sync.md`: read the API key
    from datacore's `~/.local/state/syncthing/config.xml` into a shell
-   variable (never print), then via `curl -sS` (never `-v`): add weasel as
-   a device, and add weasel's device ID to the `devices` arrays of folders
+   variable (never print), then via `curl -sS` (never `-v`): add whistle as
+   a device, and add whistle's device ID to the `devices` arrays of folders
    `work-projects` and `work-docs`. Use absolute paths for any `-d @file`
    payloads.
 
 3. Wait for full sync, then verify:
 
 ```bash
-# on weasel — completion via the local REST API, or simply:
+# on whistle — completion via the local REST API, or simply:
 watch -n 30 'df -h ~; find ~/projects -maxdepth 1 | wc -l'
 ```
-Done when folder status in weasel's syncthing log shows both folders
+Done when folder status in whistle's syncthing log shows both folders
 idle/up-to-date. Verify:
 
 ```bash
-# spot-check checksums Debian vs weasel on a couple of files
+# spot-check checksums Debian vs whistle on a couple of files
 /mnt/c/Windows/System32/wsl.exe -d Debian -u scott sha256sum /home/scott/docs/org/work/*.org | sha256sum
 sha256sum ~/docs/org/work/*.org | sha256sum
 ```
@@ -201,19 +212,19 @@ commitment) and the Windows-side finish.
 - [ ] Quiesce Debian (park other Claude sessions' edits first):
   `systemctl --user stop syncthing && systemctl --user disable syncthing`
   on Debian; verify on datacore both work folders are idle. From this
-  moment weasel is the writer.
-- [ ] DB password + env file placed on weasel (recovered from Debian's
+  moment whistle is the writer.
+- [ ] DB password + env file placed on whistle (recovered from Debian's
   live container without ever printing it) at `/var/lib/pearl-db/env`.
 - [ ] `pearl-platform-db` migrated: `pg_dump` on Debian AFTER the write
-  quiesce, restore into weasel's declarative container; verify `\dt` and
+  quiesce, restore into whistle's declarative container; verify `\dt` and
   spot-check a row count.
 - [ ] Worktree DBs migrated for each still-live worktree (`chat-interrupt`
   :5435, `kb-cores` :5444, `ap-automation-phase1`) — `docker compose up -d
-  db` on weasel in each worktree, then dump/restore per DB. Skip and note
+  db` on whistle in each worktree, then dump/restore per DB. Skip and note
   any branch already merged/dead.
 - [ ] Home state one-time copy done: `clients .claude .pi .gitconfig.local
   .zsh_history` (exhaustive list — nothing else copies; the tar excludes
-  `.pi/agent/auth.json` because on weasel it's an HM-managed symlink to
+  `.pi/agent/auth.json` because on whistle it's an HM-managed symlink to
   `/run/agenix/openrouter-auth` — copying Debian's plain file would replace
   the symlink, breaking the next home-manager activation with an "existing
   file in the way" conflict and re-introducing a plaintext key on disk),
@@ -221,8 +232,8 @@ commitment) and the Windows-side finish.
   NOT the whole `~/.local/backups` dir; `cd-audit-premirror-20260720.git`
   holds dirty history and must not propagate).
 - [ ] Dotfiles writer handoff confirmed: Debian's `~/dotfiles` clean, no
-  unpushed commits. weasel's clone is now the working copy.
-- [ ] `pi` and `claude` reinstalled on weasel (pi: npm package under
+  unpushed commits. whistle's clone is now the working copy.
+- [ ] `pi` and `claude` reinstalled on whistle (pi: npm package under
   `~/.local` prefix + launcher script copied from Debian; claude: native
   installer, runs via nix-ld). `pi --version && claude --version` both
   succeed; `pi` starts without demanding auth (auth.json is the agenix
@@ -230,17 +241,17 @@ commitment) and the Windows-side finish.
 - [ ] Debian's syncthing device removed from datacore (`work-projects` /
   `work-docs` device arrays + device entry deleted). Debian fully out of
   the sync topology.
-- [ ] Windows Terminal profile: weasel's generated profile's
-  `startingDirectory` set to `//wsl$/weasel/home/scott`; picked as WT
+- [ ] Windows Terminal profile: whistle's generated profile's
+  `startingDirectory` set to `//wsl$/whistle/home/scott`; picked as WT
   default if desired.
 - [ ] Default distro set:
 
 ```powershell
-wsl --set-default weasel
+wsl --set-default whistle
 ```
 - [ ] GlazeWM: nothing to do — the `msrdc` ignore rule covers all WSLg
   windows.
-- [ ] Begin the trust week: daily driving on weasel; Debian stays
+- [ ] Begin the trust week: daily driving on whistle; Debian stays
   registered but dormant (syncthing disabled, DBs stopped — optional: `wsl
   -d Debian -u scott docker stop $(...)`). Log any friction in the
   quarterly tracker.
@@ -256,23 +267,23 @@ the explicit go.**
 wsl --unregister Debian
 ```
 
-2. Flake cleanup (on weasel, now the dotfiles writer): remove
+2. Flake cleanup (on whistle, now the dotfiles writer): remove
    `"scott@work" = mkHome "wsl";` from `flake.nix`
    `homeConfigurations` (datacore's entry stays). Update the `mkHome`
    comment ("Debian WSL" reference) and `docs/ioshi/standalone-hm.md`
-   (`scott@work` retired → pointer to `docs/ioshi/weasel.md`).
+   (`scott@work` retired → pointer to `docs/ioshi/whistle.md`).
 
 ```bash
 cd ~/dotfiles
 nix eval '.#homeConfigurations."scott@datacore".activationPackage.drvPath'   # still evaluates
-nix eval '.#nixosConfigurations.weasel.config.system.build.toplevel.drvPath' # still evaluates
+nix eval '.#nixosConfigurations.whistle.config.system.build.toplevel.drvPath' # still evaluates
 git add flake.nix docs/ioshi/standalone-hm.md
-git commit -m "chore(weasel): retire the scott@work standalone config"
+git commit -m "chore(whistle): retire the scott@work standalone config"
 git push
 ```
 
 3. Close the ledger: append completion to `.superpowers/sdd/progress.md`;
-   update memory (`project_three_node_model.md` or a new weasel project
+   update memory (`project_three_node_model.md` or a new whistle project
    memory).
 
 ## Gotchas
@@ -298,14 +309,14 @@ git push
   emacs KILLS ITS OWN DAEMON when frame creation can't open the display
   (`cannot open display: wayland-0`, then systemd restart-loops it).
   Liveness tell: `/tmp/.X11-unix/X0` vanishes when WSLg is dead. Only fix:
-  `wsl --terminate weasel` + reopen. The `ec` function guards on the X0
+  `wsl --terminate whistle` + reopen. The `ec` function guards on the X0
   probe and prints this instead of assassinating the daemon.
 - **Stock-image boots wipe `WSLInterop` for EVERY distro.** binfmt_misc is
   global across WSL2 distros; the unconfigured NixOS-WSL image's boot can
   drop the entry, which breaks running `*.exe` from Debian too
   (`exec format error`). Restore from any affected distro with:
   `sudo sh -c "echo ':WSLInterop:M::MZ::/init:PF' > /proc/sys/fs/binfmt_misc/register"`.
-  Post-rebuild weasel registers interop properly; keeping weasel running
+  Post-rebuild whistle registers interop properly; keeping whistle running
   (instead of letting it idle-stop and re-boot) avoids repeats during
   bootstrap.
 - **Shared network namespace with Debian (until retirement):** sshd
@@ -313,13 +324,13 @@ git push
   sync 22001** (Debian owns 8384/22000 — two instances crash-collide
   otherwise); tailscale runs **userspace-networking** — two kernel-mode
   tailscaleds fight over routing table 52 and the 100.100.100.100
-  MagicDNS route, and weasel's daemon winning BLACKHOLED Debian's DNS
+  MagicDNS route, and whistle's daemon winning BLACKHOLED Debian's DNS
   (repaired with `sudo systemctl restart tailscaled` on Debian).
-  Configured in `hosts/weasel/configuration.nix` + the flake's weasel HM
+  Configured in `hosts/whistle/configuration.nix` + the flake's whistle HM
   block. AFTER RETIREMENT: flip tailscale to kernel mode (real interface
   name); ports can stay.
-- **weasel session activity tramples Debian's user@1000** (WSL#10205
-  class): Debian's emacs/syncthing user services die whenever weasel
+- **whistle session activity tramples Debian's user@1000** (WSL#10205
+  class): Debian's emacs/syncthing user services die whenever whistle
   boots/logs in. Self-serve heal on Debian:
   `sudo /usr/local/sbin/fix-user-session` (NOPASSWD, installed
   2026-07-22, like fix-wslinterop). Dies with Debian's retirement.
@@ -329,7 +340,7 @@ git push
 - **User services need lingering.** WSL's session bootstrap doesn't
   reliably create logind sessions ("Failed to start the systemd user
   session"), so emacs/syncthing user units never start.
-  `users.users.scott.linger = true` (in the weasel host config) boots the
+  `users.users.scott.linger = true` (in the whistle host config) boots the
   user manager unconditionally. A stale pre-rebuild `user@1000` from the
   image's `nixos` user can sit in `failed (Result: resources)` — cleared
-  by the first `wsl --terminate weasel` + restart after the rebuild.
+  by the first `wsl --terminate whistle` + restart after the rebuild.

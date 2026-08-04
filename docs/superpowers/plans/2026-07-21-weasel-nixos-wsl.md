@@ -10,6 +10,10 @@
 
 **Spec:** `docs/superpowers/specs/2026-07-21-weasel-nixos-wsl-design.md`
 
+> **Renamed:** this host was renamed `weasel` → `whistle` on 2026-08-04
+> (`docs/superpowers/specs/2026-08-04-whistle-rename-design.md`). The name
+> `weasel` below is preserved as the historical record.
+
 ## Global Constraints
 
 - NEVER run `git add -A` or `git add .` on this machine — stage explicit paths only.
