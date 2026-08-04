@@ -10,6 +10,20 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-04-whistle-rename-design.md`
 
+## Execution status (2026-08-04)
+
+- **Tasks 1–5: COMPLETE.** Repo renamed and pushed (`f047955`, `0e0a564`);
+  closure `nixos-system-whistle` activated (agenix decrypted clean, zero
+  failed units, both DB containers untouched); tailnet node renamed
+  (`whistle` @ 100.64.0.10); both syncthing labels renamed, datacore still
+  connected; eminix `~/.ssh/config` now `Host whistle` (backup left at
+  `~/.ssh/config.bak-prewhistle`), verified connecting on 2222.
+- **Task 2 Step 10: DEFERRED** — datacore's clone diverged, see the note there.
+- **Task 6: PENDING, manual.** Scott runs the PowerShell block; it ends the
+  session that was executing this plan. `/etc/wsl.conf` is already staged with
+  `hostname=whistle`, so the live hostname flips on that restart.
+- **Task 7: PENDING** — run after the restart, in a fresh session.
+
 ## Global Constraints
 
 - The new name is exactly `whistle`, lowercase, everywhere. Prose capitalization (`Whistle` at sentence start) is fine; identifiers and hostnames are lowercase.
