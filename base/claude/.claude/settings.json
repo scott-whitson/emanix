@@ -1,4 +1,5 @@
 {
+  "model": "claude-opus-5[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -133,6 +134,5 @@
     "code-review@claude-plugins-official": true,
     "microsoft-docs@claude-plugins-official": true
   },
-  "tui": "fullscreen",
-  "model": "claude-fable-5[1m]"
+  "tui": "fullscreen"
 }
