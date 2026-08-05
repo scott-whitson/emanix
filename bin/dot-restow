@@ -17,9 +17,19 @@ restow_one() {
 
 case "${1:-}" in
     --all)
+        # Conflicts must not starve later packages: on HM machines some
+        # base/ packages are permanently HM-owned (ghostty), and apps like
+        # pi replace their symlink with a real file — keep going, collect,
+        # and report at the end. Exit 1 so dot-sync still surfaces it.
+        failed=()
         for p in "$DOTFILES"/base/*/; do
-            restow_one "$(basename "$p")"
+            pkg="$(basename "$p")"
+            restow_one "$pkg" || failed+=("$pkg")
         done
+        if [[ ${#failed[@]} -gt 0 ]]; then
+            echo "[base] conflicts (not re-linked): ${failed[*]}" >&2
+            exit 1
+        fi
         ;;
     ""|-h|--help)
         echo "Usage: dot-restow <pkg>|--all"
