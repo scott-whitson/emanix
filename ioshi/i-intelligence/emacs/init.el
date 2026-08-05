@@ -192,6 +192,16 @@
   (global-set-key (kbd "C-c n c") #'org-roam-capture))
 (global-set-key (kbd "C-c a") #'org-agenda)
 
+;; org-babel: executable src blocks in notes (the "living ops journal"
+;; workflow, adopted 2026-08-05). Shell blocks are off by default — enable.
+;; Execution still asks y/n per block (org-confirm-babel-evaluate stays t):
+;; notes sync across machines, so a stale block shouldn't run silently.
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((emacs-lisp . t)
+   (shell . t)
+   (python . t)))
+
 (defun scott/current-quarter-name (&optional time)
   "Return the current quarter name in YYYY-QN format."
   (let* ((time (or time (current-time)))
