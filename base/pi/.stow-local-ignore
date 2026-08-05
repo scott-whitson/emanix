@@ -1,0 +1,6 @@
+# Not stowed: pi.nix installs these two from base/pi as flake inputs — the
+# $HOME targets are HM-owned (AGENTS.md) or app-rewritten (settings.json),
+# so stowing them only produces permanent conflicts. Everything else in
+# this package (skills, extensions) is stow-managed as usual.
+AGENTS\.md
+settings\.json

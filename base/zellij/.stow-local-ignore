@@ -1,0 +1,5 @@
+# Nothing here is stowed: zellij.nix deploys this whole directory via
+# mkOutOfStoreSymlink (~/.config/zellij points back into base/zellij), so
+# stow must not touch it — it would only conflict with the HM symlink.
+# This package stays in base/ because it IS the live config source.
+.*
