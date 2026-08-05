@@ -38,10 +38,20 @@ restow_best_effort() {
     fi
 }
 
+# Best-effort: push the tracked GlazeWM config to the Windows side (repo is
+# authoritative). No-op on machines without /mnt/c GlazeWM (everything but
+# the work laptop). See bin/dot-glazewm-push.
+glazewm_push_best_effort() {
+    if ! "$DOTFILES/bin/dot-glazewm-push"; then
+        echo "    !! dot-glazewm-push failed — Windows-side GlazeWM config not updated" >&2
+    fi
+}
+
 if [[ -f "$PULL_ONLY_MARKER" ]]; then
     echo "==> pull-only mode (this machine consumes dotfiles; never commits/pushes)"
     pull_rebase
     restow_best_effort
+    glazewm_push_best_effort
     echo ""
     echo "==> dot-sync complete (pull-only) — $(git log -1 --format='%h %s')"
     exit 0
@@ -64,6 +74,7 @@ echo "==> pushing"
 git push
 
 restow_best_effort
+glazewm_push_best_effort
 
 echo ""
 echo "==> dot-sync complete — $(git log -1 --format='%h %s')"

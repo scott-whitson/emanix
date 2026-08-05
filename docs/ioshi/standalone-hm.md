@@ -41,16 +41,34 @@ GUI path works — with three gotchas found in live testing:
   Wayland display explicitly; verified frames report `GdkWaylandDisplay`.
 - **GlazeWM must not manage the WSLg EMACS window** — the pgtk frame is
   RDP-remoted through `msrdc.exe` and doesn't honor tiling resizes (window
-  stays small/unusable). Other WSLg windows (ghostty, ...) tile FINE and
-  want managing. Since 2026-07-23 the GlazeWM config
-  (`C:\Users\swhitson.CENTRALDATA\.glzr\glazewm\config.yaml`) ignores
-  `window_process: msrdc` + `window_title` regex `(?i)emacs` — and init.el
-  pins `frame-title-format` to always contain "emacs" (the default
-  collapses to bare `%b` with multiple frames, which would silently
-  re-enroll Emacs into tiling).
-- **Known limitation:** the WSLg window would not move to the external
-  monitors in testing (stuck on the laptop display). Unresolved; revisit
-  after the Wayland-native + GlazeWM-ignore changes.
+  stays small/unusable). The GlazeWM config ignores `window_process: msrdc`
+  + `window_title` regex `(?i)emacs` — and init.el pins
+  `frame-title-format` to always contain "emacs" (the default collapses to
+  bare `%b` with multiple frames, which would silently re-enroll Emacs
+  into tiling). Settled 2026-08-05 after trying set-floating: Scott wants
+  GlazeWM fully hands-off.
+- **The GlazeWM config is tracked in the repo** at `tools/glazewm/`
+  (`config.yaml` + dormant `focus-emacs.vbs`/`.ps1` force-focus scripts,
+  currently unbound). The repo is authoritative: edit there, and
+  `dot-sync` (via `bin/dot-glazewm-push`) overwrites the Windows copy,
+  printing any discarded drift. Hand-edits on the Windows side don't
+  survive a sync. Design: `docs/superpowers/specs/2026-08-05-glazewm-
+  sync-design.md`. Two hard-won config facts: the `lwin+shift+arrow` move
+  bindings stay UNBOUND (hjkl only — GlazeWM registers bindings globally
+  and would swallow Windows' native move-to-monitor even for ignored
+  windows), and window-rule edits need a GlazeWM RESTART, not reload
+  (reload never re-evaluates windows it has already seen).
+- **RESOLVED (2026-08-05): "window won't move to external monitors" was
+  never GlazeWM.** WSLg's guest compositor gets the monitor layout at
+  session start; an undock/redock can wedge it on a single output, after
+  which interactive drags clamp at that monitor's edge (programmatic
+  SetWindowPos still crosses fine — that asymmetry is the tell). Fix:
+  `wsl --terminate weasel` from PowerShell **while docked**, reopen.
+  Diagnose: `emacsclient --eval '(display-monitor-attributes-list)'` — a
+  single `"rdp"` geometry means wedged; or grep `Head detaching` /
+  `MonitorCount` in `/mnt/wslg/weston.log`. Also: native
+  `Win+Shift+arrows` never move a focused WSLg window (msrdc forwards
+  Win-combos into the guest) — mouse drag is the way.
 
 Fallback that always works: `et` (`emacsclient -t`) in the terminal.
 

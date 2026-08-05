@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# bin/dot-glazewm-push — push the tracked GlazeWM config to the Windows side.
+#
+# The repo is authoritative (docs/superpowers/specs/2026-08-05-glazewm-sync-
+# design.md): edit tools/glazewm/ and sync; hand-edits to the Windows files
+# are reverted on the next run, with the discarded diff printed so a trample
+# (GlazeWM update, reinstall) is visible, never silent.
+#
+# Called from dot-sync after restow (best-effort — never fails the sync).
+# Safe everywhere: exits silently on machines with no /mnt/c GlazeWM dir.
+set -euo pipefail
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
+SRC="$DOTFILES/tools/glazewm"
+GLAZEWM_CLI="/mnt/c/Program Files/glzr.io/GlazeWM/cli/glazewm.exe"
+
+# Locate the Windows-side config dir. Ask Windows for the active profile —
+# a glob over /mnt/c/Users/* is ambiguous here (a stale local `swhitson`
+# profile shadows the domain profile `swhitson.CENTRALDATA`).
+[[ -d /mnt/c/Windows ]] || exit 0
+winprofile="$(/mnt/c/Windows/System32/cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r' || true)"
+DEST=""
+if [[ "$winprofile" == C:\\* ]]; then
+    DEST="/mnt/c/${winprofile#C:\\}/.glzr/glazewm"
+    DEST="${DEST//\\//}"
+fi
+if [[ ! -d "$DEST" ]]; then
+    # Fallback (cmd.exe unavailable): glob, preferring the domain profile.
+    shopt -s nullglob
+    targets=(/mnt/c/Users/*/.glzr/glazewm)
+    shopt -u nullglob
+    [[ ${#targets[@]} -eq 0 ]] && exit 0
+    DEST="${targets[-1]}"
+    [[ ${#targets[@]} -gt 1 ]] && echo "    !! multiple .glzr/glazewm dirs; guessed $DEST" >&2
+fi
+
+config_changed=0
+for f in config.yaml focus-emacs.vbs focus-emacs.ps1; do
+    [[ -f "$SRC/$f" ]] || { echo "    !! $SRC/$f missing from repo — skipped" >&2; continue; }
+    if [[ -f "$DEST/$f" ]] && cmp -s "$SRC/$f" "$DEST/$f"; then
+        continue
+    fi
+    echo "==> glazewm: $f drifted — overwriting Windows copy (repo is authoritative)"
+    if [[ -f "$DEST/$f" ]]; then
+        # What the Windows side is about to lose. Never fatal.
+        diff -u "$DEST/$f" "$SRC/$f" | sed -n '1,40p' || true
+    else
+        echo "    (missing on Windows side — restoring)"
+    fi
+    cp "$SRC/$f" "$DEST/$f"
+    [[ "$f" == config.yaml ]] && config_changed=1
+done
+
+if [[ $config_changed -eq 1 ]]; then
+    if [[ -x "$GLAZEWM_CLI" ]] && "$GLAZEWM_CLI" command wm-reload-config >/dev/null 2>&1; then
+        echo "    glazewm config reloaded"
+    else
+        echo "    glazewm not running (or CLI missing) — config picked up on next start"
+    fi
+    echo "    NOTE: window-rule changes need a full GlazeWM restart — reload"
+    echo "    never re-evaluates windows it has already seen."
+fi
