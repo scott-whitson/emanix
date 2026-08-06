@@ -13,6 +13,33 @@
 
 **Tech Stack:** nix flake (`lib/mkHost` NOT used — composed directly like whistle), disko, agenix, home-manager, docker-compose, rsync, tailscale, syncthing, backrest/restic/B2.
 
+## Execution status — STOPPED 2026-08-05, resume at Task 5 (Part B)
+
+**Part A (Tasks 1–4) COMPLETE and pushed** (`90f6d80..fd16bc3`): disko layout,
+host config, flake wiring, standalone-HM retired. `.#nixosConfigurations.datacore`
+builds; whistle/eminix/zord-old drvPaths verified byte-identical; final
+whole-branch review approved. Nothing done yet touches the running Debian
+datacore or the HP — resuming is zero-risk.
+
+**Resume checklist (install day, Part B):**
+- [ ] NixOS ISO on a USB stick (current stable)
+- [ ] The HP at a console (keyboard + monitor), wired ethernet preferred
+- [ ] Scott's time for Task 5–6 (~1 focused hour); whistle session assisting
+- [ ] `git pull` in ~/dotfiles first — the install clones from GitHub main
+- [ ] Locate the router admin login before CUTOVER day (not needed for
+      install day) — the headscale.stonewallmapletree.com port-forward
+      repoint in Task 11 Step 4 needs it
+
+**Read before resuming:** the Task 10/11 AMENDED blocks (self-hosted
+headscale control-plane handover — discovered during Part A execution) and
+Task 5's expected-noise note (agenix decrypt failure on first boot is
+normal until Task 6).
+
+**Riding minors (fold into Task 13 Step 3):** flake.nix mkForce block —
+comment should note the by-partlabel strings track disko partition names,
+and that fsType/options merge with the shared hardware file only while
+subvolume names coincide. The block is deleted with zord-old anyway.
+
 ## Global Constraints
 
 - `system.stateVersion = "26.11"` (current release, matches whistle/eminix; never copied from the 24.11 skeleton, never bumped later).
@@ -37,7 +64,7 @@
 **Interfaces:**
 - Produces: disko module consumed by Task 3's flake block and by the install-day `disko` run (Task 5). Mountpoints `/`, `/nix`, `/home`, `/home/srv-data`, `/boot`, swap.
 
-- [ ] **Step 1: Write the disko file**
+- [x] **Step 1: Write the disko file**
 
 ```nix
 { ... }: {
@@ -86,12 +113,12 @@
 }
 ```
 
-- [ ] **Step 2: Syntax-check the file**
+- [x] **Step 2: Syntax-check the file**
 
 Run: `nix eval --impure --expr 'builtins.attrNames (import ./ioshi/hi-hardware/disko/datacore.nix {}).disko.devices.disk'`
 Expected: `[ "main" ]`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add ioshi/hi-hardware/disko/datacore.nix
@@ -107,7 +134,7 @@ git commit -m "feat(datacore): disko layout — unencrypted btrfs, @srv-data sub
 - Consumes: `ioshi/os-system/server.nix` (docker, boot loader, networkmanager), `ioshi/hi-hardware/net/tailscale.nix`.
 - Produces: the host module Task 3 wires into the flake. Syncthing configDir `/home/scott/.local/state/syncthing` and backrest config path `/home/scott/.config/backrest/config.json` are the exact destinations the cutover (Task 11) copies runtime state into.
 
-- [ ] **Step 1: Rewrite the file**
+- [x] **Step 1: Rewrite the file**
 
 ```nix
 { config, lib, pkgs, ... }:
@@ -193,13 +220,13 @@ git commit -m "feat(datacore): disko layout — unencrypted btrfs, @srv-data sub
 }
 ```
 
-- [ ] **Step 2: Syntax-check**
+- [x] **Step 2: Syntax-check**
 
 Run: `nix-instantiate --parse hosts/datacore/configuration.nix >/dev/null && echo PARSE-OK`
 Expected: `PARSE-OK`
 (Full eval happens at Task 3's build gate — the module isn't in the flake yet.)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add hosts/datacore/configuration.nix
@@ -215,9 +242,9 @@ git commit -m "feat(datacore): finish host config — syncthing hub, backrest un
 - Consumes: Task 1's disko file, Task 2's host module, the existing `./ioshi/hi-hardware/hp-15-ef2013dx.nix` hardware module (shared with zord-old until Task 13 deletes zord-old).
 - Produces: `.#nixosConfigurations.datacore` — the install target for Task 5 and rebuild target ever after; `.#diskoConfigurations.datacore` for the installer's disko run.
 
-- [ ] **Step 1: Read the whistle block** (`flake.nix`, the `nixosConfigurations.whistle` entry) and note its exact home-manager wiring shape (`hmModule`, inline `scott.*` options). The datacore block mirrors it minus the WSL module.
+- [x] **Step 1: Read the whistle block** (`flake.nix`, the `nixosConfigurations.whistle` entry) and note its exact home-manager wiring shape (`hmModule`, inline `scott.*` options). The datacore block mirrors it minus the WSL module.
 
-- [ ] **Step 2: Add the datacore block** to `nixosConfigurations`, after `whistle`:
+- [x] **Step 2: Add the datacore block** to `nixosConfigurations`, after `whistle`:
 
 ```nix
         # Headless home server on the HP freed by zord's T14 move — replaces
@@ -249,7 +276,7 @@ git commit -m "feat(datacore): finish host config — syncthing hub, backrest un
 
 Adjust the inline `home-manager.users.scott` block to match whatever shape the whistle block actually uses (Step 1) — the option names (`scott.gui`, `scott.dotfiles.profile`) must be identical to whistle's, with profile value `"server"` (the value the retiring `mkHome "server"` used).
 
-- [ ] **Step 3: Add the disko output** next to eminix's:
+- [x] **Step 3: Add the disko output** next to eminix's:
 
 ```nix
       diskoConfigurations = {
@@ -258,12 +285,12 @@ Adjust the inline `home-manager.users.scott` block to match whatever shape the w
       };
 ```
 
-- [ ] **Step 4: Build gate — datacore evaluates and builds**
+- [x] **Step 4: Build gate — datacore evaluates and builds**
 
 Run: `nix build --no-link .#nixosConfigurations.datacore.config.system.build.toplevel`
 Expected: success. If `scott.gui`/profile options error, fix the inline block per whistle's shape and rerun.
 
-- [ ] **Step 5: Record other hosts' drvPaths, then remove standalone HM**
+- [x] **Step 5: Record other hosts' drvPaths, then remove standalone HM**
 
 ```bash
 for h in whistle eminix zord-old; do nix eval --raw ".#nixosConfigurations.$h.config.system.build.toplevel.drvPath"; echo " $h"; done > /tmp/drv-before.txt
@@ -271,7 +298,7 @@ grep -n "mkHome\|hmPkgs" flake.nix   # confirm only the scott@datacore entry con
 ```
 Then delete `homeConfigurations."scott@datacore"` — and if the grep shows `mkHome`/`hmPkgs` now unreferenced, delete those bindings and the `homeConfigurations` output too (last standalone node; spec says the block retires with it).
 
-- [ ] **Step 6: Build gate — nothing else changed**
+- [x] **Step 6: Build gate — nothing else changed**
 
 ```bash
 nix build --no-link .#nixosConfigurations.datacore.config.system.build.toplevel
@@ -280,7 +307,7 @@ diff /tmp/drv-before.txt /tmp/drv-after.txt && echo "OTHER HOSTS UNCHANGED"
 ```
 Expected: `OTHER HOSTS UNCHANGED` (adding outputs must not perturb existing hosts).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add flake.nix
@@ -289,8 +316,8 @@ git commit -m "feat(datacore): nixosConfigurations.datacore + disko output; reti
 
 ### Task 4: Push and document Part A
 
-- [ ] **Step 1:** `bin/dot-sync` (commits nothing new, pushes Tasks 1–3; restow + glazewm steps are silent no-ops for this change).
-- [ ] **Step 2:** Verify GitHub has the commits: `git log origin/main --oneline -4`.
+- [x] **Step 1:** `bin/dot-sync` (commits nothing new, pushes Tasks 1–3; restow + glazewm steps are silent no-ops for this change).
+- [x] **Step 2:** Verify GitHub has the commits: `git log origin/main --oneline -4`.
 
 ---
 
