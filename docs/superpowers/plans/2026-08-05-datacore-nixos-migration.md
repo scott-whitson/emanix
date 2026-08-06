@@ -338,7 +338,16 @@ git clone https://github.com/scott-whitson/dotfiles ~/projects/dotfiles-tmp-clon
 sudo nixos-rebuild switch --flake ~/projects/dotfiles-tmp-clone#datacore
 ```
 
-- [ ] **Step 3:** Join the tailnet under the TEMP name: `sudo tailscale up --hostname datacore-new`, authenticate, then from whistle: `tailscale status | grep datacore-new` → active.
+- [ ] **Step 3:** Join the tailnet under the TEMP name — the fleet uses self-hosted headscale (on OLD datacore, still serving), so use the join ritual from `ioshi/hi-hardware/net/tailscale.nix`'s comments:
+
+```bash
+# on OLD datacore:
+docker exec headscale headscale preauthkeys create --user 1 --expiration 1h
+# on the HP:
+echo '<key>' | sudo tee /var/lib/tailscale-authkey
+sudo tailscale up --hostname datacore-new --login-server=https://headscale.stonewallmapletree.com --auth-key "$(sudo cat /var/lib/tailscale-authkey)"
+```
+Then from whistle: `tailscale status | grep datacore-new` → active.
 - [ ] **Step 4:** Confirm syncthing started with FRESH keys and zero shared folders (`ssh datacore-new 'syncthing cli show system | head -3'` — a device ID that is NOT `FXOPHIF-…`). It must stay an island until cutover (global constraint).
 
 ---
@@ -398,14 +407,32 @@ headscale → container healthy (its clients, if any, are NOT repointed until af
 
 ### Task 10: Quiesce old + final delta
 
-- [ ] **Step 1 (old box):**
+> **AMENDED 2026-08-05 (found during Task 2 review):** the fleet's tailscale
+> runs on SELF-HOSTED headscale — the headscale container on old datacore,
+> fronted by the caddy container at `https://headscale.stonewallmapletree.com`
+> (see `ioshi/hi-hardware/net/tailscale.nix`). A blanket `docker stop` kills
+> the tailnet control plane mid-cutover — including the whistle→datacore ssh
+> path this runbook executes over. caddy + headscale stay up until the new
+> box's control plane replaces them.
+
+- [ ] **Step 0 (pre-flight addition):** establish how
+  `headscale.stonewallmapletree.com` reaches datacore (public DNS → router
+  port-forward → LAN IP, or LAN DNS). Write down the repoint action for
+  cutover (typically: router port-forward 443 → the HP's LAN IP) and who
+  holds the router admin login. Also confirm from Task 7's volume audit
+  where headscale's and caddy's state lives (DB, ACME certs) — both must be
+  in the delta copy.
+
+- [ ] **Step 1 (old box):** stop everything EXCEPT the control plane:
 
 ```bash
-docker stop $(docker ps -q)
+docker ps --format '{{.Names}}' | grep -vE '^(headscale|caddy)$' | xargs docker stop
 systemctl --user stop syncthing
 sudo systemctl stop backrest
 ```
-sshd stays up. Old box is now read-only in practice.
+sshd stays up; headscale + caddy stay up (established tailscale sessions
+would survive a short control-plane outage, but new connections and the
+rename in Task 11 would not).
 
 - [ ] **Step 2 (new box):** delta rsync — same two commands as Task 7 Step 1 plus named-volume re-copy for anything stateful found in Task 7 Step 3 (this is the authoritative copy of e.g. immich postgres). Minutes, not hours.
 - [ ] **Step 3 (new box):** stop the stacks (`docker compose down` each) and syncthing (`sudo systemctl stop syncthing`) so identity lands on quiet services.
@@ -428,11 +455,19 @@ ssh scott@<old-LAN> 'tar -C ~ -cf - $(ls -d .local/state/syncthing .config/synct
 ```
 
 - [ ] **Step 3 — backrest config:** `ssh scott@<old-LAN> 'tar -C ~ -cf - .config/backrest' | ssh scott@datacore-new 'tar -C ~ -xf -'`
-- [ ] **Step 4 — tailnet name:** old box `sudo tailscale logout`; delete the old `datacore` node in the Tailscale admin console; new box `sudo tailscale set --hostname datacore` (falls back to `sudo tailscale up --hostname datacore` if `set` lacks the flag on this version). From whistle: `tailscale status | grep " datacore "` shows the HP's IP. Old box's hostname is stood down but the machine stays bootable + intact.
-- [ ] **Step 5 — start everything (new box):** `sudo systemctl start syncthing backrest`, then `docker compose up -d` each stack.
+- [ ] **Step 4 — control-plane handover (AMENDED — order is load-bearing):**
+  1. New box: `docker compose up -d` the caddy + headscale stack FIRST (their state — headscale DB, ACME certs — arrived in the delta copy).
+  2. Repoint `headscale.stonewallmapletree.com` per Task 10 Step 0 (router port-forward → HP's LAN IP).
+  3. Verify the new control plane answers: `curl -sf https://headscale.stonewallmapletree.com/health` (or headscale's equivalent endpoint) from whistle.
+  4. Old box: `docker stop headscale caddy` (control plane now served by the HP), then `sudo tailscale logout`.
+  5. Delete the old datacore node from headscale (on the NEW box): `docker exec headscale headscale nodes list` → `docker exec headscale headscale nodes delete -i <old-id>`.
+  6. New box: `sudo tailscale set --hostname datacore` (fallback: `sudo tailscale up --hostname datacore --login-server=https://headscale.stonewallmapletree.com`). From whistle: `tailscale status | grep " datacore "` shows the HP.
+  7. Expect a brief window where whistle's ssh-over-`tailscale nc` path is degraded; the runbook's commands for this step run against LAN IPs, not tailnet names.
+- [ ] **Step 5 — start everything else (new box):** `sudo systemctl start syncthing backrest`, then `docker compose up -d` the remaining stacks.
 
 ### Task 12: Verify the ring
 
+- [ ] Tailnet control plane: every fleet node (whistle, eminix, zord) still shows connected in `docker exec headscale headscale nodes list` on the NEW box, and `tailscale status` on whistle resolves peers.
 - [ ] Phone syncs a photo to Immich (`datacore` name, not datacore-new).
 - [ ] Syncthing: peers reconnect within minutes with the SAME device ID (`FXOPHIF-…`) — check from whistle's syncthing UI (8385) that datacore shows connected + folders syncing, not "new device".
 - [ ] Git mirror hop: on eminix (or via ssh from whistle): `git -C ~/projects/dotfiles fetch` from its datacore remote succeeds with no host-key warning.
