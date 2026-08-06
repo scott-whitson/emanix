@@ -79,29 +79,6 @@
         inherit nixpkgs home-manager ewm agenix nixpkgsModule hmModule sharedSpecialArgs system;
       };
 
-      # Standalone Home-Manager homes for the foreign-distro nodes
-      # (Debian datacore, Debian WSL). Same home layer as eminix, headless.
-      hmPkgs = import nixpkgs {
-        inherit system;
-        overlays = [ emacs-overlay.overlays.default ];
-        config.allowUnfree = true;
-        # Parity with nixpkgsModule: a future gui=true standalone home would
-        # otherwise fail eval on bitwarden-desktop's electron.
-        config.permittedInsecurePackages = [ "electron-39.8.10" ];
-      };
-      mkHome = profile:
-        home-manager.lib.homeManagerConfiguration {
-          pkgs = hmPkgs;
-          extraSpecialArgs = sharedSpecialArgs;
-          modules = [
-            ./home/scott/default.nix
-            {
-              scott.gui = false;
-              scott.standalone = true;
-              scott.dotfiles.profile = profile;
-            }
-          ];
-        };
     in
     {
       # --- NixOS configurations — eminix instances ---
@@ -162,19 +139,59 @@
             }
           ];
         };
-      };
 
-      # --- Standalone Home-Manager configurations (foreign distros) ---
-      homeConfigurations = {
-        # datacore is the last standalone-HM node (Debian). The work-WSL's
-        # scott@work retired 2026-08-04 with the Debian distro — whistle
-        # (nixosConfigurations) replaced the pair.
-        "scott@datacore" = mkHome "server";
+        # Headless home server on the HP freed by zord's T14 move — replaces
+        # Debian datacore (spec 2026-08-05-datacore-nixos-design.md). Not an
+        # eminix instance (no EWM layer), so composed here, not via mkHost.
+        # Hardware module shared with zord-old until zord-old is deleted
+        # post-soak.
+        datacore = nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = sharedSpecialArgs;
+          modules = [
+            ./hosts/datacore/configuration.nix
+            ./ioshi/hi-hardware/hp-15-ef2013dx.nix
+            disko.nixosModules.disko
+            ./ioshi/hi-hardware/disko/datacore.nix
+            nixpkgsModule
+            agenix.nixosModules.default
+            home-manager.nixosModules.home-manager
+            hmModule
+            {
+              home-manager.users.scott = {
+                scott.gui = false;
+                scott.dotfiles.profile = "server";
+                # Headless, no EWM layer here — same reason whistle overrides
+                # this back off. Without it, hmModule's mkDefault true would
+                # leave standalone.nix's condition false and skip installing
+                # any Emacs at all (the retiring standalone HM installed the
+                # standalone pgtk build via this same option's default-false).
+                scott.ewm.enable = false;
+              };
+            }
+            # hp-15-ef2013dx.nix is shared with zord-old's LUKS+encrypted
+            # install (its fileSystems/swapDevices/luks.devices are literal
+            # /dev/mapper/cryptroot etc.). datacore is unencrypted by
+            # decision (disko/datacore.nix) with its own layout on GPT
+            # partlabels, so those disk-specific options conflict — force
+            # datacore's own values here rather than edit the shared file
+            # (must stay byte-identical so zord-old's drvPath is unchanged).
+            {
+              boot.initrd.luks.devices = nixpkgs.lib.mkForce { };
+              fileSystems."/boot".device = nixpkgs.lib.mkForce "/dev/disk/by-partlabel/disk-main-boot";
+              fileSystems."/".device = nixpkgs.lib.mkForce "/dev/disk/by-partlabel/disk-main-root";
+              fileSystems."/nix".device = nixpkgs.lib.mkForce "/dev/disk/by-partlabel/disk-main-root";
+              fileSystems."/home".device = nixpkgs.lib.mkForce "/dev/disk/by-partlabel/disk-main-root";
+              swapDevices = nixpkgs.lib.mkForce [{ device = "/dev/disk/by-partlabel/disk-main-swap"; }];
+            }
+          ];
+        };
       };
 
       # --- Disko configurations (declarative disk partitioning) ---
       diskoConfigurations = {
         eminix = import ./ioshi/hi-hardware/disko/eminix.nix;
+        datacore = import ./ioshi/hi-hardware/disko/datacore.nix;
       };
 
       # --- Dev shell ---
