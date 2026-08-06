@@ -1,3 +1,8 @@
+**RETIRED 2026-08-05.** The last standalone-HM node (Debian datacore) is
+migrating to NixOS (`docs/superpowers/specs/2026-08-05-datacore-nixos-design.md`);
+the flake's `homeConfigurations` output is deleted, so the build commands
+below no longer work. Kept for the still-accurate WSLg/GlazeWM notes.
+
 # Standalone Home-Manager nodes (datacore, work-WSL)
 
 Debian nodes run the eminix home layer (Emacs/meow/CLI) via standalone

@@ -319,7 +319,7 @@ sudo nixos-enter --root /mnt -c 'passwd scott'
 reboot
 ```
 
-- [ ] **Step 5:** First boot — from whistle, confirm reachability: `ssh scott@<HP-LAN-IP> hostname` → `datacore`. (LAN IP from the router or console `ip a`; the tailnet name comes next task.)
+- [ ] **Step 5:** First boot — from whistle, confirm reachability: `ssh scott@<HP-LAN-IP> hostname` → `datacore`. (LAN IP from the router or console `ip a`; the tailnet name comes next task.) Expected noise: an agenix decrypt failure for `openrouter-auth` and a dangling `~/.pi/agent/auth.json` symlink — datacore's host key isn't an agenix recipient until Task 6; the Task 6 Step 2 rebuild clears it.
 
 ### Task 6: Enroll identity prerequisites (agenix + tailnet as datacore-new)
 
@@ -421,7 +421,7 @@ headscale → container healthy (its clients, if any, are NOT repointed until af
   cutover (typically: router port-forward 443 → the HP's LAN IP) and who
   holds the router admin login. Also confirm from Task 7's volume audit
   where headscale's and caddy's state lives (DB, ACME certs) — both must be
-  in the delta copy.
+  in the delta copy. Finally, run `docker ps --format '{{.Names}}'` on the old box and confirm the control-plane containers are literally named `headscale` and `caddy` — if compose prefixed them, adjust Step 1's exclusion regex (and Step 4's `docker stop`/`docker exec` names) to the real names before cutover day.
 
 - [ ] **Step 1 (old box):** stop everything EXCEPT the control plane:
 
@@ -432,7 +432,7 @@ sudo systemctl stop backrest
 ```
 sshd stays up; headscale + caddy stay up (established tailscale sessions
 would survive a short control-plane outage, but new connections and the
-rename in Task 11 would not).
+rename in Task 11 would not). NB: the exclusion regex is anchored to the exact names verified in Step 0; `xargs` with empty input is harmless here.
 
 - [ ] **Step 2 (new box):** delta rsync — same two commands as Task 7 Step 1 plus named-volume re-copy for anything stateful found in Task 7 Step 3 (this is the authoritative copy of e.g. immich postgres). Minutes, not hours.
 - [ ] **Step 3 (new box):** stop the stacks (`docker compose down` each) and syncthing (`sudo systemctl stop syncthing`) so identity lands on quiet services.
