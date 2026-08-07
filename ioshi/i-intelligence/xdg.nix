@@ -18,8 +18,10 @@
       documents = "$HOME/docs";
       download = "$HOME/Downloads";
       projects = "$HOME/projects";
+      # Screenshot/image tools get a valid target instead of falling back to
+      # $HOME (the XDG default when a dir is unset) and littering it.
+      pictures = "$HOME/Downloads";
       music = null;
-      pictures = null;
       videos = null;
       desktop = null;
       publicShare = null;

@@ -4,8 +4,8 @@
 # Usage: dot-theme-set <theme-name>
 #
 # Validates the theme, writes state markers, symlinks per-app files into
-# ~/.config/<app>/, sed-rewrites Helix, JSON-patches Obsidian, runs
-# gsettings, relaunches fragpaper, reloads running apps.
+# ~/.config/<app>/, JSON-patches Obsidian, runs gsettings, relaunches
+# fragpaper, reloads running apps.
 set -euo pipefail
 
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
