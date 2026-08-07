@@ -36,11 +36,26 @@
       };
     }))
     async # ELISA dep (Package-Requires); needed to load elisa.el for port testing
-    plz   # ELISA/llm HTTP dep
+    plz # ELISA/llm HTTP dep
     org-roam
     org
     catppuccin-theme
     markdown-mode # transition: vault is still .md until the conversion sub-project
     vterm # native module built by nix; M-x package-install can't do this
+
+    # --- Code editing ---
+    # Emacs 30 already ships the hard parts: project.el, eglot (LSP client),
+    # flymake, xref and python-ts-mode are all built in. Only these three are
+    # actually missing.
+    nix-ts-mode # no Nix major mode is built in; the tree-sitter one is current
+    apheleia # async format-on-save that preserves point and undo history
+    # Tree-sitter grammars. These land in <deps>/lib/*.so, which Emacs does NOT
+    # search by default (verified 2026-08-07: without the treesit-extra-load-path
+    # fixup in init.el the *-ts-modes silently fail to activate). Add a language
+    # here AND nowhere else — init.el discovers whatever this list provides.
+    (treesit-grammars.with-grammars (g: [
+      g.tree-sitter-nix
+      g.tree-sitter-python
+    ]))
   ];
 }

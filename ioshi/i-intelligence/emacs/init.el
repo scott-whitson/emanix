@@ -193,6 +193,76 @@
 (require 'magit)
 (global-set-key (kbd "C-x g") #'magit-status)
 
+;; --- Code: navigation, LSP, formatting (added 2026-08-07) ---
+;; Emacs 30 ships nearly all of this: project.el (C-x p), xref (M-. / M-,),
+;; eglot (LSP client), flymake (diagnostics) and python-ts-mode are built in.
+;; Only nix-ts-mode, apheleia and the tree-sitter grammars come from Nix —
+;; see ../emacs/packages.nix.
+
+;; Tree-sitter grammar discovery. Nix installs grammars as bare .so files in
+;; <emacs-packages-deps>/lib/, a directory Emacs never searches, so without
+;; this every *-ts-mode silently falls back with no error (verified 2026-08-07).
+;; Derive the dir from load-path rather than hardcoding a store path: init.el
+;; is a live out-of-store symlink and must survive a rebuild changing hashes.
+(require 'treesit)
+(dolist (dir load-path)
+  (when (string-match "\\`\\(.*\\)/share/emacs/site-lisp\\(?:/\\|\\'\\)" dir)
+    (let ((lib (expand-file-name "lib" (match-string 1 dir))))
+      (when (file-directory-p lib)
+        (add-to-list 'treesit-extra-load-path (file-name-as-directory lib))))))
+
+;; Major modes. Only claim a file extension when its grammar actually loaded,
+;; so a grammar dropped from packages.nix degrades to fundamental/python-mode
+;; instead of erroring on every visit.
+(when (treesit-language-available-p 'nix)
+  (autoload 'nix-ts-mode "nix-ts-mode" "Major mode for Nix, via tree-sitter." t)
+  (add-to-list 'auto-mode-alist '("\\.nix\\'" . nix-ts-mode)))
+(when (treesit-language-available-p 'python)
+  (add-to-list 'major-mode-remap-alist '(python-mode . python-ts-mode)))
+
+;; LSP. eglot attaches per-buffer and routes everything through native Emacs
+;; machinery — completions reach corfu, errors reach flymake, jumps reach xref.
+;; nixd and basedpyright are eglot's own defaults for these modes; they are
+;; listed explicitly so the config states its own contract rather than
+;; inheriting whatever a future eglot ships.
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs '(nix-ts-mode . ("nixd")))
+  (add-to-list 'eglot-server-programs
+               '((python-mode python-ts-mode) . ("basedpyright-langserver" "--stdio")))
+  ;; Formatting is apheleia's job (below). Letting the server also format on
+  ;; save would race it and, for Nix, disagree with nixpkgs-fmt.
+  (setq-default eglot-workspace-configuration
+                '(:basedpyright (:analysis (:diagnosticMode "workspace")))))
+
+(dolist (hook '(nix-ts-mode-hook python-ts-mode-hook))
+  (add-hook hook #'eglot-ensure))
+
+;; Format on save. nixpkgs-fmt is this repo's own formatter (flake.nix exposes
+;; it as `formatter`), so `nix fmt` and a save from Emacs produce identical
+;; bytes. apheleia formats asynchronously and splices the result, leaving point
+;; and undo history intact — unlike a naive before-save-hook.
+(require 'apheleia)
+(with-eval-after-load 'apheleia
+  (setf (alist-get 'nixpkgs-fmt apheleia-formatters) '("nixpkgs-fmt"))
+  (setf (alist-get 'nix-ts-mode apheleia-mode-alist) 'nixpkgs-fmt)
+  (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff-isort ruff)))
+(apheleia-global-mode 1)
+
+;; Diagnostics + refactoring, under one prefix (C-c e, chosen 2026-08-07 —
+;; flymake ships no bindings of its own and C-c a/c/d/f/n/o/q/t were taken).
+;; Navigation keys are deliberately absent: C-x p (project), M-. / M-, (xref)
+;; and C-s / C-c f (consult) already cover it with stock bindings.
+(global-set-key (kbd "C-c e n") #'flymake-goto-next-error)
+(global-set-key (kbd "C-c e p") #'flymake-goto-prev-error)
+(global-set-key (kbd "C-c e l") #'consult-flymake)
+(global-set-key (kbd "C-c e r") #'eglot-rename)
+(global-set-key (kbd "C-c e a") #'eglot-code-actions)
+(global-set-key (kbd "C-c e =") #'apheleia-format-buffer)
+
+;; Show the project name in the mode line's buffer id and let C-x p f start
+;; from the current file's project without prompting.
+(setq project-mode-line t)
+
 ;; --- Org + org-roam ---
 (require 'org)
 (setq org-return-follows-link t)

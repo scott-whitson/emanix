@@ -31,6 +31,14 @@
     deadnix
     statix
 
+    # Python toolchain. Nothing Python-shaped was installed on this box before
+    # 2026-08-07 — not even an interpreter. basedpyright is the LSP server
+    # (eglot talks to it); ruff does lint + format. Both are also what the
+    # Emacs config drives, so editor and CLI agree.
+    python3
+    basedpyright
+    ruff
+
     # NOTE: nixpkgs#pi-coding-agent may lag npm latest. When it catches up,
     # this is the canonical install path. For now, this pins to nixpkgs version.
 
