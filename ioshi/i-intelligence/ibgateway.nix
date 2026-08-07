@@ -83,5 +83,35 @@ in
       "d /var/lib/ibgateway/ibc  0750 ibgateway ibgateway -"
       "d /var/lib/ibgateway/ibc/logs 0750 ibgateway ibgateway -"
     ];
+
+    # Headless X for the gateway. Xvnc rather than Xvfb: identical behaviour
+    # when IBC drives the login, but keeps a viewer escape hatch when it does
+    # not. -localhost keeps the RFB port off the tailnet.
+    #
+    # Declaring this as a unit is what stops the old :50-vs-:99 mismatch
+    # recurring: previously the start script used :50 (a stray unmanaged Xvnc)
+    # while the unit depended on xvfb.service on :99.
+    systemd.services.ibgateway-xvnc = {
+      description = "Xvnc virtual display for IB Gateway";
+      wantedBy = [ ];  # started as a dependency of ibgateway.service
+      serviceConfig = {
+        Type = "simple";
+        User = "ibgateway";
+        Group = "ibgateway";
+        StateDirectory = "ibgateway";
+        Environment = [ "HOME=/var/lib/ibgateway" ];
+        ExecStart = lib.concatStringsSep " " [
+          "${pkgs.tigervnc}/bin/Xvnc"
+          cfg.display
+          "-geometry 1280x1024"
+          "-depth 24"
+          "-SecurityTypes=None"
+          "-rfbport ${toString cfg.vncPort}"
+          "-localhost"
+        ];
+        Restart = "always";
+        RestartSec = 5;
+      };
+    };
   };
 }
