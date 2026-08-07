@@ -83,6 +83,72 @@ let
     cat ${ibcSettings} "$creds" > ${runtimeIni}
     chmod 0400 ${runtimeIni}
   '';
+
+  ibCli = pkgs.writeShellApplication {
+    name = "ib";
+    runtimeInputs = [ pkgs.systemd pkgs.coreutils ];
+    text = ''
+      # ib — IB Gateway control. The gateway is a SYSTEM unit (runs as the
+      # ibgateway user); a polkit rule lets scott manage it without a password.
+      # Minne remains user units.
+      action="''${1:-status}"
+      mode="''${2:-${cfg.tradingMode}}"
+
+      gateway_ready() {
+        timeout 1 bash -c ">/dev/tcp/127.0.0.1/${toString cfg.apiPort}" 2>/dev/null
+      }
+
+      case "$action" in
+        up)
+          echo "Starting IB Gateway ($mode)..."
+          systemctl start ibgateway.service
+
+          for _ in $(seq 1 120); do
+            if gateway_ready; then
+              echo "IB Gateway ready on port ${toString cfg.apiPort}"
+              systemctl --user start minne-ibkr-gateway minne-ibkr-record
+              echo "Minne IBKR services started"
+              exit 0
+            fi
+            if ! systemctl is-active --quiet ibgateway.service; then
+              echo "ERROR: ibgateway.service died. Recent log:" >&2
+              journalctl -u ibgateway.service -n 30 --no-pager >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          echo "WARNING: gateway did not open port ${toString cfg.apiPort} within 120s" >&2
+          echo "Approve the 2FA push on your phone, or attach a viewer:" >&2
+          echo "  vncviewer localhost:${toString cfg.vncPort}" >&2
+          exit 1
+          ;;
+
+        down)
+          echo "Stopping IB Gateway ($mode)..."
+          systemctl --user stop minne-ibkr-record minne-ibkr-gateway 2>/dev/null || true
+          systemctl stop ibgateway.service ibgateway-xvnc.service
+          echo "IB Gateway stopped"
+          ;;
+
+        status)
+          echo "=== IB Gateway ==="
+          systemctl is-active ibgateway.service || true
+          echo "=== Display ==="
+          systemctl is-active ibgateway-xvnc.service || true
+          echo "=== Port ${toString cfg.apiPort} ==="
+          if gateway_ready; then echo open; else echo closed; fi
+          echo "=== Minne IBKR ==="
+          systemctl --user is-active minne-ibkr-gateway minne-ibkr-record || true
+          ;;
+
+        *)
+          echo "Usage: ib {up|down|status} [live|paper]" >&2
+          exit 1
+          ;;
+      esac
+    '';
+  };
 in
 {
   # IB Gateway + IBC as a NixOS system service (imported via profiles/eminix.nix,
@@ -236,5 +302,21 @@ in
       startLimitBurst = 5;
       startLimitIntervalSec = 300;
     };
+
+    environment.systemPackages = [ ibCli ];
+
+    # Let scott manage just these two units without a password. Narrower than
+    # a sudo rule: it grants nothing else, to nobody else.
+    security.polkit.extraConfig = ''
+      polkit.addRule(function(action, subject) {
+        if (action.id == "org.freedesktop.systemd1.manage-units" &&
+            subject.user == "scott") {
+          var unit = action.lookup("unit");
+          if (unit == "ibgateway.service" || unit == "ibgateway-xvnc.service") {
+            return polkit.Result.YES;
+          }
+        }
+      });
+    '';
   };
 }
