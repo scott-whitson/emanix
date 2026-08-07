@@ -2,6 +2,88 @@
 
 let
   cfg = config.scott.ibgateway;
+
+  ibc = pkgs.callPackage ./ibgateway/ibc.nix { };
+
+  # Zulu (the old choice) has no JavaFX, and IBC's login dialog is a JavaFX
+  # WebView. Pristine ibcstart.sh already passes --add-exports for javafx.web,
+  # so it assumes a JavaFX-bearing JDK — this override supplies exactly that.
+  # It is a distinct derivation from plain openjdk17 and is in cache.nixos.org.
+  #
+  # The old /tmp/javafx-sdk + JAVA_TOOL_OPTIONS workaround could never work:
+  # ibcstart.sh:480 clears JAVA_TOOL_OPTIONS unconditionally.
+  jdk = pkgs.openjdk17.override { enableJavaFX = true; };
+
+  # Non-secret IBC settings. Credentials are appended at runtime from agenix,
+  # so nothing here reaches the world-readable Nix store.
+  ibcSettings = pkgs.writeText "ibc-settings.ini" ''
+    TradingMode=${cfg.tradingMode}
+    IbDir=${cfg.twsPath}
+    OverrideTwsApiPort=${toString cfg.apiPort}
+    AcceptIncomingConnectionAction=accept
+    AcceptNonBrokerageAccountWarning=yes
+    ExistingSessionDetectedAction=primary
+    ReloginAfterSecondFactorAuthenticationTimeout=yes
+    BypassOrderPrecautions=yes
+    SecondFactorAuthenticationModule=2
+    SecondFactorAuthenticationTimeout=120
+    CommandServerPort=7462
+    ControlFrom=127.0.0.1
+  '';
+
+  runtimeIni = "/run/ibgateway/ibc-config.ini";
+
+  # Stands in for IBC's gatewaystart.sh, whose variable block upstream hardcodes
+  # and marks as the user-editable part. displaybannerandlaunch.sh and
+  # ibcstart.sh ship pristine; this only supplies the env they read.
+  launcher = pkgs.writeShellApplication {
+    name = "ibgateway-launcher";
+    runtimeInputs = [ pkgs.coreutils pkgs.procps pkgs.gnugrep pkgs.gawk ];
+    text = ''
+      export IBC_PATH=${ibc}
+      export IBC_INI=${runtimeIni}
+      export TWS_PATH=${cfg.twsPath}
+      export TWS_SETTINGS_PATH=${cfg.twsPath}
+      export TWS_MAJOR_VRSN=${cfg.twsMajorVersion}
+      export LOG_PATH=/var/lib/ibgateway/ibc/logs
+      export JAVA_PATH=${jdk}/bin
+      export TRADING_MODE=${cfg.tradingMode}
+      export TWOFA_TIMEOUT_ACTION=restart
+      export APP=GATEWAY
+      # Credentials come from the ini, not these. displaybannerandlaunch.sh
+      # dereferences them unconditionally, so they must exist.
+      export TWSUSERID=""
+      export TWSPASSWORD=""
+      export FIXUSERID=""
+      export FIXPASSWORD=""
+      exec ${ibc}/scripts/displaybannerandlaunch.sh
+    '';
+  };
+
+  # Fails fast with a named cause instead of a bare exit 1109.
+  preflight = pkgs.writeShellScript "ibgateway-preflight" ''
+    set -euo pipefail
+    creds=${config.age.secrets.ibkr-creds.path}
+
+    if [[ ! -s "$creds" ]]; then
+      echo "ibgateway: credentials $creds missing or empty" >&2
+      exit 1
+    fi
+    if [[ ! -d "${cfg.twsPath}/ibgateway/${cfg.twsMajorVersion}/jars" ]]; then
+      echo "ibgateway: no jars at ${cfg.twsPath}/ibgateway/${cfg.twsMajorVersion}/jars —" \
+           "IB Gateway may have auto-updated; bump scott.ibgateway.twsMajorVersion" >&2
+      exit 1
+    fi
+    if [[ ! -w "${cfg.twsPath}" ]]; then
+      echo "ibgateway: ${cfg.twsPath} not writable by $(id -un) —" \
+           "this is the condition that produced the silent exit 1109" >&2
+      exit 1
+    fi
+
+    umask 077
+    cat ${ibcSettings} "$creds" > ${runtimeIni}
+    chmod 0400 ${runtimeIni}
+  '';
 in
 {
   # IB Gateway + IBC as a NixOS system service (imported via profiles/eminix.nix,
@@ -112,6 +194,48 @@ in
         Restart = "always";
         RestartSec = 5;
       };
+    };
+
+    age.secrets.ibkr-creds = {
+      file = ../../secrets/ibkr-creds.age;
+      owner = "ibgateway";
+      group = "ibgateway";
+      mode = "0400";
+    };
+
+    systemd.services.ibgateway = {
+      description = "IB Gateway (IBC-managed)";
+      requires = [ "ibgateway-xvnc.service" ];
+      after = [ "ibgateway-xvnc.service" "network-online.target" ];
+      wants = [ "network-online.target" ];
+
+      # Manual up/down only. Boot-starting would fire an unattended IBKR
+      # authentication and push 2FA to Scott's phone on every startup.
+      wantedBy = [ ];
+
+      environment = {
+        DISPLAY = cfg.display;
+        HOME = "/var/lib/ibgateway";
+      };
+
+      serviceConfig = {
+        Type = "simple";
+        User = "ibgateway";
+        Group = "ibgateway";
+        RuntimeDirectory = "ibgateway";
+        RuntimeDirectoryMode = "0700";
+        StateDirectory = "ibgateway";
+        ExecStartPre = preflight;
+        ExecStart = "${launcher}/bin/ibgateway-launcher";
+        Restart = "on-failure";
+        RestartSec = 10;
+        TimeoutStartSec = 660;
+      };
+
+      # The old unit had Restart=on-failure with NO cap and reached 4085
+      # restarts, silently hammering IBKR auth with a broken config.
+      startLimitBurst = 5;
+      startLimitIntervalSec = 300;
     };
   };
 }
