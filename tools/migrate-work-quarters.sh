@@ -46,6 +46,16 @@ for src in "${files[@]}"; do
     exit 1
   fi
 
+  # Org accepts #+title: or #+TITLE: (any per-letter case). Pre-check for a
+  # title line before moving anything, same as the :ID: guard above — an
+  # abort here must leave the source file exactly where it was, not land it
+  # untitled in Quarterly/ after a silent sed no-op.
+  has_title=$(awk '/^#\+[Tt][Ii][Tt][Ll][Ee]:/{print "1"; exit}' "$src")
+  if [[ -z "$has_title" ]]; then
+    echo "ABORT: $src has no #+title: line — refusing to move a note we can't retitle" >&2
+    exit 1
+  fi
+
   if [[ $DRY -eq 1 ]]; then
     echo "would move: $src"
     echo "        ->: $target"
@@ -55,8 +65,9 @@ for src in "${files[@]}"; do
 
   mkdir -p "$DEST"
   mv "$src" "$target"
-  # Rewrite only the first #+title: line.
-  sed -i "0,/^#+title:.*/s//#+title: $name (Work)/" "$target"
+  # Rewrite only the first #+title:/#+TITLE: line (case-insensitive bracket
+  # pattern, same convention as the has_title detector above).
+  sed -i "0,/^#+[Tt][Ii][Tt][Ll][Ee]:.*/s//#+title: $name (Work)/" "$target"
   echo "moved: $name"
 done
 
