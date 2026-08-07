@@ -27,14 +27,47 @@ TIME defaults to now."
         (format "%d-Q4" (1- year))
       (format "%d-Q%d" year (1- quarter)))))
 
-(defun scott-quarterly--file (&optional name)
-  "Return the current-quarter note path, preferring root then Quarterly/."
-  (let* ((name (or name (scott-quarterly-name)))
-         (root (expand-file-name (concat name ".org") org-directory))
-         (archived (expand-file-name (concat "Quarterly/" name ".org") org-directory)))
-    (cond ((file-exists-p root) root)
-          ((file-exists-p archived) archived)
-          (t root))))
+(defun scott-quarterly--dir (scope)
+  "Return the quarterly directory for SCOPE (`personal' or `work')."
+  (pcase scope
+    ('work (expand-file-name "work/Quarterly" org-directory))
+    ('personal (expand-file-name "Quarterly" org-directory))
+    (_ (error "Unknown quarterly scope: %S" scope))))
+
+(defun scott-quarterly--file (scope &optional name)
+  "Return the note path for quarter NAME in SCOPE.
+NAME defaults to the current quarter.  Work notes have exactly one
+location.  Personal notes keep their historical resolution: the org root
+holds the current quarter, Quarterly/ holds archived ones."
+  (let ((name (or name (scott-quarterly-name))))
+    (pcase scope
+      ('work (expand-file-name (concat name ".org") (scott-quarterly--dir 'work)))
+      ('personal
+       (let ((root (expand-file-name (concat name ".org") org-directory))
+             (archived (expand-file-name (concat name ".org")
+                                         (scott-quarterly--dir 'personal))))
+         (cond ((file-exists-p root) root)
+               ((file-exists-p archived) archived)
+               (t root))))
+      (_ (error "Unknown quarterly scope: %S" scope)))))
+
+(defun scott-quarterly--scope-available-p (scope)
+  "Return non-nil when SCOPE's note tree exists on this machine.
+This asks whether the tree is here at all, not whether this quarter's
+note has been written yet — otherwise the first `scott-quarterly-open'
+of a new quarter would resolve to the wrong scope."
+  (pcase scope
+    ('work (file-directory-p (scott-quarterly--dir 'work)))
+    ('personal
+     (or (file-directory-p (scott-quarterly--dir 'personal))
+         (and (file-directory-p org-directory)
+              (consp (directory-files
+                      org-directory nil "\\`[0-9]\\{4\\}-Q[1-4]\\.org\\'" t)))))
+    (_ (error "Unknown quarterly scope: %S" scope))))
+
+(defun scott-quarterly--default-scope ()
+  "Return `personal' when that tree is present here, otherwise `work'."
+  (if (scott-quarterly--scope-available-p 'personal) 'personal 'work))
 
 (defun scott-quarterly-open ()
   "Open the current-quarter tracker note.
@@ -46,7 +79,7 @@ first, so an unsynced note gets a chance to arrive rather than be
 clobbered; only a genuinely new quarter gets a fresh template."
   (interactive)
   (let* ((name (scott-quarterly-name))
-         (file (scott-quarterly--file name)))
+         (file (scott-quarterly--file (scott-quarterly--default-scope) name)))
     (if (file-exists-p file)
         (find-file file)
       (if (yes-or-no-p
