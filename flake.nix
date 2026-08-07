@@ -27,6 +27,10 @@
       url = "github:nix-community/NixOS-WSL";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    catppuccin = {
+      url = "github:catppuccin/nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -39,6 +43,7 @@
     , nixos-hardware
     , agenix
     , nixos-wsl
+    , catppuccin
     , ...
     }:
     let
@@ -66,7 +71,10 @@
           useGlobalPkgs = true;
           useUserPackages = true;
           users.scott = {
-            imports = [ ./home/scott/default.nix ];
+            imports = [
+              ./home/scott/default.nix
+              catppuccin.homeManagerModules.catppuccin
+            ];
             # eminix instances run the system-owned EWM Emacs. mkDefault so a
             # non-EWM NixOS host (whistle) can opt out while reusing hmModule.
             scott.ewm.enable = nixpkgs.lib.mkDefault true;

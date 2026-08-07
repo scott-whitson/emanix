@@ -10,6 +10,7 @@
     ./swaylock.nix
     ./xdg.nix
     ./standalone.nix
+    ./firefox.nix
     ./syncthing.nix
 
     # Optional — enable as needed per machine
