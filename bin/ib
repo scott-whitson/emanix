@@ -11,6 +11,13 @@ case "$ACTION" in
   up)
     echo "Starting IB Gateway ($MODE)..."
     
+    # Start Xvnc if not running (needed for display :50)
+    if ! pgrep -f "Xvnc :50" >/dev/null; then
+      echo "Starting Xvnc on display :50..."
+      Xvnc :50 -geometry 1280x1024 -depth 24 -SecurityTypes=None -rfbport 5901 &
+      sleep 2
+    fi
+    
     # Start IB Gateway via systemd user service
     systemctl --user start ibgateway
     
@@ -27,8 +34,13 @@ case "$ACTION" in
       sleep 1
     done
     
-    echo "WARNING: IB Gateway did not become ready within 120 seconds"
-    echo "Check: systemctl --user status ibgateway"
+    # Gateway didn't start — need VNC login
+    echo ""
+    echo "Gateway needs VNC login. Run:"
+    echo "  DISPLAY=:0 vncviewer localhost:5901"
+    echo ""
+    echo "Click on the login fields, enter credentials, approve 2FA."
+    echo "After login, the gateway will stay connected."
     exit 1
     ;;
     

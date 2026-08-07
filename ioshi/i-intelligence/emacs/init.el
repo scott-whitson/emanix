@@ -45,10 +45,10 @@
 (column-number-mode 1)
 
 ;; Window navigation & resizing (Shift+arrows)
-(global-set-key (kbd "S-<left>")  \='shrink-window-horizontally)
-(global-set-key (kbd "S-<right>") \='enlarge-window-horizontally)
-(global-set-key (kbd "S-<down>")  \='shrink-window)
-(global-set-key (kbd "S-<up>")    \='enlarge-window)
+(global-set-key (kbd "S-<left>") #'shrink-window-horizontally)
+(global-set-key (kbd "S-<right>") #'enlarge-window-horizontally)
+(global-set-key (kbd "S-<down>") #'shrink-window)
+(global-set-key (kbd "S-<up>")    #'enlarge-window)
 
 ;; Clock + battery + status for the EWM tab-bar panel (no status bar under EWM).
 ;; Volume/wifi/cpu/ram/gpu/clock/battery all render once in the tab-bar via
@@ -164,6 +164,20 @@
 (meow-setup)
 (meow-global-mode 1)
 
+;; Line movement (global bindings, works with Meow selections)
+;; System commands
+(defun scott-reboot ()
+  "Reboot the system."
+  (interactive)
+  (when (yes-or-no-p "Reboot now? ")
+    (start-process "reboot" nil "sudo" "reboot")))
+
+(defun scott-shutdown ()
+  "Shut down the system."
+  (interactive)
+  (when (yes-or-no-p "Shut down now? ")
+    (start-process "shutdown" nil "sudo" "shutdown" "now")))
+
 ;; --- Files: dired + dirvish ---
 (require 'dirvish)
 (dirvish-override-dired-mode 1)
@@ -194,8 +208,8 @@
   (global-set-key (kbd "C-c n c") #'org-roam-capture))
 (global-set-key (kbd "C-c a") #'org-agenda)
 
-;; --- Org agenda: notable dates calendar ---
-(setq org-agenda-files (list (expand-file-name "Dates.org" org-directory)))
+;; --- Org agenda ---
+(setq org-agenda-files (list org-directory))
 (setq org-agenda-include-diary nil)           ; we use org files, not diary
 (setq org-deadline-warning-days 14)            ; default lead time
 (setq org-agenda-skip-deadline-if-done t)
