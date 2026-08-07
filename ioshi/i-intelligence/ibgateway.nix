@@ -100,8 +100,19 @@ let
 
       case "$action" in
         up)
+          if [[ "$mode" != "${cfg.tradingMode}" ]]; then
+            echo "ERROR: this gateway is built for ${cfg.tradingMode} (scott.ibgateway.tradingMode)." >&2
+            echo "Requested mode '$mode' does not match. Switching modes is not" >&2
+            echo "runtime-selectable — set scott.ibgateway.tradingMode and rebuild." >&2
+            exit 1
+          fi
+
           echo "Starting IB Gateway ($mode)..."
-          systemctl start ibgateway.service
+          if ! systemctl start ibgateway.service; then
+            echo "ERROR: failed to start ibgateway.service. Recent log:" >&2
+            journalctl -u ibgateway.service -n 30 --no-pager >&2
+            exit 1
+          fi
 
           for _ in $(seq 1 120); do
             if gateway_ready; then
@@ -143,7 +154,8 @@ let
           ;;
 
         *)
-          echo "Usage: ib {up|down|status} [live|paper]" >&2
+          echo "Usage: ib {up|down|status} [${cfg.tradingMode}]" >&2
+          echo "This gateway is built for ${cfg.tradingMode}; mode is validated, not selected." >&2
           exit 1
           ;;
       esac
@@ -304,6 +316,13 @@ in
     };
 
     environment.systemPackages = [ ibCli ];
+
+    # extraConfig alone doesn't guarantee polkit runs; upstream wraps it in
+    # mkIf cfg.enable and it currently rides in only implicitly (NetworkManager
+    # /ModemManager/rtkit). Without this, dropping those would silently discard
+    # the rule below with no eval error — ib up would just start failing with
+    # "Interactive authentication required".
+    security.polkit.enable = true;
 
     # Let scott manage just these two units without a password. Narrower than
     # a sudo rule: it grants nothing else, to nobody else.
