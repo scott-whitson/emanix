@@ -2,9 +2,8 @@
 
 {
   # Pi coding agent configuration.
-  # Pi itself is installed via npm (not packaged in nixpkgs), so this module
-  # only manages the config files. `pi` itself is installed via `npm i -g @pi/...`
-  # as a post-install step (see docs/ioshi/eminix-install.md).
+  # Pi itself is installed declaratively via packages.nix (pi-coding-agent from
+  # nixpkgs). This module only manages the config files.
   # settings.json is SEEDED, not owned: pi mutates it at runtime (model
   # toggles, lastChangelogVersion), so a read-only store symlink breaks pi —
   # and without the real file's `packages` list, pi loads no extensions at

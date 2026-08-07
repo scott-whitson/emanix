@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# ib — IB Gateway control script
+# Usage: ib up [live|test] / ib down [live|test] / ib status
+
+set -euo pipefail
+
+ACTION="${1:-status}"
+MODE="${2:-live}"
+
+case "$ACTION" in
+  up)
+    echo "Starting IB Gateway ($MODE)..."
+    
+    # Start Xvnc if not running (needed for display :50)
+    if ! pgrep -f "Xvnc :50" >/dev/null; then
+      echo "Starting Xvnc on display :50..."
+      Xvnc :50 -geometry 1280x1024 -depth 24 -SecurityTypes=None -rfbport 5901 &
+      sleep 2
+    fi
+    
+    # Start IB Gateway via systemd user service
+    systemctl --user start ibgateway
+    
+    # Wait for port 4001
+    for i in $(seq 1 120); do
+      if timeout 1 bash -c '>/dev/tcp/127.0.0.1/4001' 2>/dev/null; then
+        echo "IB Gateway is ready on port 4001"
+        
+        # Start Minne services
+        systemctl --user start minne-ibkr-gateway minne-ibkr-record
+        echo "Minne IBKR services started"
+        exit 0
+      fi
+      sleep 1
+    done
+    
+    # Gateway didn't start — need VNC login
+    echo ""
+    echo "Gateway needs VNC login. Run:"
+    echo "  DISPLAY=:0 vncviewer localhost:5901"
+    echo ""
+    echo "Click on the login fields, enter credentials, approve 2FA."
+    echo "After login, the gateway will stay connected."
+    exit 1
+    ;;
+    
+  down)
+    echo "Stopping IB Gateway ($MODE)..."
+    systemctl --user stop minne-ibkr-record minne-ibkr-gateway ibgateway 2>/dev/null || true
+    echo "IB Gateway stopped"
+    ;;
+    
+  status)
+    echo "=== IB Gateway ==="
+    systemctl --user is-active ibgateway 2>/dev/null || echo "inactive"
+    echo "=== Port 4001 ==="
+    timeout 1 bash -c '>/dev/tcp/127.0.0.1/4001' 2>/dev/null && echo "open" || echo "closed"
+    echo "=== Minne IBKR ==="
+    systemctl --user is-active minne-ibkr-gateway minne-ibkr-record 2>/dev/null || echo "inactive"
+    ;;
+    
+  *)
+    echo "Usage: ib {up|down|status} [live|test]"
+    exit 1
+    ;;
+esac

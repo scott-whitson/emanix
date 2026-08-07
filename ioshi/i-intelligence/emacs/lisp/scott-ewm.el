@@ -92,4 +92,20 @@ No-op (demoted) for an output that is not connected right now."
 (scott/ewm-apply-output-layout)
 
 (provide 'scott-ewm)
+
+;;; --- XWayland helper ---
+
+(defun scott/kill-xwayland ()
+  "Kill all Xwayland processes and remove the X11 socket.
+Useful when the black Xwayland buffer lingers after closing Steam."
+  (interactive)
+  (let ((procs (process-list)))
+    (dolist (p procs)
+      (when (string= (process-name p) "Xwayland")
+        (delete-process p))))
+  ;; Also kill via shell in case it's not an Emacs subprocess
+  (call-process "pkill" nil nil nil "Xwayland")
+  (delete-file "/tmp/.X11-unix/X0" nil)
+  (message "Xwayland killed"))
+
 ;;; scott-ewm.el ends here

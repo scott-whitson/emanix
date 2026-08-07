@@ -1,4 +1,4 @@
-{ ... }:
+{ pkgs, config, ... }:
 
 {
   # eminix (T14) host-specific config.
@@ -18,4 +18,14 @@
       options = [ "NOPASSWD" ];
     }];
   }];
+
+  # Override Steam to force X11 for games (Steam runtime sets
+  # SDL_VIDEODRIVER=wayland,x11 by default, but Factorio 1.1 only
+  # supports X11). XWayland is started by a separate wrapper script
+  # (added in ewm.nix) so it doesn't affect steam-run (used by ibgateway).
+  programs.steam.package = pkgs.steam.override {
+    extraEnv = {
+      SDL_VIDEODRIVER = "x11";
+    };
+  };
 }
