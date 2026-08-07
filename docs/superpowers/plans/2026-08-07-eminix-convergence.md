@@ -33,7 +33,7 @@
 | `ioshi/hi-hardware/hp-15-ef2013dx.nix` | **Modified.** Absorbs datacore's `mkForce` overrides once zord-old is gone |
 | `ioshi/i-intelligence/zellij/` | **New dir.** Content moved out of `base/zellij/` |
 | `ioshi/i-intelligence/pi/` | **New dir.** Content moved out of `base/pi/` |
-| `ioshi/i-intelligence/bin.nix` | **New.** Deploys `bin/` via `mkOutOfStoreSymlink` |
+| `bin/` | **Absorbs** `base/bin/.local/bin/*`. No module needed — `zsh.nix:35` already puts `$DOTFILES/bin` on PATH |
 | `ioshi/i-intelligence/fragpaper.nix` | **New.** The four fragpaper systemd user units |
 | `ioshi/i-intelligence/wireplumber.nix` | **New.** Ports `base/wireplumber/` |
 | `ioshi/i-intelligence/emacs-daemon.nix` | **Renamed** from `standalone.nix` — it means "non-EWM Emacs as a user daemon", not "foreign distro" |
@@ -744,42 +744,51 @@ git mv base/bin/.local/bin/window-picker bin/
 git rm -r base/bin
 ```
 
-- [ ] **Step 3: Create `ioshi/i-intelligence/bin.nix`**
+- [ ] **Step 3: No Home Manager module is needed — confirm why**
 
-```nix
-{ config, lib, ... }:
+`ioshi/i-intelligence/zsh.nix:35` already does `export PATH="$DOTFILES/bin:$PATH"`. Moving the scripts into `bin/` therefore puts them on PATH with no further work, and they stay live-editable because they are read from the checkout.
 
-{
-  # Scripts stay live-editable: mkOutOfStoreSymlink points at the checkout,
-  # so editing bin/dot-theme-set takes effect immediately with no rebuild.
-  # This is what replaced stow — the property stow was providing was never
-  # unique to it.
-  home.file.".local/bin".source = config.lib.file.mkOutOfStoreSymlink
-    "${config.scott.dotfiles.path}/bin";
-}
-```
+**Do not create a module that symlinks `~/.local/bin` to the repo.** That directory holds things this repo does not own — most importantly `~/.local/bin/claude`, which points into `~/.local/share/claude/versions/`. A whole-directory symlink would hide it and break the Claude Code CLI.
 
-- [ ] **Step 4: Import it**
-
-Add `./bin.nix` to the active imports in `ioshi/i-intelligence/default.nix`.
-
-- [ ] **Step 5: Switch and verify**
+Verify the PATH line is present before relying on it:
 
 ```bash
-sudo nixos-rebuild switch --flake ~/dotfiles#whistle
-readlink -f ~/.local/bin
-which dot-theme-set firefox
+grep -n 'DOTFILES/bin' ioshi/i-intelligence/zsh.nix
 ```
 
-Expected: `~/.local/bin` resolves to `/home/scott/dotfiles/bin`, and both commands are found.
+Expected: the `export PATH="$DOTFILES/bin:$PATH"` line.
+
+- [ ] **Step 4: Remove the stale stow symlinks from ~/.local/bin**
+
+These point into `base/bin`, which no longer exists. Remove only the ones this repo created — leave `claude` and anything else alone:
+
+```bash
+for f in firefox fragpaper-ctl fragpaper-launch fragpaper-playlist news obsidian pi trackpad-toggle window-picker \
+         hypr-brightness hypr-calc hypr-cheatsheet hypr-rename-workspace hypr-wifi; do
+  [ -L "$HOME/.local/bin/$f" ] && rm -f "$HOME/.local/bin/$f"
+done
+ls -la ~/.local/bin/
+```
+
+Expected: only `claude` (and any other non-dotfiles entries) remain.
+
+- [ ] **Step 5: Verify the scripts still resolve**
+
+```bash
+which dot-theme-set firefox news pi
+command -v claude
+```
+
+Expected: the first four resolve into `/home/scott/dotfiles/bin`, and `claude` still resolves — proof the CLI survived.
 
 - [ ] **Step 6: Confirm the removed wrappers are gone**
 
 ```bash
-ls ~/.local/bin/ | grep -E "^(hypr-|helix$)"
+ls ~/.local/bin/ | grep -E "^(hypr-|helix$)"; echo "exit=$?"
+which hypr-wifi 2>/dev/null; echo "expect: not found"
 ```
 
-Expected: no output.
+Expected: no matching files and no resolvable `hypr-*` command.
 
 - [ ] **Step 7: Commit**
 
@@ -798,15 +807,19 @@ they shell out to hyprctl, which EWM replaced."
 - Modify: `ioshi/i-intelligence/default.nix`
 - Delete: `base/btop`, `base/lf`, `base/mpv`, `base/yt-dlp`, `base/claude`, `base/nvim`, `base/hypr`
 
-- [ ] **Step 1: Read each dormant module before enabling it**
+- [ ] **Step 1: Read each dormant module against the file it would replace**
 
-`btop.nix`, `lf.nix`, `mpv.nix`, `yt-dlp.nix`, `claude.nix` have been commented out and may have drifted from what `base/` actually deploys. For each, diff the module's intent against the stow file:
+`btop.nix`, `lf.nix`, `mpv.nix`, `yt-dlp.nix` and `claude.nix` have been commented out and may have drifted from what `base/` actually deploys. There is no mechanical diff for this — a `.nix` module and a `.conf` file are different formats — so read both and compare by hand:
 
 ```bash
-diff <(cat base/btop/.config/btop/btop.conf) <(echo "compare against btop.nix settings")
+for p in btop lf mpv yt-dlp claude; do
+  echo "═══════ $p"
+  echo "--- module:"; cat "ioshi/i-intelligence/$p.nix"
+  echo "--- stow files:"; find "base/$p" -type f -exec sh -c 'echo "  → $1"; cat "$1"' _ {} \;
+done 2>&1 | less
 ```
 
-Read both and reconcile by hand. Where they differ, **the `base/` file is what has been running** — prefer it.
+For each setting present in the `base/` file, confirm the module produces the same value. **Where they disagree, the `base/` file wins** — it is what has actually been running. Record any setting you carry over from `base/` into the module in the commit message, so the change is reviewable.
 
 - [ ] **Step 2: Uncomment the five imports**
 
