@@ -23,10 +23,9 @@ let
     AcceptIncomingConnectionAction=accept
     AcceptNonBrokerageAccountWarning=yes
     ExistingSessionDetectedAction=primary
-    ReloginAfterSecondFactorAuthenticationTimeout=yes
+    ReloginAfterSecondFactorAuthenticationTimeout=no
     BypassOrderPrecautions=yes
-    SecondFactorAuthenticationModule=2
-    SecondFactorAuthenticationTimeout=120
+    SecondFactorAuthenticationTimeout=180
     CommandServerPort=7462
     ControlFrom=127.0.0.1
   '';
@@ -48,7 +47,7 @@ let
       export LOG_PATH=/var/lib/ibgateway/ibc/logs
       export JAVA_PATH=${jdk}/bin
       export TRADING_MODE=${cfg.tradingMode}
-      export TWOFA_TIMEOUT_ACTION=restart
+      export TWOFA_TIMEOUT_ACTION=exit
       export APP=GATEWAY
       # Credentials come from the ini, not these. displaybannerandlaunch.sh
       # dereferences them unconditionally, so they must exist.
