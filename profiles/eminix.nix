@@ -10,6 +10,7 @@
     ../ioshi/i-intelligence/ewm.nix
     ../ioshi/i-intelligence/secrets.nix
     ../ioshi/i-intelligence/ollama.nix
+    ../ioshi/i-intelligence/ibgateway.nix
     # Shared connectivity — every eminix instance is on the tailnet.
     ../ioshi/hi-hardware/net/tailscale.nix
     ../ioshi/hi-hardware/net/ssh.nix
