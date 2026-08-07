@@ -123,3 +123,79 @@ anything else an empty file."
         (without (scott-quarterly--template 'work "2026-Q4")))
     (should (string-match-p "\\[\\[id:prev-id-9\\]\\[2026-Q3\\]\\]" with-prev))
     (should-not (string-match-p "\\[\\[id:" without))))
+
+(ert-deftest scott-quarterly-open-declining-creates-nothing ()
+  "Answering no to the create prompt must leave the tree untouched.
+An empty note saved here can win a Syncthing conflict against the real
+one still in flight (2026-07-16, 2026-Q3)."
+  (scott-quarterly-test--with-org-dir '("work/Quarterly/")
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) nil))
+              ((symbol-function 'find-file) (lambda (&rest _) (error "must not visit"))))
+      (scott-quarterly-open)
+      (should-not (directory-files (expand-file-name "work/Quarterly" org-directory)
+                                   nil "\\.org\\'")))))
+
+(ert-deftest scott-quarterly-open-accepting-writes-the-template ()
+  "Answering yes creates the note for the current quarter with template text."
+  (scott-quarterly-test--with-org-dir '("work/Quarterly/")
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+      (let ((name (scott-quarterly-name)))
+        (unwind-protect
+            (progn
+              (scott-quarterly-open)
+              (let ((file (expand-file-name (concat "work/Quarterly/" name ".org")
+                                            org-directory)))
+                (should (file-exists-p file))
+                (with-temp-buffer
+                  (insert-file-contents file)
+                  (let ((text (buffer-string)))
+                    (should (string-match-p (concat "#\\+title: " name " (Work)") text))
+                    (should (string-match-p "^\\* Rock$" text))))))
+          (dolist (buf (buffer-list))
+            (when (and (buffer-file-name buf)
+                       (string-prefix-p org-directory (buffer-file-name buf)))
+              (kill-buffer buf))))))))
+
+(ert-deftest scott-quarterly-open-links-back-when-prior-quarter-exists ()
+  "A prior-quarter note in the same scope is linked from the new note."
+  (scott-quarterly-test--with-org-dir '("work/Quarterly/")
+    (let* ((name (scott-quarterly-name))
+           (prev (scott-quarterly--prev-name name))
+           (prev-file (expand-file-name (concat "work/Quarterly/" prev ".org")
+                                        org-directory)))
+      (write-region (concat ":PROPERTIES:\n:ID:       older-id-7\n:END:\n#+title: "
+                            prev " (Work)\n")
+                    nil prev-file nil 'silent)
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+        (unwind-protect
+            (progn
+              (scott-quarterly-open)
+              (with-temp-buffer
+                (insert-file-contents
+                 (expand-file-name (concat "work/Quarterly/" name ".org") org-directory))
+                (should (string-match-p
+                         (concat "\\[\\[id:older-id-7\\]\\[" prev "\\]\\]")
+                         (buffer-string)))))
+          (dolist (buf (buffer-list))
+            (when (and (buffer-file-name buf)
+                       (string-prefix-p org-directory (buffer-file-name buf)))
+              (kill-buffer buf))))))))
+
+(ert-deftest scott-quarterly-open-prefix-arg-forces-work-scope ()
+  "C-u opens work even when personal is available and would be the default."
+  (scott-quarterly-test--with-org-dir '("Quarterly/" "work/Quarterly/")
+    (let (visited)
+      (cl-letf (((symbol-function 'find-file) (lambda (f) (setq visited f)))
+                ((symbol-function 'yes-or-no-p) (lambda (&rest _) nil)))
+        (let ((name (scott-quarterly-name)))
+          ;; Both notes exist, so no create prompt is involved.
+          (write-region "" nil (expand-file-name (concat name ".org") org-directory)
+                        nil 'silent)
+          (write-region "" nil (expand-file-name (concat "work/Quarterly/" name ".org")
+                                                 org-directory)
+                        nil 'silent)
+          (scott-quarterly-open)
+          (should (equal visited (expand-file-name (concat name ".org") org-directory)))
+          (scott-quarterly-open '(4))
+          (should (equal visited (expand-file-name (concat "work/Quarterly/" name ".org")
+                                                   org-directory))))))))

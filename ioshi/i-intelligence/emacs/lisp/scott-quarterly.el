@@ -96,31 +96,41 @@ When PREV-ID and PREV-NAME are given, append a link back to that note."
           (when (and prev-id prev-name)
             (format "[[id:%s][%s]]\n" prev-id prev-name))))
 
-(defun scott-quarterly-open ()
-  "Open the current-quarter tracker note.
-If the note does not exist on this machine, do NOT silently create and
-save an empty template — that races with Syncthing: on a freshly-synced
-box the empty file can win the conflict and quarantine the real,
-populated note (happened 2026-07-16 with 2026-Q3). Instead confirm
-first, so an unsynced note gets a chance to arrive rather than be
-clobbered; only a genuinely new quarter gets a fresh template."
-  (interactive)
-  (let* ((name (scott-quarterly-name))
-         (file (scott-quarterly--file (scott-quarterly--default-scope) name)))
+(defun scott-quarterly--create (scope name file)
+  "Create and visit the quarter NAME note for SCOPE at FILE."
+  (make-directory (file-name-directory file) t)
+  (let* ((prev-name (scott-quarterly--prev-name name))
+         (prev-file (scott-quarterly--file scope prev-name))
+         (prev-id (and (file-exists-p prev-file)
+                       (scott-quarterly--file-id prev-file))))
+    (find-file file)
+    (when (zerop (buffer-size))
+      (insert (scott-quarterly--template scope name prev-id prev-name))
+      (save-buffer))))
+
+(defun scott-quarterly-open (&optional arg)
+  "Open the current quarter's tracker note.
+
+Scope is chosen by what is on this machine: personal when that tree is
+present, work otherwise.  With prefix ARG, always open the work tracker
+— that is how the work note is reached on a machine that has both.
+
+If the note does not exist here, do NOT silently create and save an
+empty template — that races with Syncthing: on a freshly-synced box the
+empty file can win the conflict and quarantine the real, populated note
+\(happened 2026-07-16 with 2026-Q3).  Confirm first, so an unsynced note
+gets a chance to arrive rather than be clobbered; only a genuinely new
+quarter gets a fresh template."
+  (interactive "P")
+  (let* ((scope (if arg 'work (scott-quarterly--default-scope)))
+         (name (scott-quarterly-name))
+         (file (scott-quarterly--file scope name)))
     (if (file-exists-p file)
         (find-file file)
       (if (yes-or-no-p
-           (format "No %s note here — create it? (choose no if it may just be unsynced) "
-                   name))
-          (progn
-            (find-file file)
-            (when (zerop (buffer-size))
-              (insert ":PROPERTIES:\n:ID:       " (org-id-new) "\n:END:\n")
-              (insert "#+title: " name "\n\n")
-              (insert "* Goals\n\n")
-              (insert "* Active work\n\n")
-              (insert "* Notes\n\n")
-              (save-buffer)))
+           (format "No %s (%s) note here — create it? (choose no if it may just be unsynced) "
+                   name scope))
+          (scott-quarterly--create scope name file)
         (message
          "Not creating %s — waiting for sync. Re-run C-c q once it arrives."
          name)))))
