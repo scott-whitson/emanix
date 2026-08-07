@@ -25,3 +25,6 @@ result
 
 # Emacs byte-compiled artifacts
 **/*.elc
+
+# Subagent-driven-development scratch (ledgers, briefs, review packages)
+.superpowers/
