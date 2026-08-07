@@ -44,7 +44,6 @@ themes/catppuccin-mocha/
 ├── fuzzel.ini         # launcher colors → ~/.config/fuzzel/fuzzel.ini
 ├── btop.theme         # btop theme → ~/.config/btop/themes/active.theme
 ├── nvim.lua           # `vim.cmd.colorscheme('…')` → ~/.config/nvim/lua/dotfiles-theme.lua
-├── helix-theme        # one word: Helix theme name (sed-rewrites config.toml)
 ├── obsidian-theme     # one word: Obsidian theme name (JSON-patches appearance.json)
 ├── gtk.conf           # GTK_THEME + COLOR_SCHEME (sourced by dot-theme-set, applied via gsettings)
 ├── fragpaper.conf     # BG_COLOR + PALETTE for fragpaper wallpaper daemon
@@ -58,12 +57,11 @@ themes/catppuccin-mocha/
 2. Reads `variant` (must be `dark` or `light`).
 3. Writes `~/.config/dotfiles/active-theme` = `<name>` and `last-<variant>` = `<name>`.
 4. Symlinks each per-app file into its target location (see anatomy table above). The EWM top bar is refreshed from the running Emacs daemon; it is not a separate CSS-driven status bar.
-5. Sed-rewrites the `theme = "..."` line in `~/.config/helix/config.toml` to the value in `helix-theme`.
-6. If `$OBSIDIAN_VAULT` is set in the active profile's `profile.conf`, JSON-patches the vault's `.obsidian/appearance.json` with the value in `obsidian-theme`.
-7. Sources `gtk.conf` and runs `gsettings` for `color-scheme` and `gtk-theme`.
-8. Restarts the `fragpaper.service` user unit so the wallpaper picks up the new `active-theme` marker (with a fallback to `fragpaper-launch` if the service is unavailable).
-9. Runs `themes/<name>/post-set.sh` if present and executable.
-10. Sends reload signals: `hyprctl reload`, `makoctl reload`, `SIGUSR1` to helix. EWM bar state is refreshed in the running Emacs daemon.
+5. If `$OBSIDIAN_VAULT` is set in the active profile's `profile.conf`, JSON-patches the vault's `.obsidian/appearance.json` with the value in `obsidian-theme`.
+6. Sources `gtk.conf` and runs `gsettings` for `color-scheme` and `gtk-theme`.
+7. Restarts the `fragpaper.service` user unit so the wallpaper picks up the new `active-theme` marker (with a fallback to `fragpaper-launch` if the service is unavailable).
+8. Runs `themes/<name>/post-set.sh` if present and executable.
+9. Sends reload signals: `hyprctl reload`, `makoctl reload`. EWM bar state is refreshed in the running Emacs daemon.
 
 ## How `dot-theme-toggle` works
 
@@ -84,11 +82,10 @@ Then edit each file in the new directory:
 1. `variant` — `dark` or `light`
 2. `palette.sh` — the new palette as shell vars (for humans)
 3. All the per-app files — replace color values with the new palette
-4. `helix-theme` — Helix upstream theme name (or a custom one if you ship it with kickstart)
-5. `obsidian-theme` — Obsidian theme name
-6. `gtk.conf` — GTK preferences
-7. `fragpaper.conf` — fragpaper bg color + palette hint
-8. `README.md` — describe the theme
+4. `obsidian-theme` — Obsidian theme name
+5. `gtk.conf` — GTK preferences
+6. `fragpaper.conf` — fragpaper bg color + palette hint
+7. `README.md` — describe the theme
 
 Then apply:
 
@@ -98,19 +95,18 @@ dot-theme-set <new-theme>
 
 No code changes needed. `dot-theme-set` discovers themes dynamically via `ls themes/`.
 
-## The Helix drift caveat
+## The Helix drift caveat (resolved 2026-08-07)
 
-`dot-theme-set` sed-rewrites `~/.config/helix/config.toml`. Because that file is a stow symlink, sed follows it and modifies `base/helix/.config/helix/config.toml` in the repo.
+Helix used to be themed by sed-rewriting `~/.config/helix/config.toml`. Because
+that path was a stow symlink, sed followed it and dirtied the repo copy, so
+every `dot-theme-toggle` away from the committed default left a modified line in
+`git status`.
 
-**Consequence:** every time you `dot-theme-toggle` away from your committed default, `git status` shows one modified line in that file. Toggling back cleans the working tree.
-
-The committed default is currently `catppuccin_mocha`. Drift appears when you're in light mode; disappears when you flip back to dark.
-
-If this ever annoys you enough, three escape hatches:
-
-1. Commit the current drift (sets the new value as the default)
-2. `git checkout -- base/helix/.config/helix/config.toml` to revert
-3. Switch Helix to a colorscheme management plugin that can source an include file — not shipped here.
+Helix is retired and every trace of it is gone — the module, `base/helix/`, the
+`themes/*/helix-theme` files and the sed block itself. `dot-theme-set` no longer
+writes into the repo at all, so theme toggling always leaves a clean working
+tree. Kept here because the symptom (a mysteriously dirty repo after toggling
+themes) is memorable enough to be worth recognising if it ever recurs.
 
 ## Fragpaper integration
 

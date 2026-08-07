@@ -13,7 +13,6 @@
     ./syncthing.nix
 
     # Optional — enable as needed per machine
-    # ./helix.nix
     # ./hyprland.nix
     # ./mako.nix
     # ./fuzzel.nix

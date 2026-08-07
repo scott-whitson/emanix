@@ -65,15 +65,9 @@ link_if_present "$THEME_DIR/mako.conf"      "$HOME/.config/mako/config"
 link_if_present "$THEME_DIR/btop.theme"     "$HOME/.config/btop/themes/active.theme"
 link_if_present "$THEME_DIR/nvim.lua"       "$HOME/.config/nvim/lua/dotfiles-theme.lua"
 
-# --- Helix: sed-rewrite config.toml's theme = "..." line ---
-helix_cfg="$HOME/.config/helix/config.toml"
-helix_theme_file="$THEME_DIR/helix-theme"
-if [[ -f "$helix_cfg" ]] && [[ -f "$helix_theme_file" ]]; then
-    helix_theme=$(tr -d '[:space:]' < "$helix_theme_file")
-    # sed -i through a symlink breaks the link; edit the real file instead.
-    real_cfg=$(readlink -f "$helix_cfg")
-    sed -i -E "s|^theme = \".*\"|theme = \"$helix_theme\"|" "$real_cfg"
-fi
+# Helix was retired 2026-08-07 (Emacs is the sole editor) — its sed-rewrite
+# block and the themes/*/helix-theme files are gone. That block was also the
+# only reason this script cared about editing a real file behind a symlink.
 
 # --- Obsidian: JSON-patch vault appearance.json (best-effort) ---
 obsidian_theme_file="$THEME_DIR/obsidian-theme"
@@ -164,8 +158,6 @@ fi
 command -v hyprctl  &>/dev/null && hyprctl reload &>/dev/null || true
 command -v makoctl  &>/dev/null && makoctl reload 2>/dev/null || true
 pkill -SIGUSR2 ghostty  2>/dev/null || true
-pkill -SIGUSR1 -x hx    2>/dev/null || true
-pkill -SIGUSR1 -x helix 2>/dev/null || true
 # Pi reloads on settings.json change automatically (via file watch)
 
 echo "Switched to $THEME_NAME ($VARIANT)"

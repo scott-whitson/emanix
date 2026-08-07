@@ -125,12 +125,6 @@ Ghostty uses built-in defaults. No `keybind` overrides in `base/ghostty/.config/
 
 ---
 
-## Helix
-
-Defaults. No overrides in `base/helix/.config/helix/config.toml`. Use `:help` inside Helix or the [upstream docs](https://docs.helix-editor.com/).
-
----
-
 ## Neovim (kickstart)
 
 Kickstart defaults plus any customization in `~/.config/nvim/lua/custom/`. Not documented here — that fork is a separate repo.

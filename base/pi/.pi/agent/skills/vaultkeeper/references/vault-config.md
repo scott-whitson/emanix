@@ -12,7 +12,7 @@
 - Tags: `#hashtags` (but Vaultkeeper does NOT add or propose tags)
 - No frontmatter unless the note already has it
 - Note filenames match their titles: `{{title}}.md`
-- Editor: Helix (`hx`)
+- Editor: Emacs (`ec`)
 
 ## zk Commands Reference
 

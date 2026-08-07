@@ -36,7 +36,7 @@ Stable base, modern desktop. Debian Testing gives you current Hyprland and still
 
 ## 3. Terminal-centric, keyboard-driven
 
-Ghostty + Zellij + Helix/Neovim + lf. GUI apps are tolerated, not celebrated. Every frequent action has a keybind.
+Ghostty + Zellij + Emacs + lf. GUI apps are tolerated, not celebrated. Every frequent action has a keybind.
 
 **What this eliminates:**
 
@@ -47,7 +47,7 @@ Ghostty + Zellij + Helix/Neovim + lf. GUI apps are tolerated, not celebrated. Ev
 **Concrete consequences:**
 
 - `fuzzel` (keyboard launcher) is in base/, not a mouse-driven app menu
-- Helix + kickstart-Neovim are both installed; GUI editors are not
+- Emacs is the editor (Helix retired 2026-08-07); other GUI editors are not installed
 
 ## 4. AI-augmented by default
 

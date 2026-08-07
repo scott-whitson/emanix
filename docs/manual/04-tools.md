@@ -67,7 +67,6 @@ Every file in `base/bin/.local/bin/` is symlinked to `~/.local/bin/<name>` by `i
 | `hypr-cheatsheet` | Fuzzel viewer for Hyprland keybindings; sources from `~/docs/vault/Whitsgrove/Hyprland Cheatsheet.md` (bound to `$mod + Shift + /`) |
 | `hypr-rename-workspace` | Fuzzel prompt → `hyprctl dispatch renameworkspace <id> "<id> <label>"` (bound to `$mod + r`) |
 | `hypr-wifi` | WiFi connection helper in Ghostty (bound to `$mod + i`) |
-| `helix` | Wrapper that prefers `hx` on Debian but still supports a native `helix` binary |
 | `firefox` | Wrapper that prefers installed Firefox, then Firefox ESR, then Flatpak Firefox |
 | `obsidian` | Wrapper that prefers installed Obsidian, then `/opt/Obsidian`, then Flatpak Obsidian |
 | `trackpad-toggle` | Toggle trackpad on/off |
