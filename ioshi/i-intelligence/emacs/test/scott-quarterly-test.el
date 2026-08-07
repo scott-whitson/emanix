@@ -77,3 +77,49 @@ anything else an empty file."
   ;; Empty tree: work is the fallback so the guard can offer to create it.
   (scott-quarterly-test--with-org-dir '()
     (should (eq 'work (scott-quarterly--default-scope)))))
+
+(ert-deftest scott-quarterly-file-id-reads-the-top-level-id ()
+  "The :ID: property is read out of an existing note."
+  (let ((file (make-temp-file "quarter" nil ".org"
+                              ":PROPERTIES:\n:ID:       abc-123\n:END:\n#+title: 2026-Q2 (Work)\n")))
+    (unwind-protect
+        (should (equal "abc-123" (scott-quarterly--file-id file)))
+      (delete-file file)))
+  ;; A note with no ID yields nil rather than erroring.
+  (let ((file (make-temp-file "quarter" nil ".org" "#+title: 2026-Q2 (Work)\n")))
+    (unwind-protect
+        (should-not (scott-quarterly--file-id file))
+      (delete-file file))))
+
+(ert-deftest scott-quarterly-template-work-title-is-suffixed ()
+  "Work notes are titled `NAME (Work)'; personal notes are not."
+  (let ((work (scott-quarterly--template 'work "2026-Q4"))
+        (personal (scott-quarterly--template 'personal "2026-Q4")))
+    (should (string-match-p "^#\\+title: 2026-Q4 (Work)$" work))
+    (should (string-match-p "^#\\+title: 2026-Q4$" personal))))
+
+(ert-deftest scott-quarterly-template-has-the-agreed-sections ()
+  "Rock / Top of Mind / New This Quarter / Workspace, and no Review."
+  (let ((out (scott-quarterly--template 'work "2026-Q4")))
+    (should (string-match-p "^\\* Rock$" out))
+    (should (string-match-p "^\\* Top of Mind$" out))
+    (should (string-match-p "^\\* New This Quarter$" out))
+    (should (string-match-p "^\\* Workspace$" out))
+    (should-not (string-match-p "^\\* Review$" out))
+    ;; Exactly four top-level headings.
+    (should (= 4 (length (seq-filter (lambda (l) (string-prefix-p "* " l))
+                                     (split-string out "\n")))))))
+
+(ert-deftest scott-quarterly-template-carries-a-fresh-id ()
+  "Every new note gets its own org-id."
+  (let ((a (scott-quarterly--template 'work "2026-Q4"))
+        (b (scott-quarterly--template 'work "2026-Q4")))
+    (should (string-match-p "^:ID:       [0-9a-zA-Z-]+$" a))
+    (should-not (equal a b))))
+
+(ert-deftest scott-quarterly-template-back-links-to-the-prior-quarter ()
+  "The prior quarter is linked by id when known, and omitted when not."
+  (let ((with-prev (scott-quarterly--template 'work "2026-Q4" "prev-id-9" "2026-Q3"))
+        (without (scott-quarterly--template 'work "2026-Q4")))
+    (should (string-match-p "\\[\\[id:prev-id-9\\]\\[2026-Q3\\]\\]" with-prev))
+    (should-not (string-match-p "\\[\\[id:" without))))

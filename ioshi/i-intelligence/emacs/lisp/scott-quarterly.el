@@ -69,6 +69,33 @@ of a new quarter would resolve to the wrong scope."
   "Return `personal' when that tree is present here, otherwise `work'."
   (if (scott-quarterly--scope-available-p 'personal) 'personal 'work))
 
+(defconst scott-quarterly-sections
+  '("Rock" "Top of Mind" "New This Quarter" "Workspace")
+  "Top-level headings stamped into a new quarter note.
+These are the sections past quarters converged on: Rock is the one big
+thing, Top of Mind holds `[[id:]]' links to client and initiative nodes
+with Context/P1/P2/Parking lot beneath each, New This Quarter is the
+mid-quarter inbox, Workspace is tooling and environment work.")
+
+(defun scott-quarterly--file-id (file)
+  "Return the top-level :ID: property of FILE, or nil if it has none."
+  (when (and file (file-readable-p file))
+    (with-temp-buffer
+      (insert-file-contents file nil 0 4096)
+      (goto-char (point-min))
+      (when (re-search-forward "^:ID:[ \t]+\\([^ \t\n]+\\)" nil t)
+        (match-string 1)))))
+
+(defun scott-quarterly--template (scope name &optional prev-id prev-name)
+  "Return the buffer text for a new quarter NAME note in SCOPE.
+When PREV-ID and PREV-NAME are given, append a link back to that note."
+  (concat ":PROPERTIES:\n:ID:       " (org-id-new) "\n:END:\n"
+          "#+title: " name (if (eq scope 'work) " (Work)" "") "\n\n"
+          (mapconcat (lambda (section) (format "* %s\n\n" section))
+                     scott-quarterly-sections "")
+          (when (and prev-id prev-name)
+            (format "[[id:%s][%s]]\n" prev-id prev-name))))
+
 (defun scott-quarterly-open ()
   "Open the current-quarter tracker note.
 If the note does not exist on this machine, do NOT silently create and
