@@ -6,6 +6,14 @@
   # datacore's is Debian-managed (the hub, configured via REST). This HM-native
   # config exists only for the wsl profile.
   config = lib.mkIf (config.scott.dotfiles.profile == "wsl") {
+    # User-unit counterpart of the ordering in net/syncthing.nix (system
+    # service on rafik/datacore); ported from the same retired stow drop-in
+    # (base/systemd/.config/systemd/user/syncthing.service.d/override.conf).
+    systemd.user.services.syncthing.Unit = {
+      After = [ "network-online.target" ];
+      Wants = [ "network-online.target" ];
+    };
+
     services.syncthing = {
       enable = true;
       overrideDevices = true;
