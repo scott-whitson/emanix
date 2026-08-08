@@ -128,22 +128,6 @@
             ./hosts/datacore/configuration.nix
             disko.nixosModules.disko
             ./ioshi/hi-hardware/disko/datacore.nix
-            # hp-15-ef2013dx.nix was shared with zord-old's LUKS+encrypted
-            # install (its fileSystems/swapDevices/luks.devices are literal
-            # /dev/mapper/cryptroot etc.) before zord-old's deletion. datacore
-            # is unencrypted by decision (disko/datacore.nix) with its own
-            # layout on GPT partlabels, so those disk-specific options
-            # conflict — force datacore's own values here rather than edit
-            # the shared file. Task 5 removes this once hp-15-ef2013dx.nix
-            # itself is cleaned up.
-            {
-              boot.initrd.luks.devices = nixpkgs.lib.mkForce { };
-              fileSystems."/boot".device = nixpkgs.lib.mkForce "/dev/disk/by-partlabel/disk-main-boot";
-              fileSystems."/".device = nixpkgs.lib.mkForce "/dev/disk/by-partlabel/disk-main-root";
-              fileSystems."/nix".device = nixpkgs.lib.mkForce "/dev/disk/by-partlabel/disk-main-root";
-              fileSystems."/home".device = nixpkgs.lib.mkForce "/dev/disk/by-partlabel/disk-main-root";
-              swapDevices = nixpkgs.lib.mkForce [{ device = "/dev/disk/by-partlabel/disk-main-swap"; }];
-            }
           ];
         };
       };
