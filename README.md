@@ -48,9 +48,9 @@ sudo nixos-rebuild switch --flake .#rafik      # or .#datacore / .#whistle
 ```
 
 Fresh install (bare metal): follow [`docs/ioshi/eminix-install.md`](docs/ioshi/eminix-install.md)
-— disko + `nixos-install`, on-device from a Ventoy NixOS ISO. Outstanding manual
-steps for the current rollout are in
-[`docs/ioshi/deploy-checklist.md`](docs/ioshi/deploy-checklist.md).
+— disko + `nixos-install`, on-device from a Ventoy NixOS ISO. The rafik v1 rollout
+it was written for is complete; that checklist is now in
+[`docs/ioshi/history/`](docs/ioshi/history/).
 
 ## Path conventions
 

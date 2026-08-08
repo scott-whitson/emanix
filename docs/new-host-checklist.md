@@ -1,7 +1,14 @@
-> **Partly superseded (2026-07-16).** The flake now composes hosts via
-> `lib/mkHost` + `profiles/eminix.nix` (no per-host hardware file authoring), and
-> secrets are agenix. See [`docs/ioshi/eminix-install.md`](ioshi/eminix-install.md)
-> for the current end-to-end flow. The Tailnet/SSH steps below remain accurate.
+> **Largely superseded.** [`docs/ioshi/eminix-install.md`](ioshi/eminix-install.md)
+> is the current end-to-end install flow. Hosts are composed by `lib/mkHost` with
+> a `role` argument (`workstation` / `server` / `wsl`) plus
+> `profiles/eminix.nix` + `profiles/roles/<role>.nix`; secrets are agenix. Step 0
+> below predates that and does not mention the role argument.
+>
+> The Tailnet / SSH / Syncthing identity steps below are still accurate and are
+> the reason this file survives — they are the parts the flake genuinely cannot
+> do for you. Paths were corrected to the `ioshi/` layout on 2026-08-08; anything
+> here describing repo structure should be checked against
+> [Chapter 06](manual/06-architecture.md) before you trust it.
 
 # New NixOS host checklist
 
@@ -14,7 +21,7 @@ these steps are the machine's identity and secrets.
 
 - [ ] Create `hosts/<name>/configuration.nix` — copy an existing host,
       then: new `networking.hostName`, its own hardware module under
-      `modules/nixos/hardware/`, and `system.stateVersion` set to the
+      `ioshi/hi-hardware/`, and `system.stateVersion` set to the
       CURRENT release (never copied from an older host).
 - [ ] Add `nixosConfigurations.<name>` to `flake.nix`.
 - [ ] Validate without root: `nix build .#nixosConfigurations.<name>.config.system.build.toplevel`
@@ -22,9 +29,10 @@ these steps are the machine's identity and secrets.
 ## 1. Install + first boot
 
 - [ ] `nixos-install --flake ...#<name>`, boot, log in on tty1
-      (EWM launches from the login shell — see modules/nixos/ewm.nix).
-- [ ] Clone the repo to its permanent home: `~/projects/dotfiles`
-      (matches the `scott.dotfiles.path` default; never "-tmp" names).
+      (EWM launches from the login shell — see `ioshi/i-intelligence/ewm.nix`).
+- [ ] Clone the repo to its permanent home: `~/dotfiles`
+      (`home/scott/default.nix` sets `scott.dotfiles.path` to this; the option's
+      own default of `~/projects/dotfiles` is overridden. Never "-tmp" names).
       Remote: GitHub, or `scott@datacore:projects/dotfiles` (hostname,
       not a LAN IP — IPs break off-LAN).
 

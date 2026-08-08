@@ -4,7 +4,7 @@
 NixOS-WSL distro that replaces the Debian WSL + `scott@work` standalone
 Home-Manager pair on the work laptop. Unlike the standalone nodes, whistle
 is a full NixOS host — agenix, declarative docker/oci-containers, and the
-`ioshi` home layer arrive via the flake's `hmModule` (profile `wsl`, same
+`ioshi` home layer arrive via the flake's `hmModule` (role `wsl`, same
 home as the retired `scott@work`). Design spec:
 `docs/superpowers/specs/2026-07-21-weasel-nixos-wsl-design.md`; full
 implementation plan (archived once this runbook is verified):

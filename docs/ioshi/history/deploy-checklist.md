@@ -1,3 +1,9 @@
+> **COMPLETED.** This checklist covered the rafik v1 rollout, finished 2026-08-08:
+> rafik is installed, renamed and live; whistle is switched. Section 2 targets
+> `zord-old`, a host deleted during the eminix convergence. Everything under
+> "Deferred to rafik v2" is done except impermanence. Kept as a record of what
+> the first bring-up actually required.
+
 # rafik v1 — deploy checklist (Scott's action items)
 
 Everything Claude verified in-repo but deliberately did NOT do (real secrets,
