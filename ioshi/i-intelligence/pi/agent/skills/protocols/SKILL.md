@@ -1,5 +1,6 @@
 ---
 name: cite-before-answer
+description: Internal workflow checklist that forces evidence citation before any final research answer. Not user-invocable.
 type: workflow
 triggers: ["/cite"]
 when_to_use: always, before producing a final answer on a research task

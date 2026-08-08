@@ -1,5 +1,6 @@
 ---
 name: research-protocol
+description: Evidence-first research workflow — decompose unknowns, gather cited evidence, then answer. Not user-invocable.
 type: workflow
 triggers: ["/research"]
 when_to_use: when the task requires gathering facts from the web and citing them in a final answer
