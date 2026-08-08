@@ -53,7 +53,6 @@ Use `~/lab` for non-canonical checkouts you intentionally want to edit on a seco
 Suggested shape:
 
 - `~/lab/dotfiles` — a scratch or experimental mirror of the dotfiles repo
-- `~/lab/fragpaper` — only if you want to develop fragpaper on that host
 - `~/lab/<other-project>` — any other temporary or exploratory checkout that should not be treated as the authoritative source
 
 Rules:
@@ -69,7 +68,7 @@ For example:
 
 - `dotfiles` and `datacore-config` are canonical projects.
 - `~/lab/<name>` can host a non-canonical checkout when you want an editable copy elsewhere.
-- `fragpaper` on a runtime desktop like `rafik` is an installed product: it should run as a background service, and if it needs a local checkout cache it should live under `~/.local/share/fragpaper`, not `~/projects/fragpaper`, unless you intentionally want to debug the source there.
+- An installed product on a runtime desktop like `rafik` — something you run rather than develop — keeps any local cache under `~/.local/share/<name>`, not `~/projects/<name>`, unless you intentionally want to debug the source there. (`fragpaper` was the standing example until it was retired on 2026-08-08.)
 
 This distinction matters because it keeps runtime hosts simple and keeps only real development trees in project space.
 

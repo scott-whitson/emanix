@@ -4,8 +4,7 @@
 # Usage: dot-theme-set <theme-name>
 #
 # Validates the theme, writes state markers, symlinks per-app files into
-# ~/.config/<app>/, JSON-patches Obsidian, runs gsettings, relaunches
-# fragpaper, reloads running apps.
+# ~/.config/<app>/, JSON-patches Obsidian, runs gsettings, reloads running apps.
 set -euo pipefail
 
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -133,13 +132,11 @@ if [[ -f "$gtk_conf" ]]; then
     gsettings set org.gnome.desktop.interface gtk-theme    "${GTK_THEME:-Adwaita}"   2>/dev/null || true
 fi
 
-# --- Refresh fragpaper wallpaper daemon ---
-if systemctl --user --quiet is-enabled fragpaper.service 2>/dev/null || systemctl --user list-unit-files fragpaper.service >/dev/null 2>&1; then
-    systemctl --user restart fragpaper.service 2>/dev/null || systemctl --user start fragpaper.service 2>/dev/null || true
-else
-    # fragpaper-launch reads active-theme + fragpaper.conf now (Task 5)
-    setsid -f bash -c "'$DOTFILES/bin/fragpaper-launch' > /tmp/fragpaper-debug.log 2>&1" &>/dev/null || true
-fi
+# Fragpaper was retired 2026-08-08: EWM is the desktop and draws its own
+# background, and fragpaper had not actually run on any host in some time (unit
+# not-found, no checkout). Its module, launcher scripts and themes/*/fragpaper.conf
+# are gone. If a shader wallpaper is ever wanted again, EWM does expose a
+# Background layer via layer-shell — this is a preference, not a limitation.
 
 # --- Run theme-specific post-set hook if present ---
 if [[ -x "$THEME_DIR/post-set.sh" ]]; then

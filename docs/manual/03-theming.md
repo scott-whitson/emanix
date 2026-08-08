@@ -46,7 +46,6 @@ themes/catppuccin-mocha/
 ├── nvim.lua           # `vim.cmd.colorscheme('…')` → ~/.config/nvim/lua/dotfiles-theme.lua
 ├── obsidian-theme     # one word: Obsidian theme name (JSON-patches appearance.json)
 ├── gtk.conf           # GTK_THEME + COLOR_SCHEME (sourced by dot-theme-set, applied via gsettings)
-├── fragpaper.conf     # BG_COLOR + PALETTE for fragpaper wallpaper daemon
 ├── README.md          # theme origin, extra font/plugin requirements
 └── post-set.sh        # optional hook run at the end of dot-theme-set
 ```
@@ -59,9 +58,8 @@ themes/catppuccin-mocha/
 4. Symlinks each per-app file into its target location (see anatomy table above). The EWM top bar is refreshed from the running Emacs daemon; it is not a separate CSS-driven status bar.
 5. If `$OBSIDIAN_VAULT` is set in the active profile's `profile.conf`, JSON-patches the vault's `.obsidian/appearance.json` with the value in `obsidian-theme`.
 6. Sources `gtk.conf` and runs `gsettings` for `color-scheme` and `gtk-theme`.
-7. Restarts the `fragpaper.service` user unit so the wallpaper picks up the new `active-theme` marker (with a fallback to `fragpaper-launch` if the service is unavailable).
-8. Runs `themes/<name>/post-set.sh` if present and executable.
-9. Sends reload signals: `hyprctl reload`, `makoctl reload`. EWM bar state is refreshed in the running Emacs daemon.
+7. Runs `themes/<name>/post-set.sh` if present and executable.
+8. Sends reload signals: `makoctl reload`. EWM bar state is refreshed in the running Emacs daemon.
 
 ## How `dot-theme-toggle` works
 
@@ -84,8 +82,7 @@ Then edit each file in the new directory:
 3. All the per-app files — replace color values with the new palette
 4. `obsidian-theme` — Obsidian theme name
 5. `gtk.conf` — GTK preferences
-6. `fragpaper.conf` — fragpaper bg color + palette hint
-7. `README.md` — describe the theme
+6. `README.md` — describe the theme
 
 Then apply:
 
@@ -108,11 +105,20 @@ writes into the repo at all, so theme toggling always leaves a clean working
 tree. Kept here because the symptom (a mysteriously dirty repo after toggling
 themes) is memorable enough to be worth recognising if it ever recurs.
 
-## Fragpaper integration
+## Wallpaper (fragpaper retired 2026-08-08)
 
-Fragpaper is a GPU shader wallpaper generator (not a static image). Each theme provides `BG_COLOR` and `PALETTE` (`dark` or `light`) via `fragpaper.conf`. `fragpaper.service` is a Home Manager systemd user service defined in `ioshi/i-intelligence/fragpaper.nix`, gated on `scott.gui` and wanted by `graphical-session.target` — it starts automatically on any GUI host, no Hyprland involved. `fragpaper-launch` reads the active theme and passes it to the installed fragpaper binary, reading shader files from the best available checkout (`~/.local/share/fragpaper` on runtime desktops, `~/projects/fragpaper` on datacore/dev machines). The EWM top bar is updated from the running Emacs daemon, not through a separate status-bar CSS file.
+There is no wallpaper layer. EWM is the desktop and paints its own background;
+nothing in the theme system sets it.
 
-If fragpaper isn't installed, theme switching still works — fragpaper relaunch is `|| true` guarded and the rest of the system doesn't care.
+Fragpaper — a GPU shader wallpaper generator — used to fill this role under
+Hyprland. It was retired along with its `themes/*/fragpaper.conf` files, the
+`bin/fragpaper-*` launchers and `ioshi/i-intelligence/fragpaper.nix`. By the time
+it was removed it had already stopped running anywhere: on the T14 the user unit
+was `not-found`, no process was alive, and there was no source checkout.
+
+EWM does expose a `Background` layer through layer-shell (`compositor/src/render.rs`),
+so a wallpaper client could be reintroduced later. Its absence is a preference,
+not a limitation.
 
 ## Not handled by the theme system (yet)
 

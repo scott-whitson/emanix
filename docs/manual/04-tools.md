@@ -3,7 +3,7 @@
 Two flavors of user-space tooling in this repo:
 
 1. **`tools/`** — subdirectory-per-tool: Rust binary, Python projects, shell scripts.
-2. **`bin/`** — both the user-facing wrapper scripts (`firefox`, `fragpaper-*`, `news`, `obsidian`, `pi`, `trackpad-toggle`, `window-picker`) and the re-runnable `dot-*` dotfiles helpers, all on PATH via `ioshi/i-intelligence/zsh.nix` (`export PATH="$DOTFILES/bin:$PATH"`). Nothing here is stowed — they live in the repo and ride along with the checkout.
+2. **`bin/`** — both the user-facing wrapper scripts (`firefox`, `news`, `obsidian`, `pi`, `trackpad-toggle`, `window-picker`) and the re-runnable `dot-*` dotfiles helpers, all on PATH via `ioshi/i-intelligence/zsh.nix` (`export PATH="$DOTFILES/bin:$PATH"`). Nothing here is stowed — they live in the repo and ride along with the checkout.
 
 ## tools/
 
@@ -21,24 +21,16 @@ A small Rust binary that renders a window picker overlay by shelling out to `hyp
 
 The weather (`$mod + n`), OpenRouter cost (`$mod + u`), and pi (`$mod + p`) popups are elisp commands in `ioshi/i-intelligence/emacs/lisp/` (`scott/weather-frame`, `scott/openrouter-cost-frame`, `scott/pi-frame`), invoked from EWM via `emacsclient -e` against the Emacs daemon. (The elisp itself still comments these as "Hyprland entry point" — a leftover from before EWM replaced it; the mechanism, `emacsclient -e`, didn't change.) ERT tests live in `ioshi/i-intelligence/emacs/test/`.
 
-### fragpaper
+### fragpaper — retired 2026-08-08
 
-GPU shader wallpaper renderer for Wayland. `~/projects/fragpaper` is canonical on datacore; on runtime desktops the checkout is cached under `~/.local/share/fragpaper` instead of creating `~/projects`. It builds a release binary and installs it to `~/.local/opt/fragpaper/bin/fragpaper`. Fragpaper runs as a user systemd service (`fragpaper.service`, ported into `ioshi/i-intelligence/fragpaper.nix` during the stow retirement); on runtime-only hosts like `rafik` it is just an installed product and does not need a project checkout unless you are actively debugging it. `fragpaper-launch` reads shaders from the best available checkout (`~/.local/share/fragpaper` on runtime desktops, `~/projects/fragpaper` on datacore/dev machines) and falls back to `cargo run --release` if the installed binary is missing.
+The GPU shader wallpaper renderer is gone: EWM is the desktop and paints its own
+background, so there is no wallpaper layer to fill. Its module, the three
+`bin/fragpaper-*` launchers and the `themes/*/fragpaper.conf` files were all
+removed. It had already stopped running everywhere — on the T14 the user unit
+was `not-found`, no process was alive, and no source checkout existed.
 
-Runtime launcher:
-
-```bash
-fragpaper-launch   # bin/fragpaper-launch, on PATH via $DOTFILES/bin
-```
-
-Override env if needed:
-
-```bash
-FRAGPAPER_BIN=~/.local/opt/fragpaper/bin/fragpaper
-FRAGPAPER_SRC=~/.local/share/fragpaper   # runtime desktops
-FRAGPAPER_SRC=~/projects/fragpaper       # datacore/dev machines
-FRAGPAPER_SHADERS_DIR=$FRAGPAPER_SRC/shaders
-```
+See [Chapter 03 — Theming](03-theming.md#wallpaper-fragpaper-retired-2026-08-08)
+for why reintroducing one is possible if ever wanted.
 
 ### syncthing
 
@@ -56,9 +48,6 @@ Useful paths:
 
 | Wrapper | Purpose |
 |---|---|
-| `fragpaper-launch` | Launches fragpaper with the active theme's BG_COLOR + PALETTE |
-| `fragpaper-ctl` | fragpaper control helper |
-| `fragpaper-playlist` | fragpaper playlist helper |
 | `firefox` | Wrapper that prefers installed Firefox, then Firefox ESR, then Flatpak Firefox |
 | `obsidian` | Wrapper that prefers installed Obsidian, then `/opt/Obsidian`, then Flatpak Obsidian |
 | `news` | News helper |
@@ -80,7 +69,7 @@ Also in `bin/`, on PATH the same way. They are NOT stowed — they live in the r
 | `dot-repair <script\|--all>` | Rerun one or more install scripts without re-cloning the repo |
 | `dot-doctor` | 20-check health scan: PATH, services, fonts, pi, active theme, Nix/Emacs/org-roam state |
 
-Fresh clone note: use `./bootstrap.sh` and `./repair.sh` from repo root before shell dotfiles load `$DOTFILES/bin` onto PATH.
+Fresh clone note: there is no `./bootstrap.sh` or `./repair.sh` — a fresh machine is installed with `installer/fresh-eminix-install` and thereafter applied with `nixos-rebuild switch --flake .#<host>`. `$DOTFILES/bin` reaches PATH via `ioshi/i-intelligence/zsh.nix` once Home Manager has activated.
 
 ## Adding a new tool
 
