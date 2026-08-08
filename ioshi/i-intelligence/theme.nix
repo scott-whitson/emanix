@@ -14,12 +14,6 @@
       description = "Machine has a graphical session. Gates cursor theme, Wayland tools, GUI apps, swaylock, and ghostty config.";
     };
 
-    standalone = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "Home Manager runs standalone on a foreign distro (no NixOS layer): skip agenix-dependent files (pi auth.json symlink). Which Emacs to install is scott.ewm.enable's decision, not this flag's.";
-    };
-
     ewm.enable = lib.mkOption {
       type = lib.types.bool;
       default = false;
