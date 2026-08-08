@@ -112,6 +112,43 @@ Map*, and *Meow* (`~/docs/org`, reachable via `C-c n f`).
 
 ---
 
+## Emacs — code navigation and LSP
+
+Added 2026-08-07. Emacs 30 ships nearly all of this: `project.el`, `xref`,
+`eglot` and `flymake` are built in. Only `nix-ts-mode`, `apheleia` and the
+tree-sitter grammars come from Nix (`ioshi/i-intelligence/emacs/packages.nix`).
+
+**Navigation — stock bindings, no config needed:**
+
+| Binding | Action |
+| --- | --- |
+| `C-x p f` | Find file in project |
+| `C-x p p` / `C-x p b` | Switch project / project buffers |
+| `M-.` / `M-,` | Jump to definition / jump back |
+| `M-?` | Find references |
+
+With eglot attached, `M-.` is a semantic jump rather than a guess.
+
+**Diagnostics and refactoring — `C-c e`** (flymake ships no bindings of its own):
+
+| Binding | Action |
+| --- | --- |
+| `C-c e n` / `C-c e p` | Next / previous diagnostic |
+| `C-c e l` | List all diagnostics (`consult-flymake`) |
+| `C-c e r` | `eglot-rename` — rename across the project |
+| `C-c e a` | `eglot-code-actions` |
+| `C-c e =` | Format buffer now |
+
+**Automatic behaviour:** eglot attaches on `.nix` (nixd) and `.py`
+(basedpyright); apheleia formats on save — `nixpkgs-fmt` for Nix, `ruff` for
+Python. `nixpkgs-fmt` is this repo's own `nix fmt` formatter, so a save from
+Emacs and `nix fmt` produce identical bytes.
+
+Check the mode line for `EGLOT` to confirm the server attached; `M-x
+eglot-events-buffer` shows the handshake if it did not.
+
+---
+
 ## Theme
 
 Theming is driven from Emacs (`dot-theme-set`, light/dark). See

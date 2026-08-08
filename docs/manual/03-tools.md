@@ -33,6 +33,39 @@ was `not-found`, no process was alive, and no source checkout existed.
 See [Chapter 02 — Theming](02-theming.md#wallpaper-fragpaper-retired-2026-08-08)
 for why reintroducing one is possible if ever wanted.
 
+### IB Gateway
+
+`ioshi/i-intelligence/ibgateway.nix` packages Interactive Brokers' gateway plus
+IBC (`ibgateway/ibc.nix`), a pinned service account, a localhost-bound Xvnc
+display, and the `ib` CLI. Everything is gated on `scott.ibgateway.enable`,
+default false — currently true on `rafik` only, which is the sole machine that
+uses it. The import lives in `profiles/roles/workstation.nix`; move it to
+`profiles/eminix.nix` if a server ever needs it.
+
+```bash
+ib up live      # start the gateway (manual — never starts at boot)
+ib status
+ib down
+```
+
+The mode is validated, not selected: this gateway is built for live. Credentials
+come from the agenix secret `ibkr-creds.age`, encrypted to `rafik` and `scott`
+only — adding another host means adding it as a recipient and rekeying.
+
+### firefox, wireplumber, emacs-daemon
+
+Three smaller Home Manager modules worth knowing exist:
+
+- **`firefox.nix`** — Firefox with Catppuccin theming, flavor derived from
+  `scott.theme`. Gated on `scott.gui`, and it installs the browser itself, so
+  `packages.nix` must not also list `firefox`.
+- **`wireplumber.nix`** — one drop-in silencing ACP probe warnings on AMD audio.
+  Also `scott.gui`-gated.
+- **`emacs-daemon.nix`** — the non-EWM Emacs: a pgtk build run as a systemd user
+  daemon. Applies when `scott.ewm.enable` is false, i.e. `whistle`. On EWM hosts
+  Emacs *is* the compositor and there is no separate daemon service. (Named
+  `standalone.nix` until 2026-08-08, which wrongly implied "foreign distro".)
+
 ### syncthing
 
 Syncthing is the local file-sync layer for your docs vault, declared in `ioshi/hi-hardware/net/syncthing.nix` (system service) or `ioshi/i-intelligence/syncthing.nix` (the HM user service on WSL). Folder pairing with datacore is two-sided — datacore must add each host and share the folders. The synced docs tree lives at `~/docs`; notes are org-roam files under `~/docs/org`. The canonical setup shares that folder from datacore to runtime desktops; the runtime desktop only needs the synced files, not a project checkout.
