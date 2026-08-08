@@ -21,11 +21,15 @@
   # secret at /run/agenix/openrouter-auth. HM owns this dir, so there is no
   # root/scott ownership collision (agenix no longer creates ~/.pi/agent).
   # .stignore already excludes /auth.json from Syncthing.
-  # Every eminix instance is a NixOS node with agenix in the common core
-  # (profiles/eminix.nix), so this symlink is unconditional. The
-  # scott.standalone escape hatch (for HM running on a foreign distro with
-  # no agenix) was removed 2026-08-07 as dead: it always evaluated to false.
-  home.file.".pi/agent/auth.json" = {
+  #
+  # Gated on scott.pi.enable, NOT on "is this a NixOS host with agenix".
+  # The scott.standalone guard removed on 2026-08-07 was replaced with an
+  # unconditional symlink on that reasoning, which is wrong: datacore is a
+  # NixOS host WITH agenix in the common core, but it is not a recipient of
+  # openrouter-auth.age and has no /run/agenix at all. It would have got a
+  # symlink to a secret it can never decrypt, replacing a real working file.
+  # Recipient-ness is per secret; see secrets/secrets.nix.
+  home.file.".pi/agent/auth.json" = lib.mkIf config.scott.pi.enable {
     source = config.lib.file.mkOutOfStoreSymlink "/run/agenix/openrouter-auth";
   };
 
