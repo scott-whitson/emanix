@@ -10,12 +10,12 @@
   services.ollama = {
     enable = true;
     loadModels = [
-      "qwen2.5-coder:3b"   # ni default chat model (snappy, RAG-grounded)
-      "qwen2.5-coder:7b"   # heavier reasoning toggle
-      "nomic-embed-text"   # embeddings for ELISA
+      "qwen2.5-coder:3b" # ni default chat model (snappy, RAG-grounded)
+      "qwen2.5-coder:7b" # heavier reasoning toggle
+      "nomic-embed-text" # embeddings for ELISA
     ];
     environmentVariables = {
-      OLLAMA_KEEP_ALIVE = "30m";   # keep the model warm between questions
+      OLLAMA_KEEP_ALIVE = "30m"; # keep the model warm between questions
     };
   };
 }

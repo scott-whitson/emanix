@@ -1,13 +1,13 @@
 { config, lib, pkgs, ... }:
 
 let
-  # Same package set as the eminix system build (ewm.nix), minus the EWM
-  # package — non-EWM machines (foreign-distro nodes AND whistle/NixOS-WSL)
-  # have no compositor role.
+  # This host's Emacs is not the system-owned EWM build (ewm.nix); instead we
+  # install the non-EWM pgtk Emacs user-side and run it as a systemd user
+  # daemon (services.emacs below). Same package set as the eminix system
+  # build, minus the EWM package — non-EWM machines have no compositor role.
   emacsPkgs = import ./emacs/packages.nix { inherit pkgs; };
   standaloneEmacs =
-    ((pkgs.emacsPackagesFor pkgs.emacs-pgtk).overrideScope emacsPkgs.orgOverride)
-      .emacsWithPackages emacsPkgs.list;
+    ((pkgs.emacsPackagesFor pkgs.emacs-pgtk).overrideScope emacsPkgs.orgOverride).emacsWithPackages emacsPkgs.list;
 in
 {
   config = lib.mkIf (!config.scott.ewm.enable) {
