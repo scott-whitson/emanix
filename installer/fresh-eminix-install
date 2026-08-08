@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
-# fresh-eminix-install — one-shot NixOS installer for rafik (ThinkPad T14 Gen 5 AMD).
+# fresh-eminix-install — one-shot NixOS installer for an eminix host.
 #
 # Run as root in the NixOS live ISO, from the Ventoy-staged checkout:
-#   sudo bash /run/media/*/Ventoy/dotfiles/installer/fresh-eminix-install
+#   sudo bash /run/media/*/Ventoy/dotfiles/installer/fresh-eminix-install [host] [disk]
 #
-# Automates the runbook: preflight -> disko (LUKS+btrfs) -> inject host key ->
-# nixos-install -> set password -> reboot. One machine, fixed layout + flake
-# target. Full context: docs/ioshi/eminix-install.md.
+# Defaults to rafik on /dev/nvme0n1. Pass a host to install a different one —
+# e.g. `... fresh-eminix-install datacore` — and a disk if it is not nvme0n1.
+# The host must exist in flake.nix's nixosConfigurations, must have a disko
+# layout, and must be a recipient in secrets/secrets.nix (the preflight checks
+# all three). Automates: preflight -> disko -> inject host key -> nixos-install
+# -> set password -> reboot. Full context: docs/ioshi/eminix-install.md.
 set -euo pipefail
 
-DISK="/dev/nvme0n1"
-FLAKE_HOST="rafik"
+FLAKE_HOST="${1:-rafik}"
+DISK="${2:-/dev/nvme0n1}"
 
 SELF="$(realpath "${BASH_SOURCE[0]}")"
 REPO="$(dirname "$(dirname "$SELF")")"          # .../dotfiles
-# NOTE: the USB directory staged beside dotfiles/ must be renamed from
-# eminix-keys/ to rafik-keys/ to match — that's physical media this repo
-# cannot rename for you.
-KEY_DIR="$(dirname "$REPO")/rafik-keys"         # staged beside dotfiles/ on the USB
-HOST_KEY="$KEY_DIR/rafik_host_ed25519"
+# The USB directory staged beside dotfiles/ is named per host — rafik-keys/,
+# datacore-keys/ — and holds that host's pre-generated SSH host key. That is
+# physical media this repo cannot create for you.
+KEY_DIR="$(dirname "$REPO")/${FLAKE_HOST}-keys"   # staged beside dotfiles/ on the USB
+HOST_KEY="$KEY_DIR/${FLAKE_HOST}_host_ed25519"
 
 say()  { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mWARNING:\033[0m %s\n' "$*"; }
@@ -38,10 +41,10 @@ fi
 
 ping -c1 -W4 cache.nixos.org >/dev/null 2>&1 || die "no network — connect ethernet, or 'iwctl' to join wifi, then retry."
 
-[ -f "$HOST_KEY" ] && [ -f "$HOST_KEY.pub" ] || die "host key not found at $HOST_KEY(.pub) — stage rafik-keys/ beside dotfiles/ on the USB."
-rafik_pub="$(sed -nE 's/.*rafik[[:space:]]*=[[:space:]]*"(ssh-ed25519 [^"]+)".*/\1/p' "$REPO/secrets/secrets.nix")"
-[ -n "$rafik_pub" ] || die "could not read the rafik recipient from secrets/secrets.nix."
-want_fp="$(printf '%s\n' "$rafik_pub" | ssh-keygen -lf - | awk '{print $2}')"
+[ -f "$HOST_KEY" ] && [ -f "$HOST_KEY.pub" ] || die "host key not found at $HOST_KEY(.pub) — stage ${FLAKE_HOST}-keys/ beside dotfiles/ on the USB."
+host_pub="$(sed -nE "s/.*${FLAKE_HOST}[[:space:]]*=[[:space:]]*\"(ssh-ed25519 [^\"]+)\".*/\\1/p" "$REPO/secrets/secrets.nix")"
+[ -n "$host_pub" ] || die "could not read the ${FLAKE_HOST} recipient from secrets/secrets.nix — add its host key there and rekey before installing."
+want_fp="$(printf '%s\n' "$host_pub" | ssh-keygen -lf - | awk '{print $2}')"
 have_fp="$(ssh-keygen -lf "$HOST_KEY.pub" | awk '{print $2}')"
 [ "$want_fp" = "$have_fp" ] || die "staged host key ($have_fp) != agenix recipient in secrets.nix ($want_fp) — agenix would fail on first boot."
 say "Host key matches the agenix recipient ($have_fp) ✓"
@@ -49,25 +52,25 @@ say "Host key matches the agenix recipient ($have_fp) ✓"
 say "Target disk"
 lsblk -d -o NAME,SIZE,MODEL,TRAN "$DISK" || die "$DISK not present."
 printf '\033[1;31m>>> This ERASES %s completely. <<<\033[0m\n' "$DISK"
-read -rp "Type 'yes' to wipe $DISK and install rafik: " ok
+read -rp "Type 'yes' to wipe $DISK and install $FLAKE_HOST: " ok
 [ "$ok" = yes ] || die "aborted."
 
 say "Partitioning + formatting with disko — set the LUKS passphrase when prompted"
 nix --experimental-features 'nix-command flakes' run github:nix-community/disko/latest -- \
   --mode destroy,format,mount --flake "$REPO#$FLAKE_HOST"
 
-say "Injecting the rafik host key (so agenix decrypts on first boot)"
+say "Injecting the $FLAKE_HOST host key (so agenix decrypts on first boot)"
 install -d -m 755 /mnt/etc/ssh
 install -m 600 "$HOST_KEY"     /mnt/etc/ssh/ssh_host_ed25519_key
 install -m 644 "$HOST_KEY.pub" /mnt/etc/ssh/ssh_host_ed25519_key.pub
 
-say "Installing rafik — builds the system closure, a few minutes"
+say "Installing $FLAKE_HOST — builds the system closure, a few minutes"
 nixos-install --flake "$REPO#$FLAKE_HOST" --no-root-password
 
 say "Set a password for scott"
 nixos-enter --root /mnt -c 'passwd scott'
 
-say "rafik installed."
+say "$FLAKE_HOST installed."
 echo "After reboot (remove the USB), log in and run:  eminix-firstboot"
 if [ -f /mnt/etc/ssh/ssh_host_ed25519_key ]; then :; fi
 read -rp "Reboot now? [y/N] " r; [ "$r" = y ] && reboot
