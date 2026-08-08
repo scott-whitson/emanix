@@ -45,11 +45,15 @@ if [[ -d "$HOME/projects/dotfiles/.git" ]]; then
 fi
 printf '\n'
 
+# The live out-of-store symlinks — the ones that break when the checkout moves
+# or a rebuild is skipped. Replaced the Hyprland/fragpaper paths on 2026-08-08
+# when both were retired.
 printf 'symlinks:\n'
 for path in \
-    "${DOTFILES_DIR:-$DOTFILES}/bin/fragpaper-launch" \
-    "$HOME/.config/hypr/hyprland.conf" \
-    "$HOME/.config/hypr/theme.conf"; do
+    "$HOME/.config/emacs/init.el" \
+    "$HOME/.config/zellij" \
+    "$HOME/.claude/settings.json" \
+    "$HOME/.pi/agent/auth.json"; do
     if [[ -L "$path" ]]; then
         printf '  %-42s -> %s\n' "$path" "$(readlink "$path")"
     elif [[ -e "$path" ]]; then

@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-# Wrapper: execs the Rust window picker binary built in the dotfiles repo.
-exec "$HOME/dotfiles/tools/window-picker/target/release/window-picker" "$@"

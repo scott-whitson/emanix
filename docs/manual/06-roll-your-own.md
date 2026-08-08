@@ -22,7 +22,6 @@ These have personal state:
 - **`ioshi/i-intelligence/pi/agent/extensions/remember.ts`** — custom remember extension. Replace or delete.
 - **`ioshi/i-intelligence/pi/agent/skills/vaultkeeper/`** — Obsidian vault maintenance skill. Keep or delete.
 - **`tools/` uv project entry points** — `yt_transcript`, `web_extract`, `news`. Keep, modify defaults, or delete.
-- **`tools/window-picker/`** — a Rust window-picker that shells out to `hyprctl`. Written for Hyprland, never ported to EWM; currently vestigial here. Useful only if you're still on Hyprland — keep or remove.
 - **Tailscale** — your tailnet, your IPs. Re-enroll.
 
 ## Which tenets you'd likely rewrite

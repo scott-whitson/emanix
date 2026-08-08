@@ -35,31 +35,33 @@ Each theme is a self-contained directory. All files are pre-rendered; there's no
 ```
 themes/catppuccin-mocha/
 ├── variant            # "dark" or "light" — single word
+├── colors.toml        # the palette, single source of truth for pi-agent-theme.json
 ├── palette.sh         # colors as shell vars (reference only; not consumed)
-├── hypr.conf          # border colors → symlinked to ~/.config/hypr/theme.conf
-├── hyprlock.conf      # full hyprlock screen → ~/.config/hypr/hyprlock.conf
 ├── ghostty.conf       # terminal palette → ~/.config/ghostty/theme.conf
-├── tab-bar.el         # EWM tab-bar styling + status rendering
-├── mako.conf          # notification colors → ~/.config/mako/config
-├── fuzzel.ini         # launcher colors → ~/.config/fuzzel/fuzzel.ini
 ├── btop.theme         # btop theme → ~/.config/btop/themes/active.theme
-├── nvim.lua           # `vim.cmd.colorscheme('…')` → ~/.config/nvim/lua/dotfiles-theme.lua
-├── obsidian-theme     # one word: Obsidian theme name (JSON-patches appearance.json)
 ├── gtk.conf           # GTK_THEME + COLOR_SCHEME (sourced by dot-theme-set, applied via gsettings)
+├── pi-agent-theme.json # generated from colors.toml by bin/gen-pi-theme.py
 ├── README.md          # theme origin, extra font/plugin requirements
 └── post-set.sh        # optional hook run at the end of dot-theme-set
 ```
+
+Only two apps are themed by file symlink now — ghostty and btop. Emacs (including
+the EWM top bar) is themed by `scott/theme-set` in the running daemon, not by a
+file here. Targets retired on 2026-08-08 because nothing was installed to read
+them: `hypr.conf`, `hyprlock.conf`, `mako.conf`, `fuzzel.ini`, `nvim.lua`,
+`obsidian-theme` and `fragpaper.conf`.
 
 ## How `dot-theme-set <name>` works
 
 1. Validates `themes/<name>/` exists; refuses unknown names.
 2. Reads `variant` (must be `dark` or `light`).
 3. Writes `~/.config/dotfiles/active-theme` = `<name>` and `last-<variant>` = `<name>`.
-4. Symlinks each per-app file into its target location (see anatomy table above). The EWM top bar is refreshed from the running Emacs daemon; it is not a separate CSS-driven status bar.
-5. If `$OBSIDIAN_VAULT` is set in the active profile's `profile.conf`, JSON-patches the vault's `.obsidian/appearance.json` with the value in `obsidian-theme`.
+4. Symlinks `ghostty.conf` and `btop.theme` into place (see anatomy above).
+5. Regenerates `pi-agent-theme.json` from `colors.toml` and points pi's `settings.json` at it.
 6. Sources `gtk.conf` and runs `gsettings` for `color-scheme` and `gtk-theme`.
-7. Runs `themes/<name>/post-set.sh` if present and executable.
-8. Sends reload signals: `makoctl reload`. EWM bar state is refreshed in the running Emacs daemon.
+7. Tells the running Emacs daemon to switch catppuccin flavor via `scott/theme-set` — this is what themes EWM and its top bar.
+8. Runs `themes/<name>/post-set.sh` if present and executable.
+9. Signals ghostty (`SIGUSR2`) to reload.
 
 ## How `dot-theme-toggle` works
 
@@ -78,9 +80,9 @@ cp -r ~/dotfiles/themes/catppuccin-mocha ~/dotfiles/themes/<new-theme>
 Then edit each file in the new directory:
 
 1. `variant` — `dark` or `light`
-2. `palette.sh` — the new palette as shell vars (for humans)
-3. All the per-app files — replace color values with the new palette
-4. `obsidian-theme` — Obsidian theme name
+2. `colors.toml` — the palette; `pi-agent-theme.json` is regenerated from it
+3. `palette.sh` — the same palette as shell vars (for humans)
+4. `ghostty.conf` and `btop.theme` — replace color values with the new palette
 5. `gtk.conf` — GTK preferences
 6. `README.md` — describe the theme
 

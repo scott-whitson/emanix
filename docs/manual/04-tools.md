@@ -3,19 +3,20 @@
 Two flavors of user-space tooling in this repo:
 
 1. **`tools/`** — subdirectory-per-tool: Rust binary, Python projects, shell scripts.
-2. **`bin/`** — both the user-facing wrapper scripts (`firefox`, `news`, `obsidian`, `pi`, `trackpad-toggle`, `window-picker`) and the re-runnable `dot-*` dotfiles helpers, all on PATH via `ioshi/i-intelligence/zsh.nix` (`export PATH="$DOTFILES/bin:$PATH"`). Nothing here is stowed — they live in the repo and ride along with the checkout.
+2. **`bin/`** — both the user-facing wrapper scripts (`firefox`, `news`, `pi`) and the re-runnable `dot-*` dotfiles helpers, all on PATH via `ioshi/i-intelligence/zsh.nix` (`export PATH="$DOTFILES/bin:$PATH"`). Nothing here is stowed — they live in the repo and ride along with the checkout.
 
 ## tools/
 
-### window-picker
+### Retired 2026-08-08
 
-A small Rust binary that renders a window picker overlay by shelling out to `hyprctl`. Written for Hyprland; EWM replaced Hyprland as the compositor and this tool was never ported, so it is currently vestigial — kept here as source, not wired into any host. Binary path if built: `~/dotfiles/tools/window-picker/target/release/window-picker`.
+- **`window-picker`** — a Rust overlay built on `hyprctl`. EWM replaced Hyprland
+  and it was never ported, so it had no working backend. `s-Tab` cycles surfaces
+  natively.
+- **`md2org`** — the one-shot Markdown→org converter used for the vault
+  migration on 2026-07-11. That job is finished and `~/docs/vault` no longer
+  exists; notes live in org-roam at `~/docs/org`.
 
-### cheatsheet — mpv dependency
-
-`hypr-cheatsheet` was removed along with the other Hyprland-era `hypr-*` wrappers (EWM replaced Hyprland; they shelled out to `hyprctl`). This subsection is stale and pending removal/replacement by whatever EWM cheatsheet mechanism succeeds it.
-
-(Weather imagery used to render through mpv too; it now renders natively inside Emacs — see "Emacs surfaces" below.)
+Both remain in git history if ever needed.
 
 ### Emacs surfaces
 
@@ -34,13 +35,13 @@ for why reintroducing one is possible if ever wanted.
 
 ### syncthing
 
-Syncthing is the local file-sync layer for your docs vault. The install flow brings up the user service and `install/13-docs-sync.sh` pairs the docs folder with datacore. The synced docs tree lives at `~/docs`, which is what Obsidian opens. The canonical setup shares that folder from datacore to runtime desktops; the runtime desktop only needs the synced files, not a project checkout.
+Syncthing is the local file-sync layer for your docs vault. The install flow brings up the user service and `install/13-docs-sync.sh` pairs the docs folder with datacore. The synced docs tree lives at `~/docs`; notes are org-roam files under `~/docs/org`. The canonical setup shares that folder from datacore to runtime desktops; the runtime desktop only needs the synced files, not a project checkout.
 
 Useful paths:
 
 - Config/state: `~/.local/state/syncthing/`
 - Synced docs folder: `~/docs`
-- Obsidian vault: `~/docs/vault`
+- org-roam notes: `~/docs/org`
 
 ## bin/ — user-facing wrappers
 
@@ -49,11 +50,8 @@ Useful paths:
 | Wrapper | Purpose |
 |---|---|
 | `firefox` | Wrapper that prefers installed Firefox, then Firefox ESR, then Flatpak Firefox |
-| `obsidian` | Wrapper that prefers installed Obsidian, then `/opt/Obsidian`, then Flatpak Obsidian |
 | `news` | News helper |
 | `pi` | Pi coding agent launcher |
-| `trackpad-toggle` | Toggle trackpad on/off |
-| `window-picker` | Calls the Rust binary at `tools/window-picker/target/release/` |
 
 ## bin/dot-* — repo-level helpers
 
@@ -67,7 +65,7 @@ Also in `bin/`, on PATH the same way. They are NOT stowed — they live in the r
 | `dot-theme-toggle` | Flip between last-dark and last-light (Chapter 03) |
 | `dot-update` | **Stale — flag for cleanup.** Its script still reads `apt update && apt full-upgrade -y` then calls `bin/dot-sync`, both Debian/stow-era; `dot-sync` no longer exists in `bin/`, so this command currently fails on every NixOS host. |
 | `dot-repair <script\|--all>` | Rerun one or more install scripts without re-cloning the repo |
-| `dot-doctor` | 20-check health scan: PATH, services, fonts, pi, active theme, Nix/Emacs/org-roam state |
+| `dot-doctor` | 18-check health scan: PATH, services, fonts, pi, active theme, Nix/Emacs/org-roam state |
 
 Fresh clone note: there is no `./bootstrap.sh` or `./repair.sh` — a fresh machine is installed with `installer/fresh-eminix-install` and thereafter applied with `nixos-rebuild switch --flake .#<host>`. `$DOTFILES/bin` reaches PATH via `ioshi/i-intelligence/zsh.nix` once Home Manager has activated.
 
@@ -79,7 +77,7 @@ Fresh clone note: there is no `./bootstrap.sh` or `./repair.sh` — a fresh mach
 ## Why two flavors
 
 - `tools/` is for things substantial enough to have their own build system (Cargo projects, Python projects with external deps). These could in principle be separate projects; keeping them here means one-clone recovery.
-- `bin/` covers both small user-facing wrappers (what you type at the shell) and helpers that operate on the dotfiles system itself (stow, update, health). They live in the repo because they only make sense with the repo checked out.
+- `bin/` covers both small user-facing wrappers (what you type at the shell) and helpers that operate on the dotfiles system itself (update, health). They live in the repo because they only make sense with the repo checked out.
 
 ## AI Tooling
 
