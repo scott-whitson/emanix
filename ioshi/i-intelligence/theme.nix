@@ -20,6 +20,20 @@
       description = "This machine's Emacs is the system-owned EWM build (ewm.nix). When false, the home layer installs the non-EWM pgtk Emacs and runs the daemon as a systemd user service (emacs-daemon.nix).";
     };
 
+    role = lib.mkOption {
+      type = lib.types.enum [ "workstation" "server" "wsl" ];
+      default = "workstation";
+      description = ''
+        What shape of eminix box this is. Set by lib/mkHost.nix from the same
+        `role` argument that selects profiles/roles/<role>.nix, so the option and
+        the imported profile cannot drift apart.
+
+        Replaced scott.dotfiles.profile on 2026-08-08, which encoded the same
+        fact in a second vocabulary ("desktop" for what the role calls
+        "workstation") and was set by hand in each role profile.
+      '';
+    };
+
     pi.enable = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -41,11 +55,6 @@
         type = lib.types.str;
         default = "${config.home.homeDirectory}/projects/dotfiles";
         description = "Path to the dotfiles repo";
-      };
-      profile = lib.mkOption {
-        type = lib.types.str;
-        default = "desktop";
-        description = "Dotfiles profile name (desktop, server, wsl)";
       };
       liveElisp = lib.mkOption {
         type = lib.types.bool;

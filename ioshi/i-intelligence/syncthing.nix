@@ -5,7 +5,7 @@
   # eminix's syncthing is the NixOS module (ioshi/hi-hardware/net/syncthing.nix);
   # datacore's is Debian-managed (the hub, configured via REST). This HM-native
   # config exists only for the wsl profile.
-  config = lib.mkIf (config.scott.dotfiles.profile == "wsl") {
+  config = lib.mkIf (config.scott.role == "wsl") {
     # User-unit counterpart of the ordering in net/syncthing.nix (system
     # service on rafik/datacore); ported from the same retired stow drop-in
     # (base/systemd/.config/systemd/user/syncthing.service.d/override.conf).

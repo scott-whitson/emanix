@@ -27,7 +27,6 @@
   # Dotfiles config
   scott.dotfiles = {
     path = "${config.home.homeDirectory}/dotfiles";
-    profile = lib.mkDefault "desktop";
   };
 
   home.stateVersion = "24.11";

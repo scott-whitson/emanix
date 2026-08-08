@@ -27,7 +27,8 @@
       VISUAL = "emacsclient";
       PAGER = "less";
       DOTFILES = "$HOME/dotfiles";
-      DOTFILES_PROFILE = config.scott.dotfiles.profile;
+      # Interactive convenience only — nothing in the repo reads it.
+      DOTFILES_ROLE = config.scott.role;
     };
 
     initContent = ''

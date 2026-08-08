@@ -19,6 +19,5 @@
   home-manager.users.scott = {
     scott.gui = true;
     scott.ewm.enable = true;
-    scott.dotfiles.profile = "desktop";
   };
 }

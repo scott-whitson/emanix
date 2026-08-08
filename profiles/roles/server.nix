@@ -15,7 +15,6 @@
   home-manager.users.scott = {
     scott.gui = false;
     scott.ewm.enable = false;
-    scott.dotfiles.profile = "server";
     # Holds ~/.pi/agent as a Syncthing peer but does not run pi, and is not a
     # recipient of openrouter-auth.age — so no agenix credential symlink.
     scott.pi.enable = false;

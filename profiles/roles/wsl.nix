@@ -12,6 +12,5 @@
     # sessions from other hosts land in zellij. Both opt in surgically.
     scott.ghostty.enable = true;
     scott.zellij.enable = true;
-    scott.dotfiles.profile = "wsl";
   };
 }
