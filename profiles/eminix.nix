@@ -11,6 +11,7 @@
   #   - desktop/ewm/ollama : workstation concerns, see roles/workstation.nix
   imports = [
     ../ioshi/os-system/base.nix
+    ../ioshi/os-system/firstboot.nix
     ../ioshi/hi-hardware/net/tailscale.nix
     ../ioshi/hi-hardware/net/ssh.nix
     ../ioshi/i-intelligence/secrets.nix

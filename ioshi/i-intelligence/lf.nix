@@ -11,8 +11,6 @@
       hidden = true;
       drawbox = true;
       ratios = "1:2:3";
-      previewer = "~/.config/lf/pv.sh";
-      cleaner = "~/.config/lf/cleaner.sh";
     };
     extraConfig = ''
       # base/lf/.config/lf/lfrc — carried over verbatim, this is the only

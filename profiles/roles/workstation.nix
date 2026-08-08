@@ -4,7 +4,6 @@
   # A graphical eminix box: EWM compositor, local models, system syncthing.
   imports = [
     ../../ioshi/os-system/desktop.nix
-    ../../ioshi/os-system/firstboot.nix
     ../../ioshi/i-intelligence/ewm.nix
     ../../ioshi/i-intelligence/ollama.nix
     ../../ioshi/hi-hardware/net/syncthing.nix

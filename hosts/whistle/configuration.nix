@@ -6,12 +6,12 @@
   # No hardware/disko/EWM layer: nixos-wsl supplies boot + mounts, WSLg
   # supplies the display. Home layer arrives via the flake's hmModule with
   # profile "wsl" (same home as the retired scott@work standalone config).
-  imports = [
-    ../../ioshi/os-system/base.nix
-    ../../ioshi/hi-hardware/net/tailscale.nix
-    ../../ioshi/hi-hardware/net/ssh.nix
-    ../../ioshi/i-intelligence/secrets.nix
-  ];
+
+  # os-system/base.nix, hi-hardware/net/{tailscale,ssh}.nix and
+  # i-intelligence/secrets.nix: now supplied by the eminix core
+  # (profiles/eminix.nix, via mkHost) — this used to hand-import exactly
+  # this set before whistle moved onto mkHost. Redeclaring them here would
+  # only dedup by path, not signal ownership.
 
   # Hostname comes via wsl.conf, NOT networking.hostName: NixOS setting the
   # hostname at activation breaks WSL's systemd user-session bootstrap when

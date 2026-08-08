@@ -5,12 +5,13 @@
   # ~/projects/datacore-config), syncthing fleet hub, git mirror, backrest→B2.
   # NixOS owns the substrate only; app workloads are compose stacks unchanged
   # from the Debian box. Spec: docs/superpowers/specs/2026-08-05-datacore-nixos-design.md
-  networking.hostName = "datacore";
 
-  imports = [
-    ../../ioshi/os-system/server.nix
-    ../../ioshi/hi-hardware/net/tailscale.nix
-  ];
+  # networking.hostName: mkHost already supplies "datacore" via mkDefault
+  # (flake.nix hostName param) — dropped the plain assignment here to match.
+
+  # os-system/server.nix (via profiles/roles/server.nix) and
+  # hi-hardware/net/tailscale.nix (via profiles/eminix.nix): now supplied by
+  # the role/core, same as the base.nix/zsh/users note below.
 
   # programs.zsh.enable / users.users.scott: now supplied by the eminix core
   # (ioshi/os-system/base.nix, via profiles/eminix.nix). Declaring them here

@@ -78,7 +78,7 @@ Also in `bin/`, on PATH the same way. They are NOT stowed — they live in the r
 | `dot-theme-toggle` | Flip between last-dark and last-light (Chapter 03) |
 | `dot-update` | **Stale — flag for cleanup.** Its script still reads `apt update && apt full-upgrade -y` then calls `bin/dot-sync`, both Debian/stow-era; `dot-sync` no longer exists in `bin/`, so this command currently fails on every NixOS host. |
 | `dot-repair <script\|--all>` | Rerun one or more install scripts without re-cloning the repo |
-| `dot-doctor` | 21-check health scan: PATH, services, fonts, pi, active theme, Nix/Emacs/org-roam state |
+| `dot-doctor` | 20-check health scan: PATH, services, fonts, pi, active theme, Nix/Emacs/org-roam state |
 
 Fresh clone note: use `./bootstrap.sh` and `./repair.sh` from repo root before shell dotfiles load `$DOTFILES/bin` onto PATH.
 
