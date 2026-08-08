@@ -456,7 +456,7 @@ Each cdr is verified to render at the default face's cell width.")
    "firefox" nil
    (or (executable-find "firefox")
        (executable-find "firefox-esr")
-       "~/.local/bin/firefox")))
+       "~/dotfiles/bin/firefox")))
 
 ;; Keyed slots: each frame carries its slot NUMBER in the `scott/ewm-slot'
 ;; frame parameter, so `s-3' owns one specific frame rather than "the 3rd

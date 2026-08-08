@@ -7,7 +7,8 @@
 ;; Keybinding:
 ;;   C-c p  — Open Pi agent in a new Ghostty window
 ;;
-;; Pi is searched on PATH and then in `~/.local/bin/pi`.
+;; Pi is searched on PATH and then in `$DOTFILES/bin/pi` (the checkout's
+;; wrapper script, not `~/.local/bin` — nothing symlinks there anymore).
 
 (defgroup scott-pi nil "Pi agent integration (Ghostty launcher)." :group 'tools)
 
@@ -38,11 +39,12 @@
 (defun scott/pi--find ()
   "Return the pi executable path, or nil.
 
-This checks `scott/pi-program' first, then falls back to
-`~/.local/bin/pi' because the Emacs daemon often starts without the
-interactive shell's PATH extensions."
+This checks `scott/pi-program' first, then falls back to the pi
+wrapper script in the dotfiles checkout (`~/dotfiles/bin/pi') because
+the Emacs daemon often starts without the interactive shell's PATH
+extensions and so never sees `$DOTFILES/bin' on `exec-path'."
   (or (scott/pi--executable scott/pi-program)
-      (scott/pi--executable (expand-file-name "~/.local/bin/pi"))))
+      (scott/pi--executable (expand-file-name "~/dotfiles/bin/pi"))))
 
 (defun scott/pi--terminal ()
   "Return the terminal executable path, or nil."
@@ -59,7 +61,7 @@ terminal emulation that caused problems with the old vterm approach."
   (let ((pi-bin (scott/pi--find))
         (term-bin (scott/pi--terminal)))
     (unless pi-bin
-      (user-error "Pi agent not found (checked `scott/pi-program' and `~/.local/bin/pi')"))
+      (user-error "Pi agent not found (checked `scott/pi-program' and `~/dotfiles/bin/pi')"))
     (unless term-bin
       (user-error "Terminal %s not found (check `scott/pi-terminal')" scott/pi-terminal))
     (start-process "pi-ghostty" nil term-bin "-e" pi-bin)
@@ -79,7 +81,7 @@ If called interactively, the region is taken from the current selection
         (term-bin (scott/pi--terminal))
         content temp-file)
     (unless pi-bin
-      (user-error "Pi agent not found (checked `scott/pi-program' and `~/.local/bin/pi')"))
+      (user-error "Pi agent not found (checked `scott/pi-program' and `~/dotfiles/bin/pi')"))
     (unless term-bin
       (user-error "Terminal %s not found (check `scott/pi-terminal')" scott/pi-terminal))
     (scott/pi--ensure-temp-dir)
