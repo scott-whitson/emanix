@@ -35,7 +35,7 @@ for why reintroducing one is possible if ever wanted.
 
 ### syncthing
 
-Syncthing is the local file-sync layer for your docs vault. The install flow brings up the user service and `install/13-docs-sync.sh` pairs the docs folder with datacore. The synced docs tree lives at `~/docs`; notes are org-roam files under `~/docs/org`. The canonical setup shares that folder from datacore to runtime desktops; the runtime desktop only needs the synced files, not a project checkout.
+Syncthing is the local file-sync layer for your docs vault, declared in `ioshi/hi-hardware/net/syncthing.nix` (system service) or `ioshi/i-intelligence/syncthing.nix` (the HM user service on WSL). Folder pairing with datacore is two-sided — datacore must add each host and share the folders. The synced docs tree lives at `~/docs`; notes are org-roam files under `~/docs/org`. The canonical setup shares that folder from datacore to runtime desktops; the runtime desktop only needs the synced files, not a project checkout.
 
 Useful paths:
 
@@ -59,12 +59,9 @@ Also in `bin/`, on PATH the same way. They are NOT stowed — they live in the r
 
 | Helper | Purpose |
 |---|---|
-| `dot-bootstrap` | Pull latest dotfiles, then run the install path for the current profile |
 | `dot-context` | Print host, repo path, branch, and key symlink state for quick troubleshooting |
 | `dot-theme-set <name>` | Apply a theme (see [Chapter 03](03-theming.md)) |
 | `dot-theme-toggle` | Flip between last-dark and last-light (Chapter 03) |
-| `dot-update` | **Stale — flag for cleanup.** Its script still reads `apt update && apt full-upgrade -y` then calls `bin/dot-sync`, both Debian/stow-era; `dot-sync` no longer exists in `bin/`, so this command currently fails on every NixOS host. |
-| `dot-repair <script\|--all>` | Rerun one or more install scripts without re-cloning the repo |
 | `dot-doctor` | 18-check health scan: PATH, services, fonts, pi, active theme, Nix/Emacs/org-roam state |
 
 Fresh clone note: there is no `./bootstrap.sh` or `./repair.sh` — a fresh machine is installed with `installer/fresh-eminix-install` and thereafter applied with `nixos-rebuild switch --flake .#<host>`. `$DOTFILES/bin` reaches PATH via `ioshi/i-intelligence/zsh.nix` once Home Manager has activated.
@@ -81,7 +78,7 @@ Fresh clone note: there is no `./bootstrap.sh` or `./repair.sh` — a fresh mach
 
 ## AI Tooling
 
-The [pi coding agent](https://github.com/earendil-works/pi-coding-agent) is a first-class tool, installed by `install/07-pi.sh` via `npm install -g --prefix ~/.local @earendil-works/pi-coding-agent`. It requires Node/npm from apt.
+The [pi coding agent](https://github.com/earendil-works/pi-coding-agent) is a first-class tool, installed declaratively as `pi-coding-agent` in `ioshi/i-intelligence/packages.nix`. (It was an npm global under Debian; that install path is gone.)
 
 ### What ships in dotfiles
 

@@ -148,7 +148,7 @@ stow to edit scripts without rebuilding" is not a real constraint.
 ### Phase D — legacy prune and docs
 
 - Delete `hyprland.nix`, `mako.nix`, `fuzzel.nix` — superseded by EWM
-- Verify `scott.standalone` is dead now that the last Debian node is gone; remove if so
+- Verify `scott.standalone` is dead now that the last Debian node is gone; remove if so **(the premise is false — see the as-built correction at the end of this document)**
 - `ioshi/i-intelligence/standalone.nix` **stays** — `whistle` depends on it — but its
   name now misleads. It means "non-EWM Emacs", not "foreign distro". Rename accordingly
 - `docs/manual/07-nix-roadmap.md` describes the completed Debian→NixOS migration; rewrite or retire
@@ -217,3 +217,36 @@ own policy explicitly in its own `services.syncthing` block:
 recording why plain assignments (not `mkForce`) are correct there now that
 nothing else sets those options. No other server-role host exists yet, so
 this was caught before it could bite one.
+
+## As-built correction (rollout, 2026-08-08)
+
+**This spec's central factual premise about `datacore` was wrong, and it caused
+a real defect. Read this before planning the datacore cutover.**
+
+Phase D says "Verify `scott.standalone` is dead now that the last Debian node is
+gone", and the Decisions table treats `datacore` as a NixOS host to be rolled
+out. Neither is true. At rollout time `datacore` was — and still is — **Debian 13
+(trixie)**: no `/etc/NIXOS`, no `nixos-rebuild`, no `/run/agenix`. Its
+`nixosConfigurations.datacore` entry is the *target* for a cutover that has not
+happened (see `2026-08-05-datacore-nixos-design.md`), and the plan is to build it
+on the HP that `zord-old` used to run. The flake has no `homeConfigurations`
+output, so its standalone Home Manager profile — last activated 2026-07-20 —
+cannot be rebuilt from this repo at all.
+
+The consequence: Task 13 deleted `scott.standalone` reasoning that "every eminix
+instance is a NixOS node with agenix". Being a NixOS host with agenix is not the
+same as being a *recipient* of a given secret, and `datacore` is neither. `pi.nix`
+was left symlinking `~/.pi/agent/auth.json` at `/run/agenix/openrouter-auth` on a
+host that can decrypt nothing, which would have replaced a real working file with
+a dangling link. Repaired by gating that symlink on a new `scott.pi.enable`
+(false in `roles/server.nix`); it failed safe in the meantime, because Home
+Manager aborts rather than clobber a file it does not own.
+
+Rollout as actually performed: `rafik` and `whistle` switched; `datacore`
+untouched. Rollout order was therefore *not* `datacore → whistle → rafik`.
+
+One further correction, to the verification method this spec leans on: a
+byte-identical closure proves nothing changed, but a **changed** closure does not
+prove something did. Relocating a module import reorders the buildEnv input list
+and moves the derivation hash while package set and file tree stay identical
+(measured: 1805 paths either side, clean `find` diff).

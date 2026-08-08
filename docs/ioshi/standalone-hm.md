@@ -1,7 +1,9 @@
-**RETIRED 2026-08-05.** The last standalone-HM node (Debian datacore) is
-migrating to NixOS (`docs/superpowers/specs/2026-08-05-datacore-nixos-design.md`);
-the flake's `homeConfigurations` output is deleted, so the build commands
-below no longer work. Kept for the still-accurate WSLg/GlazeWM notes.
+**RETIRED 2026-08-05.** The flake's `homeConfigurations` output is deleted, so
+the build commands below no longer work. Debian datacore is *still* the last
+standalone-HM node as of 2026-08-08 — its NixOS cutover
+(`docs/superpowers/specs/2026-08-05-datacore-nixos-design.md`) has not happened,
+and its HM profile is frozen at 2026-07-20. Kept for the still-accurate
+WSLg/GlazeWM notes.
 
 # Standalone Home-Manager nodes (datacore, work-WSL)
 

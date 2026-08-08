@@ -1,6 +1,4 @@
 .claude/
-ventoy/dotfiles/
-ventoy/.pat
 
 # Python build artifacts
 **/__pycache__/
@@ -8,17 +6,7 @@ ventoy/.pat
 **/*.pyo
 **/.pytest_cache/
 
-# Python virtualenvs
-tools/.venv/
-tools/photo-tools/.venv/
-
-# Rust build output
-
-# Large binary assets (not version-controlled; see docs for download instructions)
-tools/vosk-models/*/
-
-# Fresh-install read-only PAT (USB only; never commit)
-ventoy/github-token
+# nix build output symlink
 result
 
 # Emacs byte-compiled artifacts

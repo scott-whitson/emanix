@@ -9,7 +9,7 @@ These pieces don't depend on being Scott:
 - **The role structure** (`profiles/eminix.nix` common core + `profiles/roles/{workstation,server,wsl}.nix` + `lib/mkHost.nix`) — swap the package list and role shapes to your taste
 - **The `ioshi/` module layout** (`i-intelligence`/`os-system`/`hi-hardware`, one Home Manager or NixOS module per concern) — no stow, no profile complexity; add or remove a module per tool
 - **The theme system** (`themes/<name>/` + `lib/themes.nix` generators) — works with any palette; ship the themes you care about
-- **The `bin/dot-*` helpers** (`dot-context`, `dot-doctor`, `dot-repair`, `dot-bootstrap`, `dot-theme-set`, `dot-theme-toggle`) — generic operations, not personal
+- **The `bin/dot-*` helpers** (`dot-context`, `dot-doctor`, `dot-theme-set`, `dot-theme-toggle`) — generic operations, not personal
 - **The Ghostty/btop Home Manager modules** — generic terminal config, re-theme freely (Hyprland/Mako/Fuzzel are gone — EWM replaced them, and that's a Scott-specific choice, not a generalizable one)
 
 ## Scott-specific (rip out or replace)
