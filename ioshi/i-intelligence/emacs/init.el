@@ -282,6 +282,16 @@
   (global-set-key (kbd "C-c n c") #'org-roam-capture))
 (global-set-key (kbd "C-c a") #'org-agenda)
 
+;; Kill org buffers after agenda closes — they're only opened for scanning.
+;; NB: this kills EVERY org-mode buffer, not just the ones the agenda opened,
+;; so an org file you were editing yourself also goes when you quit the agenda.
+(defun scott/org-agenda-kill-buffers ()
+  "Kill all org-mode buffers after closing the agenda."
+  (dolist (buf (buffer-list))
+    (when (with-current-buffer buf (derived-mode-p 'org-mode))
+      (kill-buffer buf))))
+(add-hook 'org-agenda-quit-hook #'scott/org-agenda-kill-buffers)
+
 ;; org-babel: executable src blocks in notes (the "living ops journal"
 ;; workflow, adopted 2026-08-05). Shell blocks are off by default — enable.
 ;; Execution still asks y/n per block (org-confirm-babel-evaluate stays t):
