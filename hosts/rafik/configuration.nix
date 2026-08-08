@@ -28,4 +28,7 @@
       SDL_VIDEODRIVER = "x11";
     };
   };
+
+  # IB Gateway — manual up/down via `ib up live`, never started at boot.
+  scott.ibgateway.enable = true;
 }

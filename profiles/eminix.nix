@@ -15,5 +15,10 @@
     ../ioshi/hi-hardware/net/tailscale.nix
     ../ioshi/hi-hardware/net/ssh.nix
     ../ioshi/i-intelligence/secrets.nix
+    # IB Gateway is fully option-gated (scott.ibgateway.enable, default false),
+    # so importing it here only makes the option available — it costs nothing on
+    # hosts that leave it off. Kept in the core rather than a role because an
+    # always-on headless box is at least as natural a home for it as a laptop.
+    ../ioshi/i-intelligence/ibgateway.nix
   ];
 }

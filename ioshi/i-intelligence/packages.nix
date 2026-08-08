@@ -79,8 +79,9 @@
     # desktop entry, which EWM's s-d launcher needs) is installed here.
     ghostty
 
-    # GUI apps
-    firefox
+    # GUI apps. NOT firefox: firefox.nix's programs.firefox installs it (with the
+    # catppuccin theming), and listing it here too put two identical firefox
+    # entries in home.packages. Same shape as the mpv/mpv-with-scripts overlap.
     bitwarden-desktop
 
     # Steam wrapper — starts XWayland on :0 if needed, then runs the real steam.

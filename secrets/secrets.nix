@@ -14,4 +14,5 @@ let
 in
 {
   "openrouter-auth.age".publicKeys = [ rafik zordold whistle scott ];
+  "ibkr-creds.age".publicKeys = [ rafik scott ];
 }

@@ -10,6 +10,7 @@
     ./swaylock.nix
     ./xdg.nix
     ./emacs-daemon.nix
+    ./firefox.nix
     ./syncthing.nix
     ./btop.nix
     ./lf.nix

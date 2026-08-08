@@ -47,6 +47,13 @@ in
 
         # --- Clipboard ---
         copy-on-select = clipboard
+
+        # --- Keybindings (Emacs-style) ---
+        keybind = clear
+        keybind = super+c=copy_to_clipboard
+        keybind = super+v=paste_from_clipboard
+        keybind = alt+w=copy_to_clipboard
+        keybind = ctrl+y=paste_from_clipboard
       '';
     };
 
