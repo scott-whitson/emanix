@@ -1,11 +1,17 @@
-# eminix — install runbook (ThinkPad T14 Gen 5 AMD)
+# rafik — install runbook (ThinkPad T14 Gen 5 AMD)
 
-Fresh bare-metal install of **eminix**, the ioshi daily driver. Two scripts do the
+Fresh bare-metal install of **rafik**, the ioshi daily driver. Two scripts do the
 work; you type one command each (plus passphrases). Supersedes the manual
 `docs/manual/10-nixos-install.md` and `docs/new-host-checklist.md`.
 
-Verified (2026-07-16): `.#eminix` diskoScript + toplevel build; a fresh-disk VM boot
+Verified (2026-07-16): `.#rafik` diskoScript + toplevel build; a fresh-disk VM boot
 reaches multi-user with Home Manager clean; both scripts pass shellcheck.
+
+**Name history:** this host was called `eminix` until it was renamed `rafik`
+on 2026-08-07, so that `eminix` names only the NixOS distribution (see
+`profiles/eminix.nix`) and not any one machine. The installer scripts keep
+their `eminix` filenames (`fresh-eminix-install`, `eminix-firstboot`) — they
+install and configure the *eminix distribution*, now onto the host `rafik`.
 
 > ### ⚠ The one thing a script can't do: firmware
 > **Disable Secure Boot** in the T14 firmware (F1 at the ThinkPad logo → Security →
@@ -24,12 +30,12 @@ reaches multi-user with Home Manager clean; both scripts pass shellcheck.
    git add secrets/openrouter-auth.age && git commit -m "secret: real openrouter keys" && git push
    ```
 2. **Stage the repo + host key on the Ventoy USB** (private repo → the installer carries it;
-   the key must sit *beside* the repo — the installer looks for `../eminix-keys`):
+   the key must sit *beside* the repo — the installer looks for `../rafik-keys`):
    ```bash
    V=/run/media/$USER/Ventoy            # adjust to your mount
    git clone ~/dotfiles "$V/dotfiles"
-   mkdir -p "$V/eminix-keys"
-   cp ~/.ssh/eminix_host_ed25519{,.pub} "$V/eminix-keys/"
+   mkdir -p "$V/rafik-keys"
+   cp ~/.ssh/rafik_host_ed25519{,.pub} "$V/rafik-keys/"
    ```
 
 ## 2. Install (in the NixOS live ISO)
@@ -45,7 +51,7 @@ reaches multi-user with Home Manager clean; both scripts pass shellcheck.
    (disko), injects the host key, runs `nixos-install`, prompts a **password for scott**,
    and offers to reboot. Remove the USB on reboot.
 
-## 3. First boot (on eminix)
+## 3. First boot (on rafik)
 
 1. LUKS passphrase → autologin → EWM. (If EWM can't bring up the GPU, you land on a tty —
    recoverable; investigate `journalctl`/the flap note in `ewm.nix`.)
@@ -61,7 +67,7 @@ reaches multi-user with Home Manager clean; both scripts pass shellcheck.
 ## 4. Ongoing
 
 ```bash
-cd ~/dotfiles && sudo nixos-rebuild switch --flake .#eminix
+cd ~/dotfiles && sudo nixos-rebuild switch --flake .#rafik
 ```
 
 ---
@@ -73,26 +79,26 @@ fails partway:
 
 ```bash
 # (repo staged at $REPO on the USB; DISK=/dev/nvme0n1)
-nix run github:nix-community/disko/latest -- --mode destroy,format,mount --flake "$REPO#eminix"
+nix run github:nix-community/disko/latest -- --mode destroy,format,mount --flake "$REPO#rafik"
 install -d -m 755 /mnt/etc/ssh
-install -m 600 <usb>/eminix-keys/eminix_host_ed25519     /mnt/etc/ssh/ssh_host_ed25519_key
-install -m 644 <usb>/eminix-keys/eminix_host_ed25519.pub /mnt/etc/ssh/ssh_host_ed25519_key.pub
-nixos-install --flake "$REPO#eminix" --no-root-password
+install -m 600 <usb>/rafik-keys/rafik_host_ed25519     /mnt/etc/ssh/ssh_host_ed25519_key
+install -m 644 <usb>/rafik-keys/rafik_host_ed25519.pub /mnt/etc/ssh/ssh_host_ed25519_key.pub
+nixos-install --flake "$REPO#rafik" --no-root-password
 nixos-enter --root /mnt -c 'passwd scott'
 reboot
 ```
 
 ## Notes / gotchas
 
-- **Host key = agenix identity.** The installer verifies the staged `eminix_host_ed25519`
+- **Host key = agenix identity.** The installer verifies the staged `rafik_host_ed25519`
   fingerprint matches the recipient in `secrets/secrets.nix` before wiping anything. Losing
-  the key means re-keying the secret (`agenix -r`) with eminix's new host key.
+  the key means re-keying the secret (`agenix -r`) with rafik's new host key.
 - **agenix ↔ Home Manager.** The openrouter secret decrypts to `/run/agenix/openrouter-auth`
   (NOT into `~/.pi/agent`, which HM owns); `pi.nix` symlinks `~/.pi/agent/auth.json` to it.
   Don't set the agenix `path` back into `~/.pi/agent` — that recreates a root/scott
   ownership collision that breaks HM activation (caught in a VM boot test).
 - **Secure Boot must stay off** — systemd-boot is unsigned; a firmware update re-enabling it
   stops the machine booting until you disable it again.
-- **No swap** in eminix's disko layout. Add a btrfs swapfile later if you want hibernation.
+- **No swap** in rafik's disko layout. Add a btrfs swapfile later if you want hibernation.
 - **nixos-hardware** supplies AMD pstate + the s2idle `acpi.ec_no_wakeup` fix; redistributable
   firmware is set in `ioshi/hi-hardware/lenovo-t14-gen5-amd.nix`.
