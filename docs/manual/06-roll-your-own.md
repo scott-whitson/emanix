@@ -20,7 +20,6 @@ These have personal state:
 - **`ioshi/i-intelligence/zsh.nix`** — personal aliases and shell customization live directly in this module now (no separate `workstation.zsh`). Replace.
 - **`ioshi/i-intelligence/pi/agent/AGENTS.md`** — pi agent instructions + preferences. Replace or delete.
 - **`ioshi/i-intelligence/pi/agent/extensions/remember.ts`** — custom remember extension. Replace or delete.
-- **`ioshi/i-intelligence/pi/agent/skills/vaultkeeper/`** — Obsidian vault maintenance skill. Keep or delete.
 - **`tools/` uv project entry points** — `yt_transcript`, `web_extract`, `news`. Keep, modify defaults, or delete.
 - **Tailscale** — your tailnet, your IPs. Re-enroll.
 

@@ -96,9 +96,13 @@ The [pi coding agent](https://github.com/earendil-works/pi-coding-agent) is a fi
 Home-Manager-managed; `settings.json` is seeded once then left to pi's own
 runtime writes.
 
-Shipped skills:
+Shipped skills: the generic `protocols`, `research` and `tools` sets under
+`ioshi/i-intelligence/pi/agent/skills/`.
 
-- **`vaultkeeper`** — Obsidian vault maintenance: find missing connections, enrich thin notes, propose changes as diffs. Invoked with `/vaultkeeper "topic"` or `/vaultkeeper random 5`.
+`vaultkeeper` — an Obsidian vault maintenance skill — was removed on 2026-08-08
+along with the rest of the Obsidian surface. It assumed a markdown vault at
+`~/docs/vault`, which stopped existing when the notes moved to org-roam on
+2026-07-11.
 
 ### Commit discipline
 
