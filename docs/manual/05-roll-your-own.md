@@ -1,4 +1,4 @@
-# Chapter 06 — Roll Your Own
+# Chapter 05 — Roll Your Own
 
 This system is private and personal. But it was written public-shaped — with the discipline of an outside reader in mind — so if you want to fork it, you can. This chapter is your map.
 
@@ -25,7 +25,7 @@ These have personal state:
 
 ## Which tenets you'd likely rewrite
 
-[Chapter 05 — Philosophy](05-philosophy.md) lists seven tenets. A forker's path through them:
+[Chapter 04 — Philosophy](04-philosophy.md) lists seven tenets. A forker's path through them:
 
 | Tenet | Forker's likely response |
 | --- | --- |

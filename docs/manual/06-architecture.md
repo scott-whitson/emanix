@@ -1,4 +1,4 @@
-# Chapter 07 — Nix Architecture
+# Chapter 06 — Nix Architecture
 
 > **Status:** Done. This chapter used to be the Debian→NixOS migration plan; the
 > migration completed 2026-08-07 (see `docs/superpowers/specs/2026-08-07-eminix-convergence-design.md`

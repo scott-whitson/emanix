@@ -1,4 +1,4 @@
-# Chapter 03 — Theming
+# Chapter 02 — Theming
 
 The theme system is Omarchy-style (directory-per-theme) plus a dark/light toggle layer. Applying a theme is one command; switching between dark and light is one hotkey.
 

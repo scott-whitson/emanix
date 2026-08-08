@@ -8,7 +8,7 @@ is a full NixOS host — agenix, declarative docker/oci-containers, and the
 home as the retired `scott@work`). Design spec:
 `docs/superpowers/specs/2026-07-21-weasel-nixos-wsl-design.md`; full
 implementation plan (archived once this runbook is verified):
-`docs/superpowers/plans/2026-07-21-weasel-nixos-wsl.md`.
+`docs/superpowers/plans/archive/2026-07-21-weasel-nixos-wsl.md`.
 
 **Name history:** this host was called `weasel` from its 2026-07-22 cutover
 until 2026-08-04, when it was renamed `whistle`

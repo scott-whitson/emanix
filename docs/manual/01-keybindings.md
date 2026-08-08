@@ -1,4 +1,4 @@
-# Chapter 02 — Keybindings
+# Chapter 01 — Keybindings
 
 eminix runs **EWM** — Emacs *is* the Wayland compositor. There is no separate
 window manager or status bar: windowing, workspaces, and the top bar all live in
@@ -115,7 +115,7 @@ Map*, and *Meow* (`~/docs/org`, reachable via `C-c n f`).
 ## Theme
 
 Theming is driven from Emacs (`dot-theme-set`, light/dark). See
-[Chapter 03 — Theming](03-theming.md).
+[Chapter 02 — Theming](02-theming.md).
 
 ---
 
@@ -129,7 +129,7 @@ Ghostty uses built-in defaults. No `keybind` overrides in the generated config
 
 ## Neovim (retired)
 
-Neovim/kickstart is gone — Emacs is the sole editor (see [Chapter 05 — Philosophy](05-philosophy.md#3-terminal-centric-keyboard-driven)).
+Neovim/kickstart is gone — Emacs is the sole editor (see [Chapter 04 — Philosophy](04-philosophy.md#3-terminal-centric-keyboard-driven)).
 `base/nvim` was deleted along with the rest of `base/`.
 
 ---

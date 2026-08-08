@@ -1,4 +1,4 @@
-# Chapter 04 — Tools
+# Chapter 03 — Tools
 
 Two flavors of user-space tooling in this repo:
 
@@ -30,7 +30,7 @@ background, so there is no wallpaper layer to fill. Its module, the three
 removed. It had already stopped running everywhere — on the T14 the user unit
 was `not-found`, no process was alive, and no source checkout existed.
 
-See [Chapter 03 — Theming](03-theming.md#wallpaper-fragpaper-retired-2026-08-08)
+See [Chapter 02 — Theming](02-theming.md#wallpaper-fragpaper-retired-2026-08-08)
 for why reintroducing one is possible if ever wanted.
 
 ### syncthing
@@ -60,7 +60,7 @@ Also in `bin/`, on PATH the same way. They are NOT stowed — they live in the r
 | Helper | Purpose |
 |---|---|
 | `dot-context` | Print host, repo path, branch, and key symlink state for quick troubleshooting |
-| `dot-theme-set <name>` | Apply a theme (see [Chapter 03](03-theming.md)) |
+| `dot-theme-set <name>` | Apply a theme (see [Chapter 03](02-theming.md)) |
 | `dot-theme-toggle` | Flip between last-dark and last-light (Chapter 03) |
 | `dot-doctor` | 18-check health scan: PATH, services, fonts, pi, active theme, Nix/Emacs/org-roam state |
 
@@ -109,4 +109,4 @@ along with the rest of the Obsidian surface. It assumed a markdown vault at
 
 ### Forking
 
-The `ioshi/i-intelligence/pi.nix` module (and `ioshi/i-intelligence/pi/`) and the AI-augmented workflow are the most user-specific piece of this system. A forker will either adopt a similar setup or delete them (see [Chapter 06 — Roll Your Own](06-roll-your-own.md)).
+The `ioshi/i-intelligence/pi.nix` module (and `ioshi/i-intelligence/pi/`) and the AI-augmented workflow are the most user-specific piece of this system. A forker will either adopt a similar setup or delete them (see [Chapter 05 — Roll Your Own](05-roll-your-own.md)).

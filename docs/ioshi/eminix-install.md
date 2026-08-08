@@ -2,7 +2,7 @@
 
 Fresh bare-metal install of **rafik**, the ioshi daily driver. Two scripts do the
 work; you type one command each (plus passphrases). Supersedes the manual
-`docs/manual/10-nixos-install.md` and `docs/new-host-checklist.md`.
+`docs/manual/history/nixos-install-pre-disko.md` and `docs/new-host-checklist.md`.
 
 Verified (2026-07-16): `.#rafik` diskoScript + toplevel build; a fresh-disk VM boot
 reaches multi-user with Home Manager clean; both scripts pass shellcheck.

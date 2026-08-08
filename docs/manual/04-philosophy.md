@@ -1,4 +1,4 @@
-# Chapter 05 — Philosophy
+# Chapter 04 — Philosophy
 
 Seven tenets. Each should eliminate at least one decision. The goal is not to be comprehensive — it's to be *decided*.
 
@@ -65,7 +65,7 @@ pi coding agent is a first-class tool, not a bolt-on. Custom skills and extensio
 
 - `ioshi/i-intelligence/pi/agent/AGENTS.md` ships with the dotfiles
 - `ioshi/i-intelligence/pi.nix` is a dedicated Home Manager module, not folded into a general packages list
-- See [Chapter 04 — Tools](04-tools.md#ai-tooling) for the concrete setup
+- See [Chapter 03 — Tools](03-tools.md#ai-tooling) for the concrete setup
 
 **This is the tenet most specific to this user.** A fork would either adopt a similar AI-augmented workflow or delete `ioshi/i-intelligence/pi.nix` + `ioshi/i-intelligence/pi/` and retire this tenet.
 
@@ -98,7 +98,7 @@ Every piece is swappable. No lock-in to a tool that can't be ripped out in an af
 
 **Concrete consequences:**
 
-- The theme system ([Chapter 03](03-theming.md)) is directory-per-theme — remove a theme by deleting a directory
+- The theme system ([Chapter 03](02-theming.md)) is directory-per-theme — remove a theme by deleting a directory
 - `bin/dot-*` helpers each do one thing rather than baking several together
 - Neovim/kickstart was ripped out entirely (retired in favor of Emacs) without disturbing anything else — proof the modularity holds
 
