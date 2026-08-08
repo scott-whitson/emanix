@@ -1,5 +1,12 @@
 # Chapter 01 — Install
 
+> **HISTORICAL.** This chapter documents the retired Debian + bash + stow
+> bootstrap (`install.sh`, `install/NN-*.sh`, `base/`). None of it exists in
+> the repo anymore — every host is NixOS now, composed through `lib/mkHost`
+> and applied with `nixos-rebuild switch --flake .#<host>`. Kept for history;
+> see [Chapter 07](07-nix-roadmap.md) for the current architecture and
+> `docs/ioshi/eminix-install.md` for the current bare-metal install path.
+
 From a clean Debian Testing install to a running desktop in about an hour. The installer is a numbered orchestrator (`install.sh`) that runs scripts in lexical order. Each script is independently runnable and idempotent; re-running `./install.sh` is safe.
 
 ## Prerequisites

@@ -10,23 +10,27 @@ about in.
 - **hi — hardware / internet** (`ioshi/hi-hardware/`): per-machine hardware, disko
   disk layouts, and the shared network/session layer.
 
-**eminix** is the composed platform (em·in·ix — Emacs + Linux + NixOS, a nod to
-minix): the daily driver. Hosts are assembled from the layers by `lib/mkHost`.
+**eminix** (em·in·ix — Emacs + Linux + NixOS, a nod to minix) is the name of the
+*distribution* only — `profiles/eminix.nix`, the common core every host shares.
+It is never a hostname. Hosts are assembled from a role profile plus that core
+by `lib/mkHost`.
 
 ## Layout
 
 ```
 ioshi/{i-intelligence,os-system,hi-hardware}   # the three concerns
-profiles/eminix.nix                            # the platform = os + i + shared net
+profiles/eminix.nix                            # the distribution's common core (os + net + secrets)
+profiles/roles/{workstation,server,wsl}.nix    # per-shape config layered on top
 lib/{mkHost.nix,themes.nix}                    # host composer + theme lib
-hosts/{eminix,zord-old,datacore}               # thin per-host anchors
+hosts/{rafik,datacore,whistle}                 # thin per-host anchors
 secrets/                                        # agenix-encrypted (openrouter auth)
-base/                                           # non-Nix assets consumed by modules (pi, etc.)
 docs/ioshi/                                     # install runbook + deploy checklist
 ```
 
-- **eminix** — ThinkPad T14 Gen 5 AMD, daily driver.
-- **zord-old** — HP 15-ef2013dx, backup running the same stack.
+- **rafik** — ThinkPad T14 Gen 5 AMD, daily driver (role `workstation`).
+- **datacore** — HP 15-ef2013dx, headless home server (role `server`); superseded
+  the Debian-era `zord-old` on the same physical box.
+- **whistle** — work laptop, NixOS-WSL (role `wsl`).
 
 ## Build / deploy
 
@@ -34,13 +38,13 @@ Validate any host without root:
 
 ```bash
 nix flake check
-nix build .#nixosConfigurations.eminix.config.system.build.toplevel
+nix build .#nixosConfigurations.rafik.config.system.build.toplevel
 ```
 
 Apply on a machine:
 
 ```bash
-sudo nixos-rebuild switch --flake .#eminix     # or .#zord-old
+sudo nixos-rebuild switch --flake .#rafik      # or .#datacore / .#whistle
 ```
 
 Fresh install (bare metal): follow [`docs/ioshi/eminix-install.md`](docs/ioshi/eminix-install.md)
@@ -59,10 +63,9 @@ steps for the current rollout are in
 
 - Secrets are managed with **agenix** (`secrets/`); hosts decrypt with their SSH
   host key. See the deploy checklist for inserting the real OpenRouter keys.
-- The former **Debian + Hyprland** setup is being retired. The Debian install/
-  bootstrap tooling has been removed; still legacy and unimported on the EWM hosts
-  are the Hyprland/fuzzel/mako modules (`ioshi/i-intelligence/{hyprland,fuzzel,mako}.nix`)
-  and the `bin/dot-*` theming helpers. The old desktop bar code has been archived
-  and is no longer part of the active path.
-- Older Debian-era guides under `docs/manual/` are kept for history with supersede
-  banners where relevant.
+- The former **Debian + Hyprland** setup is fully retired: no host runs Debian,
+  and `hyprland.nix`, `mako.nix` and `fuzzel.nix` are deleted — EWM is the sole
+  compositor now. GNU stow is retired too; nothing symlinks into `~/.local/bin`,
+  and the wrapper scripts in `bin/` reach PATH via `ioshi/i-intelligence/zsh.nix`.
+- Older Debian-era guides under `docs/manual/` are kept for history, marked with
+  supersede banners where relevant.

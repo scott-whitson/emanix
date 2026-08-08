@@ -17,22 +17,25 @@ Files live on disk first. Cloud is a backup destination, never the source of tru
 - `~/gdrive` is a mounted partition with rclone bisync every 15 minutes, not a streamed-on-demand mount
 - `dr_backup.sh` treats the backup as a point-in-time copy, not a live sync
 
-## 2. Debian + Hyprland, no apologies
+## 2. NixOS + EWM, no apologies
 
-Stable base, modern desktop. Debian Testing gives you current Hyprland and still keeps the machine boring enough to trust.
+Declarative base, Emacs-as-desktop. NixOS gives every host the same reproducible
+closure; EWM makes Emacs the compositor instead of running a separate window
+manager next to it. (Debian + Hyprland was tenet 2 until the 2026-08-07 eminix
+convergence retired both.)
 
 **What this eliminates:**
 
-- Distro detection in `install.sh` (it targets Debian now)
-- Legacy package-manager paths are gone from the install flow
-- Compromise package selections that try to cover two distros at once
-- Rolling-release anxiety before a work session
+- Distro detection anywhere — the flake is the OS, on every host
+- Package drift between machines (`apt upgrade` entropy)
+- A separate window-manager config surface alongside the editor
+- "Which Debian package has this" package-hunting before a work session
 
 **Concrete consequences:**
 
-- `install.sh` stays short because the distro choice is already made
-- `01-core.sh` is the Debian bootstrap step
-- `hx`, `rclone`, `uv`, and `hyprland` are installed from Debian packages where available
+- `nixos-rebuild switch --flake .#<host>` is the only apply path
+- `profiles/eminix.nix` + `profiles/roles/*.nix` are the bootstrap step — there is no `install.sh`
+- `rclone`, `uv`, and the EWM/Emacs build come from nixpkgs (+ the emacs-overlay), not a distro repo
 
 ## 3. Terminal-centric, keyboard-driven
 
@@ -46,7 +49,7 @@ Ghostty + Zellij + Emacs + lf. GUI apps are tolerated, not celebrated. Every fre
 
 **Concrete consequences:**
 
-- `fuzzel` (keyboard launcher) is in base/, not a mouse-driven app menu
+- EWM's own app launcher (`s-d`) is the launcher — no separate keyboard-launcher package
 - Emacs is the editor (Helix retired 2026-08-07); other GUI editors are not installed
 
 ## 4. AI-augmented by default
@@ -60,11 +63,11 @@ pi coding agent is a first-class tool, not a bolt-on. Custom skills and extensio
 
 **Concrete consequences:**
 
-- `base/pi/.pi/agent/AGENTS.md` ships with the dotfiles
-- `install/07-pi.sh` is a dedicated step (not folded into `06-tools.sh`)
+- `ioshi/i-intelligence/pi/agent/AGENTS.md` ships with the dotfiles
+- `ioshi/i-intelligence/pi.nix` is a dedicated Home Manager module, not folded into a general packages list
 - See [Chapter 04 — Tools](04-tools.md#ai-tooling) for the concrete setup
 
-**This is the tenet most specific to this user.** A fork would either adopt a similar AI-augmented workflow or delete `base/pi/` and retire this tenet.
+**This is the tenet most specific to this user.** A fork would either adopt a similar AI-augmented workflow or delete `ioshi/i-intelligence/pi.nix` + `ioshi/i-intelligence/pi/` and retire this tenet.
 
 ## 5. Reversible and recoverable
 
@@ -95,8 +98,8 @@ Every piece is swappable. No lock-in to a tool that can't be ripped out in an af
 **Concrete consequences:**
 
 - The theme system ([Chapter 03](03-theming.md)) is directory-per-theme — remove a theme by deleting a directory
-- `bin/dot-*` helpers each do one thing; `dot-update` composes `apt full-upgrade` + `dot-restow --all` rather than baking them together
-- Kickstart.nvim is a separate repo, not a stow package — so you can ditch it without disturbing the dotfiles
+- `bin/dot-*` helpers each do one thing rather than baking several together
+- Neovim/kickstart was ripped out entirely (retired in favor of Emacs) without disturbing anything else — proof the modularity holds
 
 ## 7. Clear ownership — dotfiles vs datacore-config vs runtime state
 
@@ -129,7 +132,7 @@ Owns:
 
 Examples:
 
-- `~/.pi/agent` after bootstrap/stow
+- `~/.pi/agent` after Home Manager activation
 - System service state, Docker container state
 - Syncthing database/state
 - IB Gateway runtime files, Honcho runtime data on datacore

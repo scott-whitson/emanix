@@ -13,8 +13,8 @@ Two routing rules worth knowing:
   native Emacs buffer has focus, not from a Wayland surface (terminal). That is
   why the global assistant is on `s-i`, not a `C-c` prefix.
 
-> Hyprland (`ioshi/i-intelligence/hyprland.nix`) still exists as an optional /
-> legacy module for non-EWM use; its bindings are not documented here.
+> Hyprland is fully retired — `hyprland.nix`, `mako.nix` and `fuzzel.nix` were
+> deleted when EWM replaced it. There is no non-EWM desktop path anymore.
 
 ---
 
@@ -121,19 +121,26 @@ Theming is driven from Emacs (`dot-theme-set`, light/dark). See
 
 ## Ghostty
 
-Ghostty uses built-in defaults. No `keybind` overrides in `base/ghostty/.config/ghostty/config`. See [Ghostty docs](https://ghostty.org/docs/) for the stock set.
+Ghostty uses built-in defaults. No `keybind` overrides in the generated config
+(`ioshi/i-intelligence/ghostty.nix`, written to `~/.config/ghostty/config`). See
+[Ghostty docs](https://ghostty.org/docs/) for the stock set.
 
 ---
 
-## Neovim (kickstart)
+## Neovim (retired)
 
-Kickstart defaults plus any customization in `~/.config/nvim/lua/custom/`. Not documented here — that fork is a separate repo.
+Neovim/kickstart is gone — Emacs is the sole editor (see [Chapter 05 — Philosophy](05-philosophy.md#3-terminal-centric-keyboard-driven)).
+`base/nvim` was deleted along with the rest of `base/`.
 
 ---
 
 ## Zellij
 
-Defaults. No `~/.config/zellij/` config shipped in dotfiles. If you add one, document bindings here.
+A config **is** shipped, at `ioshi/i-intelligence/zellij/` (`config.kdl` +
+`layouts/`), deployed via `mkOutOfStoreSymlink`. It clears the stock keybinds
+(`clear-defaults=true`) and remaps pane/focus movement onto `h j k l` inside
+each mode rather than using Zellij's defaults — see `config.kdl` for the full
+map. Plugins `zellaude` and `zellij-forgot` are wired in under `plugins/`.
 
 ---
 

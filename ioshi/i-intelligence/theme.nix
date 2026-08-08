@@ -17,7 +17,7 @@
     ewm.enable = lib.mkOption {
       type = lib.types.bool;
       default = false;
-      description = "This machine's Emacs is the system-owned EWM build (ewm.nix). When false, the home layer installs the non-EWM pgtk Emacs and runs the daemon as a systemd user service (standalone.nix).";
+      description = "This machine's Emacs is the system-owned EWM build (ewm.nix). When false, the home layer installs the non-EWM pgtk Emacs and runs the daemon as a systemd user service (emacs-daemon.nix).";
     };
 
     dotfiles = {

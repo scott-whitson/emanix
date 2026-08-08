@@ -9,7 +9,7 @@ Two flavors of user-space tooling in this repo:
 
 ### window-picker
 
-A small Rust binary that renders a window picker overlay for Hyprland. Built by `install/06-tools.sh`. Binary path: `~/dotfiles/tools/window-picker/target/release/window-picker`.
+A small Rust binary that renders a window picker overlay by shelling out to `hyprctl`. Written for Hyprland; EWM replaced Hyprland as the compositor and this tool was never ported, so it is currently vestigial — kept here as source, not wired into any host. Binary path if built: `~/dotfiles/tools/window-picker/target/release/window-picker`.
 
 ### cheatsheet — mpv dependency
 
@@ -19,11 +19,11 @@ A small Rust binary that renders a window picker overlay for Hyprland. Built by 
 
 ### Emacs surfaces
 
-The weather (`$mod + n`), OpenRouter cost (`$mod + u`), and pi (`$mod + p`) popups are elisp commands in `modules/home-manager/emacs/lisp/` (`scott/weather-frame`, `scott/openrouter-cost-frame`, `scott/pi-frame`), invoked from Hyprland via `emacsclient -e` against the Emacs daemon. ERT tests live in `modules/home-manager/emacs/test/`.
+The weather (`$mod + n`), OpenRouter cost (`$mod + u`), and pi (`$mod + p`) popups are elisp commands in `ioshi/i-intelligence/emacs/lisp/` (`scott/weather-frame`, `scott/openrouter-cost-frame`, `scott/pi-frame`), invoked from EWM via `emacsclient -e` against the Emacs daemon. (The elisp itself still comments these as "Hyprland entry point" — a leftover from before EWM replaced it; the mechanism, `emacsclient -e`, didn't change.) ERT tests live in `ioshi/i-intelligence/emacs/test/`.
 
 ### fragpaper
 
-GPU shader wallpaper renderer for Wayland. `install/06-tools.sh` uses `~/projects/fragpaper` on datacore, but on runtime desktops it caches the checkout under `~/.local/share/fragpaper` instead of creating `~/projects`. It builds a release binary and installs it to `~/.local/opt/fragpaper/bin/fragpaper`. Fragpaper runs as a user systemd service (`fragpaper.service`) started automatically from Hyprland; on runtime-only hosts like zord it is just an installed product and does not need a project checkout unless you are actively debugging it. `fragpaper-launch` reads shaders from the best available checkout (`~/.local/share/fragpaper` on runtime desktops, `~/projects/fragpaper` on datacore/dev machines) and falls back to `cargo run --release` if the installed binary is missing.
+GPU shader wallpaper renderer for Wayland. `~/projects/fragpaper` is canonical on datacore; on runtime desktops the checkout is cached under `~/.local/share/fragpaper` instead of creating `~/projects`. It builds a release binary and installs it to `~/.local/opt/fragpaper/bin/fragpaper`. Fragpaper runs as a user systemd service (`fragpaper.service`, ported into `ioshi/i-intelligence/fragpaper.nix` during the stow retirement); on runtime-only hosts like `rafik` it is just an installed product and does not need a project checkout unless you are actively debugging it. `fragpaper-launch` reads shaders from the best available checkout (`~/.local/share/fragpaper` on runtime desktops, `~/projects/fragpaper` on datacore/dev machines) and falls back to `cargo run --release` if the installed binary is missing.
 
 Runtime launcher:
 
@@ -72,14 +72,13 @@ Also in `bin/`, on PATH the same way. They are NOT stowed — they live in the r
 
 | Helper | Purpose |
 |---|---|
-| `dot-bootstrap` | Datacore-first sync + full `./install.sh` bootstrap |
+| `dot-bootstrap` | Pull latest dotfiles, then run the install path for the current profile |
 | `dot-context` | Print host, repo path, branch, and key symlink state for quick troubleshooting |
-| `dot-restow <pkg\|--all>` | Re-stow one package or all packages from `base/` |
 | `dot-theme-set <name>` | Apply a theme (see [Chapter 03](03-theming.md)) |
 | `dot-theme-toggle` | Flip between last-dark and last-light (Chapter 03) |
-| `dot-update` | `apt update && apt full-upgrade -y && dot-restow --all` — weekly housekeeping |
-| `dot-repair <script\|--all>` | Rerun one or more `install/*.sh` scripts without re-cloning repo |
-| `dot-doctor` | 17-check health scan: stow links, services, fonts, PATH, pi, active theme |
+| `dot-update` | **Stale — flag for cleanup.** Its script still reads `apt update && apt full-upgrade -y` then calls `bin/dot-sync`, both Debian/stow-era; `dot-sync` no longer exists in `bin/`, so this command currently fails on every NixOS host. |
+| `dot-repair <script\|--all>` | Rerun one or more install scripts without re-cloning the repo |
+| `dot-doctor` | 21-check health scan: PATH, services, fonts, pi, active theme, Nix/Emacs/org-roam state |
 
 Fresh clone note: use `./bootstrap.sh` and `./repair.sh` from repo root before shell dotfiles load `$DOTFILES/bin` onto PATH.
 
@@ -99,11 +98,16 @@ The [pi coding agent](https://github.com/earendil-works/pi-coding-agent) is a fi
 
 ### What ships in dotfiles
 
-| Item | Stow source | Runtime target |
+| Item | Repo source | Runtime target |
 |---|---|---|
-| Agent config | `base/pi/.pi/agent/AGENTS.md` | `~/.pi/agent/AGENTS.md` |
-| Custom extensions | `base/pi/.pi/agent/extensions/` | `~/.pi/agent/extensions/` |
-| Skills | `base/pi/.pi/agent/skills/` | `~/.pi/agent/skills/` |
+| Agent config | `ioshi/i-intelligence/pi/agent/AGENTS.md` | `~/.pi/agent/AGENTS.md` (Home Manager `home.file`, via `ioshi/i-intelligence/pi.nix`) |
+| Custom extensions | `ioshi/i-intelligence/pi/agent/extensions/` | `~/.pi/agent/extensions/` |
+| Skills | `ioshi/i-intelligence/pi/agent/skills/` | `~/.pi/agent/skills/` |
+
+`~/.pi/agent` is otherwise a Syncthing-synced folder between machines — only
+`AGENTS.md` and `auth.json` (an agenix secret, symlinked out-of-store) are
+Home-Manager-managed; `settings.json` is seeded once then left to pi's own
+runtime writes.
 
 Shipped skills:
 
@@ -111,10 +115,10 @@ Shipped skills:
 
 ### Commit discipline
 
-- Changes to `base/pi/` → commit in this dotfiles repo.
-- Skills live in both `~/.pi/agent/skills/` and `base/pi/.pi/agent/skills/` — sync changes to `base/pi/` and commit.
+- Changes to `ioshi/i-intelligence/pi/` → commit in this dotfiles repo.
+- Skills live in both `~/.pi/agent/skills/` and `ioshi/i-intelligence/pi/agent/skills/` — sync changes to the repo copy and commit.
 - Engram memory is external — no `.mv2` files in the repo.
 
 ### Forking
 
-The `base/pi/` package and the AI-augmented workflow are the most user-specific piece of this system. A forker will either adopt a similar setup or delete the package (see [Chapter 06 — Roll Your Own](06-roll-your-own.md)).
+The `ioshi/i-intelligence/pi.nix` module (and `ioshi/i-intelligence/pi/`) and the AI-augmented workflow are the most user-specific piece of this system. A forker will either adopt a similar setup or delete them (see [Chapter 06 — Roll Your Own](06-roll-your-own.md)).
