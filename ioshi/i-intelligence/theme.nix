@@ -32,11 +32,6 @@
         default = "${config.home.homeDirectory}/projects/dotfiles";
         description = "Path to the dotfiles repo";
       };
-      enableSync = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-        description = "Enable dot-sync timer";
-      };
       profile = lib.mkOption {
         type = lib.types.str;
         default = "desktop";

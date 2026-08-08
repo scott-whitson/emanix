@@ -27,7 +27,6 @@
   # Dotfiles config
   scott.dotfiles = {
     path = "${config.home.homeDirectory}/dotfiles";
-    enableSync = false;
     profile = lib.mkDefault "desktop";
   };
 

@@ -26,7 +26,6 @@ echo "== dot-doctor =="
 
 check "DOTFILES env var set"          "[[ -n \"\$DOTFILES\" ]]"
 check "\$DOTFILES/bin on PATH"         "[[ \":\$PATH:\" == *\":\$DOTFILES/bin:\"* ]]"
-check "stow installed"                 "command -v stow"
 check "apt installed"                  "command -v apt"
 check "zsh is default shell"           "[[ \"\$SHELL\" == \"\$(command -v zsh)\" ]]"
 check "~/.gitconfig.local symlink ok" "[[ -L \"\$HOME/.gitconfig.local\" ]] && [[ -e \"\$HOME/.gitconfig.local\" ]]"

@@ -107,12 +107,6 @@
     # this package) is the only thing in nixpkgs checked that has them.
     # Picked up by fontconfig fallback; set-fontset-font is inert here.
     noto-fonts
-
-    # dot-restow / dot-sync dependency — every node stows base/. Was never
-    # declared in nix: pre-migration boxes had a distro package, and the
-    # symlinks it made survived the move, hiding the gap until dot-sync's
-    # restow step started failing on whistle (found 2026-08-05).
-    stow
   ]
   # ghostty for non-gui hosts that opt in (whistle/WSLg). gui hosts already
   # get it from the gui block above — appended HERE so their list is
