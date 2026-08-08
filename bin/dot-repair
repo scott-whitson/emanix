@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # bin/dot-repair — rerun one or more install scripts without re-cloning repo
 #
+# BROKEN/SUPERSEDED (eminix convergence, 2026-08-07): this script runs
+# scripts out of install/, which no longer exists — the numbered Debian/
+# stow install orchestrator was retired. To re-apply config on an existing
+# host, run `nixos-rebuild switch --flake .#<host>`; for a fresh install see
+# installer/fresh-eminix-install and installer/eminix-firstboot. Left in
+# place, unmodified below, for history.
+#
 # Usage:
 #   dot-repair --all
 #   dot-repair --profile wsl --all

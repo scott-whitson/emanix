@@ -15,7 +15,7 @@ Files live on disk first. Cloud is a backup destination, never the source of tru
 **Concrete consequences:**
 
 - `~/gdrive` is a mounted partition with rclone bisync every 15 minutes, not a streamed-on-demand mount
-- `dr_backup.sh` treats the backup as a point-in-time copy, not a live sync
+- `systemd.services.backrest` on datacore (`hosts/datacore/configuration.nix`) runs restic scheduled backups to B2, a point-in-time copy, not a live sync
 
 ## 2. NixOS + EWM, no apologies
 
@@ -71,7 +71,7 @@ pi coding agent is a first-class tool, not a bolt-on. Custom skills and extensio
 
 ## 5. Reversible and recoverable
 
-Fresh Debian reinstall path is enough: join Headscale, clone dotfiles from datacore, run `./bootstrap.sh`, and verify with `dot-doctor`. No snowflake state that only lives on one laptop.
+Fresh install path is enough: install NixOS, clone the flake, run `nixos-rebuild switch --flake .#<host>`, and verify with `dot-doctor`. No snowflake state that only lives on one laptop.
 
 **What this eliminates:**
 
@@ -81,9 +81,10 @@ Fresh Debian reinstall path is enough: join Headscale, clone dotfiles from datac
 
 **Concrete consequences:**
 
-- `./install.sh` is idempotent — run it after any manual tweak to re-base
-- `dot-doctor` exists to catch drift (17 checks, Debian port verified 2026-06-01)
-- `dr_backup.sh` runs on a systemd timer
+- `nixos-rebuild switch --flake .#<host>` is idempotent — run it after any manual tweak to re-base
+- `dot-doctor` exists to catch drift (21 checks)
+- `installer/fresh-eminix-install` (run from the NixOS live ISO) and `installer/eminix-firstboot` (one-time post-install setup: tailnet join, Syncthing pairing, dotfiles clone) cover the recovery path end to end
+- `systemd.services.backrest` on datacore runs on its own systemd unit, independent of the laptop
 
 ## 6. Modular like Framework
 
@@ -116,17 +117,17 @@ Owns:
 
 Rule of thumb: if you'd want the same file on laptop and datacore, it belongs in dotfiles.
 
-**Layer 2: `~/projects/datacore-config`** — Datacore-only machine overlay and bootstrap orchestration. Put things here if they depend on the host, the Debian install, the network layout, local services, or recovery workflow.
+**Layer 2: `~/projects/datacore-config`** — Datacore-only application overlay. NixOS (`hosts/datacore/configuration.nix` + the `ioshi/` modules) now owns the substrate — disko/partitioning, sshd, tailscale, native syncthing, and the backrest service are declared there, not in this layer. `datacore-config` owns what sits above the substrate: the Docker Compose app stacks and their host-specific values.
 
 Owns:
 
-- Debian reinstall/bootstrap steps
-- System packages for datacore
-- Systemd units, `fstab`, mount setup, `srv/data` layout
-- Docker stack deployment and runtime state
-- Host-specific environment values
-- Migration/runbook docs
+- Docker Compose stack definitions and deployment for the ~22 app containers
+- `srv/data` layout for those stacks
+- Host-specific environment/config values the compose stacks need
+- Migration/runbook docs for the app layer
 - Validation that dotfiles landed correctly on this host
+
+Where the exact boundary is unclear for a given file (e.g. a script that touches both a systemd unit and a compose stack), default to: if `nixos-rebuild switch` produces or manages it, it belongs in the flake, not here.
 
 **Layer 3: Runtime state** — Generated output, not source. Produced by bootstrap or sync steps, not hand-maintained.
 
@@ -137,21 +138,20 @@ Examples:
 - Syncthing database/state
 - IB Gateway runtime files, Honcho runtime data on datacore
 
-**Recovery order for a fresh Debian install:**
+**Recovery order for a fresh datacore install:**
 
-1. Install Debian and basic networking.
-2. Restore host identity and SSH access.
-3. Bring up storage and system services from `datacore-config`.
-4. Clone or sync `~/projects/dotfiles`.
-5. Run the dotfiles bootstrap.
-6. Verify Pi runtime assets are present under `~/.pi/agent`.
-7. Verify Pi starts cleanly and theme/skill validation passes.
-8. Bring up datacore services and sync clients.
+1. Install NixOS, join the tailnet, restore host identity and SSH access.
+2. Clone the flake and run `nixos-rebuild switch --flake .#datacore` — this brings up disko-managed storage, sshd, tailscale, syncthing, and backrest, and pulls in dotfiles (Layer 1) via Home Manager.
+3. Clone or sync `~/projects/datacore-config`.
+4. Bring up the Docker Compose app stacks from `datacore-config`.
+5. Verify Pi runtime assets are present under `~/.pi/agent`.
+6. Verify Pi starts cleanly and theme/skill validation passes.
+7. Verify the app stacks and sync clients are healthy.
 
 **Short version:**
 
 - Author portable config in **dotfiles**.
-- Author datacore-specific bootstrap in **datacore-config**.
+- Author datacore's app-stack config in **datacore-config**.
 - Treat `~/.pi/agent` and other live service state as **generated output**.
 
 ## What this document is *not*

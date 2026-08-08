@@ -110,7 +110,7 @@ themes) is memorable enough to be worth recognising if it ever recurs.
 
 ## Fragpaper integration
 
-Fragpaper is a GPU shader wallpaper generator (not a static image). Each theme provides `BG_COLOR` and `PALETTE` (`dark` or `light`) via `fragpaper.conf`. `fragpaper.service` starts automatically in Hyprland and `fragpaper-launch` reads the active theme and passes it to the installed fragpaper binary, reading shader files from the best available checkout (`~/.local/share/fragpaper` on runtime desktops, `~/projects/fragpaper` on datacore/dev machines). The EWM top bar is updated from the running Emacs daemon, not through a separate status-bar CSS file.
+Fragpaper is a GPU shader wallpaper generator (not a static image). Each theme provides `BG_COLOR` and `PALETTE` (`dark` or `light`) via `fragpaper.conf`. `fragpaper.service` is a Home Manager systemd user service defined in `ioshi/i-intelligence/fragpaper.nix`, gated on `scott.gui` and wanted by `graphical-session.target` — it starts automatically on any GUI host, no Hyprland involved. `fragpaper-launch` reads the active theme and passes it to the installed fragpaper binary, reading shader files from the best available checkout (`~/.local/share/fragpaper` on runtime desktops, `~/projects/fragpaper` on datacore/dev machines). The EWM top bar is updated from the running Emacs daemon, not through a separate status-bar CSS file.
 
 If fragpaper isn't installed, theme switching still works — fragpaper relaunch is `|| true` guarded and the rest of the system doesn't care.
 
