@@ -70,6 +70,13 @@
           extraSpecialArgs = sharedSpecialArgs;
           useGlobalPkgs = true;
           useUserPackages = true;
+          # Activation aborts rather than overwrite a file HM does not own. That
+          # is the right default, but it means any pre-existing real file blocks
+          # the whole switch (hit 2026-08-08 on rafik: programs.firefox wanted
+          # ~/.mozilla/firefox/profiles.ini, which Firefox had already written).
+          # With this set, HM renames the intruder to <file>.hm-bak and proceeds,
+          # so a switch degrades to "one file moved" instead of "nothing applied".
+          backupFileExtension = "hm-bak";
           users.scott = {
             imports = [
               ./home/scott/default.nix

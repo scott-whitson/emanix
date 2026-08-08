@@ -18,6 +18,11 @@ in
     programs.firefox = {
       enable = true;
 
+      # Pinned to the legacy path rather than left to the stateVersion-dependent
+      # default, which warns on every eval. The live profile already lives at
+      # ~/.mozilla/firefox/default — moving to the XDG path would strand it.
+      configPath = ".mozilla/firefox";
+
       profiles.default = {
         id = 0;
         isDefault = true;
@@ -41,6 +46,11 @@ in
         };
       };
     };
+
+    # Opt in per port rather than globally. Stated explicitly because the
+    # catppuccin module warns on every eval that autoEnable is about to become
+    # the default — this pins current behaviour: firefox only, nothing implicit.
+    catppuccin.autoEnable = false;
 
     catppuccin.firefox = {
       enable = true;
