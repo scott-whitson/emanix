@@ -1,10 +1,9 @@
 # Chapter 04 — Tools
 
-Three flavors of user-space tooling in this repo:
+Two flavors of user-space tooling in this repo:
 
 1. **`tools/`** — subdirectory-per-tool: Rust binary, Python projects, shell scripts.
-2. **`base/bin/`** — small wrapper scripts that live on `$HOME/.local/bin` via stow.
-3. **`bin/dot-*`** — re-runnable dotfiles helpers on `$DOTFILES/bin` via zshrc.d.
+2. **`bin/`** — both the user-facing wrapper scripts (`firefox`, `fragpaper-*`, `news`, `obsidian`, `pi`, `trackpad-toggle`, `window-picker`) and the re-runnable `dot-*` dotfiles helpers, all on PATH via `ioshi/i-intelligence/zsh.nix` (`export PATH="$DOTFILES/bin:$PATH"`). Nothing here is stowed — they live in the repo and ride along with the checkout.
 
 ## tools/
 
@@ -14,11 +13,7 @@ A small Rust binary that renders a window picker overlay for Hyprland. Built by 
 
 ### cheatsheet — mpv dependency
 
-`hypr-cheatsheet` renders to an `mpv` window (forced float, mpv title `hypr-cheatsheet`). install/05-desktop.sh includes `mpv` as a desktop package. If you swap mpv for another viewer, update:
-
-- `base/bin/.local/bin/hypr-cheatsheet`
-- `base/hypr/.config/hypr/hyprland.conf` `windowrule` entries
-- `install/05-desktop.sh`
+`hypr-cheatsheet` was removed along with the other Hyprland-era `hypr-*` wrappers (EWM replaced Hyprland; they shelled out to `hyprctl`). This subsection is stale and pending removal/replacement by whatever EWM cheatsheet mechanism succeeds it.
 
 (Weather imagery used to render through mpv too; it now renders natively inside Emacs — see "Emacs surfaces" below.)
 
@@ -33,7 +28,7 @@ GPU shader wallpaper renderer for Wayland. `install/06-tools.sh` uses `~/project
 Runtime launcher:
 
 ```bash
-~/.local/bin/fragpaper-launch
+fragpaper-launch   # bin/fragpaper-launch, on PATH via $DOTFILES/bin
 ```
 
 Override env if needed:
@@ -55,26 +50,25 @@ Useful paths:
 - Synced docs folder: `~/docs`
 - Obsidian vault: `~/docs/vault`
 
-## base/bin/ — stowed wrappers
+## bin/ — user-facing wrappers
 
-Every file in `base/bin/.local/bin/` is symlinked to `~/.local/bin/<name>` by `install/08-stow-base.sh`. (Populate this table from the Step 1 inspection. Expected contents as of now — double-check against actual):
+`base/bin/.local/bin/` (the stow-deployed wrapper directory) was retired; these scripts now live directly in `bin/` and reach PATH via `ioshi/i-intelligence/zsh.nix`'s `export PATH="$DOTFILES/bin:$PATH"` — no stow, no symlink into `~/.local/bin`. The five Hyprland-era `hypr-*` wrappers (`hypr-brightness`, `hypr-calc`, `hypr-cheatsheet`, `hypr-rename-workspace`, `hypr-wifi`) were deleted outright: they shelled out to `hyprctl`, which EWM replaced.
 
 | Wrapper | Purpose |
 |---|---|
 | `fragpaper-launch` | Launches fragpaper with the active theme's BG_COLOR + PALETTE |
-| `hypr-brightness` | Adjusts laptop brightness with brightnessctl/light/sysfs fallbacks; bound to F2/F3 and XF86 brightness keys |
-| `hypr-calc` | Quick calculator popup (bound to `$mod + c`) |
-| `hypr-cheatsheet` | Fuzzel viewer for Hyprland keybindings; sources from `~/docs/vault/Whitsgrove/Hyprland Cheatsheet.md` (bound to `$mod + Shift + /`) |
-| `hypr-rename-workspace` | Fuzzel prompt → `hyprctl dispatch renameworkspace <id> "<id> <label>"` (bound to `$mod + r`) |
-| `hypr-wifi` | WiFi connection helper in Ghostty (bound to `$mod + i`) |
+| `fragpaper-ctl` | fragpaper control helper |
+| `fragpaper-playlist` | fragpaper playlist helper |
 | `firefox` | Wrapper that prefers installed Firefox, then Firefox ESR, then Flatpak Firefox |
 | `obsidian` | Wrapper that prefers installed Obsidian, then `/opt/Obsidian`, then Flatpak Obsidian |
+| `news` | News helper |
+| `pi` | Pi coding agent launcher |
 | `trackpad-toggle` | Toggle trackpad on/off |
 | `window-picker` | Calls the Rust binary at `tools/window-picker/target/release/` |
 
 ## bin/dot-* — repo-level helpers
 
-These live at `$DOTFILES/bin/` and are on PATH via `base/zsh/.zshrc.d/dotfiles.zsh` (which prepends `$DOTFILES/bin`). They are NOT stowed — they live in the repo and ride along with your clone.
+Also in `bin/`, on PATH the same way. They are NOT stowed — they live in the repo and ride along with your clone.
 
 | Helper | Purpose |
 |---|---|
@@ -91,14 +85,13 @@ Fresh clone note: use `./bootstrap.sh` and `./repair.sh` from repo root before s
 
 ## Adding a new tool
 
-- **Small shell script:** drop it in `base/bin/.local/bin/<name>`, `chmod +x`, commit. It'll land in `~/.local/bin/` on next stow.
-- **Dotfiles-specific re-runnable helper:** add it to `bin/`, `chmod +x`, commit. No stow needed — it's on PATH via `$DOTFILES/bin`.
+- **User-facing wrapper script:** drop it in `bin/`, `chmod +x`, commit. No stow, no HM module needed — it's on PATH via `$DOTFILES/bin`.
+- **Dotfiles-specific re-runnable helper:** same — add it to `bin/`, `chmod +x`, commit.
 
-## Why three flavors
+## Why two flavors
 
 - `tools/` is for things substantial enough to have their own build system (Cargo projects, Python projects with external deps). These could in principle be separate projects; keeping them here means one-clone recovery.
-- `base/bin/` is for small user-facing wrappers that should be on `~/.local/bin/` like any other user script. These are what you type at the shell.
-- `bin/dot-*` is for helpers that operate on the dotfiles system itself (stow, update, health). They live in the repo because they only make sense with the repo checked out.
+- `bin/` covers both small user-facing wrappers (what you type at the shell) and helpers that operate on the dotfiles system itself (stow, update, health). They live in the repo because they only make sense with the repo checked out.
 
 ## AI Tooling
 

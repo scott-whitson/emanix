@@ -104,7 +104,7 @@ Work when a native Emacs buffer is focused.
 | `C-x g` | `magit-status` |
 | `C-c n f` / `n i` / `n c` | org-roam find / insert / capture |
 | `C-c a` | org-agenda |
-| `C-c p` | Pi: open Pi in Ghostty (`~/.local/bin/pi` fallback if PATH is missing it) |
+| `C-c p` | Pi: open Pi in Ghostty (`$DOTFILES/bin/pi` fallback if PATH is missing it) |
 | `C-c C-c` | Confirm / finish (Org, Pi, etc.) |
 
 Fuller personal reference is in the vault notes *Emacs Shortcuts*, *Emacs Command

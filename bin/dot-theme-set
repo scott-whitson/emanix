@@ -138,7 +138,7 @@ if systemctl --user --quiet is-enabled fragpaper.service 2>/dev/null || systemct
     systemctl --user restart fragpaper.service 2>/dev/null || systemctl --user start fragpaper.service 2>/dev/null || true
 else
     # fragpaper-launch reads active-theme + fragpaper.conf now (Task 5)
-    setsid -f bash -c '~/.local/bin/fragpaper-launch > /tmp/fragpaper-debug.log 2>&1' &>/dev/null || true
+    setsid -f bash -c "'$DOTFILES/bin/fragpaper-launch' > /tmp/fragpaper-debug.log 2>&1" &>/dev/null || true
 fi
 
 # --- Run theme-specific post-set hook if present ---

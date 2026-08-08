@@ -47,8 +47,7 @@ printf '\n'
 
 printf 'symlinks:\n'
 for path in \
-    "$HOME/.local/bin/hypr-brightness" \
-    "$HOME/.local/bin/fragpaper-launch" \
+    "${DOTFILES_DIR:-$DOTFILES}/bin/fragpaper-launch" \
     "$HOME/.config/hypr/hyprland.conf" \
     "$HOME/.config/hypr/theme.conf"; do
     if [[ -L "$path" ]]; then
