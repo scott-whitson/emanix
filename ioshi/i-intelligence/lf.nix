@@ -15,6 +15,11 @@
       cleaner = "~/.config/lf/cleaner.sh";
     };
     extraConfig = ''
+      # base/lf/.config/lf/lfrc — carried over verbatim, this is the only
+      # thing the stow twin actually configured.
+      cmd yank-path $printf '%s' "$f" | wl-copy
+      map y yank-path
+
       # Keybindings
       map <enter> open
       map <space> toggle
@@ -23,7 +28,7 @@
       map / search
 
       # File associations
-      cmd open ${{
+      cmd open ''${{
         case $(file --mime-type $f -b) in
           text/*) $EDITOR $fx;;
           image/*) imv $fx;;
