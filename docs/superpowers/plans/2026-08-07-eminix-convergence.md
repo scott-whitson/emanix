@@ -259,7 +259,12 @@ done | tee /tmp/phaseB-before.txt
   # A headless eminix box.
   imports = [
     ../../ioshi/os-system/server.nix
-    ../../ioshi/hi-hardware/net/syncthing.nix
+    # Deliberately NOT net/syncthing.nix: that module is the workstation-side
+    # peer config (declares datacore as a remote device, overrideDevices /
+    # overrideFolders = true). A server-role host that IS the fleet's
+    # syncthing hub (datacore) would import it and declare itself its own
+    # peer, forcing its real config to a bogus self-referential set on
+    # activation. Hub hosts declare services.syncthing directly instead.
   ];
 
   home-manager.users.scott = {
@@ -269,6 +274,13 @@ done | tee /tmp/phaseB-before.txt
   };
 }
 ```
+
+**As-built correction (Task 4 adjudication, 2026-08-07):** the block above
+originally included `../../ioshi/hi-hardware/net/syncthing.nix`. That was
+found to be a real bug, not a stylistic choice — see the design doc's
+"As-built correction" note. The role never gets that import; `datacore`
+declares `services.syncthing` (including explicit `overrideDevices =
+false; overrideFolders = false;`) directly in its own `configuration.nix`.
 
 - [ ] **Step 5: Create `profiles/roles/wsl.nix`**
 

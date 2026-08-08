@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # bin/dot-bootstrap — pull latest dotfiles and run install
 #
+# BROKEN/SUPERSEDED (eminix convergence, 2026-08-07): this script execs
+# ./install.sh below, which no longer exists — the Debian/stow install
+# orchestrator was retired. For a fresh install use
+# installer/fresh-eminix-install (run from the NixOS live ISO) followed by
+# installer/eminix-firstboot; for an existing host just
+# `nixos-rebuild switch --flake .#<host>`. Left in place, unmodified below,
+# so a git-blame/history reader can see exactly what it used to do.
+#
 # Usage:
 #   dot-bootstrap [--profile <name>] [--no-sync]
 set -euo pipefail

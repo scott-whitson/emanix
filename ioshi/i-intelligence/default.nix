@@ -9,21 +9,17 @@
     ./packages.nix
     ./swaylock.nix
     ./xdg.nix
-    ./standalone.nix
+    ./emacs-daemon.nix
     ./syncthing.nix
-
-    # Optional — enable as needed per machine
-    # ./hyprland.nix
-    # ./mako.nix
-    # ./fuzzel.nix
-    # ./btop.nix
-    # ./lf.nix
-    # ./mpv.nix
-    ./systemd.nix
+    ./btop.nix
+    ./lf.nix
+    ./mpv.nix
+    ./yt-dlp.nix
+    ./fragpaper.nix
+    ./wireplumber.nix
     ./pi.nix
-    # ./claude.nix
-    # ./yt-dlp.nix
     ./zellij.nix
+    ./claude.nix
   ];
 
   # Give `home-manager` a CLI after the first bootstrap switch.

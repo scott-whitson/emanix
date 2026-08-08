@@ -1,3 +1,0 @@
-# Copy full path to Wayland clipboard
-cmd yank-path $printf '%s' "$f" | wl-copy
-map y yank-path

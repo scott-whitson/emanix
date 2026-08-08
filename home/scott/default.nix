@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 {
-  # Shared Home Manager config — used by both zord-old (HP) and zord (T14).
+  # Shared Home Manager config for every eminix instance.
   # Imported from the NixOS host configs via home-manager.users.scott.
 
   imports = [
@@ -27,7 +27,6 @@
   # Dotfiles config
   scott.dotfiles = {
     path = "${config.home.homeDirectory}/dotfiles";
-    enableSync = false;
     profile = lib.mkDefault "desktop";
   };
 

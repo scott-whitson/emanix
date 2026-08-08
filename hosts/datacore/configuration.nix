@@ -1,24 +1,22 @@
-{ config, lib, pkgs, ... }:
+{ config, pkgs, ... }:
 
 {
   # Datacore — headless home server: Immich + media stacks (docker compose,
   # ~/projects/datacore-config), syncthing fleet hub, git mirror, backrest→B2.
   # NixOS owns the substrate only; app workloads are compose stacks unchanged
   # from the Debian box. Spec: docs/superpowers/specs/2026-08-05-datacore-nixos-design.md
-  networking.hostName = "datacore";
 
-  imports = [
-    ../../ioshi/os-system/server.nix
-    ../../ioshi/hi-hardware/net/tailscale.nix
-  ];
+  # networking.hostName: mkHost already supplies "datacore" via mkDefault
+  # (flake.nix hostName param) — dropped the plain assignment here to match.
 
-  programs.zsh.enable = true;
+  # os-system/server.nix (via profiles/roles/server.nix) and
+  # hi-hardware/net/tailscale.nix (via profiles/eminix.nix): now supplied by
+  # the role/core, same as the base.nix/zsh/users note below.
 
-  users.users.scott = {
-    isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "docker" ];
-    shell = pkgs.zsh;
-  };
+  # programs.zsh.enable / users.users.scott: now supplied by the eminix core
+  # (ioshi/os-system/base.nix, via profiles/eminix.nix). Declaring them here
+  # too duplicated users.users.scott.shell, a non-mergeable option, and broke
+  # the build once datacore moved onto mkHost.
 
   services.openssh.enable = true;
 
@@ -35,8 +33,18 @@
     configDir = "/home/scott/.local/state/syncthing";
     openDefaultPorts = true;
     guiAddress = "0.0.0.0:8384";
+
+    # datacore is the fleet's syncthing HUB: its devices and folders are
+    # managed by hand via the REST API / GUI, not declaratively. Nix must
+    # never override them. These are plain assignments, not mkForce — after
+    # roles/server.nix stopped importing net/syncthing.nix (which set both
+    # true), nothing else defines them, and the nixpkgs DEFAULT is true.
+    # Leaving them defaulted is inert only while settings.devices/folders are
+    # empty; the day one is added, syncthing-init would wipe the real config.
+    overrideDevices = false;
+    overrideFolders = false;
   };
-  # GUI/REST reachable over the tailnet only — eminix administers the hub
+  # GUI/REST reachable over the tailnet only — rafik administers the hub
   # via datacore:8384 (see ioshi/hi-hardware/net/syncthing.nix comment).
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 8384 ];
 
@@ -62,20 +70,10 @@
     };
   };
 
-  time.timeZone = "America/New_York";
-  i18n.defaultLocale = "en_US.UTF-8";
-  console.keyMap = "us";
+  # time.timeZone / i18n.defaultLocale / console.keyMap / nix.settings /
+  # nix.gc: also now supplied by the core's base.nix (identical values) —
+  # removed here for the same reason as above.
 
-  nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-    auto-optimise-store = true;
-  };
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 30d";
-  };
-
-  # First-install release (matches whistle/eminix era) — never bump.
+  # First-install release (matches whistle/rafik era) — never bump.
   system.stateVersion = "26.11";
 }

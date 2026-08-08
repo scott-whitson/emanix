@@ -45,8 +45,14 @@
     # Media (CLI)
     ffmpeg
     imagemagick
-  ] ++ lib.optional config.scott.gui mpv # Media (GUI)
-  ++ [
+
+    # Media (GUI): NOT listed here. mpv.nix's `programs.mpv.enable`, gated on
+    # the same config.scott.gui, already supplies it — nixpkgs's top-level
+    # `pkgs.mpv` is itself a wrapper with pname "mpv-with-scripts" (even with
+    # an empty scripts list), so adding it here too collided with mpv.nix's
+    # wrapped derivation in this same buildEnv (two different
+    # "mpv-with-scripts" outputs, both providing bin/mpv).
+  ] ++ [
     # Network
     curl
     wget
@@ -101,12 +107,6 @@
     # this package) is the only thing in nixpkgs checked that has them.
     # Picked up by fontconfig fallback; set-fontset-font is inert here.
     noto-fonts
-
-    # dot-restow / dot-sync dependency — every node stows base/. Was never
-    # declared in nix: pre-migration boxes had a distro package, and the
-    # symlinks it made survived the move, hiding the gap until dot-sync's
-    # restow step started failing on whistle (found 2026-08-05).
-    stow
   ]
   # ghostty for non-gui hosts that opt in (whistle/WSLg). gui hosts already
   # get it from the gui block above — appended HERE so their list is

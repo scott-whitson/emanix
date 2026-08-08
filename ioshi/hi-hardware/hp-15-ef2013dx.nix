@@ -1,18 +1,15 @@
 { config, lib, pkgs, ... }:
 
 {
-  # HP 15-ef2013dx hardware configuration.
+  # HP 15-ef2013dx hardware configuration — datacore's box.
   # Ryzen 5 5500U, AMD Radeon Graphics, 32 GB, 1 TB NVMe.
   #
-  # LUKS + btrfs layout:
-  #   nvme0n1p1  → /boot       (unencrypted vfat)
-  #   nvme0n1p2  → cryptroot   (LUKS → btrfs with subvolumes)
-  #   nvme0n1p3  → cryptswap   (LUKS → swap)
+  # Unencrypted, GPT partlabels (see ioshi/hi-hardware/disko/datacore.nix):
+  #   disk-main-boot  → /boot (vfat)
+  #   disk-main-root  → /, /nix, /home (shared partition)
+  #   disk-main-swap  → swap
   #
-  # Subvolumes inside cryptroot:
-  #   @      → /                (compress=zstd)
-  #   @nix   → /nix             (compress=zstd, noatime)
-  #   @home  → /home            (compress=zstd)
+  # No LUKS — this machine has no disk encryption.
 
   # Kernel
   boot.kernelParams = [ "quiet" ];
@@ -36,36 +33,41 @@
   powerManagement.enable = true;
   services.power-profiles-daemon.enable = true;
 
-  # LUKS — single passphrase for root, one for swap
-  boot.initrd.luks.devices = {
-    "cryptroot" = { device = "/dev/nvme0n1p2"; };
-    "cryptswap" = { device = "/dev/nvme0n1p3"; };
-  };
+  # No LUKS on this machine.
+  boot.initrd.luks.devices = { };
 
-  # File systems — btrfs subvolumes on LUKS
+  # File systems — btrfs subvolumes on the root partition, by GPT partlabel.
+  # NOTE: disko/datacore.nix also declares device/fsType/options for these
+  # same mountpoints. options is list-typed, so the two concatenate instead
+  # of overriding — evaluated "/" options duplicate subvol=@ and
+  # compress=zstd. Inert (dup mount options are idempotent); predates the
+  # mkForce removal, which discarded rather than merged and masked it.
+  # Hazard: an edit on one side won't override the other, it appends — they
+  # can silently diverge. Dedup is deliberate future work: it'd change the
+  # fstab and move the closure.
   fileSystems."/" = {
-    device = "/dev/mapper/cryptroot";
+    device = "/dev/disk/by-partlabel/disk-main-root";
     fsType = "btrfs";
     options = [ "subvol=@" "compress=zstd" ];
   };
 
   fileSystems."/nix" = {
-    device = "/dev/mapper/cryptroot";
+    device = "/dev/disk/by-partlabel/disk-main-root";
     fsType = "btrfs";
     options = [ "subvol=@nix" "compress=zstd" "noatime" ];
   };
 
   fileSystems."/home" = {
-    device = "/dev/mapper/cryptroot";
+    device = "/dev/disk/by-partlabel/disk-main-root";
     fsType = "btrfs";
     options = [ "subvol=@home" "compress=zstd" ];
   };
 
   fileSystems."/boot" = {
-    device = "/dev/nvme0n1p1";
+    device = "/dev/disk/by-partlabel/disk-main-boot";
     fsType = "vfat";
   };
 
-  # Swap on its own LUKS volume
-  swapDevices = [{ device = "/dev/mapper/cryptswap"; }];
+  # Swap — disko/datacore.nix's swap partition already contributes the
+  # single swapDevices entry; no need to redeclare it here.
 }

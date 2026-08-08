@@ -94,7 +94,7 @@ docker info --format '{{json .DefaultRuntime}}' >/dev/null && echo docker-ok
 ## Rebuild
 
 whistle rebuilds from its own local clone — it is the dotfiles writer once
-the handoff below completes. No 3-hop (unlike datacore/eminix).
+the handoff below completes. No 3-hop (unlike datacore/rafik).
 
 ```bash
 sudo nixos-rebuild switch --flake ~/dotfiles#whistle
@@ -123,7 +123,7 @@ In `secrets/secrets.nix`, add above the `scott` line (key text from Step 1):
 The live entry's comment reads `root@weasel` — the key was generated before
 the 2026-08-04 rename and was deliberately **not** regenerated, so the stale
 comment is correct and must not be "fixed".
-and extend: `"openrouter-auth.age".publicKeys = [ eminix zordold whistle scott ];`
+and extend: `"openrouter-auth.age".publicKeys = [ rafik zordold whistle scott ];`
 
 ```bash
 cd /home/scott/dotfiles/secrets
@@ -161,7 +161,7 @@ echo '<preauthkey>' | sudo tee /var/lib/tailscale-authkey >/dev/null
 sudo systemctl restart tailscaled-autoconnect
 sleep 5; tailscale status | head -5
 ```
-Expected: whistle listed plus datacore/eminix peers. Then:
+Expected: whistle listed plus datacore/rafik peers. Then:
 
 ```bash
 tailscale ping datacore   # expect pong, ideally direct

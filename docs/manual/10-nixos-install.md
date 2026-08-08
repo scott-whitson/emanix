@@ -1,7 +1,10 @@
 > **SUPERSEDED (2026-07-16).** This guide uses manual `parted` and a swap
 > partition — pre-disko, pre-ioshi. The current reproducible install is
 > [`docs/ioshi/eminix-install.md`](../ioshi/eminix-install.md) (disko + `nixos-install
-> --flake .#eminix`). Kept for history only.
+> --flake .#rafik`). Kept for history only. It also predates the 2026-08-07
+> eminix convergence: `zord-old` below no longer exists as a host (superseded
+> by `datacore` on the same HP), and the T14 is `rafik`, not `eminix` — `eminix`
+> now names only the distribution.
 
 # NixOS Install Guide — zord-old (HP 15-ef2013dx)
 

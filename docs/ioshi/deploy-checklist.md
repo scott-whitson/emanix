@@ -1,4 +1,4 @@
-# eminix v1 — deploy checklist (Scott's action items)
+# rafik v1 — deploy checklist (Scott's action items)
 
 Everything Claude verified in-repo but deliberately did NOT do (real secrets,
 physical install, sudo on live hosts). Order matters.
@@ -24,10 +24,10 @@ physical install, sudo on live hosts). Order matters.
       - `nix-store -qR /run/current-system | grep -c emacs.*-with-packages` → 1
       - `tailscale status`, `systemctl status syncthing`
 
-## 3. Install eminix on the physical T14 (now scripted)
+## 3. Install rafik on the physical T14 (now scripted)
 - [ ] Firmware: **disable Secure Boot**, confirm UEFI (the one thing the script can't do).
 - [ ] Stage on Ventoy: `git clone ~/dotfiles <V>/dotfiles` and
-      `cp ~/.ssh/eminix_host_ed25519{,.pub} <V>/eminix-keys/` (key beside the repo).
+      `cp ~/.ssh/rafik_host_ed25519{,.pub} <V>/rafik-keys/` (key beside the repo).
 - [ ] Boot the NixOS ISO, then one command:
       `sudo bash /run/media/*/Ventoy/dotfiles/installer/fresh-eminix-install`
       (handles disko + host-key inject + fingerprint check + nixos-install + reboot).
@@ -36,11 +36,11 @@ physical install, sudo on live hosts). Order matters.
 - [ ] Full detail / manual fallback: `docs/ioshi/eminix-install.md`.
 
 ## 4. Housekeeping
-- [ ] Once eminix + zord-old are confirmed good, delete the zord-old safety backups:
+- [ ] Once rafik + zord-old are confirmed good, delete the zord-old safety backups:
       `~/zord-old-backup-*.bundle`, `~/zord-old-worktree-*.tar.gz` (on zord-old).
-- [ ] The pre-generated `~/.ssh/eminix_host_ed25519` — keep it backed up somewhere
+- [ ] The pre-generated `~/.ssh/rafik_host_ed25519` — keep it backed up somewhere
       safe (password manager / offline) in case you ever re-key agenix.
 
-## Deferred to eminix v2
+## Deferred to rafik v2
 Impermanence (ephemeral root); repo-wide `nixpkgs-fmt`; Home-Manager deprecation
 cleanups; retiring the Debian-era `install/*.sh` + `ventoy/` bootstrap.

@@ -6,6 +6,14 @@
   # datacore's is Debian-managed (the hub, configured via REST). This HM-native
   # config exists only for the wsl profile.
   config = lib.mkIf (config.scott.dotfiles.profile == "wsl") {
+    # User-unit counterpart of the ordering in net/syncthing.nix (system
+    # service on rafik/datacore); ported from the same retired stow drop-in
+    # (base/systemd/.config/systemd/user/syncthing.service.d/override.conf).
+    systemd.user.services.syncthing.Unit = {
+      After = [ "network-online.target" ];
+      Wants = [ "network-online.target" ];
+    };
+
     services.syncthing = {
       enable = true;
       overrideDevices = true;
@@ -14,7 +22,7 @@
         devices.datacore.id =
           "FXOPHIF-EMJAP6C-CLI6PB4-HCLUDMK-RJ3PXLE-GIV4IJ7-3NMTE35-YHRNIAI";
         # Per-device path asymmetry (user decision): ALL of ~/projects here,
-        # lands at ~/projects/work on datacore/eminix. ~/clients lives OUTSIDE
+        # lands at ~/projects/work on datacore/rafik. ~/clients lives OUTSIDE
         # ~/projects and is never shared.
         folders.work-projects = {
           id = "work-projects";
