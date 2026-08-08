@@ -197,3 +197,23 @@ recovery cost instead.
 - Any change to EWM itself (`~/projects/ewm`)
 - The `tools/` directory
 - `docs/superpowers/specs/` and `plans/` — dated decision records, corrected only where they describe the present rather than the past
+
+## As-built correction (Task 4, 2026-08-07)
+
+The target architecture's `roles/server.nix` (and the plan's Task 3 code for
+it) included `ioshi/hi-hardware/net/syncthing.nix`. That module is the
+workstation-side syncthing *peer* config — it declares `datacore` as a
+remote device with `overrideDevices = true` / `overrideFolders = true` and
+folders pointing at device `"datacore"`. `datacore` is the fleet's syncthing
+*hub*, not a peer of itself, so importing that module into the server role
+made the hub declare itself its own peer and would force its real runtime
+`config.xml` to that bogus self-referential set on activation the moment
+`settings.devices`/`settings.folders` stopped being empty.
+
+Fixed by removing the import from `roles/server.nix` entirely (a server
+gets no syncthing peer config by default) and having `datacore` assert its
+own policy explicitly in its own `services.syncthing` block:
+`overrideDevices = false; overrideFolders = false;`, with a comment
+recording why plain assignments (not `mkForce`) are correct there now that
+nothing else sets those options. No other server-role host exists yet, so
+this was caught before it could bite one.

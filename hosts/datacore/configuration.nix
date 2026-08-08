@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, pkgs, ... }:
 
 {
   # Datacore — headless home server: Immich + media stacks (docker compose,
@@ -32,23 +32,20 @@
     configDir = "/home/scott/.local/state/syncthing";
     openDefaultPorts = true;
     guiAddress = "0.0.0.0:8384";
+
+    # datacore is the fleet's syncthing HUB: its devices and folders are
+    # managed by hand via the REST API / GUI, not declaratively. Nix must
+    # never override them. These are plain assignments, not mkForce — after
+    # roles/server.nix stopped importing net/syncthing.nix (which set both
+    # true), nothing else defines them, and the nixpkgs DEFAULT is true.
+    # Leaving them defaulted is inert only while settings.devices/folders are
+    # empty; the day one is added, syncthing-init would wipe the real config.
+    overrideDevices = false;
+    overrideFolders = false;
   };
   # GUI/REST reachable over the tailnet only — rafik administers the hub
   # via datacore:8384 (see ioshi/hi-hardware/net/syncthing.nix comment).
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 8384 ];
-
-  # roles/server.nix pulls in net/syncthing.nix — the workstation-side module
-  # every OTHER host uses to declare datacore as its sync peer. Applied to
-  # datacore itself that module declares device "datacore" and folders
-  # shared with device "datacore" — i.e. itself — with overrideDevices /
-  # overrideFolders = true, which would force-sync the running hub's real
-  # config.xml to that self-referential set on activation. Force all four
-  # back off to preserve the "no override, config.xml is runtime state"
-  # decision above.
-  services.syncthing.overrideDevices = lib.mkForce false;
-  services.syncthing.overrideFolders = lib.mkForce false;
-  services.syncthing.settings.devices = lib.mkForce { };
-  services.syncthing.settings.folders = lib.mkForce { };
 
   # Backrest — restic scheduler/UI for b2:scott-data-restic. nixpkgs ships
   # the package but no service module; config.json is runtime state copied
