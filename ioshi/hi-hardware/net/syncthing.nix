@@ -42,4 +42,13 @@
       };
     };
   };
+
+  # Ported from base/systemd's syncthing.service.d/override.conf (a user-unit
+  # drop-in) during the stow retirement. On NixOS syncthing runs as a *system*
+  # service (services.syncthing above), not the user unit the drop-in targeted,
+  # so the ordering belongs here instead.
+  systemd.services.syncthing = {
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+  };
 }

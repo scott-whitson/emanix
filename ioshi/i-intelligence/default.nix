@@ -15,7 +15,8 @@
     ./lf.nix
     ./mpv.nix
     ./yt-dlp.nix
-    ./systemd.nix
+    ./fragpaper.nix
+    ./wireplumber.nix
     ./pi.nix
     ./zellij.nix
     ./claude.nix

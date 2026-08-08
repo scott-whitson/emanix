@@ -1,6 +1,0 @@
-[Unit]
-Description=Check if fragpaper is running and restart if not
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c 'if ! systemctl --user is-active --quiet fragpaper.service; then systemctl --user restart fragpaper.service; fi'
