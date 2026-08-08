@@ -14,7 +14,7 @@
         devices.datacore.id =
           "FXOPHIF-EMJAP6C-CLI6PB4-HCLUDMK-RJ3PXLE-GIV4IJ7-3NMTE35-YHRNIAI";
         # Per-device path asymmetry (user decision): ALL of ~/projects here,
-        # lands at ~/projects/work on datacore/eminix. ~/clients lives OUTSIDE
+        # lands at ~/projects/work on datacore/rafik. ~/clients lives OUTSIDE
         # ~/projects and is never shared.
         folders.work-projects = {
           id = "work-projects";

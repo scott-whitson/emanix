@@ -91,14 +91,14 @@
         };
 
         # ThinkPad T14 Gen 5 AMD — daily driver (the eminix platform)
-        eminix = mkHost {
-          hostName = "eminix";
+        rafik = mkHost {
+          hostName = "rafik";
           hardware = ./ioshi/hi-hardware/lenovo-t14-gen5-amd.nix;
           extraModules = [
             nixos-hardware.nixosModules.lenovo-thinkpad-t14-amd-gen5
-            ./hosts/eminix/configuration.nix
+            ./hosts/rafik/configuration.nix
             disko.nixosModules.disko
-            ./ioshi/hi-hardware/disko/eminix.nix
+            ./ioshi/hi-hardware/disko/rafik.nix
           ];
         };
 
@@ -122,9 +122,9 @@
                 scott.gui = false;
                 scott.ewm.enable = false;
                 # Real Linux terminal under WSLg (same flake-themed ghostty
-                # as eminix) — gui stays false, this opts in surgically.
+                # as rafik) — gui stays false, this opts in surgically.
                 scott.ghostty.enable = true;
-                # Persistent ssh sessions from eminix land in zellij
+                # Persistent ssh sessions from rafik land in zellij
                 # (zellaude bar; config deployed live from base/zellij).
                 scott.zellij.enable = true;
                 # Shared network namespace with the Debian distro until it
@@ -190,7 +190,7 @@
 
       # --- Disko configurations (declarative disk partitioning) ---
       diskoConfigurations = {
-        eminix = import ./ioshi/hi-hardware/disko/eminix.nix;
+        rafik = import ./ioshi/hi-hardware/disko/rafik.nix;
         datacore = import ./ioshi/hi-hardware/disko/datacore.nix;
       };
 

@@ -36,7 +36,7 @@
     openDefaultPorts = true;
     guiAddress = "0.0.0.0:8384";
   };
-  # GUI/REST reachable over the tailnet only — eminix administers the hub
+  # GUI/REST reachable over the tailnet only — rafik administers the hub
   # via datacore:8384 (see ioshi/hi-hardware/net/syncthing.nix comment).
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 8384 ];
 
@@ -76,6 +76,6 @@
     options = "--delete-older-than 30d";
   };
 
-  # First-install release (matches whistle/eminix era) — never bump.
+  # First-install release (matches whistle/rafik era) — never bump.
   system.stateVersion = "26.11";
 }
