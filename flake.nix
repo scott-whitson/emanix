@@ -76,7 +76,7 @@
 
       # Compose an eminix host: profile (os+i) + its hi layer.
       mkHost = import ./lib/mkHost.nix {
-        inherit nixpkgs home-manager ewm agenix nixpkgsModule hmModule sharedSpecialArgs system;
+        inherit nixpkgs home-manager ewm agenix nixos-wsl nixpkgsModule hmModule sharedSpecialArgs system;
       };
 
     in
@@ -86,6 +86,7 @@
         # HP 15-ef2013dx — backup machine
         zord-old = mkHost {
           hostName = "zord-old";
+          role = "workstation";
           hardware = ./ioshi/hi-hardware/hp-15-ef2013dx.nix;
           extraModules = [ ./hosts/zord-old/configuration.nix ];
         };
@@ -93,6 +94,7 @@
         # ThinkPad T14 Gen 5 AMD — daily driver (the eminix platform)
         rafik = mkHost {
           hostName = "rafik";
+          role = "workstation";
           hardware = ./ioshi/hi-hardware/lenovo-t14-gen5-amd.nix;
           extraModules = [
             nixos-hardware.nixosModules.lenovo-thinkpad-t14-amd-gen5
