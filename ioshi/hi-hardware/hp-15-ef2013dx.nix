@@ -36,7 +36,15 @@
   # No LUKS on this machine.
   boot.initrd.luks.devices = { };
 
-  # File systems — btrfs subvolumes on the root partition, by GPT partlabel
+  # File systems — btrfs subvolumes on the root partition, by GPT partlabel.
+  # NOTE: disko/datacore.nix also declares device/fsType/options for these
+  # same mountpoints. options is list-typed, so the two concatenate instead
+  # of overriding — evaluated "/" options duplicate subvol=@ and
+  # compress=zstd. Inert (dup mount options are idempotent); predates the
+  # mkForce removal, which discarded rather than merged and masked it.
+  # Hazard: an edit on one side won't override the other, it appends — they
+  # can silently diverge. Dedup is deliberate future work: it'd change the
+  # fstab and move the closure.
   fileSystems."/" = {
     device = "/dev/disk/by-partlabel/disk-main-root";
     fsType = "btrfs";
