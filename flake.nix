@@ -83,14 +83,6 @@
     {
       # --- NixOS configurations — eminix instances ---
       nixosConfigurations = {
-        # HP 15-ef2013dx — backup machine
-        zord-old = mkHost {
-          hostName = "zord-old";
-          role = "workstation";
-          hardware = ./ioshi/hi-hardware/hp-15-ef2013dx.nix;
-          extraModules = [ ./hosts/zord-old/configuration.nix ];
-        };
-
         # ThinkPad T14 Gen 5 AMD — daily driver (the eminix platform)
         rafik = mkHost {
           hostName = "rafik";
@@ -106,32 +98,16 @@
 
         # NixOS-WSL on the work laptop — replaces the Debian WSL + scott@work
         # standalone HM pair at cutover (spec 2026-07-21; the host was named
-        # weasel until 2026-08-04). Not an eminix instance (no EWM/hardware
-        # layer), so composed here, not via mkHost.
-        whistle = nixpkgs.lib.nixosSystem {
-          inherit system;
-          specialArgs = sharedSpecialArgs;
-          modules = [
-            nixos-wsl.nixosModules.default
+        # weasel until 2026-08-04).
+        whistle = mkHost {
+          hostName = "whistle";
+          role = "wsl";
+          extraModules = [
             ./hosts/whistle/configuration.nix
-            nixpkgsModule
-            agenix.nixosModules.default
-            home-manager.nixosModules.home-manager
-            hmModule
             {
+              # Syncthing ports moved off the defaults during Debian
+              # cohabitation. Debian retired 2026-08-04 — see Step 6.
               home-manager.users.scott = {
-                scott.dotfiles.profile = "wsl";
-                scott.gui = false;
-                scott.ewm.enable = false;
-                # Real Linux terminal under WSLg (same flake-themed ghostty
-                # as rafik) — gui stays false, this opts in surgically.
-                scott.ghostty.enable = true;
-                # Persistent ssh sessions from rafik land in zellij
-                # (zellaude bar; config deployed live from base/zellij).
-                scott.zellij.enable = true;
-                # Shared network namespace with the Debian distro until it
-                # retires: move this instance's syncthing off Debian's ports
-                # (GUI 8384, sync 22000) or the two crash-collide.
                 services.syncthing.guiAddress = "127.0.0.1:8385";
                 services.syncthing.settings.options.listenAddresses = [
                   "tcp://0.0.0.0:22001"
@@ -143,41 +119,23 @@
         };
 
         # Headless home server on the HP freed by zord's T14 move — replaces
-        # Debian datacore (spec 2026-08-05-datacore-nixos-design.md). Not an
-        # eminix instance (no EWM layer), so composed here, not via mkHost.
-        # Hardware module shared with zord-old until zord-old is deleted
-        # post-soak.
-        datacore = nixpkgs.lib.nixosSystem {
-          inherit system;
-          specialArgs = sharedSpecialArgs;
-          modules = [
+        # Debian datacore (spec 2026-08-05-datacore-nixos-design.md).
+        datacore = mkHost {
+          hostName = "datacore";
+          role = "server";
+          hardware = ./ioshi/hi-hardware/hp-15-ef2013dx.nix;
+          extraModules = [
             ./hosts/datacore/configuration.nix
-            ./ioshi/hi-hardware/hp-15-ef2013dx.nix
             disko.nixosModules.disko
             ./ioshi/hi-hardware/disko/datacore.nix
-            nixpkgsModule
-            agenix.nixosModules.default
-            home-manager.nixosModules.home-manager
-            hmModule
-            {
-              home-manager.users.scott = {
-                scott.gui = false;
-                scott.dotfiles.profile = "server";
-                # Headless, no EWM layer here — same reason whistle overrides
-                # this back off. Without it, hmModule's mkDefault true would
-                # leave standalone.nix's condition false and skip installing
-                # any Emacs at all (the retiring standalone HM installed the
-                # standalone pgtk build via this same option's default-false).
-                scott.ewm.enable = false;
-              };
-            }
-            # hp-15-ef2013dx.nix is shared with zord-old's LUKS+encrypted
+            # hp-15-ef2013dx.nix was shared with zord-old's LUKS+encrypted
             # install (its fileSystems/swapDevices/luks.devices are literal
-            # /dev/mapper/cryptroot etc.). datacore is unencrypted by
-            # decision (disko/datacore.nix) with its own layout on GPT
-            # partlabels, so those disk-specific options conflict — force
-            # datacore's own values here rather than edit the shared file
-            # (must stay byte-identical so zord-old's drvPath is unchanged).
+            # /dev/mapper/cryptroot etc.) before zord-old's deletion. datacore
+            # is unencrypted by decision (disko/datacore.nix) with its own
+            # layout on GPT partlabels, so those disk-specific options
+            # conflict — force datacore's own values here rather than edit
+            # the shared file. Task 5 removes this once hp-15-ef2013dx.nix
+            # itself is cleaned up.
             {
               boot.initrd.luks.devices = nixpkgs.lib.mkForce { };
               fileSystems."/boot".device = nixpkgs.lib.mkForce "/dev/disk/by-partlabel/disk-main-boot";

@@ -17,7 +17,7 @@
   # hostname at activation breaks WSL's systemd user-session bootstrap when
   # another distro is running (NixOS-WSL#888 — our exact symptom: user@1000
   # EBUSY, WSL squatting the cgroup with a hidden-pidns session).
-  networking.hostName = "";
+  networking.hostName = lib.mkForce "";
 
   # networking.hostName must stay empty (above), which leaves the generation
   # label reading "unnamed" — system.name restores a real label without

@@ -12,13 +12,10 @@
     ../../ioshi/hi-hardware/net/tailscale.nix
   ];
 
-  programs.zsh.enable = true;
-
-  users.users.scott = {
-    isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "docker" ];
-    shell = pkgs.zsh;
-  };
+  # programs.zsh.enable / users.users.scott: now supplied by the eminix core
+  # (ioshi/os-system/base.nix, via profiles/eminix.nix). Declaring them here
+  # too duplicated users.users.scott.shell, a non-mergeable option, and broke
+  # the build once datacore moved onto mkHost.
 
   services.openssh.enable = true;
 
@@ -39,6 +36,19 @@
   # GUI/REST reachable over the tailnet only — rafik administers the hub
   # via datacore:8384 (see ioshi/hi-hardware/net/syncthing.nix comment).
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 8384 ];
+
+  # roles/server.nix pulls in net/syncthing.nix — the workstation-side module
+  # every OTHER host uses to declare datacore as its sync peer. Applied to
+  # datacore itself that module declares device "datacore" and folders
+  # shared with device "datacore" — i.e. itself — with overrideDevices /
+  # overrideFolders = true, which would force-sync the running hub's real
+  # config.xml to that self-referential set on activation. Force all four
+  # back off to preserve the "no override, config.xml is runtime state"
+  # decision above.
+  services.syncthing.overrideDevices = lib.mkForce false;
+  services.syncthing.overrideFolders = lib.mkForce false;
+  services.syncthing.settings.devices = lib.mkForce { };
+  services.syncthing.settings.folders = lib.mkForce { };
 
   # Backrest — restic scheduler/UI for b2:scott-data-restic. nixpkgs ships
   # the package but no service module; config.json is runtime state copied
@@ -62,19 +72,9 @@
     };
   };
 
-  time.timeZone = "America/New_York";
-  i18n.defaultLocale = "en_US.UTF-8";
-  console.keyMap = "us";
-
-  nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-    auto-optimise-store = true;
-  };
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 30d";
-  };
+  # time.timeZone / i18n.defaultLocale / console.keyMap / nix.settings /
+  # nix.gc: also now supplied by the core's base.nix (identical values) —
+  # removed here for the same reason as above.
 
   # First-install release (matches whistle/rafik era) — never bump.
   system.stateVersion = "26.11";
