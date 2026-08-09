@@ -13,7 +13,7 @@
 
 **Tech Stack:** NixOS 26.11, disko, agenix, Docker + compose stacks, Syncthing, backrest→restic→B2, headscale.
 
-**Spec:** `docs/superpowers/specs/2026-08-05-datacore-nixos-design.md` (revised 2026-08-08). Read its Decisions section before starting — decisions 8 and 9 are the ones that shape this plan.
+**Spec:** `docs/superpowers/specs/2026-08-05-datacore-nixos-design.md` (revised 2026-08-08). Read its Decisions section before starting — decisions 8 and 9 shape this plan, and decision 10 records why the compose stacks are NOT converted to native NixOS services here.
 
 ## Global Constraints
 

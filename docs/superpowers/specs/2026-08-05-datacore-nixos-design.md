@@ -3,8 +3,9 @@
 **Date:** 2026-08-05
 **Revised:** 2026-08-08 — refreshed after the eminix convergence, which landed
 between approval and implementation. The strategy is unchanged; the facts,
-host names and repo-work list are. Two decisions were added (host-key identity,
-headscale ordering) — see "Revision 2026-08-08" under Decisions.
+host names and repo-work list are. Three decisions were added (host-key
+identity, headscale ordering, and de-dockerizing after the cutover rather than
+during it) — see the "Revision 2026-08-08" blocks under Decisions.
 **Status:** approved, not yet started
 **Prior art:** `2026-07-21-weasel-nixos-wsl-design.md`, `docs/ioshi/eminix-install.md`
 
@@ -56,7 +57,8 @@ flake-managed from this repo, and the standalone-HM path retires.
    syncthing, docker, backrest, users/HM. **Compose stacks run unchanged**
    from `datacore-config`. Rejected: porting 22 containers to
    oci-containers (big-bang risk, no benefit now); hybrid (two config
-   systems forever).
+   systems forever). Converting them to *native* NixOS services is deferred,
+   not rejected — decision 10 says when and in what order.
 4. **Workload triage:** all 22 containers move (headscale included).
    Retired instead of moved — both native/non-container tenants: the
    IB Gateway + its Xvfb unit, and the unused pearl-platform compose
@@ -71,7 +73,7 @@ flake-managed from this repo, and the standalone-HM path retires.
 7. **Old laptop stays powered-off-but-intact 2–4 weeks** after cutover,
    then retires. Point of no return is never during the migration.
 
-### Revision 2026-08-08 — two decisions added
+### Revision 2026-08-08 — decisions 8 and 9 added
 
 8. **The HP inherits the OLD box's SSH host key, and that key is the agenix
    recipient.** These are the same decision and must not drift apart.
@@ -107,6 +109,55 @@ flake-managed from this repo, and the standalone-HM path retires.
    ID changes in it, and no peer is reconfigured. What 2b buys is that the two
    moments with a scary feel — taking the name, and taking the control plane —
    are never in the same window, so each has a clean rollback of its own.
+
+### Revision 2026-08-08 — decision 10
+
+10. **Cut over verbatim; de-dockerize afterwards, one service at a time.**
+    Decided 2026-08-08 after surveying nixpkgs against the running stacks.
+
+    Native NixOS modules exist for nearly everything on the box: jellyfin,
+    sonarr, radarr, lidarr, bazarr, prowlarr, sabnzbd, qbittorrent, navidrome,
+    audiobookshelf, uptime-kuma, homepage-dashboard, beszel, caddy, headscale,
+    redis, postgresql — and immich. Only `hindsight` has no module, and
+    `backrest` has none either (which is why this config hand-rolls a systemd
+    unit for it). So the reachable end state is "everything but hindsight,"
+    not zero-docker; the daemon stays installed regardless.
+
+    Converting during the cutover was considered and rejected. The parallel
+    build does make conversion *safe* — the old box keeps its own untouched
+    copy of the data, so a botched native service loses nothing, and there is
+    no downtime pressure to iterate under. That argument is sound as far as it
+    goes.
+
+    What it does not fix is the flip mechanism. **The cutover is a delta
+    rsync** (Phase 1 warm-syncs while the old box serves; Phase 2 re-syncs only
+    that day's changes and flips identity). That works only because both boxes
+    hold byte-identical layouts. A native service does not read the container's
+    state directory — `services.immich` has its own store and schema — so a
+    converted service cannot be delta-synced into. Every conversion would have
+    to migrate its data *at cutover time*, from a source that took writes all
+    day, with the largest datasets being the hardest. That trades a one-evening
+    mechanical flip for an open-ended per-service migration night.
+
+    Converting afterwards, on the running NixOS box, is strictly better: each
+    service becomes individually reversible in minutes (`docker compose down`,
+    enable the module; if it misbehaves, disable it and bring the stack back
+    up — the image and the old data directory are both still on disk). One
+    rollback per service instead of one large bet, and nothing blocks the
+    cutover.
+
+    Exception: services whose entire state lives in the git repo rather than
+    `/home/srv-data` — homepage and caddy — have no delta problem and may be
+    converted during the parallel build if convenient.
+
+    Sequencing when it happens: the *arr stack, jellyfin, navidrome,
+    audiobookshelf and the control-center trio are the easy, high-value wins
+    (portable SQLite; mostly path and UID changes). Immich goes last or never —
+    its data migration is a dump/restore, nixpkgs has churned the vector
+    extension (pgvecto-rs → VectorChord), and upstream officially supports only
+    Docker. The standing prize for converting at all is escaping the roughly
+    a dozen `:latest` tags in the compose files, where any `docker compose
+    pull` can deliver a breaking version with no rollback.
 
 ## Identity preservation (what makes the flip small)
 
@@ -221,7 +272,9 @@ flip and the control-plane handover — never happen in the same window.
 
 ## Out of scope
 
-Nixifying individual compose stacks (possible later, one at a time),
+Nixifying individual compose stacks — deliberately deferred to its own
+project, after the soak passes; see decision 10 for why it does not ride
+along with the cutover and what order to do it in. Also out of scope:
 headscale's future vs Tailscale, and any change to what the services do.
 IB Gateway/pearl-platform decommissioning on the old box needs no work —
 they simply don't move.
