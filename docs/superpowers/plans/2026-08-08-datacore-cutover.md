@@ -434,6 +434,23 @@ by *name*, and Debian and NixOS disagree on system UIDs — container-internal
 UIDs under `/var/lib/docker` (Immich's postgres data included) and under
 `/home/srv-data` would land owned by the wrong user on the HP.
 
+**Every rsync pulling a root-owned path also needs `--rsync-path="sudo rsync"`.**
+`sudo` on the local side elevates only the *writing* half; the reading half runs
+on the old box as `scott`, who cannot read what it is being asked to send.
+Verified on the live box 2026-08-08:
+
+- `/var/lib/docker` is `drwx--x---  root root` — scott cannot even traverse it.
+- `/home/srv-data` is scott-owned at the top, but **17 paths beneath it are
+  unreadable as scott**, `/home/srv-data/stacks-state/immich/postgres` among
+  them. That is Immich's entire database. Without the flag rsync copies the
+  tree, reports those as errors amid thousands of lines of progress output,
+  and exits non-zero — leaving a migration that looks done and has no Immich DB.
+- `/etc/ssh/ssh_host_ed25519_key` (Task 6 step 3) is `0600 root root`.
+
+`sudo -n true` succeeds over ssh on the old box, so `--rsync-path="sudo rsync"`
+needs no tty. **Check the exit status of each rsync** — a non-zero exit here
+means files were skipped, not that a cosmetic warning was printed.
+
 **Order matters here — compare first, stop second, in exactly this order.**
 First, while both daemons are still up, compare storage drivers on both
 boxes — the HP's root is btrfs, and a storage-driver mismatch orphans every
@@ -463,10 +480,14 @@ below completes — each one would revive the daemon via socket activation.
 Then sync:
 
 ```bash
-sudo rsync -aHAX --numeric-ids --info=progress2 \
+sudo rsync -aHAX --numeric-ids --rsync-path="sudo rsync" --info=progress2 \
   scott@datacore:/home/srv-data/ /home/srv-data/
-sudo rsync -aHAX --numeric-ids --info=progress2 \
+echo "srv-data rsync exit: $?"
+sudo rsync -aHAX --numeric-ids --rsync-path="sudo rsync" --info=progress2 \
   scott@datacore:/var/lib/docker/ /var/lib/docker/
+echo "docker rsync exit: $?"
+# This one needs no elevation on either side: scott's home, read and written
+# as scott. Adding sudo here would land the files owned by root.
 rsync -aHAX --numeric-ids --info=progress2 scott@datacore:/home/scott/ /home/scott/ \
   --exclude '.ssh/' --exclude '.local/state/syncthing/'
 ```
@@ -544,14 +565,17 @@ sudo systemctl stop docker.socket docker.service
 
 - [ ] **Step 2: Delta rsync**
 
-Same commands as Task 5 step 1 (`--numeric-ids` included). Only that day's
+Same commands as Task 5 step 1 — **including `--numeric-ids` and
+`--rsync-path="sudo rsync"`**, and the same exit-status check. Only that day's
 changes move; minutes, not hours.
 
 - [ ] **Step 3: Copy the identity files**
 
 ```bash
-# SSH host keys — makes peers' known_hosts and the git mirror hop keep working
-sudo rsync -a scott@datacore:/etc/ssh/ssh_host_* /etc/ssh/
+# SSH host keys — makes peers' known_hosts and the git mirror hop keep working.
+# --rsync-path="sudo rsync": the private keys are 0600 root:root on the old box,
+# so the sending side must be root too (see Task 5 step 1).
+sudo rsync -a --rsync-path="sudo rsync" scott@datacore:/etc/ssh/ssh_host_* /etc/ssh/
 sudo systemctl restart sshd
 
 # Syncthing device identity — same device ID, so peers reconnect with no re-pairing
@@ -650,8 +674,14 @@ connectivity continues; new registrations and renames do not.
 - [ ] **Step 2: Sync headscale's state**
 
 ```bash
-sudo rsync -aHAX scott@datacore-old:/home/srv-data/stacks-state/headscale/ \
+# --rsync-path/--numeric-ids for the same reasons as Task 5 step 1: 7 paths
+# under stacks-state/headscale are unreadable as scott (verified 2026-08-08),
+# and headscale's sqlite DB is the whole point of this step.
+sudo rsync -aHAX --numeric-ids --rsync-path="sudo rsync" \
+  scott@datacore-old:/home/srv-data/stacks-state/headscale/ \
   /home/srv-data/stacks-state/headscale/
+echo "headscale state rsync exit: $?"
+# scott's own repo checkout — no elevation on either side.
 rsync -aHAX scott@datacore-old:~/projects/datacore-config/stacks/headscale/config/ \
   ~/projects/datacore-config/stacks/headscale/config/
 ```
