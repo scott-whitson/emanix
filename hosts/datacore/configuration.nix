@@ -74,6 +74,15 @@
   # nix.gc: also now supplied by the core's base.nix (identical values) —
   # removed here for the same reason as above.
 
+  # The compose stacks in ~/projects/datacore-config invoke `docker compose`
+  # (16 call sites), and backrest shells out to restic. virtualisation.docker
+  # (from the server role) supplies neither, so without these nothing starts:
+  # no stack, no backup.
+  environment.systemPackages = with pkgs; [
+    docker-compose
+    restic
+  ];
+
   # First-install release (matches whistle/rafik era) — never bump.
   system.stateVersion = "26.11";
 }
