@@ -402,14 +402,21 @@ clobbered; only a genuinely new quarter gets a fresh template."
 ;; Requires: Google Cloud project with Docs API + Drive API enabled,
 ;; OAuth credentials configured in gdocs-accounts.
 ;; M-x gdocs-authenticate, then M-x gdocs-create or M-x gdocs-open.
-(use-package gdocs
-  :vc (:url "https://github.com/benthamite/gdocs")
-  :config
-  (setq gdocs-auto-push-on-save t)
-  ;; Credentials load from ~/.config/emacs/gdocs-creds.el (mode 600, outside
-  ;; the checkout) so the OAuth client secret is never committed. Absent file
-  ;; = no account configured; nothing else in init.el is affected.
-  (load (expand-file-name "gdocs-creds.el" user-emacs-directory) :noerror :nomessage))
+;; rafik-only. init.el is shared by every host, and use-package :vc
+;; fetches from GitHub on load - without this guard whistle and datacore
+;; would pull gdocs too, for a workflow only rafik has. A wrapping `when`
+;; rather than use-package's :if on purpose: :if guards the runtime body,
+;; but :vc install work can run at macro-expansion time. A false `when`
+;; never expands the macro at all.
+(when (equal (system-name) "rafik")
+  (use-package gdocs
+    :vc (:url "https://github.com/benthamite/gdocs")
+    :config
+    (setq gdocs-auto-push-on-save t)
+    ;; Credentials load from ~/.config/emacs/gdocs-creds.el (mode 600, outside
+    ;; the checkout) so the OAuth client secret is never committed. Absent file
+    ;; = no account configured; nothing else in init.el is affected.
+    (load (expand-file-name "gdocs-creds.el" user-emacs-directory) :noerror :nomessage)))
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
 (dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline scott-launcher scott-pi))
