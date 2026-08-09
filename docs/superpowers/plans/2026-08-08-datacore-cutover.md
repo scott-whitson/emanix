@@ -31,7 +31,7 @@
 |---|---|
 | `secrets/secrets.nix` | **Modify.** `datacore` recipient becomes the OLD box's host key |
 | `secrets/openrouter-auth.age`, `secrets/ibkr-creds.age` | **Rekeyed** by agenix; not hand-edited |
-| `hosts/datacore/configuration.nix` | **Modify.** Add `docker-compose` and `restic` — without them no stack starts and backrest cannot run |
+| `hosts/datacore/configuration.nix` | **Modify.** Add `docker-compose` and `restic` — both already resolve via the docker/backrest wrappers, but kept on PATH for interactive use (the Task 8 restore test) at zero closure cost |
 | `~/.ssh/datacore_host_ed25519{,.pub}` | **Delete.** The generated key from 2026-08-08; superseded by decision 8 |
 
 ---
@@ -161,7 +161,7 @@ git push origin main
 **Interfaces:**
 - Produces: `docker compose` and `restic` on datacore's PATH. Task 5 brings up stacks with `docker compose up -d`; backrest shells out to `restic`.
 
-**Why this task exists:** `~/projects/datacore-config` invokes `docker compose` at 16 call sites, and the Debian box has `restic` at `/usr/bin/restic` which backrest calls. datacore's NixOS config currently has neither — `virtualisation.docker.enable` does not bring compose. Without this, **no stack starts and no backup runs**.
+**Why this task exists:** `~/projects/datacore-config` invokes `docker compose` at 16 call sites, and backrest shells out to restic. Both already resolve without this task — `virtualisation.docker.package`'s wrapper sets `DOCKER_CLI_PLUGIN_DIRS` so `docker compose` is already on the plugin path, and `pkgs.backrest`'s wrapper sets `BACKREST_RESTIC_COMMAND` to a store restic path. This task exists so `docker-compose` and `restic` are also reachable as **plain interactive commands** on datacore's PATH — needed for the Task 8 restore test — at zero closure cost, since both store paths are already pulled in by the mechanisms above.
 
 - [ ] **Step 1: Confirm the gap is real before fixing it**
 
@@ -178,10 +178,16 @@ Expected: `[ ]` — neither present.
 In `hosts/datacore/configuration.nix`, insert before the `system.stateVersion` line:
 
 ```nix
-  # The compose stacks in ~/projects/datacore-config invoke `docker compose`
-  # (16 call sites), and backrest shells out to restic. virtualisation.docker
-  # (from the server role) supplies neither, so without these nothing starts:
-  # no stack, no backup.
+  # `docker compose` and `restic` already work WITHOUT these packages:
+  # - virtualisation.docker.package's wrapper sets DOCKER_CLI_PLUGIN_DIRS, so
+  #   `docker compose` already resolves.
+  # - pkgs.backrest's wrapper sets BACKREST_RESTIC_COMMAND to a store restic
+  #   path, so backrest already finds restic on its own.
+  # Kept anyway: zero closure growth (both paths are already pulled in above),
+  # and an interactive `restic` on PATH is needed for the Task 8 restore test.
+  # Caveat: this list does NOT reach backrest.service — its unit PATH is only
+  # coreutils/findutils/gnugrep/gnused/systemd, not /run/current-system/sw/bin
+  # — so a command hook needs systemd.services.backrest.path, not this.
   environment.systemPackages = with pkgs; [
     docker-compose
     restic
@@ -212,6 +218,15 @@ neither, so a fresh install would have come up with no way to start a single
 stack or run a single backup."
 git push origin main
 ```
+
+This task actually landed as commit `80ddd1d`, carrying the commit message
+above verbatim. A later review (finding 1) established that message's "supplies
+neither... no way to start" framing is wrong — `docker compose` and `restic`
+both already resolved via wrapper mechanisms before this task, and what it
+really achieved was putting both on PATH as plain interactive commands, at
+zero closure cost, for the Task 8 restore test. That correction is not
+retroactively rewritten into the shipped git history; it lives here and in the
+comment `hosts/datacore/configuration.nix` now carries.
 
 - [ ] **Step 5: Note why `docker compose` was never actually at risk**
 
@@ -419,22 +434,32 @@ by *name*, and Debian and NixOS disagree on system UIDs — container-internal
 UIDs under `/var/lib/docker` (Immich's postgres data included) and under
 `/home/srv-data` would land owned by the wrong user on the HP.
 
-**Stop docker on the HP before the `/var/lib/docker` line** — that path is a
-live daemon's state directory on this machine once anything has touched it,
-and rsyncing into a running daemon's state risks a corrupt copy:
-
-```bash
-sudo systemctl stop docker
-```
-
-Also compare storage drivers on both boxes first — the HP's root is btrfs,
-and a storage-driver mismatch orphans every layer you are about to copy:
+**Order matters here — compare first, stop second, in exactly this order.**
+First, while both daemons are still up, compare storage drivers on both
+boxes — the HP's root is btrfs, and a storage-driver mismatch orphans every
+layer you are about to copy:
 
 ```bash
 ssh datacore 'sudo docker info | grep "Storage Driver"'
 sudo docker info | grep "Storage Driver"
 ```
 
+**Then stop docker on the HP before the `/var/lib/docker` line** — that path
+is a live daemon's state directory on this machine once anything has touched
+it, and rsyncing into a running daemon's state risks a corrupt copy. Stop
+**both** the socket and the service, and in that order: `docker.service`
+`Requires=docker.socket` but not the reverse, and `docker.socket` is
+`wantedBy=sockets.target` independently of the service, so stopping the
+service alone leaves the socket listening — and the next `docker` command
+anyone runs (including a re-run of the storage-driver check above) would
+socket-activate the daemon right back up before the rsync ever starts:
+
+```bash
+sudo systemctl stop docker.socket docker.service
+```
+
+Do not run any further `docker ...` command on the HP until after the rsync
+below completes — each one would revive the daemon via socket activation.
 Then sync:
 
 ```bash
@@ -506,13 +531,15 @@ Expected remaining: only the headscale stack's containers. sshd stays up.
 
 ```bash
 # on the HP — Task 5 step 2 already brought these stacks up against warm
-# data; stop them and the docker daemon so step 2's delta rsync into
-# /var/lib/docker isn't writing under a live daemon
+# data; stop them and the docker daemon (socket AND service, in that order —
+# see Task 5 step 1) so step 2's delta rsync into /var/lib/docker isn't
+# writing under a live daemon. Run no `docker ...` command after this until
+# the rsync below completes — it would socket-activate the daemon back up.
 cd ~/projects/datacore-config
 for s in immich media hindsight control-center bootstrap-portal; do
   (cd stacks/$s && docker compose down)
 done
-sudo systemctl stop docker
+sudo systemctl stop docker.socket docker.service
 ```
 
 - [ ] **Step 2: Delta rsync**
@@ -732,11 +759,15 @@ Task 7. Phase 3 → Task 8. Rollback is not a task because it is a *reaction*; t
 spec's Rollback section governs, and each operational task names the point past
 which its rollback changes.
 
-**Two gaps the spec did not list**, found while writing this plan and added as
-Task 2: datacore's NixOS config has neither `docker compose` nor `restic`. The
-spec says "compose stacks run unchanged" and "backrest → restic → B2" without
-noticing that the substrate provides neither. A fresh install would have reached
-first boot with no way to start a single stack.
+**One gap the spec did not list**, found while writing this plan and added as
+Task 2: datacore's NixOS config had neither `docker-compose` nor `restic` as
+plain interactive commands. **Correction from final review:** this was never a
+"nothing starts" gap — `docker compose` and `restic` both already resolve
+without those packages, via the docker wrapper's plugin-dir mechanism and
+backrest's wrapper respectively (see the comment in
+`hosts/datacore/configuration.nix`). Task 2's real value is putting both on
+PATH for interactive use — needed for the Task 8 restore test — at zero
+closure cost.
 
 **Correction from final review.** `docker compose version` was never actually
 at risk: the docker wrapper's `DOCKER_CLI_PLUGIN_DIRS` resolves it without

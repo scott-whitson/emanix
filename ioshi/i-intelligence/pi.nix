@@ -24,11 +24,13 @@
   #
   # Gated on scott.pi.enable, NOT on "is this a NixOS host with agenix".
   # The scott.standalone guard removed on 2026-08-07 was replaced with an
-  # unconditional symlink on that reasoning, which is wrong: datacore is a
-  # NixOS host WITH agenix in the common core, but it is not a recipient of
-  # openrouter-auth.age and has no /run/agenix at all. It would have got a
-  # symlink to a secret it can never decrypt, replacing a real working file.
-  # Recipient-ness is per secret; see secrets/secrets.nix.
+  # unconditional symlink on that reasoning, which is wrong: being a NixOS
+  # host with agenix in the common core does not mean every secret should be
+  # symlinked everywhere. datacore IS a recipient of openrouter-auth.age (it
+  # must be, to activate at all — see secrets/secrets.nix) but does not run
+  # pi, so symlinking would be pointless clutter, not a decrypt failure.
+  # Recipient-ness is per secret and orthogonal to what any host does with
+  # the plaintext once decrypted; see secrets/secrets.nix.
   home.file.".pi/agent/auth.json" = lib.mkIf config.scott.pi.enable {
     source = config.lib.file.mkOutOfStoreSymlink "/run/agenix/openrouter-auth";
   };
