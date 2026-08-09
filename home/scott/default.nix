@@ -14,36 +14,15 @@
   # Theme
   scott.theme = "catppuccin-mocha";
 
-  # Pin catppuccin/nix's opt-in model before upstream changes the default.
-  #
-  # Setting `autoEnable` explicitly at all is what silences the module's
-  # eval warning: the warning lives behind `mkIf enable`, and `enable` is
-  # computed as `if (release >= 27.05 || autoEnableWasSet) then
-  # catppuccin.enable else true`. Until now nothing set it outside
-  # firefox.nix's `mkIf scott.gui`, so whistle and datacore warned on every
-  # rebuild. Keep this UNGATED, and do not also define it in firefox.nix —
-  # a second definition at the same priority is an eval conflict, not a merge.
-  #
-  # `enable = false` is deliberate and is NOT what upstream's warning text
-  # suggests. It suggests `enable = true`, but that is not behaviour-
-  # preserving here: catppuccin's firefox port gates on
-  # `config.catppuccin.enable && profile.enable`, and since `enable` has
-  # always defaulted to false, `catppuccin.firefox.enable = true` in
-  # ioshi/i-intelligence/firefox.nix has never actually done anything.
-  # Flipping it on makes the port write
-  # `programs.firefox.profiles.default.extensions.settings."FirefoxColor@mozilla.com"`,
-  # which trips Home Manager's assertion that setting `extensions.settings`
-  # overrides all previous extension settings unless `extensions.force` (or
-  # the per-extension `force`) acknowledges it — rafik fails to build.
-  #
-  # So: false pins the status quo (firefox theming off, as it has been in
-  # practice) and survives upstream's flip unchanged. To actually turn the
-  # theming on, set enable = true AND acknowledge the extensions assertion;
-  # that is a visible browser change, not a warning fix.
-  catppuccin = {
-    enable = false;
-    autoEnable = false;
-  };
+  # No catppuccin/nix module here on purpose. The flake input and its
+  # homeModules import were removed 2026-08-09: the only consumer was
+  # firefox.nix's `catppuccin.firefox` block, which gated on
+  # `config.catppuccin.enable` — never set anywhere, so always false — and
+  # had therefore never applied. Catppuccin colours still reach everything
+  # that actually shows them, from sources that do not need the input:
+  # lib/themes.nix carries the palettes by hand (ghostty, swaylock),
+  # pkgs.catppuccin-cursors and the catppuccin-theme Emacs package come
+  # from nixpkgs, and Firefox is dark via a plain pref.
 
   # Cursor theme — without one, Wayland/GTK apps warn (Gdk: unable to load
   # sb_v_double_arrow...) and some cursor shapes go missing under EWM.

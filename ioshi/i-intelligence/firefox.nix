@@ -1,20 +1,19 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, ... }:
 
-let
-  # Map our theme variant to catppuccin flavor.
-  flavorForTheme = theme:
-    if builtins.match ".*latte.*" theme != null then "latte"
-    else if builtins.match ".*frappe.*" theme != null then "frappe"
-    else if builtins.match ".*macchiato.*" theme != null then "macchiato"
-    else "mocha"; # default / catppuccin-mocha
-in
 {
   # Gated on scott.gui. The ibgateway branch imported this unconditionally,
   # which put a browser on the headless server and on WSL. programs.firefox
   # installs the package itself, so packages.nix must NOT also list `firefox` —
   # doing both gave rafik two identical firefox entries in home.packages.
   config = lib.mkIf config.scott.gui {
-    # Firefox with Catppuccin Mocha theme — matches Emacs and Ghostty.
+    # Firefox, dark via the ui.systemUsesDarkTheme pref below. Deliberately
+    # NOT Catppuccin-themed: catppuccin/nix's firefox port works by installing
+    # the FirefoxColor extension, which is more than is wanted here. A
+    # `catppuccin.firefox` block did sit here, but it gated on
+    # `config.catppuccin.enable` — never set, so always false — and had
+    # therefore never applied. Removed 2026-08-09 along with the catppuccin
+    # flake input, which nothing else used. The dark theme is unaffected; it
+    # was never what that block did.
     programs.firefox = {
       enable = true;
 
@@ -45,15 +44,6 @@ in
           "browser.newtabpage.activity-stream.default.sites" = "";
         };
       };
-    };
-
-    # catppuccin.autoEnable = false lives in home/scott/default.nix, ungated —
-    # it was here, inside mkIf scott.gui, so whistle and datacore never set it
-    # and warned on every rebuild. This is the per-port opt-in it enables.
-    catppuccin.firefox = {
-      enable = true;
-      flavor = flavorForTheme config.scott.theme;
-      accent = "mauve"; # matches Emacs catppuccin-theme default
     };
   };
 }
