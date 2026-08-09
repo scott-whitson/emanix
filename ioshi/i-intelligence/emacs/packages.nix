@@ -37,6 +37,7 @@
     }))
     async # ELISA dep (Package-Requires); needed to load elisa.el for port testing
     plz # ELISA/llm HTTP dep
+    s # string manipulation library (gdocs dependency)
     org-roam
     org
     catppuccin-theme

@@ -46,6 +46,9 @@
 (savehist-mode 1)
 (recentf-mode 1)
 (global-auto-revert-mode 1)
+(setq auto-revert-use-file-system-watcher nil  ; force polling — inotify is flaky on NixOS
+      auto-revert-interval 1                    ; poll every 1s
+      auto-revert-verbose nil)
 (column-number-mode 1)
 
 ;; Window navigation & resizing (Shift+arrows)
@@ -393,6 +396,20 @@ clobbered; only a genuinely new quarter gets a fresh template."
    (expand-file-name "~/dotfiles/bin/calendar-sync") "sync"))
 
 (global-set-key (kbd "C-c c") #'scott/calendar-sync)
+
+;; --- Google Docs sync (org ↔ Google Docs) ---
+;; Bidirectional sync between org files and Google Docs.
+;; Requires: Google Cloud project with Docs API + Drive API enabled,
+;; OAuth credentials configured in gdocs-accounts.
+;; M-x gdocs-authenticate, then M-x gdocs-create or M-x gdocs-open.
+(use-package gdocs
+  :vc (:url "https://github.com/benthamite/gdocs")
+  :config
+  (setq gdocs-auto-push-on-save t)
+  ;; Credentials load from ~/.config/emacs/gdocs-creds.el (mode 600, outside
+  ;; the checkout) so the OAuth client secret is never committed. Absent file
+  ;; = no account configured; nothing else in init.el is affected.
+  (load (expand-file-name "gdocs-creds.el" user-emacs-directory) :noerror :nomessage))
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
 (dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline scott-launcher scott-pi))
