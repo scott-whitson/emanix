@@ -42,11 +42,12 @@
         credential symlinked from agenix.
 
         Set false on hosts that hold ~/.pi/agent only as a Syncthing peer.
-        datacore is the case this exists for: it is NOT a recipient of
-        openrouter-auth.age (see secrets/secrets.nix) and has no /run/agenix at
-        all, so deploying the symlink there would point at a secret it can never
-        decrypt. Being a NixOS host with agenix is not the same as being a
-        recipient of a given secret.
+        datacore is the case this exists for: it IS a recipient of
+        openrouter-auth.age (see secrets/secrets.nix) — every server-role host
+        decrypts that secret at every activation via the common core — but it
+        does not run pi, so there is no reason to deploy the symlink there.
+        This option gates the symlink only; it does not gate, and never gated,
+        recipient status.
       '';
     };
 

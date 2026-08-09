@@ -74,6 +74,29 @@
   # nix.gc: also now supplied by the core's base.nix (identical values) —
   # removed here for the same reason as above.
 
+  # `docker compose` and `restic` already work WITHOUT these packages:
+  # - virtualisation.docker.package (docker-29.6.0) is a wrapper that sets
+  #   DOCKER_CLI_PLUGIN_DIRS to a docker-compose-5.3.0/libexec/docker/cli-plugins
+  #   path, so `docker compose` resolves before this list is even considered.
+  # - pkgs.backrest's wrapper sets BACKREST_RESTIC_COMMAND to a store restic
+  #   path, so backrest finds restic on its own too.
+  #
+  # Kept anyway, on purpose: closure growth is zero (both store paths are
+  # already pulled in by the mechanisms above), and an interactive `restic`
+  # on PATH is genuinely needed for the manual restore test in Task 8.
+  #
+  # Caveat — this list does NOT reach backrest.service: its generated unit
+  # PATH is only coreutils/findutils/gnugrep/gnused/systemd; the systemd unit
+  # sandbox does not add /run/current-system/sw/bin. So environment.systemPackages
+  # was never what would have made restic resolve for the service, only the
+  # wrapper's baked-in path was. If a command hook is ever added to backrest's
+  # config.json, it needs systemd.services.backrest.path set explicitly, or a
+  # bare `docker`/`restic` in the hook will not be found.
+  environment.systemPackages = with pkgs; [
+    docker-compose
+    restic
+  ];
+
   # First-install release (matches whistle/rafik era) — never bump.
   system.stateVersion = "26.11";
 }

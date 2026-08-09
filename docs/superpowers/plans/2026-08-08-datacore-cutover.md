@@ -31,7 +31,7 @@
 |---|---|
 | `secrets/secrets.nix` | **Modify.** `datacore` recipient becomes the OLD box's host key |
 | `secrets/openrouter-auth.age`, `secrets/ibkr-creds.age` | **Rekeyed** by agenix; not hand-edited |
-| `hosts/datacore/configuration.nix` | **Modify.** Add `docker-compose` and `restic` — without them no stack starts and backrest cannot run |
+| `hosts/datacore/configuration.nix` | **Modify.** Add `docker-compose` and `restic` — both already resolve via the docker/backrest wrappers, but kept on PATH for interactive use (the Task 8 restore test) at zero closure cost |
 | `~/.ssh/datacore_host_ed25519{,.pub}` | **Delete.** The generated key from 2026-08-08; superseded by decision 8 |
 
 ---
@@ -161,7 +161,7 @@ git push origin main
 **Interfaces:**
 - Produces: `docker compose` and `restic` on datacore's PATH. Task 5 brings up stacks with `docker compose up -d`; backrest shells out to `restic`.
 
-**Why this task exists:** `~/projects/datacore-config` invokes `docker compose` at 16 call sites, and the Debian box has `restic` at `/usr/bin/restic` which backrest calls. datacore's NixOS config currently has neither — `virtualisation.docker.enable` does not bring compose. Without this, **no stack starts and no backup runs**.
+**Why this task exists:** `~/projects/datacore-config` invokes `docker compose` at 16 call sites, and backrest shells out to restic. Both already resolve without this task — `virtualisation.docker.package`'s wrapper sets `DOCKER_CLI_PLUGIN_DIRS` so `docker compose` is already on the plugin path, and `pkgs.backrest`'s wrapper sets `BACKREST_RESTIC_COMMAND` to a store restic path. This task exists so `docker-compose` and `restic` are also reachable as **plain interactive commands** on datacore's PATH — needed for the Task 8 restore test — at zero closure cost, since both store paths are already pulled in by the mechanisms above.
 
 - [ ] **Step 1: Confirm the gap is real before fixing it**
 
@@ -178,10 +178,16 @@ Expected: `[ ]` — neither present.
 In `hosts/datacore/configuration.nix`, insert before the `system.stateVersion` line:
 
 ```nix
-  # The compose stacks in ~/projects/datacore-config invoke `docker compose`
-  # (16 call sites), and backrest shells out to restic. virtualisation.docker
-  # (from the server role) supplies neither, so without these nothing starts:
-  # no stack, no backup.
+  # `docker compose` and `restic` already work WITHOUT these packages:
+  # - virtualisation.docker.package's wrapper sets DOCKER_CLI_PLUGIN_DIRS, so
+  #   `docker compose` already resolves.
+  # - pkgs.backrest's wrapper sets BACKREST_RESTIC_COMMAND to a store restic
+  #   path, so backrest already finds restic on its own.
+  # Kept anyway: zero closure growth (both paths are already pulled in above),
+  # and an interactive `restic` on PATH is needed for the Task 8 restore test.
+  # Caveat: this list does NOT reach backrest.service — its unit PATH is only
+  # coreutils/findutils/gnugrep/gnused/systemd, not /run/current-system/sw/bin
+  # — so a command hook needs systemd.services.backrest.path, not this.
   environment.systemPackages = with pkgs; [
     docker-compose
     restic
@@ -213,14 +219,25 @@ stack or run a single backup."
 git push origin main
 ```
 
-- [ ] **Step 5: Note what still cannot be verified from here**
+This task actually landed as commit `80ddd1d`, carrying the commit message
+above verbatim. A later review (finding 1) established that message's "supplies
+neither... no way to start" framing is wrong — `docker compose` and `restic`
+both already resolved via wrapper mechanisms before this task, and what it
+really achieved was putting both on PATH as plain interactive commands, at
+zero closure cost, for the Task 8 restore test. That correction is not
+retroactively rewritten into the shipped git history; it lives here and in the
+comment `hosts/datacore/configuration.nix` now carries.
 
-`docker compose version` can only be confirmed on the installed machine, because
-nixpkgs ships compose as a CLI plugin and whether the `docker compose`
-subcommand resolves depends on the runtime plugin path. **Task 4 step 7 checks
-it.** If it fails there, the fallback is `docker-compose` (hyphen) — but the 16
-call sites would then need editing, which decision 3 exists to avoid, so prefer
-fixing the plugin path.
+- [ ] **Step 5: Note why `docker compose` was never actually at risk**
+
+`docker compose` resolves without `environment.systemPackages` at all:
+`virtualisation.docker.package` is a wrapper that sets `DOCKER_CLI_PLUGIN_DIRS`
+to a `docker-compose-*/libexec/docker/cli-plugins` path, so the subcommand is
+already on the plugin path before this task's packages are even considered.
+**Task 4 step 7's `docker compose version` check is still worth running** as a
+live confirmation on the real machine — it just isn't guarding against a real
+gap, and there is no hyphenated `docker-compose` fallback to reach for if it
+somehow fails.
 
 ---
 
@@ -277,14 +294,33 @@ landed intact.
 
 - [ ] **Step 1: Stage the Ventoy USB**
 
+`sudo cat` over a plain `ssh` has no tty for sudo to prompt on. If this account
+is not NOPASSWD, the command can still exit and leave the redirected file
+**empty** — a failure that only surfaces much later, at the installer's
+fingerprint preflight, after the ISO is already booted. Check first:
+
+```bash
+ssh datacore 'sudo -n true' && echo "NOPASSWD confirmed" || echo "needs a tty — use ssh -t below"
+```
+
+If it needs a tty, use `ssh -t` so sudo can prompt — note `-t` merges the
+remote pty's stdout/stderr onto one stream, so a password prompt can land
+inside the redirected file too, which is why the size check below is not
+optional:
+
 ```bash
 V=/run/media/$USER/Ventoy            # adjust to your mount
 git clone ~/dotfiles "$V/dotfiles"
 mkdir -p "$V/datacore-keys"
-ssh datacore 'sudo cat /etc/ssh/ssh_host_ed25519_key'     > "$V/datacore-keys/datacore_host_ed25519"
-ssh datacore 'sudo cat /etc/ssh/ssh_host_ed25519_key.pub' > "$V/datacore-keys/datacore_host_ed25519.pub"
+ssh -t datacore 'sudo cat /etc/ssh/ssh_host_ed25519_key'     > "$V/datacore-keys/datacore_host_ed25519"
+ssh -t datacore 'sudo cat /etc/ssh/ssh_host_ed25519_key.pub' > "$V/datacore-keys/datacore_host_ed25519.pub"
 chmod 600 "$V/datacore-keys/datacore_host_ed25519"
+wc -c "$V/datacore-keys/datacore_host_ed25519" "$V/datacore-keys/datacore_host_ed25519.pub"
 ```
+
+Expected: both files non-trivial (an ed25519 private key is a few hundred
+bytes). Near-zero means the sudo prompt was not answered cleanly — do not
+proceed with an empty or contaminated key staged.
 
 This is the **old box's** key — spec decision 8. The installer looks for
 `../datacore-keys/` beside the repo and matches its fingerprint against the
@@ -367,8 +403,21 @@ docker compose version
 restic version
 ```
 
-All three must succeed. `docker compose version` is the check Task 2 could not
-perform from another machine. If the subcommand is not found, see Task 2 step 5.
+All three must succeed. `docker compose version` resolves via the docker
+wrapper's plugin dir (see Task 2 step 5) — this is a live confirmation, not a
+gap-check; it should not fail.
+
+- [ ] **Step 8: Wipe the staged host key off the USB**
+
+`datacore-keys/datacore_host_ed25519` is the old box's **private** host key,
+staged in clear on a FAT filesystem — the `chmod 600` in step 1 is a no-op
+there, FAT has no Unix permission bits — and that key is now an agenix
+recipient's private key. Remove it as soon as the install no longer needs it:
+
+```bash
+rm -rf "$V/datacore-keys"
+ls "$V" 2>&1
+```
 
 ---
 
@@ -378,14 +427,68 @@ perform from another machine. If the subcommand is not found, see Task 2 step 5.
 
 - [ ] **Step 1: Warm rsync the data**
 
-Runs over the tailnet — the two boxes connect directly, so this is LAN speed:
+Runs over the tailnet — the two boxes connect directly, so this is LAN speed.
+
+**Every rsync below needs `--numeric-ids`.** Without it, rsync maps ownership
+by *name*, and Debian and NixOS disagree on system UIDs — container-internal
+UIDs under `/var/lib/docker` (Immich's postgres data included) and under
+`/home/srv-data` would land owned by the wrong user on the HP.
+
+**Every rsync pulling a root-owned path also needs `--rsync-path="sudo rsync"`.**
+`sudo` on the local side elevates only the *writing* half; the reading half runs
+on the old box as `scott`, who cannot read what it is being asked to send.
+Verified on the live box 2026-08-08:
+
+- `/var/lib/docker` is `drwx--x---  root root` — scott cannot even traverse it.
+- `/home/srv-data` is scott-owned at the top, but **17 paths beneath it are
+  unreadable as scott**, `/home/srv-data/stacks-state/immich/postgres` among
+  them. That is Immich's entire database. Without the flag rsync copies the
+  tree, reports those as errors amid thousands of lines of progress output,
+  and exits non-zero — leaving a migration that looks done and has no Immich DB.
+- `/etc/ssh/ssh_host_ed25519_key` (Task 6 step 3) is `0600 root root`.
+
+`sudo -n true` succeeds over ssh on the old box, so `--rsync-path="sudo rsync"`
+needs no tty. **Check the exit status of each rsync** — a non-zero exit here
+means files were skipped, not that a cosmetic warning was printed.
+
+**Order matters here — compare first, stop second, in exactly this order.**
+First, while both daemons are still up, compare storage drivers on both
+boxes — the HP's root is btrfs, and a storage-driver mismatch orphans every
+layer you are about to copy:
 
 ```bash
-sudo rsync -aHAX --info=progress2 \
+ssh datacore 'sudo docker info | grep "Storage Driver"'
+sudo docker info | grep "Storage Driver"
+```
+
+**Then stop docker on the HP before the `/var/lib/docker` line** — that path
+is a live daemon's state directory on this machine once anything has touched
+it, and rsyncing into a running daemon's state risks a corrupt copy. Stop
+**both** the socket and the service, and in that order: `docker.service`
+`Requires=docker.socket` but not the reverse, and `docker.socket` is
+`wantedBy=sockets.target` independently of the service, so stopping the
+service alone leaves the socket listening — and the next `docker` command
+anyone runs (including a re-run of the storage-driver check above) would
+socket-activate the daemon right back up before the rsync ever starts:
+
+```bash
+sudo systemctl stop docker.socket docker.service
+```
+
+Do not run any further `docker ...` command on the HP until after the rsync
+below completes — each one would revive the daemon via socket activation.
+Then sync:
+
+```bash
+sudo rsync -aHAX --numeric-ids --rsync-path="sudo rsync" --info=progress2 \
   scott@datacore:/home/srv-data/ /home/srv-data/
-sudo rsync -aHAX --info=progress2 \
+echo "srv-data rsync exit: $?"
+sudo rsync -aHAX --numeric-ids --rsync-path="sudo rsync" --info=progress2 \
   scott@datacore:/var/lib/docker/ /var/lib/docker/
-rsync -aHAX --info=progress2 scott@datacore:/home/scott/ /home/scott/ \
+echo "docker rsync exit: $?"
+# This one needs no elevation on either side: scott's home, read and written
+# as scott. Adding sudo here would land the files owned by root.
+rsync -aHAX --numeric-ids --info=progress2 scott@datacore:/home/scott/ /home/scott/ \
   --exclude '.ssh/' --exclude '.local/state/syncthing/'
 ```
 
@@ -409,7 +512,13 @@ copied state would fight the live one. It moves in Phase 2b.
 - [ ] **Step 3: Validate against the copied data**
 
 - Immich: web UI loads and the library shows photos
-- Jellyfin: a title plays end to end
+- Jellyfin: a title plays end to end **using hardware transcoding, not just
+  direct play**. The old box is an Intel i5-8250U (QSV); the HP is a Ryzen
+  (amdgpu), and datacore's NixOS config evaluates `hardware.graphics.enable =
+  false`. Confirm `/dev/dri/renderD128` exists (`ls /dev/dri/`) and that
+  Jellyfin's transcoding setting is not still pointed at QSV (Dashboard →
+  Playback in the admin UI) before trusting a transcoded play — "stacks run
+  unchanged" does not survive a CPU-vendor change
 - hindsight: app reaches its database
 - Uptime-Kuma / Beszel: monitors load their history
 
@@ -426,7 +535,7 @@ Repeat step 1. Each pass shortens the Phase 2 delta window.
 
 **Operational. Target < 1 hour. This is the window where datacore is down.**
 
-- [ ] **Step 1: Quiesce the old box, but leave headscale running**
+- [ ] **Step 1: Quiesce both boxes, but leave headscale running on the old box**
 
 ```bash
 # on the OLD box
@@ -439,17 +548,34 @@ docker ps --format '{{.Names}}'
 ```
 
 Expected remaining: only the headscale stack's containers. sshd stays up.
-**headscale must keep running** — step 4 needs a control plane.
+**headscale must keep running** — step 5 needs a control plane.
+
+```bash
+# on the HP — Task 5 step 2 already brought these stacks up against warm
+# data; stop them and the docker daemon (socket AND service, in that order —
+# see Task 5 step 1) so step 2's delta rsync into /var/lib/docker isn't
+# writing under a live daemon. Run no `docker ...` command after this until
+# the rsync below completes — it would socket-activate the daemon back up.
+cd ~/projects/datacore-config
+for s in immich media hindsight control-center bootstrap-portal; do
+  (cd stacks/$s && docker compose down)
+done
+sudo systemctl stop docker.socket docker.service
+```
 
 - [ ] **Step 2: Delta rsync**
 
-Same commands as Task 5 step 1. Only that day's changes move; minutes, not hours.
+Same commands as Task 5 step 1 — **including `--numeric-ids` and
+`--rsync-path="sudo rsync"`**, and the same exit-status check. Only that day's
+changes move; minutes, not hours.
 
 - [ ] **Step 3: Copy the identity files**
 
 ```bash
-# SSH host keys — makes peers' known_hosts and the git mirror hop keep working
-sudo rsync -a scott@datacore:/etc/ssh/ssh_host_* /etc/ssh/
+# SSH host keys — makes peers' known_hosts and the git mirror hop keep working.
+# --rsync-path="sudo rsync": the private keys are 0600 root:root on the old box,
+# so the sending side must be root too (see Task 5 step 1).
+sudo rsync -a --rsync-path="sudo rsync" scott@datacore:/etc/ssh/ssh_host_* /etc/ssh/
 sudo systemctl restart sshd
 
 # Syncthing device identity — same device ID, so peers reconnect with no re-pairing
@@ -464,7 +590,30 @@ Verify against the checksums recorded in Task 3 step 4:
 sha256sum /home/scott/.local/state/syncthing/cert.pem /home/scott/.local/state/syncthing/key.pem
 ```
 
-- [ ] **Step 4: Flip the identity — while the old headscale still serves**
+- [ ] **Step 4: Check backrest's config.json for command hooks**
+
+`config.json` arrived with the rest of `/home/scott` in the rsyncs above. Any
+command hooks in it run inside `backrest.service`, whose generated unit PATH
+is only coreutils/findutils/gnugrep/gnused/systemd — `/run/current-system/sw/bin`
+is not in it (see the comment above `environment.systemPackages` in
+`hosts/datacore/configuration.nix`). A bare `docker` or `restic` in a hook
+will not resolve there even though it works fine at an interactive shell.
+
+```bash
+grep -B1 -A2 -i '"command"' /home/scott/.config/backrest/config.json
+```
+
+If any hooks exist, add to `hosts/datacore/configuration.nix`:
+
+```nix
+systemd.services.backrest.path = with pkgs; [ docker restic ];  # match what the hook actually calls
+```
+
+then `nixpkgs-fmt`, build, commit, and `sudo nixos-rebuild switch --flake .#datacore`
+before step 6 starts backrest — otherwise the hook silently fails the first
+time it fires.
+
+- [ ] **Step 5: Flip the identity — while the old headscale still serves**
 
 ```bash
 # OLD box: stand down. Bootable, but no longer claiming the name.
@@ -485,17 +634,17 @@ docker exec headscale headscale nodes list
 docker exec headscale headscale nodes rename -i <id-of-datacore-new> datacore --force
 ```
 
-- [ ] **Step 5: Start services on the HP**
+- [ ] **Step 6: Start services on the HP**
 
 ```bash
-sudo systemctl start syncthing backrest
+sudo systemctl start docker syncthing backrest
 cd ~/projects/datacore-config
 for s in immich media hindsight control-center bootstrap-portal; do
   (cd stacks/$s && docker compose up -d)
 done
 ```
 
-- [ ] **Step 6: Verify the ring**
+- [ ] **Step 7: Verify the ring**
 
 - Phone syncs a new photo to Immich
 - `ssh datacore hostname` from rafik returns `datacore` **with no host-key warning** — this is the proof that decision 8 worked
@@ -525,8 +674,14 @@ connectivity continues; new registrations and renames do not.
 - [ ] **Step 2: Sync headscale's state**
 
 ```bash
-sudo rsync -aHAX scott@datacore-old:/home/srv-data/stacks-state/headscale/ \
+# --rsync-path/--numeric-ids for the same reasons as Task 5 step 1: 7 paths
+# under stacks-state/headscale are unreadable as scott (verified 2026-08-08),
+# and headscale's sqlite DB is the whole point of this step.
+sudo rsync -aHAX --numeric-ids --rsync-path="sudo rsync" \
+  scott@datacore-old:/home/srv-data/stacks-state/headscale/ \
   /home/srv-data/stacks-state/headscale/
+echo "headscale state rsync exit: $?"
+# scott's own repo checkout — no elevation on either side.
 rsync -aHAX scott@datacore-old:~/projects/datacore-config/stacks/headscale/config/ \
   ~/projects/datacore-config/stacks/headscale/config/
 ```
@@ -634,12 +789,17 @@ Task 7. Phase 3 → Task 8. Rollback is not a task because it is a *reaction*; t
 spec's Rollback section governs, and each operational task names the point past
 which its rollback changes.
 
-**Two gaps the spec did not list**, found while writing this plan and added as
-Task 2: datacore's NixOS config has neither `docker compose` nor `restic`. The
-spec says "compose stacks run unchanged" and "backrest → restic → B2" without
-noticing that the substrate provides neither. A fresh install would have reached
-first boot with no way to start a single stack.
+**One gap the spec did not list**, found while writing this plan and added as
+Task 2: datacore's NixOS config had neither `docker-compose` nor `restic` as
+plain interactive commands. **Correction from final review:** this was never a
+"nothing starts" gap — `docker compose` and `restic` both already resolve
+without those packages, via the docker wrapper's plugin-dir mechanism and
+backrest's wrapper respectively (see the comment in
+`hosts/datacore/configuration.nix`). Task 2's real value is putting both on
+PATH for interactive use — needed for the Task 8 restore test — at zero
+closure cost.
 
-**Known limit.** Task 2 cannot verify `docker compose version` — nixpkgs ships
-compose as a CLI plugin and resolution depends on the runtime plugin path. That
-check is deferred to Task 4 step 7, on the real machine, with a stated fallback.
+**Correction from final review.** `docker compose version` was never actually
+at risk: the docker wrapper's `DOCKER_CLI_PLUGIN_DIRS` resolves it without
+`environment.systemPackages`. Task 4 step 7 still runs the check on the real
+machine as confirmation; there is no fallback needed, and none exists.
