@@ -72,7 +72,7 @@ Declared in `ioshi/i-intelligence/theme.nix`. The ones that decide behaviour:
 | `scott.role` | `lib/mkHost.nix`, from the same argument that picks the role profile | `workstation` / `server` / `wsl`. Modules branch on this rather than re-deriving host shape |
 | `scott.gui` | the role profile | Gates GUI packages, cursor theme, ghostty, firefox, fragpaper-era Wayland tools |
 | `scott.ewm.enable` | the role profile | True: Emacs *is* the compositor (system-owned EWM build). False: the pgtk Emacs runs as a user daemon via `emacs-daemon.nix` |
-| `scott.pi.enable` | the role profile | Whether this host gets the OpenRouter credential symlinked from agenix. False on `server`: datacore holds `~/.pi/agent` only as a Syncthing peer and is not a recipient of that secret |
+| `scott.pi.enable` | the role profile | Whether this host gets the OpenRouter credential symlinked from agenix. False on `server`: datacore holds `~/.pi/agent` only as a Syncthing peer and does not run pi — but it **is** an `openrouter-auth.age` recipient regardless (the secret decrypts at every activation via the common core), so `false` here only means no symlink, not no recipient |
 | `scott.ibgateway.enable` | per-host | IB Gateway. True on `rafik` only — see [Chapter 03](03-tools.md#ib-gateway) |
 
 `scott.role` replaced `scott.dotfiles.profile` on 2026-08-08. That option encoded
