@@ -47,11 +47,9 @@ in
       };
     };
 
-    # Opt in per port rather than globally. Stated explicitly because the
-    # catppuccin module warns on every eval that autoEnable is about to become
-    # the default — this pins current behaviour: firefox only, nothing implicit.
-    catppuccin.autoEnable = false;
-
+    # catppuccin.autoEnable = false lives in home/scott/default.nix, ungated —
+    # it was here, inside mkIf scott.gui, so whistle and datacore never set it
+    # and warned on every rebuild. This is the per-port opt-in it enables.
     catppuccin.firefox = {
       enable = true;
       flavor = flavorForTheme config.scott.theme;
