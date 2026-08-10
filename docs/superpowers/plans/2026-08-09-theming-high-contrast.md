@@ -741,6 +741,8 @@ Delete this block entirely:
 
 Replace it with:
 
+**The module already has a `home.file.".config/ghostty/config"` assignment.** You cannot add a second `home.file = ...` beside it — Nix rejects two assignments to the same attribute path in one attrset literal ("attribute already defined"). Merge them into a single `home.file` expression with `//`, keeping the existing `config` entry's text exactly as it is:
+
 ```nix
     # Every palette is pre-rendered here; the runtime switcher picks one.
     # theme.conf is deliberately NOT declared as home.file: bin/dot-theme-set
@@ -751,7 +753,10 @@ Replace it with:
       (name: palette: lib.nameValuePair
         ".config/ghostty/themes/${name}.conf"
         { text = ghostty palette; })
-      palettes;
+      palettes
+    // {
+      ".config/ghostty/config" = { text = ''<the existing config text, unchanged>''; };
+    };
 
     # Seed theme.conf only when absent, so a fresh machine has a theme before
     # the first dot-theme-set run. `-e` is false for a dangling symlink, which
