@@ -105,7 +105,11 @@ At the point in `init.el` where the extracted block used to begin, put:
 
 ```bash
 cd ~/dotfiles/ioshi/i-intelligence/emacs
-grep -n "require 'ewm\|require (quote ewm)" lisp/scott-ewm-slots.el && echo "FAIL: must not require ewm" || echo "correct: no ewm require"
+# Anchored to a real form at line start — a bare grep for the string also hits
+# this file's own header comment, which quotes the --eval (require 'ewm) startup
+# invocation, and would report FAIL on a correct implementation.
+grep -nE "^[[:space:]]*\\(require '\''ewm|^[[:space:]]*\\(require \\(quote ewm" lisp/scott-ewm-slots.el \
+  && echo "FAIL: must not require ewm" || echo "correct: no ewm require"
 timeout 120 emacs --batch -L lisp --eval '(progn (require (quote scott-ewm-slots)) (message "LOADS-STANDALONE ewm-loaded=%s slot-fns=%d" (featurep (quote ewm)) (length (delq nil (mapcar (function fboundp) (list (quote scott/ewm--goto) (quote scott/ewm-close-slot) (quote scott/ewm-select-slot) (quote scott/ewm-tab-bar-slots)))))))' 2>&1 | grep "^LOADS-STANDALONE"
 ```
 
