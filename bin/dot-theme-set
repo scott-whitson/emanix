@@ -117,6 +117,32 @@ except Exception as e:
 PY
 fi
 
+# --- Claude Code: follow the terminal palette ---
+# The -ansi theme variants take their colours from the terminal rather than
+# Claude's built-ins, so Claude inherits whatever palette ghostty is using —
+# including over ssh, where the rendering terminal belongs to the client.
+# Only the dark/light axis matters here; the palette needs no mention.
+#
+# This writes inside the checkout (~/.claude/settings.json is an out-of-store
+# symlink into it). That is the documented trade-off in claude.nix, and the
+# one place the theme system is allowed to dirty the tree.
+claude_settings="$HOME/.claude/settings.json"
+if [[ -f "$claude_settings" ]] && command -v python3 &>/dev/null; then
+    python3 - "$claude_settings" "$VARIANT" <<'PY' || true
+import json, sys, collections
+path, variant = sys.argv[1], sys.argv[2]
+try:
+    with open(path) as fh:
+        data = json.load(fh, object_pairs_hook=collections.OrderedDict)
+except Exception:
+    sys.exit(0)
+data["theme"] = "light-ansi" if variant == "light" else "dark-ansi"
+with open(path, "w") as fh:
+    json.dump(data, fh, indent=2)
+    fh.write("\n")
+PY
+fi
+
 # --- GTK + system color-scheme via gsettings ---
 gtk_conf="$THEME_DIR/gtk.conf"
 if [[ -f "$gtk_conf" ]]; then

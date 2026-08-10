@@ -134,5 +134,6 @@
     "code-review@claude-plugins-official": true,
     "microsoft-docs@claude-plugins-official": true
   },
-  "tui": "fullscreen"
+  "tui": "fullscreen",
+  "theme": "dark-ansi"
 }
