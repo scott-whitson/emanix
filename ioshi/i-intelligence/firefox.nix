@@ -1,5 +1,10 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 
+let
+  themeLib = import ../../lib/themes.nix { inherit pkgs; };
+  palettes = themeLib.palettes;
+  activePalette = palettes.${config.scott.theme} or palettes.catppuccin-mocha;
+in
 {
   # Gated on scott.gui. The ibgateway branch imported this unconditionally,
   # which put a browser on the headless server and on WSL. programs.firefox
@@ -26,6 +31,13 @@
         id = 0;
         isDefault = true;
 
+        # Chrome only, by design: catppuccin's firefox port themed the browser
+        # UI by installing the FirefoxColor extension, and page content is
+        # left exactly as authored. To force the palette onto page content
+        # too, set browser.display.document_color_use = 2 here — see spec
+        # decision 3 for why that is not the default.
+        userChrome = themeLib.firefoxChrome activePalette;
+
         settings = {
           # Dark theme by default
           "ui.systemUsesDarkTheme" = 1;
@@ -42,6 +54,9 @@
           "browser.newtabpage.activity-stream.showSponsored" = false;
           "browser.newtabpage.activity-stream.showSponsoredTopSites" = false;
           "browser.newtabpage.activity-stream.default.sites" = "";
+
+          # Without this Firefox ignores userChrome.css entirely.
+          "toolkit.legacyUserProfileCustomizations.stylesheets" = true;
         };
       };
     };
