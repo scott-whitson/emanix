@@ -56,8 +56,23 @@ link_if_present() {
     fi
 }
 
-link_if_present "$THEME_DIR/ghostty.conf"   "$HOME/.config/ghostty/theme.conf"
+# ghostty configs are rendered by Nix into ~/.config/ghostty/themes/, not
+# carried in themes/<name>/ — lib/themes.nix is the single source of colour.
+link_if_present "$HOME/.config/ghostty/themes/$THEME_NAME.conf" \
+                "$HOME/.config/ghostty/theme.conf"
 link_if_present "$THEME_DIR/btop.theme"     "$HOME/.config/btop/themes/active.theme"
+
+# --- zellij: flip which ANSI-index theme is active ---
+# Colours come from the terminal, so only the dark/light role assignment
+# changes here. Both candidate themes are named `eminix`; zellij selects by
+# name, so the switch swaps which definition is visible in theme_dir rather
+# than editing config.kdl (which lives in the checkout and must stay clean).
+zellij_root="$HOME/.local/share/dotfiles/zellij-themes"
+if [[ -d "$zellij_root/available" ]]; then
+    mkdir -p "$zellij_root/active"
+    ln -sfn "$zellij_root/available/eminix-$VARIANT.kdl" \
+            "$zellij_root/active/theme.kdl"
+fi
 
 # Two apps get themed here; everything else is Emacs, which is themed through
 # scott/theme-set below. Retired targets and when: helix (2026-08-07, sole
@@ -69,6 +84,16 @@ link_if_present "$THEME_DIR/btop.theme"     "$HOME/.config/btop/themes/active.th
 # The pi-agent theme JSON is derived from colors.toml (single source of truth)
 # so it can never drift from the rest of the theme. We regenerate on every
 # switch (cheap + idempotent) and symlink the result into ~/.pi/agent/themes/.
+#
+# NOTE: $THEME_DIR is inside the checkout ($DOTFILES/themes/<name>/), so this
+# writes into the repo too — Claude Code's settings.json (below) is not
+# actually the sole exception, despite what earlier comments here and in
+# docs/manual/02-theming.md claimed. It is harmless today only because
+# gen-pi-theme.py's output is deterministic per theme: every switch rewrites
+# pi-agent-theme.json to the same bytes it already had, so `git status` stays
+# clean. That safety is incidental, not structural — a future change to the
+# generator that makes its output non-deterministic (a timestamp, machine-
+# specific path, etc.) would dirty the tree on every switch with no warning.
 pi_themes_dir="$HOME/.pi/agent/themes"
 gen_script="$DOTFILES/bin/gen-pi-theme.py"
 if [[ -x "$gen_script" ]]; then
@@ -102,6 +127,47 @@ except Exception as e:
 PY
 fi
 
+# --- Claude Code: follow the terminal palette ---
+# The -ansi theme variants take their colours from the terminal rather than
+# Claude's built-ins, so Claude inherits whatever palette ghostty is using —
+# including over ssh, where the rendering terminal belongs to the client.
+# Only the dark/light axis matters here; the palette needs no mention.
+#
+# This writes inside the checkout (~/.claude/settings.json is an out-of-store
+# symlink into it). That is the documented trade-off in claude.nix — but it
+# is not the only place this script writes into the repo; see the pi-agent
+# block above, which regenerates pi-agent-theme.json under themes/<name>/.
+claude_settings="$HOME/.claude/settings.json"
+if [[ -f "$claude_settings" ]] && command -v python3 &>/dev/null; then
+    python3 - "$claude_settings" "$VARIANT" <<'PY' || true
+import json, sys, os, tempfile, collections
+path, variant = sys.argv[1], sys.argv[2]
+tmp = None
+try:
+    # Resolve the symlink so the checkout file gets replaced, not the
+    # symlink itself -- os.replace() onto a symlink path would swap in a
+    # plain file and sever the link to version control.
+    real = os.path.realpath(path)
+    with open(real) as fh:
+        data = json.load(fh, object_pairs_hook=collections.OrderedDict)
+    data["theme"] = "light-ansi" if variant == "light" else "dark-ansi"
+    # Write to a temp file in the same directory, then atomically replace.
+    # Claude Code rewrites this file at runtime; a plain truncate-then-write
+    # could race it and leave a partial file (dropping hooks/enabledPlugins).
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(real))
+    with os.fdopen(fd, "w") as fh:
+        json.dump(data, fh, indent=2)
+        fh.write("\n")
+    os.replace(tmp, real)
+    tmp = None
+except Exception as e:
+    print(f"claude settings update failed: {e}", file=sys.stderr)
+finally:
+    if tmp and os.path.exists(tmp):
+        os.unlink(tmp)
+PY
+fi
+
 # --- GTK + system color-scheme via gsettings ---
 gtk_conf="$THEME_DIR/gtk.conf"
 if [[ -f "$gtk_conf" ]]; then
@@ -122,12 +188,17 @@ if [[ -x "$THEME_DIR/post-set.sh" ]]; then
     bash "$THEME_DIR/post-set.sh" || true
 fi
 
-# --- Emacs: switch catppuccin flavor in the running daemon (best-effort) ---
-EMACSCLIENT="$HOME/.nix-profile/bin/emacsclient"
-if [[ -x "$EMACSCLIENT" ]]; then
-    emacs_flavor="mocha"
-    [[ "$VARIANT" == "light" ]] && emacs_flavor="latte"
-    "$EMACSCLIENT" -e "(scott/theme-set \"$emacs_flavor\")" &>/dev/null || true
+# --- Emacs: switch theme in the running daemon (best-effort) ---
+# Resolve emacsclient rather than hardcoding a path. rafik runs the
+# system-owned EWM build, whose client is /run/current-system/sw/bin/
+# emacsclient; ~/.nix-profile/bin/emacsclient does not exist there at all.
+# The old hardcoded path meant this handoff silently no-op'd on the one host
+# where Emacs IS the desktop.
+EMACSCLIENT="$(command -v emacsclient || true)"
+if [[ -n "$EMACSCLIENT" ]]; then
+    # Pass the theme NAME. Emacs maps it via themes/<name>/emacs-theme, so a
+    # new theme needs no change here.
+    "$EMACSCLIENT" -e "(scott/theme-set \"$THEME_NAME\")" &>/dev/null || true
 fi
 
 # --- Reload running apps (best-effort) ---

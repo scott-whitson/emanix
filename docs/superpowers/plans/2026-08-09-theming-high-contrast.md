@@ -27,7 +27,7 @@
 
 | File | Responsibility |
 |---|---|
-| `lib/themes.nix` | **Modify.** Palettes (now 4) + config generators. Single source of truth for colour. |
+| `lib/themes.nix` | **Modify.** Palettes (now 4), `ansiSlots` (variant-aware ANSI order), config generators. Single source of truth for colour AND for ANSI slot order. |
 | `bin/gen-theme-dir.py` | **Create.** Renders `themes/<name>/` from a palette. Run at authoring time, output committed. |
 | `themes/high-contrast-{dark,light}/` | **Create.** Runtime theme directories. |
 | `themes/*/emacs-theme` | **Create** (all 4). Names the Emacs theme to load. |
@@ -267,6 +267,150 @@ the 2026-08-07 convergence and nothing has called these since."
 
 ---
 
+## Task 1b: Make the ANSI mapping variant-aware
+
+**Agent-executable.** Added 2026-08-10 after Task 2 discovered the defect. Approved by Scott.
+
+**Files:**
+- Modify: `lib/themes.nix`
+
+**Interfaces:**
+- Produces: `ansiSlots = palette: [ ... 16 slot names ... ]`, exported from `lib/themes.nix`. `bin/gen-theme-dir.py` (Task 2) must emit the same ordering, and Task 6's zellij themes depend on the semantics being right.
+
+**The defect.** `lib/themes.nix`'s `ghostty` generator hardcodes one ANSI order for every palette: `color0 = surface1`, `color7 = subtext0`, `color8 = surface2`, `color15 = subtext1`. On a **light** palette that puts a light colour at index 0 ("black") and a dark colour at index 15 ("white") — inverted. Verified against the committed `themes/catppuccin-latte/colors.toml`, which has it right and therefore disagrees with what `ghostty.nix` renders:
+
+| index | committed Latte | slot | hardcoded order gives | slot |
+|---|---|---|---|---|
+| `color0` | `#5c5f77` dark | `subtext1` | `#bcc0cc` light | `surface1` |
+| `color7` | `#acb0be` | `surface2` | `#6c6f85` | `subtext0` |
+| `color8` | `#6c6f85` | `subtext0` | `#acb0be` | `surface2` |
+| `color15` | `#bcc0cc` light | `surface1` | `#5c5f77` dark | `subtext1` |
+
+**Why it is load-bearing, not cosmetic:** Task 6's zellij themes use `bg 0`/`fg 7` for dark and `bg 15`/`fg 0` for light, and Task 7's Claude Code `-ansi` themes read the terminal's ANSI palette. An inverted light palette renders both unreadable — the exact opposite of the contrast this project exists to provide.
+
+The light order is the dark order with the greyscale ends exchanged: `0↔15` and `7↔8`.
+
+- [ ] **Step 1: Add the shared ordering and use it in the ghostty generator**
+
+In `lib/themes.nix`, above the `ghostty` generator, add:
+
+```nix
+  # ANSI slots 0-15, in order. Light palettes exchange the greyscale ends
+  # (0<->15 and 7<->8): index 0 is "black" and 15 is "white", so on a light
+  # palette they must be the DARK and LIGHT extremes respectively. The old
+  # hardcoded order applied the dark mapping to every palette, which put a
+  # light colour at index 0 on latte — inverted, and disagreeing with
+  # themes/catppuccin-latte/colors.toml, which had it right.
+  #
+  # This is not cosmetic: zellij themes and Claude Code's -ansi themes read
+  # these indices, so an inverted light palette renders unreadable.
+  #
+  # bin/gen-theme-dir.py must emit this same ordering.
+  ansiSlots = palette:
+    let accents = [ "red" "green" "yellow" "blue" "pink" "teal" ];
+    in
+    if palette.variant == "light"
+    then [ "subtext1" ] ++ accents ++ [ "surface2" "subtext0" ] ++ accents ++ [ "surface1" ]
+    else [ "surface1" ] ++ accents ++ [ "subtext0" "surface2" ] ++ accents ++ [ "subtext1" ];
+```
+
+Then replace the sixteen hardcoded `palette = N=...` lines in the `ghostty` generator with a generated block:
+
+```nix
+    ${lib.concatStringsSep "\n" (lib.imap0
+      (i: slot: "palette = ${toString i}=${palette.colors.${slot}}")
+      (ansiSlots palette))}
+```
+
+`lib/themes.nix` currently takes `{ pkgs, ... }`. Change it to `{ pkgs, lib ? pkgs.lib, ... }` so `lib.imap0` and `lib.concatStringsSep` resolve.
+
+Export `ansiSlots` from the returned attrset (it is a `rec`, so simply having the binding is not enough — it must be a top-level attribute, which it already is by virtue of being defined in the `rec { ... }` body).
+
+- [ ] **Step 2: Prove the dark ordering is unchanged and the light one is fixed**
+
+```bash
+cd ~/dotfiles
+nix eval --json --impure --expr '
+  let t = import ./lib/themes.nix { pkgs = import <nixpkgs> {}; };
+  in builtins.mapAttrs (n: p: t.ansiSlots p) t.palettes' | python3 -m json.tool
+```
+
+Expected: `catppuccin-mocha` and `high-contrast-dark` start `"surface1"` and end `"subtext1"`; `catppuccin-latte` and `high-contrast-light` start `"subtext1"` and end `"surface1"`.
+
+- [ ] **Step 3: Prove the light ordering reproduces the committed Latte values**
+
+This is the real test — the fix is correct if it reproduces a file written by hand before this project existed.
+
+```bash
+cd ~/dotfiles
+nix eval --json --impure --expr '
+  let t = import ./lib/themes.nix { pkgs = import <nixpkgs> {}; };
+      p = t.palettes.catppuccin-latte;
+  in builtins.listToAttrs (builtins.genList (i: {
+       name = "color${toString i}";
+       value = p.colors.${builtins.elemAt (t.ansiSlots p) i};
+     }) 16)' > /tmp/latte-ansi-generated.json
+git show HEAD:themes/catppuccin-latte/colors.toml \
+  | sed -n '/^\[ansi\]/,/^$/p' | grep '^color' \
+  | python3 -c '
+import sys, json, re
+d = dict(re.findall(r"(color\d+) = \"(#[0-9a-f]{6})\"", sys.stdin.read()))
+print(json.dumps(d, sort_keys=True))' > /tmp/latte-ansi-committed.json
+python3 -c '
+import json
+a = json.load(open("/tmp/latte-ansi-generated.json"))
+b = json.load(open("/tmp/latte-ansi-committed.json"))
+diff = {k: (a.get(k), b.get(k)) for k in sorted(set(a) | set(b)) if a.get(k) != b.get(k)}
+print("IDENTICAL — generated ANSI matches the hand-written committed file" if not diff
+      else f"MISMATCH: {diff}")'
+```
+
+Expected: `IDENTICAL — generated ANSI matches the hand-written committed file`.
+
+If it mismatches, the ordering is wrong — fix `ansiSlots`, not the committed file.
+
+- [ ] **Step 4: Confirm ghostty output changed only for light palettes**
+
+```bash
+cd ~/dotfiles
+nixpkgs-fmt --check lib/themes.nix
+nix eval --raw --impure --expr '(import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).ghostty (import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).palettes.catppuccin-mocha' \
+  | grep -E "^palette = (0|7|8|15)="
+echo "--- latte ---"
+nix eval --raw --impure --expr '(import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).ghostty (import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).palettes.catppuccin-latte' \
+  | grep -E "^palette = (0|7|8|15)="
+```
+
+Expected — mocha unchanged from before this task (`0=#45475a`, `7=#a6adc8`, `8=#585b70`, `15=#bac2de`); latte now `0=#5c5f77`, `7=#acb0be`, `8=#6c6f85`, `15=#bcc0cc`.
+
+- [ ] **Step 5: Build and commit**
+
+```bash
+cd ~/dotfiles
+for h in rafik whistle datacore; do
+  printf "%-9s " $h
+  nix build --no-link --print-out-paths .#nixosConfigurations.$h.config.system.build.toplevel
+done
+git add lib/themes.nix
+git commit -m "fix(theme): ANSI slot order must follow the palette's variant
+
+The ghostty generator hardcoded one ANSI order for every palette, so light
+palettes got a light colour at index 0 ('black') and a dark one at index 15
+('white') — inverted. themes/catppuccin-latte/colors.toml had it right, which
+means ghostty.nix and that file have been disagreeing: two sources of truth
+for the same sixteen values, and the Nix one was wrong.
+
+Not cosmetic. zellij themes and Claude Code's -ansi themes read these indices,
+so an inverted light palette renders unreadable — the opposite of what the
+high-contrast work is for, and it would have shipped in high-contrast-light.
+
+The light order is the dark order with the greyscale ends exchanged (0<->15,
+7<->8). Verified by reproduction: generating latte's sixteen values now
+matches the hand-written committed file exactly, and mocha's are unchanged."
+```
+
+---
+
 ## Task 2: Theme-directory generator and the four theme directories
 
 **Agent-executable.**
@@ -280,10 +424,14 @@ the 2026-08-07 convergence and nothing has called these since."
 - Delete: `themes/*/ghostty.conf` (all four)
 
 **Interfaces:**
-- Consumes: `palettes.<name>` from Task 1.
+- Consumes: `palettes.<name>` from Task 1 and `ansiSlots` from Task 1b.
 - Produces: `themes/<name>/` directories with the anatomy `dot-theme-set` expects, and a `[palette]` section in every `colors.toml`.
 
 **Why `colors.toml` changes shape:** `bin/gen-pi-theme.py:70` reads `toml["catppuccin"]` — a hardcoded section name. A theme called `high-contrast-dark` having a `[catppuccin]` section is nonsense. The section is renamed to `[palette]`, and the reader accepts either so nothing breaks mid-migration.
+
+**The ANSI ordering is not duplicated here.** It comes from `lib/themes.nix`'s `ansiSlots` (Task 1b), passed in as part of the JSON this script reads. Re-declaring the order in Python would be a second source of truth for the same sixteen values — which is the exact defect Task 1b exists to fix.
+
+**btop is deliberately NOT regenerated for the Catppuccin themes.** `themes/catppuccin-latte/btop.theme` uses nine colours that are absent from its palette (`#1a1c28`, `#0d47a1`, `#2d5016`, …) — hand-darkened to read against a light background. Regenerating it from raw palette slots would replace `#0d47a1` with Latte's `blue` (`#1e66f5`, 4.34:1, fails AA), i.e. a contrast regression in a contrast project. The two new palettes need no such tuning: their accents are already ≥7:1 by construction.
 
 - [ ] **Step 1: Create the generator**
 
@@ -300,23 +448,25 @@ consumes. Output is committed; this runs at authoring time, not at switch time.
 Usage:
   cd ~/dotfiles
   nix eval --json --impure --expr \
-    '(import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).palettes' \
+    'let t = import ./lib/themes.nix { pkgs = import <nixpkgs> {}; };
+     in builtins.mapAttrs (n: p: p // { ansi = t.ansiSlots p; }) t.palettes' \
     | bin/gen-theme-dir.py <theme-name> themes/<theme-name> \
-        themes/catppuccin-mocha/btop.theme
+        themes/catppuccin-mocha/btop.theme [--skip-btop]
 
-The third argument is the structural template for btop.theme: its colours are
-substituted slot-for-slot. Verified to reproduce the committed catppuccin-mocha
-btop.theme byte-for-byte.
+The ANSI order arrives in the JSON as each palette's `ansi` list, produced by
+lib/themes.nix's ansiSlots. It is deliberately NOT redeclared here: two copies
+of the same sixteen values is the defect Task 1b fixed.
+
+The btop template's colours are substituted slot-for-slot. Verified to
+reproduce the committed catppuccin-mocha btop.theme byte-for-byte.
+
+--skip-btop leaves an existing btop.theme untouched. Used for the catppuccin
+themes, whose light-variant btop file is hand-darkened beyond the palette.
 """
 import json
 import os
 import re
 import sys
-
-# Terminal ANSI slots 0-15. Must stay identical to the `ghostty` generator in
-# lib/themes.nix — zellij and Claude Code read these slots via the terminal.
-ANSI = ["surface1", "red", "green", "yellow", "blue", "pink", "teal", "subtext0",
-        "surface2", "red", "green", "yellow", "blue", "pink", "teal", "subtext1"]
 
 ORDER = ["rosewater", "flamingo", "pink", "mauve", "red", "maroon", "peach",
          "yellow", "green", "teal", "sky", "sapphire", "blue", "lavender",
@@ -331,8 +481,11 @@ UI = [("accent", "blue"), ("foreground", "text"), ("background", "base"),
 def main():
     palettes = json.load(sys.stdin)
     name, outdir, btop_template = sys.argv[1], sys.argv[2], sys.argv[3]
+    skip_btop = "--skip-btop" in sys.argv[4:]
     palette = palettes[name]
     c, variant = palette["colors"], palette["variant"]
+    # ANSI order comes from lib/themes.nix via ansiSlots — see the docstring.
+    ansi = palette["ansi"]
     os.makedirs(outdir, exist_ok=True)
 
     def write(filename, text):
@@ -347,7 +500,7 @@ def main():
              "", "[ui]"]
     lines += [f'{key} = "{c[slot]}"' for key, slot in UI]
     lines += ["", "[ansi]"]
-    lines += [f'color{i} = "{c[slot]}"' for i, slot in enumerate(ANSI)]
+    lines += [f'color{i} = "{c[slot]}"' for i, slot in enumerate(ansi)]
     lines += ["", "[palette]"]
     lines += [f'{slot} = "{c[slot]}"' for slot in ORDER]
     write("colors.toml", "\n".join(lines) + "\n")
@@ -367,6 +520,14 @@ def main():
 
     # btop has no generator in lib/themes.nix; its 42 entries draw on 17 palette
     # slots. Reverse-map the template's hexes to slot names, then substitute.
+    #
+    # Skipped for the catppuccin themes: catppuccin-latte's committed btop.theme
+    # uses nine colours absent from its palette, hand-darkened to read on a light
+    # background. Regenerating from raw slots would lower its contrast.
+    if skip_btop:
+        print(f"wrote {outdir} (btop.theme left untouched)")
+        return
+
     reference = palettes["catppuccin-mocha"]["colors"]
     by_hex = {v.lower(): k for k, v in reference.items()}
     with open(btop_template) as fh:
@@ -393,7 +554,8 @@ This is the test. If the generator reproduces the hand-written Catppuccin files,
 cd ~/dotfiles
 chmod 755 bin/gen-theme-dir.py
 PAL=$(mktemp)
-nix eval --json --impure --expr '(import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).palettes' > "$PAL"
+nix eval --json --impure --expr 'let t = import ./lib/themes.nix { pkgs = import <nixpkgs> {}; };
+  in builtins.mapAttrs (n: p: p // { ansi = t.ansiSlots p; }) t.palettes' > "$PAL"
 OUT=$(mktemp -d)
 bin/gen-theme-dir.py catppuccin-mocha "$OUT" themes/catppuccin-mocha/btop.theme < "$PAL"
 diff "$OUT/btop.theme" themes/catppuccin-mocha/btop.theme && echo "btop.theme IDENTICAL"
@@ -408,17 +570,38 @@ diff <(sed -n '/^\[ansi\]/,/^$/p' "$OUT/colors.toml") \
 
 Expected: all four "IDENTICAL" lines, no diff output. **If `btop.theme` differs, stop** — the slot mapping is wrong and every generated theme will be wrong.
 
+Then the same check for the light variant, which is what Task 1b fixed. Its `[ansi]` must reproduce too:
+
+```bash
+OUTL=$(mktemp -d)
+bin/gen-theme-dir.py catppuccin-latte "$OUTL" themes/catppuccin-mocha/btop.theme --skip-btop < "$PAL"
+diff <(sed -n '/^\[ansi\]/,/^$/p' "$OUTL/colors.toml") \
+     <(git show HEAD:themes/catppuccin-latte/colors.toml | sed -n '/^\[ansi\]/,/^$/p') \
+  && echo "latte ansi IDENTICAL — variant-aware ordering confirmed"
+```
+
+Expected: `latte ansi IDENTICAL`. If it differs, Task 1b's `ansiSlots` is wrong — stop and report, do not edit the committed file.
+
 - [ ] **Step 3: Generate the four theme directories**
 
 ```bash
 cd ~/dotfiles
-for t in catppuccin-mocha catppuccin-latte high-contrast-dark high-contrast-light; do
+# --skip-btop for the catppuccin themes: latte's committed btop.theme is
+# hand-darkened beyond its palette and regenerating it would LOWER contrast.
+for t in catppuccin-mocha catppuccin-latte; do
+  bin/gen-theme-dir.py "$t" "themes/$t" themes/catppuccin-mocha/btop.theme --skip-btop < "$PAL"
+done
+for t in high-contrast-dark high-contrast-light; do
   bin/gen-theme-dir.py "$t" "themes/$t" themes/catppuccin-mocha/btop.theme < "$PAL"
 done
 git diff --stat themes/
 ```
 
-Expected: the two catppuccin `colors.toml`, `palette.sh` and `gtk.conf` files change (regenerated headers, `[catppuccin]` → `[palette]`); their `btop.theme` and `variant` do **not** change; two new directories appear.
+Expected: the two catppuccin `colors.toml`, `palette.sh` and `gtk.conf` files change (regenerated headers, `[catppuccin]` → `[palette]`); their **`btop.theme` does NOT appear in the diff at all**; two new directories appear.
+
+`themes/catppuccin-latte/variant` **will** show a one-line change: the committed file has no trailing newline (mocha's does) and the generator adds one. That is a harmless pre-existing inconsistency being normalised — `dot-theme-set` reads it as `tr -d '[:space:]' < "$VARIANT_FILE"`, so both forms parse identically. Confirm the content is still the single word `light`, and commit it.
+
+If `themes/catppuccin-latte/btop.theme` shows up in `git diff --stat`, `--skip-btop` did not take — stop and report rather than committing a contrast regression.
 
 - [ ] **Step 4: Write the two READMEs**
 
@@ -558,6 +741,8 @@ Delete this block entirely:
 
 Replace it with:
 
+**The module already has a `home.file.".config/ghostty/config"` assignment.** You cannot add a second `home.file = ...` beside it — Nix rejects two assignments to the same attribute path in one attrset literal ("attribute already defined"). Merge them into a single `home.file` expression with `//`, keeping the existing `config` entry's text exactly as it is:
+
 ```nix
     # Every palette is pre-rendered here; the runtime switcher picks one.
     # theme.conf is deliberately NOT declared as home.file: bin/dot-theme-set
@@ -568,7 +753,10 @@ Replace it with:
       (name: palette: lib.nameValuePair
         ".config/ghostty/themes/${name}.conf"
         { text = ghostty palette; })
-      palettes;
+      palettes
+    // {
+      ".config/ghostty/config" = { text = ''<the existing config text, unchanged>''; };
+    };
 
     # Seed theme.conf only when absent, so a fresh machine has a theme before
     # the first dot-theme-set run. `-e` is false for a dangling symlink, which
@@ -975,7 +1163,12 @@ Expected: the generated CSS beginning `/* Generated by dotfiles/lib/themes.nix �
 
 ```bash
 cd ~/dotfiles
-grep -rn "document_color_use" . --include='*.nix' && echo "UNEXPECTED — spec decision 3 says chrome only" || echo "no content override, correct"
+# Match an actual pref assignment, not the doc comment Step 2 deliberately adds.
+# A bare grep for the pref name will always hit that comment and read as a
+# scope violation when none happened.
+grep -rnE '^\s*"browser\.display\.document_color_use"\s*=' . --include='*.nix' \
+  && echo "UNEXPECTED — spec decision 3 says chrome only" \
+  || echo "no content override, correct"
 ```
 
 - [ ] **Step 5: Build; whistle and datacore must be unchanged**
@@ -1022,13 +1215,35 @@ catppuccin block was removed and is needed to import lib/themes.nix."
 - Modify: `bin/dot-theme-set`
 
 **Interfaces:**
-- Produces: `~/.local/share/dotfiles/zellij-themes/active.kdl`, flipped by `dot-theme-set`.
+- Produces: `~/.local/share/dotfiles/zellij-themes/active/theme.kdl` — a symlink to one of `available/eminix-{dark,light}.kdl`, flipped by `dot-theme-set`. Both files define a theme named `eminix`.
 
 **Why indices, not hex:** Scott runs Claude Code on whistle either locally or ssh'd from rafik. Under ssh the *rendering* terminal is rafik's ghostty, so hardcoded per-host colours would clash. Zellij colour indices 0–15 resolve against whatever terminal renders them. **Verified:** zellij 0.44.3 accepts bare indices — a theme written `fg 15` / `bg 0` passes `zellij setup --check` with `[CONFIG FILE]: Well defined.`
 
 **Why the theme file lives outside the repo:** `~/.config/zellij` is an out-of-store symlink into the checkout (`zellij.nix`), so writing a theme there at switch time would dirty the working tree — the Helix drift caveat.
 
+**Three zellij behaviours verified 2026-08-09 that dictate the shape below.** Get any of them wrong and the switcher silently does nothing:
+
+- **The bare `fg`/`bg`/`black`/`white` palette format cannot express a light theme.** It has no way to set `theme_hue`, which defaults to `Dark`, and `From<Palette> for Styling` then derives `background` from `palette.black`. Use the per-declaration format instead — see Step 1.
+- **zellij selects a theme by NAME, not by file.** So the two theme files must both define a theme with the *same* name (`eminix`), and `theme_dir` must contain only the active one. Putting both files in `theme_dir` and changing the `theme` line would require editing `config.kdl` — which is in the checkout, and would dirty the tree on every switch.
+- **`theme_dir` pointing at a missing directory is a hard `IoError`** and zellij refuses to start. The directory and its symlink must exist before zellij ever runs, so Home Manager seeds them.
+- **`zellij setup --check` does NOT validate theme names.** A config naming a nonexistent theme still reports `[CONFIG FILE]: Well defined.` The check confirms KDL syntax and colour-value parsing only. Real theme resolution is verified on the machine in Task 9 — do not treat a passing `--check` as proof the theme applies.
+
 - [ ] **Step 1: Create the two theme files under Home Manager**
+
+**Use zellij's newer per-declaration theme format, NOT the bare `fg`/`bg`/`black`/`white` palette format.** This was changed on 2026-08-10 after two failed fix rounds; the reason is structural, established from zellij 0.44.3's source:
+
+`zellij-utils/src/data.rs`, `impl From<Palette> for Styling`, opens with
+
+```rust
+let (fg, bg) = match palette.theme_hue {
+    ThemeHue::Light => (palette.black, palette.white),
+    ThemeHue::Dark   => (palette.white, palette.black),
+};
+```
+
+and the bare-palette KDL format has **no way to set `theme_hue`**, so it is always `Dark` (`zellij-utils/src/kdl/mod.rs`, `Themes::from_kdl`). A light theme written in that format therefore gets `background = palette.black` for `text_unselected` while `text_selected` uses the raw `palette.bg` — unselected rows render on black, selected rows on white. The format cannot express a light theme at all. No choice of indices fixes it.
+
+**Zellij ships almost exactly what is wanted here.** `zellij-utils/assets/themes/ansi.kdl` is a per-declaration theme using only the 16 ANSI colours, described in its own header as letting you "customize theme via ones terminal color settings". Use it as the dark definition verbatim (renamed), and derive the light one from it by exchanging the greyscale ends — `0↔15` and `7↔8`, the same transformation `lib/themes.nix`'s `ansiSlots` applies. Verified: both are free of `base == background` collisions, and light's `text_unselected` becomes `base 0` on `background 15`.
 
 In `ioshi/i-intelligence/zellij.nix`, inside `config = lib.mkIf ...`, add:
 
@@ -1037,61 +1252,323 @@ In `ioshi/i-intelligence/zellij.nix`, inside `config = lib.mkIf ...`, add:
     # symlink into the repo, so a theme file written there at switch time would
     # dirty the working tree — the Helix drift caveat in docs/manual/02-theming.md.
     #
-    # Colours are ANSI indices 0-15, not hex, on purpose: they resolve against
-    # whatever terminal renders the session. Under ssh from rafik into whistle
-    # the rendering terminal is rafik's ghostty, so hardcoded per-host colours
-    # would clash. This also means a palette switch needs no zellij change at
-    # all — only the dark/light role assignment differs below.
-    home.file.".local/share/dotfiles/zellij-themes/eminix-dark.kdl".text = ''
+    # Colours are ANSI indices 0-15, so they resolve against whatever terminal
+    # renders the session. Under ssh from rafik into whistle the rendering
+    # terminal is rafik's ghostty, so hardcoded per-host colours would clash.
+    # A palette switch therefore needs no zellij change at all; only dark/light
+    # does.
+    #
+    # PER-DECLARATION format, not the bare fg/bg/black/white palette format.
+    # The bare format cannot set theme_hue, which defaults to Dark, and
+    # From<Palette> for Styling then derives background from palette.black —
+    # so a light theme renders unselected rows on black. See data.rs and
+    # kdl/mod.rs in zellij's source. Both definitions below are modelled on
+    # zellij's own assets/themes/ansi.kdl; the light one exchanges the
+    # greyscale ends (0<->15, 7<->8).
+    #
+    # BOTH are named `eminix`: zellij selects a theme by NAME, so switching
+    # swaps which file is visible in theme_dir rather than editing config.kdl.
+    home.file.".local/share/dotfiles/zellij-themes/available/eminix-dark.kdl".text = ''
       themes {
-          eminix-dark {
-              fg 7
-              bg 0
-              black 0
-              red 1
-              green 2
-              yellow 3
-              blue 4
-              magenta 5
-              cyan 6
-              white 15
-              orange 3
+        eminix {
+          text_unselected {
+            base 15
+            background 0
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
           }
+          text_selected {
+            base 15
+            background 8
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          ribbon_unselected {
+            base 0
+            background 7
+            emphasis_0 1
+            emphasis_1 15
+            emphasis_2 4
+            emphasis_3 5
+          }
+          ribbon_selected {
+            base 0
+            background 2
+            emphasis_0 1
+            emphasis_1 9
+            emphasis_2 5
+            emphasis_3 4
+          }
+          table_title {
+            base 2
+            background 0
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          table_cell_unselected {
+            base 15
+            background 0
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          table_cell_selected {
+            base 15
+            background 8
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          list_unselected {
+            base 15
+            background 0
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          list_selected {
+            base 15
+            background 8
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          frame_selected {
+            base 2
+            background 0
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 5
+            emphasis_3 0
+          }
+          frame_highlight {
+            base 9
+            background 0
+            emphasis_0 5
+            emphasis_1 9
+            emphasis_2 9
+            emphasis_3 9
+          }
+          exit_code_success {
+            base 2
+            background 0
+            emphasis_0 6
+            emphasis_1 0
+            emphasis_2 5
+            emphasis_3 4
+          }
+          exit_code_error {
+            base 1
+            background 0
+            emphasis_0 3
+            emphasis_1 0
+            emphasis_2 0
+            emphasis_3 0
+          }
+          multiplayer_user_colors {
+            player_1 5
+            player_2 4
+            player_3 0
+            player_4 3
+            player_5 6
+            player_6 0
+            player_7 1
+            player_8 0
+            player_9 0
+            player_10 0
+          }
+        }
       }
     '';
 
-    home.file.".local/share/dotfiles/zellij-themes/eminix-light.kdl".text = ''
+    home.file.".local/share/dotfiles/zellij-themes/available/eminix-light.kdl".text = ''
       themes {
-          eminix-light {
-              fg 0
-              bg 15
-              black 0
-              red 1
-              green 2
-              yellow 3
-              blue 4
-              magenta 5
-              cyan 6
-              white 7
-              orange 3
+        eminix {
+          text_unselected {
+            base 0
+            background 15
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
           }
+          text_selected {
+            base 0
+            background 7
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          ribbon_unselected {
+            base 15
+            background 8
+            emphasis_0 1
+            emphasis_1 0
+            emphasis_2 4
+            emphasis_3 5
+          }
+          ribbon_selected {
+            base 15
+            background 2
+            emphasis_0 1
+            emphasis_1 9
+            emphasis_2 5
+            emphasis_3 4
+          }
+          table_title {
+            base 2
+            background 15
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          table_cell_unselected {
+            base 0
+            background 15
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          table_cell_selected {
+            base 0
+            background 7
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          list_unselected {
+            base 0
+            background 15
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          list_selected {
+            base 0
+            background 7
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          frame_selected {
+            base 2
+            background 15
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 5
+            emphasis_3 15
+          }
+          frame_highlight {
+            base 9
+            background 15
+            emphasis_0 5
+            emphasis_1 9
+            emphasis_2 9
+            emphasis_3 9
+          }
+          exit_code_success {
+            base 2
+            background 15
+            emphasis_0 6
+            emphasis_1 15
+            emphasis_2 5
+            emphasis_3 4
+          }
+          exit_code_error {
+            base 1
+            background 15
+            emphasis_0 3
+            emphasis_1 15
+            emphasis_2 15
+            emphasis_3 15
+          }
+          multiplayer_user_colors {
+            player_1 5
+            player_2 4
+            player_3 15
+            player_4 3
+            player_5 6
+            player_6 15
+            player_7 1
+            player_8 15
+            player_9 15
+            player_10 15
+          }
+        }
       }
     '';
+
+    # theme_dir must EXIST before zellij starts: pointing it at a missing
+    # directory is a hard IoError, not a warning, and zellij refuses to run.
+    # Seed the active symlink if absent, same pattern as ghostty's theme.conf.
+    home.activation.seedZellijTheme =
+      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        active="$HOME/.local/share/dotfiles/zellij-themes/active"
+        run mkdir -p "$active"
+        if [ ! -e "$active/theme.kdl" ]; then
+          run ln -sfn \
+            "$HOME/.local/share/dotfiles/zellij-themes/available/eminix-dark.kdl" \
+            "$active/theme.kdl"
+        fi
+      '';
 ```
 
-- [ ] **Step 2: Point `config.kdl` at them**
+- [ ] **Step 1b: Assert no declaration puts the same index in `base` and `background`**
+
+This is the bug that two earlier rounds shipped, so prove its absence rather than reading for it:
+
+```bash
+cd ~/dotfiles
+for v in dark light; do
+  nix eval --raw ".#nixosConfigurations.whistle.config.home-manager.users.scott.home.file.\".local/share/dotfiles/zellij-themes/available/eminix-$v.kdl\".text" \
+  | python3 -c '
+import sys, re
+t = sys.stdin.read()
+bad = []
+for m in re.finditer(r"(\w+)\s*\{([^}]*)\}", t):
+    name, body = m.group(1), m.group(2)
+    b = re.search(r"\bbase\s+(\d+)", body)
+    g = re.search(r"\bbackground\s+(\d+)", body)
+    if b and g and b.group(1) == g.group(1):
+        bad.append(f"{name}: base==background=={b.group(1)}")
+print("COLLISIONS:", bad if bad else "none")
+' | sed "s/^/$v: /"
+done
+```
+
+Expected: `dark: COLLISIONS: none` and `light: COLLISIONS: none`.
+
+- [ ] **Step 2: Point `config.kdl` at the active directory**
 
 In `ioshi/i-intelligence/zellij/config.kdl`, add near the top (uncommented, unlike the surrounding documentation block):
 
 ```kdl
-// Theme comes from ~/.local/share/dotfiles/zellij-themes/, written by Home
-// Manager and selected by bin/dot-theme-set, which symlinks one of the
-// eminix-* files to active.kdl. Kept outside the repo because ~/.config/zellij
-// is a live symlink into the checkout and must stay clean.
-// theme_dir requires a zellij restart; the theme file's contents do not
-// necessarily — see the verification step in the plan.
-theme_dir "/home/scott/.local/share/dotfiles/zellij-themes"
-theme "eminix-dark"
+// Theme comes from ~/.local/share/dotfiles/zellij-themes/active/, which holds
+// exactly one file: a symlink flipped by bin/dot-theme-set. Both candidate
+// themes are named `eminix`, so this line never changes — zellij selects by
+// theme NAME, and switching swaps which definition is visible.
+//
+// Kept outside the repo because ~/.config/zellij is a live symlink into the
+// checkout and must stay clean. This directory must exist or zellij fails to
+// start with an IoError; Home Manager creates and seeds it.
+theme_dir "/home/scott/.local/share/dotfiles/zellij-themes/active"
+theme "eminix"
 ```
 
 - [ ] **Step 3: Add the zellij flip to `dot-theme-set`**
@@ -1101,26 +1578,43 @@ After the btop `link_if_present` line, add:
 ```bash
 # --- zellij: flip which ANSI-index theme is active ---
 # Colours come from the terminal, so only the dark/light role assignment
-# changes here. Written outside the checkout to keep `git status` clean.
-zellij_themes="$HOME/.local/share/dotfiles/zellij-themes"
-if [[ -d "$zellij_themes" ]]; then
-    ln -sfn "$zellij_themes/eminix-$VARIANT.kdl" "$zellij_themes/active.kdl"
+# changes here. Both candidate themes are named `eminix`; zellij selects by
+# name, so the switch swaps which definition is visible in theme_dir rather
+# than editing config.kdl (which lives in the checkout and must stay clean).
+zellij_root="$HOME/.local/share/dotfiles/zellij-themes"
+if [[ -d "$zellij_root/available" ]]; then
+    mkdir -p "$zellij_root/active"
+    ln -sfn "$zellij_root/available/eminix-$VARIANT.kdl" \
+            "$zellij_root/active/theme.kdl"
 fi
 ```
 
-- [ ] **Step 4: Verify both themes parse**
+- [ ] **Step 4: Verify both themes parse, and that the switch is observable**
 
 ```bash
 cd ~/dotfiles
+root=$(mktemp -d); mkdir -p "$root/available" "$root/active"
 for v in dark light; do
-  d=$(mktemp -d)
-  nix eval --raw ".#nixosConfigurations.rafik.config.home-manager.users.scott.home.file.\".local/share/dotfiles/zellij-themes/eminix-$v.kdl\".text" > "$d/config.kdl"
-  printf "eminix-%-6s " "$v"
-  zellij --config "$d/config.kdl" setup --check 2>&1 | grep -E "CONFIG FILE" || echo "CHECK FAILED"
+  # whistle, not rafik: scott.zellij.enable is true on the wsl role only.
+  nix eval --raw ".#nixosConfigurations.whistle.config.home-manager.users.scott.home.file.\".local/share/dotfiles/zellij-themes/available/eminix-$v.kdl\".text" \
+    > "$root/available/eminix-$v.kdl"
 done
+printf 'theme_dir "%s/active"\ntheme "eminix"\n' "$root" > "$root/config.kdl"
+for v in dark light; do
+  ln -sfn "$root/available/eminix-$v.kdl" "$root/active/theme.kdl"
+  printf "eminix-%-6s " "$v"
+  zellij --config "$root/config.kdl" setup --check 2>&1 | grep -E "CONFIG FILE" || echo "CHECK FAILED"
+done
+echo "--- both files define a theme named 'eminix'? ---"
+grep -hc "^\s*eminix {" "$root"/available/*.kdl | paste -sd+ | bc
+echo "--- and they actually differ? ---"
+diff -q "$root/available/eminix-dark.kdl" "$root/available/eminix-light.kdl" \
+  && echo "IDENTICAL — wrong, dark and light must differ" || echo "differ, correct"
 ```
 
-Expected: `[CONFIG FILE]: Well defined.` for both.
+Expected: `[CONFIG FILE]: Well defined.` twice, a count of `2`, and `differ, correct`.
+
+**This proves syntax and structure only.** `setup --check` accepts a nonexistent theme name without complaint, so it cannot prove the theme resolves — Task 9 does that on the machine.
 
 - [ ] **Step 5: Confirm nothing writes into the checkout**
 
@@ -1335,8 +1829,9 @@ Replace the numbered "How `dot-theme-set <name>` works" list with:
 3. Writes `~/.config/dotfiles/active-theme` = `<name>` and `last-<variant>` = `<name>`.
 4. Symlinks `~/.config/ghostty/themes/<name>.conf` → `~/.config/ghostty/theme.conf`,
    and `btop.theme` → `~/.config/btop/themes/active.theme`.
-5. Symlinks `eminix-<variant>.kdl` → `active.kdl` in
-   `~/.local/share/dotfiles/zellij-themes/`.
+5. Symlinks `available/eminix-<variant>.kdl` → `active/theme.kdl` in
+   `~/.local/share/dotfiles/zellij-themes/`. Both definitions are named
+   `eminix`, so zellij's `theme` line never changes.
 6. Writes Claude Code's `theme` key to `dark-ansi`/`light-ansi`.
 7. Regenerates `pi-agent-theme.json` from `colors.toml` and points pi's
    `settings.json` at it.
@@ -1386,7 +1881,8 @@ Themes are generated from `lib/themes.nix`, so adding one is two steps:
 ```bash
 cd ~/dotfiles
 PAL=$(mktemp)
-nix eval --json --impure --expr '(import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).palettes' > "$PAL"
+nix eval --json --impure --expr 'let t = import ./lib/themes.nix { pkgs = import <nixpkgs> {}; };
+  in builtins.mapAttrs (n: p: p // { ansi = t.ansiSlots p; }) t.palettes' > "$PAL"
 bin/gen-theme-dir.py <new-theme> themes/<new-theme> themes/catppuccin-mocha/btop.theme < "$PAL"
 echo <emacs-theme-name> > themes/<new-theme>/emacs-theme
 python3 tests/contrast-check.py < "$PAL"
@@ -1482,7 +1978,7 @@ applying.
 
 ```bash
 readlink ~/.config/ghostty/theme.conf          # → themes/high-contrast-dark.conf
-readlink ~/.local/share/dotfiles/zellij-themes/active.kdl   # → eminix-dark.kdl
+readlink ~/.local/share/dotfiles/zellij-themes/active/theme.kdl  # → available/eminix-dark.kdl
 python3 -c "import json;print(json.load(open('$HOME/.claude/settings.json'))['theme'])"   # → dark-ansi
 gsettings get org.gnome.desktop.interface color-scheme      # → 'prefer-dark'
 ```
