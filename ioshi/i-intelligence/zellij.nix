@@ -41,6 +41,18 @@
     # name, so switching is done by changing WHICH FILE is visible in theme_dir,
     # not by editing the `theme` line in config.kdl (which lives in the repo and
     # must stay clean). available/ is not theme_dir; active/ is.
+    #
+    # `black` and `white` are fixed colour IDENTITIES, not variant-relative
+    # roles, so they are held constant (0 and 15) across both files on
+    # purpose — do not "balance" white the way fg/bg are balanced. fg/bg are
+    # the roles that actually carry the dark/light swap (light's bg points at
+    # the light extreme, fg at the dark extreme); black/white name specific
+    # ANSI slots and must mean the same slot in both variants. Whether zellij
+    # ever paints UI text in the `white` role against `bg` — which would make
+    # light's white 15 invisible against bg 15 — is not something `setup
+    # --check` can tell you; only a live session confirms it (Task 9). If it
+    # turns out wrong, the fallback is dropping light's `white` to a mid
+    # index such as 7.
     home.file.".local/share/dotfiles/zellij-themes/available/eminix-dark.kdl".text = ''
       themes {
           eminix {
@@ -71,7 +83,7 @@
               blue 4
               magenta 5
               cyan 6
-              white 7
+              white 15
               orange 3
           }
       }
