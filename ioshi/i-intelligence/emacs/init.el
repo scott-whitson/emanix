@@ -409,14 +409,33 @@ clobbered; only a genuinely new quarter gets a fresh template."
 ;; but :vc install work can run at macro-expansion time. A false `when`
 ;; never expands the macro at all.
 (when (equal (system-name) "rafik")
-  (use-package gdocs
-    :vc (:url "https://github.com/benthamite/gdocs")
-    :config
-    (setq gdocs-auto-push-on-save t)
-    ;; Credentials load from ~/.config/emacs/gdocs-creds.el (mode 600, outside
-    ;; the checkout) so the OAuth client secret is never committed. Absent file
-    ;; = no account configured; nothing else in init.el is affected.
-    (load (expand-file-name "gdocs-creds.el" user-emacs-directory) :noerror :nomessage)))
+  ;; Two separate problems, both fixed here (2026-08-10):
+  ;;
+  ;; 1. ~/.config/emacs/elpa is NOT on load-path. This Emacs takes its
+  ;;    packages from Nix, so package-activate-all never runs and whatever
+  ;;    package-vc downloaded is invisible to `require'. gdocs.el really is
+  ;;    at ~/.config/emacs/elpa/gdocs/gdocs.el, but (locate-library "gdocs")
+  ;;    returned nil. Add the elpa subdirectories explicitly.
+  ;;
+  ;; 2. A bare (require 'gdocs) SIGNALS when it fails, and nothing above
+  ;;    catches it, so the failure aborted every remaining form in init.el.
+  ;;    After a reboot that meant no top bar (scott/modeline-mode), no s-d
+  ;;    (scott/launcher) and no EWM window commands (scott/ewm--goto and
+  ;;    friends) -- all defined below this point. Never let an optional
+  ;;    package take the desktop down: require it with :no-error and only
+  ;;    configure it if it actually loaded.
+  (let ((elpa (expand-file-name "elpa" user-emacs-directory)))
+    (when (file-directory-p elpa)
+      (dolist (d (directory-files elpa t "\\`[^.]"))
+        (when (file-directory-p d) (add-to-list 'load-path d)))))
+  (if (require 'gdocs nil :no-error)
+      (progn
+        (setq gdocs-auto-push-on-save t)
+        ;; Credentials live outside the checkout (mode 600) so the OAuth
+        ;; client secret is never committed. Absent file = no account.
+        (load (expand-file-name "gdocs-creds.el" user-emacs-directory)
+              :noerror :nomessage))
+    (message "gdocs not loadable; skipping (see the comment above)")))
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
 (dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline scott-launcher scott-pi))
