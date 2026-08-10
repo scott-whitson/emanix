@@ -1022,11 +1022,17 @@ catppuccin block was removed and is needed to import lib/themes.nix."
 - Modify: `bin/dot-theme-set`
 
 **Interfaces:**
-- Produces: `~/.local/share/dotfiles/zellij-themes/active.kdl`, flipped by `dot-theme-set`.
+- Produces: `~/.local/share/dotfiles/zellij-themes/active/theme.kdl` — a symlink to one of `available/eminix-{dark,light}.kdl`, flipped by `dot-theme-set`. Both files define a theme named `eminix`.
 
 **Why indices, not hex:** Scott runs Claude Code on whistle either locally or ssh'd from rafik. Under ssh the *rendering* terminal is rafik's ghostty, so hardcoded per-host colours would clash. Zellij colour indices 0–15 resolve against whatever terminal renders them. **Verified:** zellij 0.44.3 accepts bare indices — a theme written `fg 15` / `bg 0` passes `zellij setup --check` with `[CONFIG FILE]: Well defined.`
 
 **Why the theme file lives outside the repo:** `~/.config/zellij` is an out-of-store symlink into the checkout (`zellij.nix`), so writing a theme there at switch time would dirty the working tree — the Helix drift caveat.
+
+**Three zellij behaviours verified 2026-08-09 that dictate the shape below.** Get any of them wrong and the switcher silently does nothing:
+
+- **zellij selects a theme by NAME, not by file.** So the two theme files must both define a theme with the *same* name (`eminix`), and `theme_dir` must contain only the active one. Putting both files in `theme_dir` and changing the `theme` line would require editing `config.kdl` — which is in the checkout, and would dirty the tree on every switch.
+- **`theme_dir` pointing at a missing directory is a hard `IoError`** and zellij refuses to start. The directory and its symlink must exist before zellij ever runs, so Home Manager seeds them.
+- **`zellij setup --check` does NOT validate theme names.** A config naming a nonexistent theme still reports `[CONFIG FILE]: Well defined.` The check confirms KDL syntax and colour-value parsing only. Real theme resolution is verified on the machine in Task 9 — do not treat a passing `--check` as proof the theme applies.
 
 - [ ] **Step 1: Create the two theme files under Home Manager**
 
@@ -1042,9 +1048,14 @@ In `ioshi/i-intelligence/zellij.nix`, inside `config = lib.mkIf ...`, add:
     # the rendering terminal is rafik's ghostty, so hardcoded per-host colours
     # would clash. This also means a palette switch needs no zellij change at
     # all — only the dark/light role assignment differs below.
-    home.file.".local/share/dotfiles/zellij-themes/eminix-dark.kdl".text = ''
+    #
+    # BOTH themes are named `eminix`, deliberately. zellij selects a theme by
+    # name, so switching is done by changing WHICH FILE is visible in theme_dir,
+    # not by editing the `theme` line in config.kdl (which lives in the repo and
+    # must stay clean). available/ is not theme_dir; active/ is.
+    home.file.".local/share/dotfiles/zellij-themes/available/eminix-dark.kdl".text = ''
       themes {
-          eminix-dark {
+          eminix {
               fg 7
               bg 0
               black 0
@@ -1060,9 +1071,9 @@ In `ioshi/i-intelligence/zellij.nix`, inside `config = lib.mkIf ...`, add:
       }
     '';
 
-    home.file.".local/share/dotfiles/zellij-themes/eminix-light.kdl".text = ''
+    home.file.".local/share/dotfiles/zellij-themes/available/eminix-light.kdl".text = ''
       themes {
-          eminix-light {
+          eminix {
               fg 0
               bg 15
               black 0
@@ -1077,21 +1088,37 @@ In `ioshi/i-intelligence/zellij.nix`, inside `config = lib.mkIf ...`, add:
           }
       }
     '';
+
+    # theme_dir must EXIST before zellij starts: pointing it at a missing
+    # directory is a hard IoError, not a warning, and zellij refuses to run.
+    # Seed the active symlink if absent, same pattern as ghostty's theme.conf.
+    home.activation.seedZellijTheme =
+      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        active="$HOME/.local/share/dotfiles/zellij-themes/active"
+        run mkdir -p "$active"
+        if [ ! -e "$active/theme.kdl" ]; then
+          run ln -sfn \
+            "$HOME/.local/share/dotfiles/zellij-themes/available/eminix-dark.kdl" \
+            "$active/theme.kdl"
+        fi
+      '';
 ```
 
-- [ ] **Step 2: Point `config.kdl` at them**
+- [ ] **Step 2: Point `config.kdl` at the active directory**
 
 In `ioshi/i-intelligence/zellij/config.kdl`, add near the top (uncommented, unlike the surrounding documentation block):
 
 ```kdl
-// Theme comes from ~/.local/share/dotfiles/zellij-themes/, written by Home
-// Manager and selected by bin/dot-theme-set, which symlinks one of the
-// eminix-* files to active.kdl. Kept outside the repo because ~/.config/zellij
-// is a live symlink into the checkout and must stay clean.
-// theme_dir requires a zellij restart; the theme file's contents do not
-// necessarily — see the verification step in the plan.
-theme_dir "/home/scott/.local/share/dotfiles/zellij-themes"
-theme "eminix-dark"
+// Theme comes from ~/.local/share/dotfiles/zellij-themes/active/, which holds
+// exactly one file: a symlink flipped by bin/dot-theme-set. Both candidate
+// themes are named `eminix`, so this line never changes — zellij selects by
+// theme NAME, and switching swaps which definition is visible.
+//
+// Kept outside the repo because ~/.config/zellij is a live symlink into the
+// checkout and must stay clean. This directory must exist or zellij fails to
+// start with an IoError; Home Manager creates and seeds it.
+theme_dir "/home/scott/.local/share/dotfiles/zellij-themes/active"
+theme "eminix"
 ```
 
 - [ ] **Step 3: Add the zellij flip to `dot-theme-set`**
@@ -1101,26 +1128,42 @@ After the btop `link_if_present` line, add:
 ```bash
 # --- zellij: flip which ANSI-index theme is active ---
 # Colours come from the terminal, so only the dark/light role assignment
-# changes here. Written outside the checkout to keep `git status` clean.
-zellij_themes="$HOME/.local/share/dotfiles/zellij-themes"
-if [[ -d "$zellij_themes" ]]; then
-    ln -sfn "$zellij_themes/eminix-$VARIANT.kdl" "$zellij_themes/active.kdl"
+# changes here. Both candidate themes are named `eminix`; zellij selects by
+# name, so the switch swaps which definition is visible in theme_dir rather
+# than editing config.kdl (which lives in the checkout and must stay clean).
+zellij_root="$HOME/.local/share/dotfiles/zellij-themes"
+if [[ -d "$zellij_root/available" ]]; then
+    mkdir -p "$zellij_root/active"
+    ln -sfn "$zellij_root/available/eminix-$VARIANT.kdl" \
+            "$zellij_root/active/theme.kdl"
 fi
 ```
 
-- [ ] **Step 4: Verify both themes parse**
+- [ ] **Step 4: Verify both themes parse, and that the switch is observable**
 
 ```bash
 cd ~/dotfiles
+root=$(mktemp -d); mkdir -p "$root/available" "$root/active"
 for v in dark light; do
-  d=$(mktemp -d)
-  nix eval --raw ".#nixosConfigurations.rafik.config.home-manager.users.scott.home.file.\".local/share/dotfiles/zellij-themes/eminix-$v.kdl\".text" > "$d/config.kdl"
-  printf "eminix-%-6s " "$v"
-  zellij --config "$d/config.kdl" setup --check 2>&1 | grep -E "CONFIG FILE" || echo "CHECK FAILED"
+  nix eval --raw ".#nixosConfigurations.rafik.config.home-manager.users.scott.home.file.\".local/share/dotfiles/zellij-themes/available/eminix-$v.kdl\".text" \
+    > "$root/available/eminix-$v.kdl"
 done
+printf 'theme_dir "%s/active"\ntheme "eminix"\n' "$root" > "$root/config.kdl"
+for v in dark light; do
+  ln -sfn "$root/available/eminix-$v.kdl" "$root/active/theme.kdl"
+  printf "eminix-%-6s " "$v"
+  zellij --config "$root/config.kdl" setup --check 2>&1 | grep -E "CONFIG FILE" || echo "CHECK FAILED"
+done
+echo "--- both files define a theme named 'eminix'? ---"
+grep -h -A1 "^themes" "$root"/available/*.kdl | grep -c "eminix {"
+echo "--- and they actually differ? ---"
+diff -q "$root/available/eminix-dark.kdl" "$root/available/eminix-light.kdl" \
+  && echo "IDENTICAL — wrong, dark and light must differ" || echo "differ, correct"
 ```
 
-Expected: `[CONFIG FILE]: Well defined.` for both.
+Expected: `[CONFIG FILE]: Well defined.` twice, a count of `2`, and `differ, correct`.
+
+**This proves syntax and structure only.** `setup --check` accepts a nonexistent theme name without complaint, so it cannot prove the theme resolves — Task 9 does that on the machine.
 
 - [ ] **Step 5: Confirm nothing writes into the checkout**
 
@@ -1335,8 +1378,9 @@ Replace the numbered "How `dot-theme-set <name>` works" list with:
 3. Writes `~/.config/dotfiles/active-theme` = `<name>` and `last-<variant>` = `<name>`.
 4. Symlinks `~/.config/ghostty/themes/<name>.conf` → `~/.config/ghostty/theme.conf`,
    and `btop.theme` → `~/.config/btop/themes/active.theme`.
-5. Symlinks `eminix-<variant>.kdl` → `active.kdl` in
-   `~/.local/share/dotfiles/zellij-themes/`.
+5. Symlinks `available/eminix-<variant>.kdl` → `active/theme.kdl` in
+   `~/.local/share/dotfiles/zellij-themes/`. Both definitions are named
+   `eminix`, so zellij's `theme` line never changes.
 6. Writes Claude Code's `theme` key to `dark-ansi`/`light-ansi`.
 7. Regenerates `pi-agent-theme.json` from `colors.toml` and points pi's
    `settings.json` at it.
@@ -1482,7 +1526,7 @@ applying.
 
 ```bash
 readlink ~/.config/ghostty/theme.conf          # → themes/high-contrast-dark.conf
-readlink ~/.local/share/dotfiles/zellij-themes/active.kdl   # → eminix-dark.kdl
+readlink ~/.local/share/dotfiles/zellij-themes/active/theme.kdl  # → available/eminix-dark.kdl
 python3 -c "import json;print(json.load(open('$HOME/.claude/settings.json'))['theme'])"   # → dark-ansi
 gsettings get org.gnome.desktop.interface color-scheme      # → 'prefer-dark'
 ```
