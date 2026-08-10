@@ -32,6 +32,10 @@ in
     if config.scott.dotfiles.liveElisp
     then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/fallback.el"
     else ./emacs/fallback.el;
+  xdg.configFile."emacs/config.el".source =
+    if config.scott.dotfiles.liveElisp
+    then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/config.el"
+    else ./emacs/config.el;
 
   # NO ~/.emacs.d mirror: emacs PREFERS ~/.emacs.d over ~/.config/emacs when
   # both exist, splitting runtime state (a second org-roam.db). ~/.config/emacs
