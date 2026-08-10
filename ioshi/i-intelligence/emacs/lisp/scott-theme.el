@@ -69,18 +69,52 @@ one `key = \"value\"` pair per line inside [palette]."
               (match-string 1))))))))
 
 (defun scott-theme--modus-overrides (name)
-  "Return the Modus bg-main/fg-main override alist for dotfiles theme NAME.
-Reads base/text straight out of themes/NAME/colors.toml so a fifth theme
-needs no entry anywhere in this file — Modus defaults to 19-21:1
-(modus-vivendi is #000/#fff), and the spec deliberately targets ~16:1 to
-avoid halation, so an unlisted theme must not silently fall through to
-Modus's native contrast. Falls back to `scott-theme--modus-overrides-fallback'
-only if colors.toml or one of the two keys can't be read."
-  (let ((base (scott-theme--read-palette-value name "base"))
-        (text (scott-theme--read-palette-value name "text")))
-    (if (and base text)
-        `((bg-main ,base) (fg-main ,text))
-      (cdr (assoc name scott-theme--modus-overrides-fallback)))))
+  "Return the Modus palette override alist for dotfiles theme NAME.
+
+Every value is read out of themes/NAME/colors.toml, so a new theme needs no
+entry anywhere in this file. Two groups:
+
+bg-main/fg-main, because Modus defaults to 19-21:1 (modus-vivendi is
+#000/#fff) and the spec deliberately targets ~16:1 to avoid halation. An
+unlisted theme must not silently fall through to Modus's native contrast.
+
+The tab-bar and mode-line colours, because Modus's own defaults are a mid
+grey drawn from its internal palette, not from ours -- #313131 for the tab
+bar, #545454 for inactive tabs and #505050 for the mode line, with a #959595
+box on top. Against a #0a0a0a buffer those read as foreign grey slabs, and
+the mode line measured 8.06:1 where the rest of the theme is 16:1. The
+\"subtle raised\" treatment chosen 2026-08-10 puts them one step off the
+buffer (surface0) with a surface1 hairline instead: near-black rather than
+grey, and 13.45:1 on dark / 12.99:1 on light.
+
+Falls back to `scott-theme--modus-overrides-fallback' if colors.toml or a
+required key can't be read -- bg-main/fg-main only, since a partial bar
+override would look worse than Modus's coherent default."
+  (let* ((v (lambda (k) (scott-theme--read-palette-value name k)))
+         (base (funcall v "base"))
+         (text (funcall v "text"))
+         (surface0 (funcall v "surface0"))
+         (surface1 (funcall v "surface1"))
+         (subtext0 (funcall v "subtext0")))
+    (cond
+     ((and base text surface0 surface1 subtext0)
+      `((bg-main ,base)
+        (fg-main ,text)
+        ;; Top bar (the EWM tab-bar). Current tab lifts one further step so it
+        ;; is distinguishable without a colour accent.
+        (bg-tab-bar ,surface0)
+        (bg-tab-current ,surface1)
+        (bg-tab-other ,surface0)
+        ;; Bottom bar. border-* replaces Modus's #959595 box; setting it to
+        ;; surface1 gives a hairline rather than a bright outline.
+        (bg-mode-line-active ,surface0)
+        (fg-mode-line-active ,text)
+        (border-mode-line-active ,surface1)
+        (bg-mode-line-inactive ,surface0)
+        (fg-mode-line-inactive ,subtext0)
+        (border-mode-line-inactive ,surface0)))
+     ((and base text) `((bg-main ,base) (fg-main ,text)))
+     (t (cdr (assoc name scott-theme--modus-overrides-fallback))))))
 
 (defun scott-theme--catppuccin-flavor (name)
   "Return the catppuccin-theme flavor symbol for dotfiles theme NAME.
