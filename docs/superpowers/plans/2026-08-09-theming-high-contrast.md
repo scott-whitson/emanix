@@ -1223,11 +1223,27 @@ catppuccin block was removed and is needed to import lib/themes.nix."
 
 **Three zellij behaviours verified 2026-08-09 that dictate the shape below.** Get any of them wrong and the switcher silently does nothing:
 
+- **The bare `fg`/`bg`/`black`/`white` palette format cannot express a light theme.** It has no way to set `theme_hue`, which defaults to `Dark`, and `From<Palette> for Styling` then derives `background` from `palette.black`. Use the per-declaration format instead — see Step 1.
 - **zellij selects a theme by NAME, not by file.** So the two theme files must both define a theme with the *same* name (`eminix`), and `theme_dir` must contain only the active one. Putting both files in `theme_dir` and changing the `theme` line would require editing `config.kdl` — which is in the checkout, and would dirty the tree on every switch.
 - **`theme_dir` pointing at a missing directory is a hard `IoError`** and zellij refuses to start. The directory and its symlink must exist before zellij ever runs, so Home Manager seeds them.
 - **`zellij setup --check` does NOT validate theme names.** A config naming a nonexistent theme still reports `[CONFIG FILE]: Well defined.` The check confirms KDL syntax and colour-value parsing only. Real theme resolution is verified on the machine in Task 9 — do not treat a passing `--check` as proof the theme applies.
 
 - [ ] **Step 1: Create the two theme files under Home Manager**
+
+**Use zellij's newer per-declaration theme format, NOT the bare `fg`/`bg`/`black`/`white` palette format.** This was changed on 2026-08-10 after two failed fix rounds; the reason is structural, established from zellij 0.44.3's source:
+
+`zellij-utils/src/data.rs`, `impl From<Palette> for Styling`, opens with
+
+```rust
+let (fg, bg) = match palette.theme_hue {
+    ThemeHue::Light => (palette.black, palette.white),
+    ThemeHue::Dark   => (palette.white, palette.black),
+};
+```
+
+and the bare-palette KDL format has **no way to set `theme_hue`**, so it is always `Dark` (`zellij-utils/src/kdl/mod.rs`, `Themes::from_kdl`). A light theme written in that format therefore gets `background = palette.black` for `text_unselected` while `text_selected` uses the raw `palette.bg` — unselected rows render on black, selected rows on white. The format cannot express a light theme at all. No choice of indices fixes it.
+
+**Zellij ships almost exactly what is wanted here.** `zellij-utils/assets/themes/ansi.kdl` is a per-declaration theme using only the 16 ANSI colours, described in its own header as letting you "customize theme via ones terminal color settings". Use it as the dark definition verbatim (renamed), and derive the light one from it by exchanging the greyscale ends — `0↔15` and `7↔8`, the same transformation `lib/themes.nix`'s `ansiSlots` applies. Verified: both are free of `base == background` collisions, and light's `text_unselected` becomes `base 0` on `background 15`.
 
 In `ioshi/i-intelligence/zellij.nix`, inside `config = lib.mkIf ...`, add:
 
@@ -1236,49 +1252,265 @@ In `ioshi/i-intelligence/zellij.nix`, inside `config = lib.mkIf ...`, add:
     # symlink into the repo, so a theme file written there at switch time would
     # dirty the working tree — the Helix drift caveat in docs/manual/02-theming.md.
     #
-    # Colours are ANSI indices 0-15, not hex, on purpose: they resolve against
-    # whatever terminal renders the session. Under ssh from rafik into whistle
-    # the rendering terminal is rafik's ghostty, so hardcoded per-host colours
-    # would clash. This also means a palette switch needs no zellij change at
-    # all — only the dark/light role assignment differs below.
+    # Colours are ANSI indices 0-15, so they resolve against whatever terminal
+    # renders the session. Under ssh from rafik into whistle the rendering
+    # terminal is rafik's ghostty, so hardcoded per-host colours would clash.
+    # A palette switch therefore needs no zellij change at all; only dark/light
+    # does.
     #
-    # BOTH themes are named `eminix`, deliberately. zellij selects a theme by
-    # name, so switching is done by changing WHICH FILE is visible in theme_dir,
-    # not by editing the `theme` line in config.kdl (which lives in the repo and
-    # must stay clean). available/ is not theme_dir; active/ is.
+    # PER-DECLARATION format, not the bare fg/bg/black/white palette format.
+    # The bare format cannot set theme_hue, which defaults to Dark, and
+    # From<Palette> for Styling then derives background from palette.black —
+    # so a light theme renders unselected rows on black. See data.rs and
+    # kdl/mod.rs in zellij's source. Both definitions below are modelled on
+    # zellij's own assets/themes/ansi.kdl; the light one exchanges the
+    # greyscale ends (0<->15, 7<->8).
+    #
+    # BOTH are named `eminix`: zellij selects a theme by NAME, so switching
+    # swaps which file is visible in theme_dir rather than editing config.kdl.
     home.file.".local/share/dotfiles/zellij-themes/available/eminix-dark.kdl".text = ''
       themes {
-          eminix {
-              fg 7
-              bg 0
-              black 0
-              red 1
-              green 2
-              yellow 3
-              blue 4
-              magenta 5
-              cyan 6
-              white 15
-              orange 3
+        eminix {
+          text_unselected {
+            base 15
+            background 0
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
           }
+          text_selected {
+            base 15
+            background 8
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          ribbon_unselected {
+            base 0
+            background 7
+            emphasis_0 1
+            emphasis_1 15
+            emphasis_2 4
+            emphasis_3 5
+          }
+          ribbon_selected {
+            base 0
+            background 2
+            emphasis_0 1
+            emphasis_1 9
+            emphasis_2 5
+            emphasis_3 4
+          }
+          table_title {
+            base 2
+            background 0
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          table_cell_unselected {
+            base 15
+            background 0
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          table_cell_selected {
+            base 15
+            background 8
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          list_unselected {
+            base 15
+            background 0
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          list_selected {
+            base 15
+            background 8
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          frame_selected {
+            base 2
+            background 0
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 5
+            emphasis_3 0
+          }
+          frame_highlight {
+            base 9
+            background 0
+            emphasis_0 5
+            emphasis_1 9
+            emphasis_2 9
+            emphasis_3 9
+          }
+          exit_code_success {
+            base 2
+            background 0
+            emphasis_0 6
+            emphasis_1 0
+            emphasis_2 5
+            emphasis_3 4
+          }
+          exit_code_error {
+            base 1
+            background 0
+            emphasis_0 3
+            emphasis_1 0
+            emphasis_2 0
+            emphasis_3 0
+          }
+          multiplayer_user_colors {
+            player_1 5
+            player_2 4
+            player_3 0
+            player_4 3
+            player_5 6
+            player_6 0
+            player_7 1
+            player_8 0
+            player_9 0
+            player_10 0
+          }
+        }
       }
     '';
 
     home.file.".local/share/dotfiles/zellij-themes/available/eminix-light.kdl".text = ''
       themes {
-          eminix {
-              fg 0
-              bg 15
-              black 0
-              red 1
-              green 2
-              yellow 3
-              blue 4
-              magenta 5
-              cyan 6
-              white 7
-              orange 3
+        eminix {
+          text_unselected {
+            base 0
+            background 15
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
           }
+          text_selected {
+            base 0
+            background 7
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          ribbon_unselected {
+            base 15
+            background 8
+            emphasis_0 1
+            emphasis_1 0
+            emphasis_2 4
+            emphasis_3 5
+          }
+          ribbon_selected {
+            base 15
+            background 2
+            emphasis_0 1
+            emphasis_1 9
+            emphasis_2 5
+            emphasis_3 4
+          }
+          table_title {
+            base 2
+            background 15
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          table_cell_unselected {
+            base 0
+            background 15
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          table_cell_selected {
+            base 0
+            background 7
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          list_unselected {
+            base 0
+            background 15
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          list_selected {
+            base 0
+            background 7
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 2
+            emphasis_3 5
+          }
+          frame_selected {
+            base 2
+            background 15
+            emphasis_0 9
+            emphasis_1 6
+            emphasis_2 5
+            emphasis_3 15
+          }
+          frame_highlight {
+            base 9
+            background 15
+            emphasis_0 5
+            emphasis_1 9
+            emphasis_2 9
+            emphasis_3 9
+          }
+          exit_code_success {
+            base 2
+            background 15
+            emphasis_0 6
+            emphasis_1 15
+            emphasis_2 5
+            emphasis_3 4
+          }
+          exit_code_error {
+            base 1
+            background 15
+            emphasis_0 3
+            emphasis_1 15
+            emphasis_2 15
+            emphasis_3 15
+          }
+          multiplayer_user_colors {
+            player_1 5
+            player_2 4
+            player_3 15
+            player_4 3
+            player_5 6
+            player_6 15
+            player_7 1
+            player_8 15
+            player_9 15
+            player_10 15
+          }
+        }
       }
     '';
 
@@ -1296,6 +1528,31 @@ In `ioshi/i-intelligence/zellij.nix`, inside `config = lib.mkIf ...`, add:
         fi
       '';
 ```
+
+- [ ] **Step 1b: Assert no declaration puts the same index in `base` and `background`**
+
+This is the bug that two earlier rounds shipped, so prove its absence rather than reading for it:
+
+```bash
+cd ~/dotfiles
+for v in dark light; do
+  nix eval --raw ".#nixosConfigurations.whistle.config.home-manager.users.scott.home.file.\".local/share/dotfiles/zellij-themes/available/eminix-$v.kdl\".text" \
+  | python3 -c '
+import sys, re
+t = sys.stdin.read()
+bad = []
+for m in re.finditer(r"(\w+)\s*\{([^}]*)\}", t):
+    name, body = m.group(1), m.group(2)
+    b = re.search(r"\bbase\s+(\d+)", body)
+    g = re.search(r"\bbackground\s+(\d+)", body)
+    if b and g and b.group(1) == g.group(1):
+        bad.append(f"{name}: base==background=={b.group(1)}")
+print("COLLISIONS:", bad if bad else "none")
+' | sed "s/^/$v: /"
+done
+```
+
+Expected: `dark: COLLISIONS: none` and `light: COLLISIONS: none`.
 
 - [ ] **Step 2: Point `config.kdl` at the active directory**
 
@@ -1349,7 +1606,7 @@ for v in dark light; do
   zellij --config "$root/config.kdl" setup --check 2>&1 | grep -E "CONFIG FILE" || echo "CHECK FAILED"
 done
 echo "--- both files define a theme named 'eminix'? ---"
-grep -h -A1 "^themes" "$root"/available/*.kdl | grep -c "eminix {"
+grep -hc "^\s*eminix {" "$root"/available/*.kdl | paste -sd+ | bc
 echo "--- and they actually differ? ---"
 diff -q "$root/available/eminix-dark.kdl" "$root/available/eminix-light.kdl" \
   && echo "IDENTICAL — wrong, dark and light must differ" || echo "differ, correct"
