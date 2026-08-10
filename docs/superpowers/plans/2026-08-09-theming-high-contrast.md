@@ -27,7 +27,7 @@
 
 | File | Responsibility |
 |---|---|
-| `lib/themes.nix` | **Modify.** Palettes (now 4) + config generators. Single source of truth for colour. |
+| `lib/themes.nix` | **Modify.** Palettes (now 4), `ansiSlots` (variant-aware ANSI order), config generators. Single source of truth for colour AND for ANSI slot order. |
 | `bin/gen-theme-dir.py` | **Create.** Renders `themes/<name>/` from a palette. Run at authoring time, output committed. |
 | `themes/high-contrast-{dark,light}/` | **Create.** Runtime theme directories. |
 | `themes/*/emacs-theme` | **Create** (all 4). Names the Emacs theme to load. |
@@ -267,6 +267,150 @@ the 2026-08-07 convergence and nothing has called these since."
 
 ---
 
+## Task 1b: Make the ANSI mapping variant-aware
+
+**Agent-executable.** Added 2026-08-10 after Task 2 discovered the defect. Approved by Scott.
+
+**Files:**
+- Modify: `lib/themes.nix`
+
+**Interfaces:**
+- Produces: `ansiSlots = palette: [ ... 16 slot names ... ]`, exported from `lib/themes.nix`. `bin/gen-theme-dir.py` (Task 2) must emit the same ordering, and Task 6's zellij themes depend on the semantics being right.
+
+**The defect.** `lib/themes.nix`'s `ghostty` generator hardcodes one ANSI order for every palette: `color0 = surface1`, `color7 = subtext0`, `color8 = surface2`, `color15 = subtext1`. On a **light** palette that puts a light colour at index 0 ("black") and a dark colour at index 15 ("white") — inverted. Verified against the committed `themes/catppuccin-latte/colors.toml`, which has it right and therefore disagrees with what `ghostty.nix` renders:
+
+| index | committed Latte | slot | hardcoded order gives | slot |
+|---|---|---|---|---|
+| `color0` | `#5c5f77` dark | `subtext1` | `#bcc0cc` light | `surface1` |
+| `color7` | `#acb0be` | `surface2` | `#6c6f85` | `subtext0` |
+| `color8` | `#6c6f85` | `subtext0` | `#acb0be` | `surface2` |
+| `color15` | `#bcc0cc` light | `surface1` | `#5c5f77` dark | `subtext1` |
+
+**Why it is load-bearing, not cosmetic:** Task 6's zellij themes use `bg 0`/`fg 7` for dark and `bg 15`/`fg 0` for light, and Task 7's Claude Code `-ansi` themes read the terminal's ANSI palette. An inverted light palette renders both unreadable — the exact opposite of the contrast this project exists to provide.
+
+The light order is the dark order with the greyscale ends exchanged: `0↔15` and `7↔8`.
+
+- [ ] **Step 1: Add the shared ordering and use it in the ghostty generator**
+
+In `lib/themes.nix`, above the `ghostty` generator, add:
+
+```nix
+  # ANSI slots 0-15, in order. Light palettes exchange the greyscale ends
+  # (0<->15 and 7<->8): index 0 is "black" and 15 is "white", so on a light
+  # palette they must be the DARK and LIGHT extremes respectively. The old
+  # hardcoded order applied the dark mapping to every palette, which put a
+  # light colour at index 0 on latte — inverted, and disagreeing with
+  # themes/catppuccin-latte/colors.toml, which had it right.
+  #
+  # This is not cosmetic: zellij themes and Claude Code's -ansi themes read
+  # these indices, so an inverted light palette renders unreadable.
+  #
+  # bin/gen-theme-dir.py must emit this same ordering.
+  ansiSlots = palette:
+    let accents = [ "red" "green" "yellow" "blue" "pink" "teal" ];
+    in
+    if palette.variant == "light"
+    then [ "subtext1" ] ++ accents ++ [ "surface2" "subtext0" ] ++ accents ++ [ "surface1" ]
+    else [ "surface1" ] ++ accents ++ [ "subtext0" "surface2" ] ++ accents ++ [ "subtext1" ];
+```
+
+Then replace the sixteen hardcoded `palette = N=...` lines in the `ghostty` generator with a generated block:
+
+```nix
+    ${lib.concatStringsSep "\n" (lib.imap0
+      (i: slot: "palette = ${toString i}=${palette.colors.${slot}}")
+      (ansiSlots palette))}
+```
+
+`lib/themes.nix` currently takes `{ pkgs, ... }`. Change it to `{ pkgs, lib ? pkgs.lib, ... }` so `lib.imap0` and `lib.concatStringsSep` resolve.
+
+Export `ansiSlots` from the returned attrset (it is a `rec`, so simply having the binding is not enough — it must be a top-level attribute, which it already is by virtue of being defined in the `rec { ... }` body).
+
+- [ ] **Step 2: Prove the dark ordering is unchanged and the light one is fixed**
+
+```bash
+cd ~/dotfiles
+nix eval --json --impure --expr '
+  let t = import ./lib/themes.nix { pkgs = import <nixpkgs> {}; };
+  in builtins.mapAttrs (n: p: t.ansiSlots p) t.palettes' | python3 -m json.tool
+```
+
+Expected: `catppuccin-mocha` and `high-contrast-dark` start `"surface1"` and end `"subtext1"`; `catppuccin-latte` and `high-contrast-light` start `"subtext1"` and end `"surface1"`.
+
+- [ ] **Step 3: Prove the light ordering reproduces the committed Latte values**
+
+This is the real test — the fix is correct if it reproduces a file written by hand before this project existed.
+
+```bash
+cd ~/dotfiles
+nix eval --json --impure --expr '
+  let t = import ./lib/themes.nix { pkgs = import <nixpkgs> {}; };
+      p = t.palettes.catppuccin-latte;
+  in builtins.listToAttrs (builtins.genList (i: {
+       name = "color${toString i}";
+       value = p.colors.${builtins.elemAt (t.ansiSlots p) i};
+     }) 16)' > /tmp/latte-ansi-generated.json
+git show HEAD:themes/catppuccin-latte/colors.toml \
+  | sed -n '/^\[ansi\]/,/^$/p' | grep '^color' \
+  | python3 -c '
+import sys, json, re
+d = dict(re.findall(r"(color\d+) = \"(#[0-9a-f]{6})\"", sys.stdin.read()))
+print(json.dumps(d, sort_keys=True))' > /tmp/latte-ansi-committed.json
+python3 -c '
+import json
+a = json.load(open("/tmp/latte-ansi-generated.json"))
+b = json.load(open("/tmp/latte-ansi-committed.json"))
+diff = {k: (a.get(k), b.get(k)) for k in sorted(set(a) | set(b)) if a.get(k) != b.get(k)}
+print("IDENTICAL — generated ANSI matches the hand-written committed file" if not diff
+      else f"MISMATCH: {diff}")'
+```
+
+Expected: `IDENTICAL — generated ANSI matches the hand-written committed file`.
+
+If it mismatches, the ordering is wrong — fix `ansiSlots`, not the committed file.
+
+- [ ] **Step 4: Confirm ghostty output changed only for light palettes**
+
+```bash
+cd ~/dotfiles
+nixpkgs-fmt --check lib/themes.nix
+nix eval --raw --impure --expr '(import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).ghostty (import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).palettes.catppuccin-mocha' \
+  | grep -E "^palette = (0|7|8|15)="
+echo "--- latte ---"
+nix eval --raw --impure --expr '(import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).ghostty (import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).palettes.catppuccin-latte' \
+  | grep -E "^palette = (0|7|8|15)="
+```
+
+Expected — mocha unchanged from before this task (`0=#45475a`, `7=#a6adc8`, `8=#585b70`, `15=#bac2de`); latte now `0=#5c5f77`, `7=#acb0be`, `8=#6c6f85`, `15=#bcc0cc`.
+
+- [ ] **Step 5: Build and commit**
+
+```bash
+cd ~/dotfiles
+for h in rafik whistle datacore; do
+  printf "%-9s " $h
+  nix build --no-link --print-out-paths .#nixosConfigurations.$h.config.system.build.toplevel
+done
+git add lib/themes.nix
+git commit -m "fix(theme): ANSI slot order must follow the palette's variant
+
+The ghostty generator hardcoded one ANSI order for every palette, so light
+palettes got a light colour at index 0 ('black') and a dark one at index 15
+('white') — inverted. themes/catppuccin-latte/colors.toml had it right, which
+means ghostty.nix and that file have been disagreeing: two sources of truth
+for the same sixteen values, and the Nix one was wrong.
+
+Not cosmetic. zellij themes and Claude Code's -ansi themes read these indices,
+so an inverted light palette renders unreadable — the opposite of what the
+high-contrast work is for, and it would have shipped in high-contrast-light.
+
+The light order is the dark order with the greyscale ends exchanged (0<->15,
+7<->8). Verified by reproduction: generating latte's sixteen values now
+matches the hand-written committed file exactly, and mocha's are unchanged."
+```
+
+---
+
 ## Task 2: Theme-directory generator and the four theme directories
 
 **Agent-executable.**
@@ -280,10 +424,14 @@ the 2026-08-07 convergence and nothing has called these since."
 - Delete: `themes/*/ghostty.conf` (all four)
 
 **Interfaces:**
-- Consumes: `palettes.<name>` from Task 1.
+- Consumes: `palettes.<name>` from Task 1 and `ansiSlots` from Task 1b.
 - Produces: `themes/<name>/` directories with the anatomy `dot-theme-set` expects, and a `[palette]` section in every `colors.toml`.
 
 **Why `colors.toml` changes shape:** `bin/gen-pi-theme.py:70` reads `toml["catppuccin"]` — a hardcoded section name. A theme called `high-contrast-dark` having a `[catppuccin]` section is nonsense. The section is renamed to `[palette]`, and the reader accepts either so nothing breaks mid-migration.
+
+**The ANSI ordering is not duplicated here.** It comes from `lib/themes.nix`'s `ansiSlots` (Task 1b), passed in as part of the JSON this script reads. Re-declaring the order in Python would be a second source of truth for the same sixteen values — which is the exact defect Task 1b exists to fix.
+
+**btop is deliberately NOT regenerated for the Catppuccin themes.** `themes/catppuccin-latte/btop.theme` uses nine colours that are absent from its palette (`#1a1c28`, `#0d47a1`, `#2d5016`, …) — hand-darkened to read against a light background. Regenerating it from raw palette slots would replace `#0d47a1` with Latte's `blue` (`#1e66f5`, 4.34:1, fails AA), i.e. a contrast regression in a contrast project. The two new palettes need no such tuning: their accents are already ≥7:1 by construction.
 
 - [ ] **Step 1: Create the generator**
 
@@ -300,23 +448,25 @@ consumes. Output is committed; this runs at authoring time, not at switch time.
 Usage:
   cd ~/dotfiles
   nix eval --json --impure --expr \
-    '(import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).palettes' \
+    'let t = import ./lib/themes.nix { pkgs = import <nixpkgs> {}; };
+     in builtins.mapAttrs (n: p: p // { ansi = t.ansiSlots p; }) t.palettes' \
     | bin/gen-theme-dir.py <theme-name> themes/<theme-name> \
-        themes/catppuccin-mocha/btop.theme
+        themes/catppuccin-mocha/btop.theme [--skip-btop]
 
-The third argument is the structural template for btop.theme: its colours are
-substituted slot-for-slot. Verified to reproduce the committed catppuccin-mocha
-btop.theme byte-for-byte.
+The ANSI order arrives in the JSON as each palette's `ansi` list, produced by
+lib/themes.nix's ansiSlots. It is deliberately NOT redeclared here: two copies
+of the same sixteen values is the defect Task 1b fixed.
+
+The btop template's colours are substituted slot-for-slot. Verified to
+reproduce the committed catppuccin-mocha btop.theme byte-for-byte.
+
+--skip-btop leaves an existing btop.theme untouched. Used for the catppuccin
+themes, whose light-variant btop file is hand-darkened beyond the palette.
 """
 import json
 import os
 import re
 import sys
-
-# Terminal ANSI slots 0-15. Must stay identical to the `ghostty` generator in
-# lib/themes.nix — zellij and Claude Code read these slots via the terminal.
-ANSI = ["surface1", "red", "green", "yellow", "blue", "pink", "teal", "subtext0",
-        "surface2", "red", "green", "yellow", "blue", "pink", "teal", "subtext1"]
 
 ORDER = ["rosewater", "flamingo", "pink", "mauve", "red", "maroon", "peach",
          "yellow", "green", "teal", "sky", "sapphire", "blue", "lavender",
@@ -331,8 +481,11 @@ UI = [("accent", "blue"), ("foreground", "text"), ("background", "base"),
 def main():
     palettes = json.load(sys.stdin)
     name, outdir, btop_template = sys.argv[1], sys.argv[2], sys.argv[3]
+    skip_btop = "--skip-btop" in sys.argv[4:]
     palette = palettes[name]
     c, variant = palette["colors"], palette["variant"]
+    # ANSI order comes from lib/themes.nix via ansiSlots — see the docstring.
+    ansi = palette["ansi"]
     os.makedirs(outdir, exist_ok=True)
 
     def write(filename, text):
@@ -347,7 +500,7 @@ def main():
              "", "[ui]"]
     lines += [f'{key} = "{c[slot]}"' for key, slot in UI]
     lines += ["", "[ansi]"]
-    lines += [f'color{i} = "{c[slot]}"' for i, slot in enumerate(ANSI)]
+    lines += [f'color{i} = "{c[slot]}"' for i, slot in enumerate(ansi)]
     lines += ["", "[palette]"]
     lines += [f'{slot} = "{c[slot]}"' for slot in ORDER]
     write("colors.toml", "\n".join(lines) + "\n")
@@ -367,6 +520,14 @@ def main():
 
     # btop has no generator in lib/themes.nix; its 42 entries draw on 17 palette
     # slots. Reverse-map the template's hexes to slot names, then substitute.
+    #
+    # Skipped for the catppuccin themes: catppuccin-latte's committed btop.theme
+    # uses nine colours absent from its palette, hand-darkened to read on a light
+    # background. Regenerating from raw slots would lower its contrast.
+    if skip_btop:
+        print(f"wrote {outdir} (btop.theme left untouched)")
+        return
+
     reference = palettes["catppuccin-mocha"]["colors"]
     by_hex = {v.lower(): k for k, v in reference.items()}
     with open(btop_template) as fh:
@@ -393,7 +554,8 @@ This is the test. If the generator reproduces the hand-written Catppuccin files,
 cd ~/dotfiles
 chmod 755 bin/gen-theme-dir.py
 PAL=$(mktemp)
-nix eval --json --impure --expr '(import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).palettes' > "$PAL"
+nix eval --json --impure --expr 'let t = import ./lib/themes.nix { pkgs = import <nixpkgs> {}; };
+  in builtins.mapAttrs (n: p: p // { ansi = t.ansiSlots p; }) t.palettes' > "$PAL"
 OUT=$(mktemp -d)
 bin/gen-theme-dir.py catppuccin-mocha "$OUT" themes/catppuccin-mocha/btop.theme < "$PAL"
 diff "$OUT/btop.theme" themes/catppuccin-mocha/btop.theme && echo "btop.theme IDENTICAL"
@@ -408,17 +570,36 @@ diff <(sed -n '/^\[ansi\]/,/^$/p' "$OUT/colors.toml") \
 
 Expected: all four "IDENTICAL" lines, no diff output. **If `btop.theme` differs, stop** — the slot mapping is wrong and every generated theme will be wrong.
 
+Then the same check for the light variant, which is what Task 1b fixed. Its `[ansi]` must reproduce too:
+
+```bash
+OUTL=$(mktemp -d)
+bin/gen-theme-dir.py catppuccin-latte "$OUTL" themes/catppuccin-mocha/btop.theme --skip-btop < "$PAL"
+diff <(sed -n '/^\[ansi\]/,/^$/p' "$OUTL/colors.toml") \
+     <(git show HEAD:themes/catppuccin-latte/colors.toml | sed -n '/^\[ansi\]/,/^$/p') \
+  && echo "latte ansi IDENTICAL — variant-aware ordering confirmed"
+```
+
+Expected: `latte ansi IDENTICAL`. If it differs, Task 1b's `ansiSlots` is wrong — stop and report, do not edit the committed file.
+
 - [ ] **Step 3: Generate the four theme directories**
 
 ```bash
 cd ~/dotfiles
-for t in catppuccin-mocha catppuccin-latte high-contrast-dark high-contrast-light; do
+# --skip-btop for the catppuccin themes: latte's committed btop.theme is
+# hand-darkened beyond its palette and regenerating it would LOWER contrast.
+for t in catppuccin-mocha catppuccin-latte; do
+  bin/gen-theme-dir.py "$t" "themes/$t" themes/catppuccin-mocha/btop.theme --skip-btop < "$PAL"
+done
+for t in high-contrast-dark high-contrast-light; do
   bin/gen-theme-dir.py "$t" "themes/$t" themes/catppuccin-mocha/btop.theme < "$PAL"
 done
 git diff --stat themes/
 ```
 
-Expected: the two catppuccin `colors.toml`, `palette.sh` and `gtk.conf` files change (regenerated headers, `[catppuccin]` → `[palette]`); their `btop.theme` and `variant` do **not** change; two new directories appear.
+Expected: the two catppuccin `colors.toml`, `palette.sh` and `gtk.conf` files change (regenerated headers, `[catppuccin]` → `[palette]`); their **`btop.theme` and `variant` do NOT appear in the diff at all**; two new directories appear.
+
+If `themes/catppuccin-latte/btop.theme` shows up in `git diff --stat`, `--skip-btop` did not take — stop and report rather than committing a contrast regression.
 
 - [ ] **Step 4: Write the two READMEs**
 
@@ -1430,7 +1611,8 @@ Themes are generated from `lib/themes.nix`, so adding one is two steps:
 ```bash
 cd ~/dotfiles
 PAL=$(mktemp)
-nix eval --json --impure --expr '(import ./lib/themes.nix { pkgs = import <nixpkgs> {}; }).palettes' > "$PAL"
+nix eval --json --impure --expr 'let t = import ./lib/themes.nix { pkgs = import <nixpkgs> {}; };
+  in builtins.mapAttrs (n: p: p // { ansi = t.ansiSlots p; }) t.palettes' > "$PAL"
 bin/gen-theme-dir.py <new-theme> themes/<new-theme> themes/catppuccin-mocha/btop.theme < "$PAL"
 echo <emacs-theme-name> > themes/<new-theme>/emacs-theme
 python3 tests/contrast-check.py < "$PAL"
