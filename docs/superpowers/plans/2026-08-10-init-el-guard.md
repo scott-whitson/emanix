@@ -19,7 +19,9 @@
 - **`lisp/scott-ewm-slots.el` must NOT `(require 'ewm)`.** Emacs is started `--fg-daemon --eval (require 'ewm) --eval (ewm-start-module)`, and Emacs processes `--eval` *after* loading init — so `ewm` does not exist yet while init runs. The existing code resolves `ewm--focused-frame`, `ewm-frame-new`, `ewm--strip-frames` and `ewm-workspace-rename` at **call** time behind `fboundp`/`bound-and-true-p`. Preserve that.
 - `~/.config/emacs/init.el` is an out-of-store symlink into the checkout (`liveElisp`), so **edits to the repo are immediately live on rafik**. Never leave the working tree in a state where init.el is broken.
 - Build check: `for h in rafik whistle datacore; do nix build --no-link --print-out-paths .#nixosConfigurations.$h.config.system.build.toplevel; done`
-- `datacore`'s closure must remain `kj54bwyp7i0clcw3zy0j2mcfrfl14vx4-nixos-system-datacore-26.11.20260705.d407951`.
+- **`datacore`'s closure WILL change in Tasks 2 and 3, and that is correct.** It has `programs.emacs.enable = true` and already receives the whole Emacs config (`emacs/early-init.el`, `emacs/init.el`, `emacs/lisp`), so it legitimately gains `fallback.el` and `config.el` and should have the guard like every other host. Do not gate the new entries to keep its hash pinned — a headless host whose Emacs config can abort is the same bug, just less visible.
+  The check is that the change is *confined to the new files*: `nix eval --json .#nixosConfigurations.datacore.config.home-manager.users.scott.xdg.configFile --apply 'f: builtins.filter (n: builtins.match "emacs.*" n != null) (builtins.attrNames f)'` must list exactly the expected emacs entries and nothing unexpected.
+  (Task 1 did **not** move datacore, because its new file went inside `lisp/`, which deploys as one symlink rather than a new `xdg.configFile` entry. That asymmetry is why this needed saying.)
 
 ## File Structure
 
@@ -538,7 +540,7 @@ nixpkgs-fmt --check ioshi/i-intelligence/emacs.nix
 for h in rafik whistle datacore; do printf "%-9s " $h; nix build --no-link --print-out-paths .#nixosConfigurations.$h.config.system.build.toplevel; done
 ```
 
-Expected: all three read clean, `init.el` under 40 lines, datacore unchanged.
+Expected: all three read clean, `init.el` under 40 lines, and all three hosts build. datacore's hash changes in this task — it gains `config.el` — which is correct; confirm via the `xdg.configFile` eval that only the expected emacs entries are present.
 
 - [ ] **Step 8: Commit**
 
