@@ -80,6 +80,22 @@ check "require: modeline"      "modeline=t"   "$R"
 check "require: launcher"      "launch=t"     "$R"
 check "require: ewm commands"  "ewmgoto=t"    "$R"
 
+echo "4. missing config.el — a deploy failure, the one case where NOERROR nil matters"
+# load's NOERROR only suppresses file-not-found; it does nothing for the
+# read-time and load-time faults above, which propagate through load either
+# way. This is the only case in the suite that actually depends on the
+# loader's config.el load using NOERROR nil rather than t: with nil, the
+# missing file signals, condition-case catches it, and fallback.el runs. With
+# t, load would silently no-op and Emacs would come up with no configuration
+# and nothing recorded to say why.
+D=$(mktemp -d); layout "$D"
+rm "$D/config.el"
+R=$(probe "$D")
+check "missing: fell back"      "fellback=yes" "$R"
+check "missing: modeline"       "modeline=t"   "$R"
+check "missing: launcher"       "launch=t"     "$R"
+check "missing: ewm commands"   "ewmgoto=t"    "$R"
+
 echo
 if (( FAILURES == 0 )); then
   echo "init-guard: all checks passed"

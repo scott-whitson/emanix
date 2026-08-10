@@ -1,4 +1,4 @@
-;;; init.el --- managed in dotfiles repo: modules/home-manager/emacs/ -*- lexical-binding: t; -*-
+;;; config.el --- managed in dotfiles repo: modules/home-manager/emacs/ -*- lexical-binding: t; -*-
 ;; Packages are installed by Nix (modules/home-manager/emacs.nix).
 ;; This file only configures them.
 
