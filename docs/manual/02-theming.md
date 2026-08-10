@@ -1,6 +1,6 @@
 # Chapter 02 — Theming
 
-The theme system is Omarchy-style (directory-per-theme) plus a dark/light toggle layer. Applying a theme is one command; switching between dark and light is one hotkey — once you bind one; see the omissions list below.
+The theme system is Omarchy-style (directory-per-theme) plus a dark/light toggle layer. Applying a theme is `dot-theme-set <name>`; flipping between dark and light is the separate `dot-theme-toggle`. Neither is bound to a key under EWM — see the omissions list below.
 
 ## Commands
 
@@ -27,7 +27,8 @@ contrast is an explicit `dot-theme-set`.
 The high-contrast pair exists for accessibility (visual snow syndrome), not
 aesthetics. Every accent slot clears WCAG AAA (7:1) against its base;
 `tests/contrast-check.py` enforces that. Catppuccin is exempt by name — it is
-knowingly soft, and Latte fails AA in three of four sampled pairs.
+knowingly soft, and 14 of Latte's 18 accent slots fail WCAG AA (4.5:1) against
+its base.
 
 ## State files
 
