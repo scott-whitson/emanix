@@ -597,7 +597,9 @@ done
 git diff --stat themes/
 ```
 
-Expected: the two catppuccin `colors.toml`, `palette.sh` and `gtk.conf` files change (regenerated headers, `[catppuccin]` → `[palette]`); their **`btop.theme` and `variant` do NOT appear in the diff at all**; two new directories appear.
+Expected: the two catppuccin `colors.toml`, `palette.sh` and `gtk.conf` files change (regenerated headers, `[catppuccin]` → `[palette]`); their **`btop.theme` does NOT appear in the diff at all**; two new directories appear.
+
+`themes/catppuccin-latte/variant` **will** show a one-line change: the committed file has no trailing newline (mocha's does) and the generator adds one. That is a harmless pre-existing inconsistency being normalised — `dot-theme-set` reads it as `tr -d '[:space:]' < "$VARIANT_FILE"`, so both forms parse identically. Confirm the content is still the single word `light`, and commit it.
 
 If `themes/catppuccin-latte/btop.theme` shows up in `git diff --stat`, `--skip-btop` did not take — stop and report rather than committing a contrast regression.
 
