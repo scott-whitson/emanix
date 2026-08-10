@@ -24,6 +24,15 @@ in
     then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/lisp"
     else ./emacs/lisp;
 
+  # config.el and fallback.el are deployed exactly like init.el. If fallback.el
+  # is ever missing, the loader's (load ... :noerror) degrades to "no fallback"
+  # silently — so a missing entry here would make the guard look fine until the
+  # moment it is needed. tests/init-guard.sh asserts against a deployed layout.
+  xdg.configFile."emacs/fallback.el".source =
+    if config.scott.dotfiles.liveElisp
+    then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/fallback.el"
+    else ./emacs/fallback.el;
+
   # NO ~/.emacs.d mirror: emacs PREFERS ~/.emacs.d over ~/.config/emacs when
   # both exist, splitting runtime state (a second org-roam.db). ~/.config/emacs
   # is the only config path; ~/.emacs.d must not exist.
