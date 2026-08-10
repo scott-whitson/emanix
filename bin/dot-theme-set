@@ -110,7 +110,7 @@ fi
 pi_settings="$HOME/.pi/agent/settings.json"
 if command -v python3 &>/dev/null; then
     python3 - "$pi_settings" "$THEME_NAME" <<'PY' || true
-import json, sys, os, tempfile
+import json, sys, os, tempfile, shutil
 path, theme = sys.argv[1], sys.argv[2]
 try:
     if os.path.exists(path):
@@ -121,6 +121,10 @@ try:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
     with os.fdopen(fd, "w") as f: json.dump(data, f, indent=2)
+    # mkstemp creates 0600 and os.replace swaps the whole inode, so without
+    # this the file's original mode is silently lost. This one is inside a
+    # Syncthing-synced directory, so a mode change would propagate to peers.
+    if os.path.exists(path): shutil.copymode(path, tmp)
     os.replace(tmp, path)
 except Exception as e:
     print(f"pi settings update failed: {e}", file=__import__('sys').stderr)
@@ -140,7 +144,7 @@ fi
 claude_settings="$HOME/.claude/settings.json"
 if [[ -f "$claude_settings" ]] && command -v python3 &>/dev/null; then
     python3 - "$claude_settings" "$VARIANT" <<'PY' || true
-import json, sys, os, tempfile, collections
+import json, sys, os, tempfile, shutil, collections
 path, variant = sys.argv[1], sys.argv[2]
 tmp = None
 try:
@@ -158,6 +162,10 @@ try:
     with os.fdopen(fd, "w") as fh:
         json.dump(data, fh, indent=2)
         fh.write("\n")
+    # Preserve the target's mode: mkstemp creates 0600 and os.replace
+    # swaps the inode, which silently dropped settings.json's exec bit the
+    # first time this ran.
+    shutil.copymode(real, tmp)
     os.replace(tmp, real)
     tmp = None
 except Exception as e:
