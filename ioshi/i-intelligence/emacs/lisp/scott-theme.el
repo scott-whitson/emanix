@@ -43,18 +43,66 @@
                                  scott-theme--themes-dir))
               "catppuccin")))
 
+(defconst scott-theme--builtin-fallback 'modus-vivendi
+  "Last-resort theme when even catppuccin cannot be loaded.
+Modus ships inside Emacs itself (see the load-path comment above), so
+unlike catppuccin it needs no external package and is available on every
+host that runs this file at all.")
+
+(defun scott-theme--available-p (theme)
+  "Non-nil if THEME is one Emacs actually reports it can load."
+  (memq theme (custom-available-themes)))
+
+(defun scott-theme--pick-loadable (theme name)
+  "Return a theme Emacs can load for dotfiles theme NAME, or nil.
+THEME is the symbol themes/NAME/emacs-theme named. If THEME is not on
+`custom-available-themes' — a typo, a hand-edit, a half-written file — warn
+and fall back to `catppuccin', and if that too is unavailable (it is
+`require'd with :no-error above, so it may be absent) fall back to
+`scott-theme--builtin-fallback'. Checking availability here, before any
+theme is disabled, is what lets `scott/theme-set' avoid leaving the session
+themeless."
+  (if (scott-theme--available-p theme)
+      theme
+    (message "scott-theme: %S (from %s) is not an available theme; falling back"
+             theme (expand-file-name (format "%s/emacs-theme" name)
+                                      scott-theme--themes-dir))
+    (cond
+     ((scott-theme--available-p 'catppuccin) 'catppuccin)
+     ((scott-theme--available-p scott-theme--builtin-fallback)
+      scott-theme--builtin-fallback)
+     (t
+      (message "scott-theme: no fallback theme is available either; leaving current theme in place")
+      nil))))
+
 (defun scott/theme-set (name)
-  "Switch the running session to dotfiles theme NAME."
+  "Switch the running session to dotfiles theme NAME.
+Never signals to its caller. This runs early in init.el, ahead of
+`scott/modeline-mode' and the EWM window-management commands — an uncaught
+error here would abort the rest of init on the host where Emacs is the
+desktop, not just leave colours wrong. So: resolve and confirm the theme is
+loadable (falling back per `scott-theme--pick-loadable') BEFORE disabling
+whatever is currently enabled, then wrap `load-theme' itself in
+`condition-case' as belt-and-braces, since a theme can be listed as
+available and still error while loading. Returns the theme symbol actually
+enabled, or nil if nothing could be loaded at all."
   (interactive "sTheme name: ")
-  (let ((theme (scott-theme--emacs-theme name)))
+  (let* ((wanted (scott-theme--emacs-theme name))
+         (theme (scott-theme--pick-loadable wanted name)))
     (setq modus-themes-common-palette-overrides
           (cdr (assoc name scott-theme--modus-overrides)))
     (when (eq theme 'catppuccin)
       (setq catppuccin-flavor (if (string-match-p "latte" name) 'latte 'mocha)))
-    (mapc #'disable-theme custom-enabled-themes)
-    (load-theme theme :no-confirm)
-    (when (eq theme 'catppuccin) (catppuccin-reload))
-    theme))
+    (when theme
+      (condition-case err
+          (progn
+            (mapc #'disable-theme custom-enabled-themes)
+            (load-theme theme :no-confirm)
+            (when (eq theme 'catppuccin) (catppuccin-reload))
+            theme)
+        (error
+         (message "scott-theme: load-theme %S failed: %S" theme err)
+         nil)))))
 
 (defun scott/theme-init ()
   "Load the theme matching the active dotfiles theme."
