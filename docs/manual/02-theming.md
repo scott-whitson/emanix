@@ -77,10 +77,15 @@ top bar) is themed by calling `scott/theme-set` in the running daemon; pi's
 agent theme is regenerated from `colors.toml` on every switch; zellij and
 Claude Code follow the terminal's own ANSI palette rather than reading
 anything theme-specific; GTK goes through `gsettings`; and Firefox chrome is
-rendered by Nix from the active palette at rebuild time, the same way
-ghostty's configs are. "Themed by file symlink" was never a complete
-description even for the two apps it did cover, and it undercounts what the
-system now reaches.
+rendered by Nix from `config.scott.theme` at build time. That is **not** the
+same mechanism as ghostty: ghostty pre-renders all four palettes into
+`~/.config/ghostty/themes/`, and the runtime switcher picks one of them.
+Firefox renders exactly one palette into the generated `userChrome.css`, and
+the runtime switcher (`dot-theme-set`) never picks — it has no way to touch
+Firefox at all. Running `dot-theme-set` never changes Firefox, on restart or
+ever; only editing `scott.theme` in `home/scott/default.nix` and rebuilding
+does. "Themed by file symlink" was never a complete description even for the
+two apps it did cover, and it undercounts what the system now reaches.
 
 ## How `dot-theme-set <name>` works
 
@@ -163,10 +168,18 @@ every `dot-theme-toggle` away from the committed default left a modified line in
 `git status`.
 
 Helix is retired and every trace of it is gone — the module, `base/helix/`, the
-`themes/*/helix-theme` files and the sed block itself. `dot-theme-set` no longer
-writes into the repo at all, so theme toggling always leaves a clean working
-tree. Kept here because the symptom (a mysteriously dirty repo after toggling
-themes) is memorable enough to be worth recognising if it ever recurs.
+`themes/*/helix-theme` files and the sed block itself. That sed-into-a-symlink
+defect is gone, but `dot-theme-set` still writes into the repo in two places:
+it regenerates `themes/<name>/pi-agent-theme.json` from `colors.toml` on every
+switch (see the script), and it rewrites `~/.claude/settings.json`, an
+out-of-store symlink into the checkout, per `claude.nix`. Both leave a clean
+`git status` today only because their output is deterministic — every switch
+reproduces the same bytes for a given theme, not new ones — so there is
+nothing to commit. That is incidental, not structural: a change to either
+generator that makes its output non-deterministic would dirty the tree on
+every switch with no warning. Kept here because the symptom (a mysteriously
+dirty repo after toggling themes) is memorable enough to be worth recognising
+if it ever recurs.
 
 ## Wallpaper (fragpaper retired 2026-08-08)
 

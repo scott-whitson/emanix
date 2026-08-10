@@ -6,7 +6,12 @@
 ;;
 ;; This used to take a catppuccin flavor ("mocha"/"latte") and derive it with
 ;; (string-match-p "latte" name), which silently mapped every other theme name
-;; to mocha — so a non-catppuccin theme could not be expressed at all.
+;; to mocha — so a non-catppuccin theme could not be expressed at all. Both the
+;; Catppuccin flavour and the Modus bg-main/fg-main overrides below are now
+;; derived from themes/<name>/variant and themes/<name>/colors.toml instead of
+;; from substrings or a name-keyed table, so a fifth theme needs no code
+;; change here — see scott-theme--modus-overrides and
+;; scott-theme--catppuccin-flavor.
 
 (require 'catppuccin-theme nil :no-error)
 
@@ -20,10 +25,12 @@
 (defconst scott-theme--themes-dir "~/dotfiles/themes")
 (defconst scott-theme--default "catppuccin-mocha")
 
-;; bg-main/fg-main per theme. These MUST match lib/themes.nix's base/text for
-;; the same theme: Modus defaults to 19-21:1 (modus-vivendi is #000/#fff), and
-;; the spec deliberately targets ~16:1 to avoid halation.
-(defconst scott-theme--modus-overrides
+;; Last-resort bg-main/fg-main pairs, used only when a theme's own
+;; colors.toml can't be read (see scott-theme--modus-overrides below). These
+;; happen to match lib/themes.nix's base/text for the same two themes today,
+;; but that agreement is no longer load-bearing: the normal path reads
+;; base/text straight from colors.toml, so a fifth theme needs no entry here.
+(defconst scott-theme--modus-overrides-fallback
   '(("high-contrast-dark"  . ((bg-main "#0a0a0a") (fg-main "#e8e8e8")))
     ("high-contrast-light" . ((bg-main "#f2f2f2") (fg-main "#111111")))))
 
@@ -31,6 +38,64 @@
   "Return the trimmed contents of PATH, or nil if unreadable."
   (when (file-readable-p path)
     (string-trim (with-temp-buffer (insert-file-contents path) (buffer-string)))))
+
+(defun scott-theme--read-palette-value (name key)
+  "Return the KEY value from themes/NAME/colors.toml's [palette] section.
+Returns nil if the directory, the file, the [palette] section, or KEY within
+it is missing — this is deliberately defensive rather than signalling, since
+it feeds scott/theme-set, which must never error out to its caller.
+
+This is a narrow regexp over one TOML section, not a general parser: Emacs 30
+has no built-in TOML reader, and colors.toml's own header says not to
+hand-edit it, so the format here is exactly what bin/gen-theme-dir.py emits —
+one `key = \"value\"` pair per line inside [palette]."
+  (let ((path (expand-file-name (format "%s/colors.toml" name)
+                                 scott-theme--themes-dir)))
+    (when (file-readable-p path)
+      (with-temp-buffer
+        (insert-file-contents path)
+        (goto-char (point-min))
+        (when (re-search-forward "^\\[palette\\]" nil t)
+          (let ((section-start (point))
+                (section-end (save-excursion
+                               (if (re-search-forward "^\\[" nil t)
+                                   (match-beginning 0)
+                                 (point-max)))))
+            (goto-char section-start)
+            (when (re-search-forward
+                   (format "^%s[ \t]*=[ \t]*\"\\([^\"]*\\)\""
+                           (regexp-quote key))
+                   section-end t)
+              (match-string 1))))))))
+
+(defun scott-theme--modus-overrides (name)
+  "Return the Modus bg-main/fg-main override alist for dotfiles theme NAME.
+Reads base/text straight out of themes/NAME/colors.toml so a fifth theme
+needs no entry anywhere in this file — Modus defaults to 19-21:1
+(modus-vivendi is #000/#fff), and the spec deliberately targets ~16:1 to
+avoid halation, so an unlisted theme must not silently fall through to
+Modus's native contrast. Falls back to `scott-theme--modus-overrides-fallback'
+only if colors.toml or one of the two keys can't be read."
+  (let ((base (scott-theme--read-palette-value name "base"))
+        (text (scott-theme--read-palette-value name "text")))
+    (if (and base text)
+        `((bg-main ,base) (fg-main ,text))
+      (cdr (assoc name scott-theme--modus-overrides-fallback)))))
+
+(defun scott-theme--catppuccin-flavor (name)
+  "Return the catppuccin-theme flavor symbol for dotfiles theme NAME.
+Reads themes/NAME/variant (\"dark\" -> mocha, \"light\" -> latte) rather than
+matching \"latte\" against NAME, which silently mapped any theme whose name
+didn't contain \"latte\" — including a future non-latte Catppuccin flavour —
+to mocha. Falls back to that old substring match only if variant can't be
+read, so behaviour is unchanged when the directory is missing or broken."
+  (let ((variant (scott-theme--read
+                   (expand-file-name (format "%s/variant" name)
+                                      scott-theme--themes-dir))))
+    (cond
+     ((equal variant "light") 'latte)
+     ((equal variant "dark") 'mocha)
+     (t (if (string-match-p "latte" name) 'latte 'mocha)))))
 
 (defun scott-theme--active-name ()
   "Name of the active dotfiles theme."
@@ -90,9 +155,9 @@ enabled, or nil if nothing could be loaded at all."
   (let* ((wanted (scott-theme--emacs-theme name))
          (theme (scott-theme--pick-loadable wanted name)))
     (setq modus-themes-common-palette-overrides
-          (cdr (assoc name scott-theme--modus-overrides)))
+          (scott-theme--modus-overrides name))
     (when (eq theme 'catppuccin)
-      (setq catppuccin-flavor (if (string-match-p "latte" name) 'latte 'mocha)))
+      (setq catppuccin-flavor (scott-theme--catppuccin-flavor name)))
     (when theme
       (condition-case err
           (progn

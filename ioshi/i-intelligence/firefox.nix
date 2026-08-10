@@ -3,6 +3,12 @@
 let
   themeLib = import ../../lib/themes.nix { inherit pkgs; };
   palettes = themeLib.palettes;
+  # Resolved once, from config.scott.theme, at rebuild time — NOT what
+  # `dot-theme-set` changes. Unlike ghostty (which pre-renders all four
+  # palettes so the runtime switcher can pick one), Firefox renders exactly
+  # this one palette and the switcher never touches it. Running
+  # `dot-theme-set` does not change Firefox at all, on restart or ever;
+  # only editing scott.theme and rebuilding does. See docs/manual/02-theming.md.
   activePalette = palettes.${config.scott.theme} or palettes.catppuccin-mocha;
 in
 {
@@ -11,8 +17,9 @@ in
   # installs the package itself, so packages.nix must NOT also list `firefox` —
   # doing both gave rafik two identical firefox entries in home.packages.
   config = lib.mkIf config.scott.gui {
-    # Firefox, dark via the ui.systemUsesDarkTheme pref below. Deliberately
-    # NOT Catppuccin-themed: catppuccin/nix's firefox port works by installing
+    # Firefox, following the active palette's variant via the
+    # ui.systemUsesDarkTheme pref below. Deliberately NOT Catppuccin-themed:
+    # catppuccin/nix's firefox port works by installing
     # the FirefoxColor extension, which is more than is wanted here. A
     # `catppuccin.firefox` block did sit here, but it gated on
     # `config.catppuccin.enable` — never set, so always false — and had
@@ -39,8 +46,12 @@ in
         userChrome = themeLib.firefoxChrome activePalette;
 
         settings = {
-          # Dark theme by default
-          "ui.systemUsesDarkTheme" = 1;
+          # Follows the active palette's variant, not hardcoded: under either
+          # light palette the chrome CSS above renders light, and if this
+          # pref stayed pinned to 1, Firefox's own UI theme and every
+          # prefers-color-scheme page would stay dark underneath it — an
+          # actively incoherent result, not just a missed opportunity.
+          "ui.systemUsesDarkTheme" = if activePalette.variant == "dark" then 1 else 0;
           "browser.tabs.firefoxview.enableCache" = true;
 
           # Respect wayland

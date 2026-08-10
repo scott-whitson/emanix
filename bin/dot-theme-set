@@ -84,6 +84,16 @@ fi
 # The pi-agent theme JSON is derived from colors.toml (single source of truth)
 # so it can never drift from the rest of the theme. We regenerate on every
 # switch (cheap + idempotent) and symlink the result into ~/.pi/agent/themes/.
+#
+# NOTE: $THEME_DIR is inside the checkout ($DOTFILES/themes/<name>/), so this
+# writes into the repo too — Claude Code's settings.json (below) is not
+# actually the sole exception, despite what earlier comments here and in
+# docs/manual/02-theming.md claimed. It is harmless today only because
+# gen-pi-theme.py's output is deterministic per theme: every switch rewrites
+# pi-agent-theme.json to the same bytes it already had, so `git status` stays
+# clean. That safety is incidental, not structural — a future change to the
+# generator that makes its output non-deterministic (a timestamp, machine-
+# specific path, etc.) would dirty the tree on every switch with no warning.
 pi_themes_dir="$HOME/.pi/agent/themes"
 gen_script="$DOTFILES/bin/gen-pi-theme.py"
 if [[ -x "$gen_script" ]]; then
@@ -124,8 +134,9 @@ fi
 # Only the dark/light axis matters here; the palette needs no mention.
 #
 # This writes inside the checkout (~/.claude/settings.json is an out-of-store
-# symlink into it). That is the documented trade-off in claude.nix, and the
-# one place the theme system is allowed to dirty the tree.
+# symlink into it). That is the documented trade-off in claude.nix — but it
+# is not the only place this script writes into the repo; see the pi-agent
+# block above, which regenerates pi-agent-theme.json under themes/<name>/.
 claude_settings="$HOME/.claude/settings.json"
 if [[ -f "$claude_settings" ]] && command -v python3 &>/dev/null; then
     python3 - "$claude_settings" "$VARIANT" <<'PY' || true

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # bin/dot-theme-toggle — flip between the last-applied dark and last-applied
-# light theme. Bound to $mod+SHIFT+t in Hyprland.
+# light theme. Not bound to any key: Hyprland is gone from this repo, and
+# nothing under EWM binds this script (see docs/manual/02-theming.md).
 #
 # Reads ~/.config/dotfiles/active-theme, looks up its variant, then applies
 # ~/.config/dotfiles/last-<other-variant>. Falls back to first theme of the
