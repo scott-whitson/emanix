@@ -1338,7 +1338,8 @@ fi
 cd ~/dotfiles
 root=$(mktemp -d); mkdir -p "$root/available" "$root/active"
 for v in dark light; do
-  nix eval --raw ".#nixosConfigurations.rafik.config.home-manager.users.scott.home.file.\".local/share/dotfiles/zellij-themes/available/eminix-$v.kdl\".text" \
+  # whistle, not rafik: scott.zellij.enable is true on the wsl role only.
+  nix eval --raw ".#nixosConfigurations.whistle.config.home-manager.users.scott.home.file.\".local/share/dotfiles/zellij-themes/available/eminix-$v.kdl\".text" \
     > "$root/available/eminix-$v.kdl"
 done
 printf 'theme_dir "%s/active"\ntheme "eminix"\n' "$root" > "$root/config.kdl"
