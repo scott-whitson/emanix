@@ -1,3 +1,14 @@
+// Theme comes from ~/.local/share/dotfiles/zellij-themes/active/, which holds
+// exactly one file: a symlink flipped by bin/dot-theme-set. Both candidate
+// themes are named `eminix`, so this line never changes — zellij selects by
+// theme NAME, and switching swaps which definition is visible.
+//
+// Kept outside the repo because ~/.config/zellij is a live symlink into the
+// checkout and must stay clean. This directory must exist or zellij fails to
+// start with an IoError; Home Manager creates and seeds it.
+theme_dir "/home/scott/.local/share/dotfiles/zellij-themes/active"
+theme "eminix"
+
 keybinds clear-defaults=true {
     locked {
         bind "Ctrl g" { SwitchToMode "normal"; }
