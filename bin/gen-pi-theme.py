@@ -67,7 +67,10 @@ def detect_variant(toml: dict) -> str:
 
 def build_colors(toml: dict) -> tuple[dict, dict]:
     """Return (vars_map, colors) for a pi-agent theme."""
-    c = toml["catppuccin"]
+    # Section renamed [catppuccin] -> [palette] on 2026-08-09: the theme set is
+    # no longer catppuccin-only. Both are accepted so a stale theme directory
+    # keeps working.
+    c = toml.get("palette") or toml["catppuccin"]
     ui = toml["ui"]
     variant = detect_variant(toml)
     bg_map = BG_DARK if variant == "dark" else BG_LIGHT
