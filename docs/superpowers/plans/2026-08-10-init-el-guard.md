@@ -391,8 +391,13 @@ layout() {  # $1 = destination dir; build a deployed-shaped config tree
 }
 
 probe() {   # $1 = init dir
-  timeout 240 "$EMACS" --batch --init-directory "$1" --eval "$PROBE" 2>&1 \
-    | grep '^PROBE' | tail -1
+  # -l "$1/init.el" is REQUIRED, not belt-and-braces. `emacs --batch` sets
+  # noninteractive, which forces init-file-user to nil, so --init-directory
+  # alone never auto-loads init.el — verified: without the -l the probe reports
+  # every capability absent no matter how correct the loader is, so the suite
+  # could never pass. With it, init.el runs exactly once (no double-load).
+  timeout 240 "$EMACS" --batch --init-directory "$1" -l "$1/init.el" \
+    --eval "$PROBE" 2>&1 | grep '^PROBE' | tail -1
 }
 
 check() {   # $1 = label, $2 = expected substring, $3 = actual
