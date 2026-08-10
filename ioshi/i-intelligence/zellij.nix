@@ -42,17 +42,64 @@
     # not by editing the `theme` line in config.kdl (which lives in the repo and
     # must stay clean). available/ is not theme_dir; active/ is.
     #
-    # `black` and `white` are fixed colour IDENTITIES, not variant-relative
-    # roles, so they are held constant (0 and 15) across both files on
-    # purpose — do not "balance" white the way fg/bg are balanced. fg/bg are
-    # the roles that actually carry the dark/light swap (light's bg points at
-    # the light extreme, fg at the dark extreme); black/white name specific
-    # ANSI slots and must mean the same slot in both variants. Whether zellij
-    # ever paints UI text in the `white` role against `bg` — which would make
-    # light's white 15 invisible against bg 15 — is not something `setup
-    # --check` can tell you; only a live session confirms it (Task 9). If it
-    # turns out wrong, the fallback is dropping light's `white` to a mid
-    # index such as 7.
+    # `white` is NOT a free colour identity — a prior comment here claimed
+    # black/white should be held constant across variants "like ANSI names."
+    # That was wrong, disproven by zellij-utils 0.44.3's own source, not by a
+    # live session:
+    #
+    #   - zellij-utils/src/kdl/mod.rs, Themes::from_kdl, "Older palette based
+    #     theme definition" branch: this bare fg/bg/black/.../white format
+    #     builds a `Palette { ..., ..Default::default() }`, and
+    #     `ThemeHue::default() == Dark` (zellij-utils/src/data.rs). The bare
+    #     format has NO KDL key for theme_hue, so it is Dark for every theme
+    #     written this way — for BOTH our files, regardless of which one is
+    #     meant to look "light."
+    #   - zellij-utils/src/data.rs, `impl From<Palette> for Styling`: this is
+    #     what actually turns our 11 fields into the ~13 StyleDeclarations
+    #     zellij paints with. It opens with
+    #       let (fg, bg) = match palette.theme_hue {
+    #         Light => (palette.black, palette.white),
+    #         Dark  => (palette.white, palette.black),
+    #       };
+    #     Since theme_hue is always Dark here, `white` becomes the `base`
+    #     (foreground) of text_unselected/text_selected/table_cell_(un)selected/
+    #     list_(un)selected, and `black` becomes background in several of the
+    #     same. `white` is also used directly (not via the hue match) as
+    #     ribbon_unselected/list_(un)selected's base/emphasis_1. It is a TEXT
+    #     colour as consumed, exactly like fg/bg — not a fixed identity.
+    #
+    # Consequence: text_selected/table_cell_selected/list_selected pair
+    # `base = white` against `background = palette.bg` (the raw bg field, not
+    # hue-swapped). The old light `white 15` against `bg 15` was therefore the
+    # identical PaletteColor value in all three — proven with a small script
+    # modelling the From<Palette> impl (task-6-report.md, Fix round 2), not
+    # guessed at rendering. `white 7` (before that) missed the exact
+    # collision but is a light grey against a light bg — still low contrast.
+    #
+    # Chosen instead: `white 8` for the light theme. Modelling every base/
+    # background pair the source derives (see the report) shows 8 is the
+    # darkest neutral ANSI slot (conventionally "bright black" — a mid grey,
+    # not a hue) that causes NO exact collision anywhere `white` feeds in,
+    # for either variant. It cannot be optimal in both directions at once:
+    # the same scalar is also `base` against `background = black` (0) in
+    # text_unselected/table_cell_unselected/list_unselected, where a darker
+    # value buys less contrast than 15 would have — an inherent limit of this
+    # older bare-palette format (zellij's own bundled *-light.kdl themes, e.g.
+    # ayu-light.kdl, avoid it entirely by using the newer per-declaration
+    # format instead, where base/background are set explicitly with no hue
+    # inference). Switching formats is a bigger change than this fix; flagged
+    # for a future round rather than done here.
+    #
+    # Separately, and NOT fixed here: the same modelling shows
+    # ribbon_unselected in the light file pairs `base = black` (0) against
+    # `background = fg` (0) — an exact collision that has nothing to do with
+    # `white` and predates this fix (light's fg has been 0 since Step 1).
+    # Fixing it would mean moving `fg` (reviewed and confirmed correct
+    # elsewhere) or `black` (meant to read as true black in both variants) —
+    # out of scope for this round; see task-6-report.md.
+    #
+    # Dark's `white 15` against `bg 0`/`black 0` has no such collision (15
+    # never equals 0) and is unchanged.
     home.file.".local/share/dotfiles/zellij-themes/available/eminix-dark.kdl".text = ''
       themes {
           eminix {
@@ -83,7 +130,7 @@
               blue 4
               magenta 5
               cyan 6
-              white 15
+              white 8
               orange 3
           }
       }
