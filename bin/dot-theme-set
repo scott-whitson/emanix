@@ -129,17 +129,31 @@ fi
 claude_settings="$HOME/.claude/settings.json"
 if [[ -f "$claude_settings" ]] && command -v python3 &>/dev/null; then
     python3 - "$claude_settings" "$VARIANT" <<'PY' || true
-import json, sys, collections
+import json, sys, os, tempfile, collections
 path, variant = sys.argv[1], sys.argv[2]
+tmp = None
 try:
-    with open(path) as fh:
+    # Resolve the symlink so the checkout file gets replaced, not the
+    # symlink itself -- os.replace() onto a symlink path would swap in a
+    # plain file and sever the link to version control.
+    real = os.path.realpath(path)
+    with open(real) as fh:
         data = json.load(fh, object_pairs_hook=collections.OrderedDict)
-except Exception:
-    sys.exit(0)
-data["theme"] = "light-ansi" if variant == "light" else "dark-ansi"
-with open(path, "w") as fh:
-    json.dump(data, fh, indent=2)
-    fh.write("\n")
+    data["theme"] = "light-ansi" if variant == "light" else "dark-ansi"
+    # Write to a temp file in the same directory, then atomically replace.
+    # Claude Code rewrites this file at runtime; a plain truncate-then-write
+    # could race it and leave a partial file (dropping hooks/enabledPlugins).
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(real))
+    with os.fdopen(fd, "w") as fh:
+        json.dump(data, fh, indent=2)
+        fh.write("\n")
+    os.replace(tmp, real)
+    tmp = None
+except Exception as e:
+    print(f"claude settings update failed: {e}", file=sys.stderr)
+finally:
+    if tmp and os.path.exists(tmp):
+        os.unlink(tmp)
 PY
 fi
 
