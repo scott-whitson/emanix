@@ -56,7 +56,10 @@ link_if_present() {
     fi
 }
 
-link_if_present "$THEME_DIR/ghostty.conf"   "$HOME/.config/ghostty/theme.conf"
+# ghostty configs are rendered by Nix into ~/.config/ghostty/themes/, not
+# carried in themes/<name>/ — lib/themes.nix is the single source of colour.
+link_if_present "$HOME/.config/ghostty/themes/$THEME_NAME.conf" \
+                "$HOME/.config/ghostty/theme.conf"
 link_if_present "$THEME_DIR/btop.theme"     "$HOME/.config/btop/themes/active.theme"
 
 # Two apps get themed here; everything else is Emacs, which is themed through
