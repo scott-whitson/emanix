@@ -125,12 +125,17 @@ if [[ -x "$THEME_DIR/post-set.sh" ]]; then
     bash "$THEME_DIR/post-set.sh" || true
 fi
 
-# --- Emacs: switch catppuccin flavor in the running daemon (best-effort) ---
-EMACSCLIENT="$HOME/.nix-profile/bin/emacsclient"
-if [[ -x "$EMACSCLIENT" ]]; then
-    emacs_flavor="mocha"
-    [[ "$VARIANT" == "light" ]] && emacs_flavor="latte"
-    "$EMACSCLIENT" -e "(scott/theme-set \"$emacs_flavor\")" &>/dev/null || true
+# --- Emacs: switch theme in the running daemon (best-effort) ---
+# Resolve emacsclient rather than hardcoding a path. rafik runs the
+# system-owned EWM build, whose client is /run/current-system/sw/bin/
+# emacsclient; ~/.nix-profile/bin/emacsclient does not exist there at all.
+# The old hardcoded path meant this handoff silently no-op'd on the one host
+# where Emacs IS the desktop.
+EMACSCLIENT="$(command -v emacsclient || true)"
+if [[ -n "$EMACSCLIENT" ]]; then
+    # Pass the theme NAME. Emacs maps it via themes/<name>/emacs-theme, so a
+    # new theme needs no change here.
+    "$EMACSCLIENT" -e "(scott/theme-set \"$THEME_NAME\")" &>/dev/null || true
 fi
 
 # --- Reload running apps (best-effort) ---
