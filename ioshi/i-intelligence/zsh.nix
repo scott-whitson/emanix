@@ -77,6 +77,23 @@
             echo "    wsl --terminate whistle   (from PowerShell, then reopen)" >&2
             return 1
           fi
+          # Rarer sibling failure: the compositor is ALIVE (X0 present, frames
+          # create, frame-visible-p says t) but weston hit an I/O error mapping
+          # /mnt/shared_memory at session start and so set use_gfxredir = 0 —
+          # killing the channel that carries window pixels to Windows. Frames
+          # then open, take focus, get a taskbar button and never paint; the
+          # window title gains a "[WARN:COPY MODE]" prefix. Cost a morning on
+          # 2026-08-10 because every symptom points at emacs/GlazeWM/monitors
+          # instead. weston logs the value once per session and /mnt/wslg is
+          # tmpfs, so this always describes the CURRENT session.
+          if [[ "$(grep -a 'use_gfxredir' /mnt/wslg/weston.log 2>/dev/null | tail -1)" == *"= 0"* ]]; then
+            echo "ec: WSLg has gfxredir disabled — a GUI frame would open but never paint." >&2
+            echo "    weston failed to map /mnt/shared_memory when this session started." >&2
+            echo "    Fix: wsl --shutdown   (from PowerShell, then reopen)" >&2
+            echo "    Note: wsl --terminate is NOT enough, nor is killing msrdc.exe." >&2
+            echo "    Until then use: et   (terminal frame, same daemon, unaffected)" >&2
+            return 1
+          fi
           emacsclient -c -d "$WAYLAND_DISPLAY" "$@"
         else
           emacsclient -c "$@"
