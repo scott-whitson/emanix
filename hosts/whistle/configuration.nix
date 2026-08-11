@@ -117,9 +117,12 @@
     enable = true;
     daemon.settings = {
       # The 2026-07-21 lesson: 137 GB of buildkit cache in 3 days. Cap it.
+      # 2026-08-11: the cap held (cache sat at 23.13 GB) but 25 GB is most of a
+      # lean WSL disk on its own, and the vhdx only ever grows to the high-water
+      # mark. 8 GB still covers a warm pearl rebuild.
       builder.gc = {
         enabled = true;
-        defaultKeepStorage = "25GB";
+        defaultKeepStorage = "8GB";
       };
     };
   };
