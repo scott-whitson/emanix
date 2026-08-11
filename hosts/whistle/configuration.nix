@@ -27,6 +27,26 @@
   wsl = {
     enable = true;
     defaultUser = "scott";
+
+    # wsl.conf says interop.enabled=true, but nothing was ever registering the
+    # handler: WSL's systemd generator drops an override into
+    # systemd-binfmt.service / binfmt-support.service that re-registers
+    # WSLInterop, and NixOS generates NEITHER unit unless boot.binfmt has
+    # registrations — so both drop-ins sat inert and /proc/sys/fs/binfmt_misc
+    # had no WSLInterop at all. Every .exe call then dies with "cannot execute
+    # binary file" (debugged 2026-08-10, where it masked a WSLg gfxredir
+    # failure by breaking the powershell.exe used to diagnose it).
+    # register=true emits the boot.binfmt entry (MZ magic -> /init, fixBinary
+    # + preserveArgvZero), which creates the unit AND registers the handler.
+    # Upstream defaults this off to "use the existing registration", an
+    # assumption that only holds on non-NixOS distros.
+    # Knock-on: once the unit exists, WSL's drop-in DOES apply and resets
+    # ExecStart, so the live registration is WSL's ":WSLInterop:M::MZ::/init:P"
+    # and /etc/binfmt.d/nixos.conf goes unread. Interop works either way, but
+    # any future boot.binfmt entry (qemu/aarch64 cross) would silently not be
+    # applied — drop protectBinfmt in wsl.conf if that day comes.
+    interop.register = true;
+
     wslConf = {
       # Carried over from the hand-tuned Debian /etc/wsl.conf (2026-05-13
       # plan9 tuning): metadata mounts + no Windows PATH pollution.
