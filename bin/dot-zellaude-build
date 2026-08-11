@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# dot-zellaude-build — rebuild the zellaude fork and deploy the wasm into this repo
+#
+# The SOURCE of the fork lives outside this repo, in ~/projects/zellaude (remotes:
+# origin = datacore mirror, upstream = ishefi/zellaude, so upstream fixes can be
+# merged normally). This repo carries only the built artifact, because
+# ~/.config/zellij is an out-of-store symlink into ioshi/i-intelligence/zellij —
+# the plugin has to be a real file inside that directory, not a store path.
+#
+# Running this dirties the working tree by design: the new .wasm is the thing you
+# then commit.
+set -euo pipefail
+
+ROOT="${DOTFILES:-$HOME/dotfiles}"
+SRC="${ZELLAUDE_SRC:-$HOME/projects/zellaude}"
+DEST="$ROOT/ioshi/i-intelligence/zellij/plugins/zellaude.wasm"
+
+if [ ! -d "$SRC" ]; then
+  echo "no zellaude checkout at $SRC" >&2
+  echo "clone it: git clone scott@datacore:~/projects/zellaude.git $SRC" >&2
+  exit 1
+fi
+
+# nixpkgs' rustc ships std for wasm32-unknown-unknown but NOT wasm32-wasip1
+# (checked: lib/rustlib has no wasm32-wasip1), so the build goes through rustup's
+# own toolchain — rust-toolchain.toml pins channel + target, and rustup installs
+# whatever is missing on first run. gcc is there for `cc`, which the host-side
+# proc-macro build scripts need. RUSTUP_HOME stays out of $HOME's top level.
+export RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.local/share/rustup}"
+nix shell nixpkgs#rustup nixpkgs#gcc --command \
+  sh -c "cd '$SRC' && cargo build --release"
+
+install -m 755 "$SRC/target/wasm32-wasip1/release/zellaude.wasm" "$DEST"
+echo "deployed $(du -h "$DEST" | cut -f1) -> $DEST"
+cat <<'EOF'
+
+Already-running plugin instances keep the old code. A new zellij tab (or a fresh
+session) loads the new wasm from disk; existing tabs only pick it up on restart.
+EOF

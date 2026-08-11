@@ -1,35 +1,39 @@
 # Zellaude — status bar plugin for Zellij
 
-A fork of the [Zellaude](https://github.com/imsnif/zellaude) Zellij plugin,
-modified to show a 12-hour Eastern wall clock in place of the default branding.
+A fork of the [Zellaude](https://github.com/ishefi/zellaude) Zellij plugin, with
+the left-slot branding dropped so the bar starts straight at the mode pill.
 
-## What it does
+## What it does (vs upstream)
 
-Replaces the left-slot branding text (`"Zellaude (session-name) MODE"`) with
-`"4:56 PM MODE"` — a `current_clock()` function using `chrono-tz`
-(America/New_York) renders the time, pinned to Eastern regardless of host TZ,
-with DST handled by the bundled timezone database.
+Upstream renders `" Zellaude (session-name) "` followed by an optional `MODE`
+pill. This build renders the `MODE` pill alone, and the pill inherits the
+branding's other job: it is the click target that opens zellaude's settings menu.
 
-The clock region remains clickable (opens settings), and the minute-rollover
-triggers a re-render so the display stays accurate without wasteful frames.
+With `mode_indicator` switched off there would be nothing left to click, so the
+prefix falls back to a single `●` (tinted when the settings menu is open).
+
+An earlier version of this fork showed a 12-hour Eastern wall clock in that slot
+instead. That was removed once the desktop bar started showing the time — with it
+went the `chrono`/`chrono-tz` dependencies and the minute-rollover re-render gate.
 
 ## Source
 
-The compiled `.wasm` ships here pre-built. The source history (bare repo) lives
-at `~/projects/_archive/2026/zellaude.git` if you ever need to rebuild.
+The fork lives at `~/projects/zellaude` (`origin` = `scott@datacore:~/projects/zellaude.git`,
+`upstream` = ishefi/zellaude). Only the compiled `.wasm` ships here, because
+`~/.config/zellij` is an out-of-store symlink into `ioshi/i-intelligence/zellij`,
+so the plugin must be a real file in this directory rather than a store path.
 
 ## Rebuilding
 
-If you lose the archive, the mod is ~15 lines across 3 files:
+    dot-zellaude-build
 
-- **`src/state.rs`** — add `current_clock()` function + `last_minute: u64` field
-- **`src/render.rs`** — replace branding text with clock
-- **`src/main.rs`** — add minute-rollover re-render trigger
+It builds in a `nix shell` with rustup's toolchain (nixpkgs' rustc has no
+wasm32-wasip1 std) and copies the result over `zellaude.wasm` here — commit the
+new binary afterwards. A new zellij tab or session loads it; existing tabs keep
+the old code until they are recreated.
 
-Upstream: <https://github.com/imsnif/zellaude>
+## Settings
 
-Changes from upstream:
-
-- Removed session-name display in prefix
-- Replaced brand text with `current_clock()` (chrono-tz Eastern time)
-- Added `last_minute` re-render gate so the timer only redraws on rollover
+`zellaude.json` holds the plugin's own settings (it writes this file itself, which
+is why the config dir is a live symlink and not a store copy). Current values:
+notifications Always, flash Off, elapsed_time false, mode_indicator true.
