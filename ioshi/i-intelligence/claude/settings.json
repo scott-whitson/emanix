@@ -135,5 +135,5 @@
     "microsoft-docs@claude-plugins-official": true
   },
   "tui": "fullscreen",
-  "theme": "dark-ansi"
+  "theme": "light-ansi"
 }
