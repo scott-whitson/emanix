@@ -311,14 +311,49 @@ git push
   Liveness tell: `/tmp/.X11-unix/X0` vanishes when WSLg is dead. Only fix:
   `wsl --terminate whistle` + reopen. The `ec` function guards on the X0
   probe and prints this instead of assassinating the daemon.
+- **WSLg windows that open but never paint** (2026-08-10, quieter sibling of
+  the compositor death above — cost most of a morning). weston hit an I/O
+  error mapping `/mnt/shared_memory` at session start and therefore set
+  `use_gfxredir = 0`, killing the channel that carries window pixels to
+  Windows. Everything else looks healthy and points you at the wrong layer:
+  the emacs daemon responds, `make-frame-on-display` succeeds, the frame is
+  a real `pgtk` frame with `frame-visible-p` = `t`, Windows reports the
+  `RAIL_WINDOW` visible and focusable with a taskbar button — and not one
+  pixel is drawn on any monitor. The only tell is a `[WARN:COPY MODE]`
+  prefix on the window title. Diagnose in one line:
+  `grep 'shared_memory\|use_gfxredir' /mnt/wslg/weston.log` — read
+  `use_gfxredir` ONLY (`0` broken, `1` fine); `enable_copy_warning_title = 1`
+  is 1 in healthy sessions too and is NOT a fault signal.
+  **Only fix: `wsl --shutdown`.** weston reads shared memory once at startup,
+  `/mnt/shared_memory` lives in WSLg's *system* distro (invisible from here),
+  and `wsl --terminate whistle` is NOT enough — nor is killing `msrdc.exe`,
+  which renegotiates straight back into copy mode (both tried). Confirmed
+  fixed 2026-08-11: clean boot came up `use_gfxredir = 1`, so the EIO was a
+  one-off host-side race, not an EDR block. `ec` now guards on this too, and
+  `et` (terminal frame) is unaffected throughout — reach for it immediately
+  rather than debugging the GUI under pressure. Innocent bystanders that
+  wasted time here: the GlazeWM ignore rule (verify via its unelevated IPC,
+  `ws://127.0.0.1:6123` + `query windows`; `localhost` resolves to `::1` and
+  fails, and the CLI needs elevation), the laptop panel being Windows'
+  primary display, and `PrintWindow` returning solid black — which is normal
+  for GPU-composited WSLg surfaces and proves nothing.
 - **Stock-image boots wipe `WSLInterop` for EVERY distro.** binfmt_misc is
   global across WSL2 distros; the unconfigured NixOS-WSL image's boot can
   drop the entry, which breaks running `*.exe` from Debian too
   (`exec format error`). Restore from any affected distro with:
   `sudo sh -c "echo ':WSLInterop:M::MZ::/init:PF' > /proc/sys/fs/binfmt_misc/register"`.
-  Post-rebuild whistle registers interop properly; keeping whistle running
-  (instead of letting it idle-stop and re-boot) avoids repeats during
-  bootstrap.
+  Keeping whistle running (instead of letting it idle-stop and re-boot)
+  avoids repeats during bootstrap.
+  **Only true since 2026-08-10** that "post-rebuild whistle registers interop
+  properly": it never did. WSL's systemd generator writes drop-ins for
+  `systemd-binfmt.service` / `binfmt-support.service` that re-register the
+  handler, and NixOS generates NEITHER unit unless `boot.binfmt` has
+  registrations — so both sat inert and `/proc/sys/fs/binfmt_misc` had no
+  `WSLInterop` at all, while `wsl.conf`'s `interop.enabled=true` implied
+  otherwise. Every `.exe` call died with "cannot execute binary file". Fixed
+  by `wsl.interop.register = true` (upstream defaults it off, assuming an
+  existing registration — only valid on non-NixOS distros). Verified
+  registering at boot 2026-08-11.
 - **Shared network namespace with Debian (until retirement):** sshd
   listens on **2222** (Debian holds 22); syncthing runs on **GUI 8385 /
   sync 22001** (Debian owns 8384/22000 — two instances crash-collide
