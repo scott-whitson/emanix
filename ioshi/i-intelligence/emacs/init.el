@@ -50,10 +50,25 @@ Check it with: emacsclient -e \\='(insert scott/init-backtrace)\\='.")
 ;; in the checkout. `load-file-name' is nil when this is evaluated rather
 ;; than loaded (e.g. from a REPL), hence the fallback to
 ;; `user-emacs-directory'.
+;;
+;; `ignore-errors' matters as much as the fallback value it guards: this
+;; form runs BEFORE the `condition-case' below exists, so — together with
+;; the `let' binding right after it — it is the one place in this file an
+;; uncaught signal is fatal by construction. `file-truename' is not
+;; guaranteed not to signal (a symlink cycle does it, verified); letting
+;; that propagate here would abort init.el fifteen lines before its own
+;; guard, loading neither config.el nor fallback.el — the exact
+;; total-desktop-loss this split exists to prevent, reintroduced one form
+;; earlier than the fix for it.
 (defvar scott/init-dir
-  (if load-file-name
-      (file-name-directory (file-truename load-file-name))
-    user-emacs-directory))
+  (or (and load-file-name
+           (ignore-errors
+             (file-name-directory (file-truename load-file-name))))
+      user-emacs-directory)
+  "Directory to load `config.el' and `fallback.el' from.
+Init.el's own truename when loaded normally; `user-emacs-directory' when
+`load-file-name' is nil (evaluated rather than loaded) or when resolving
+the truename itself signals (e.g. a symlink cycle).")
 
 (let ((signal-hook-function
        ;; Gated on debugging having been requested: this fires on EVERY
