@@ -4,7 +4,11 @@
 # Usage: dot-theme-set <theme-name>
 #
 # Validates the theme, writes state markers, symlinks per-app files into
-# ~/.config/<app>/, JSON-patches Obsidian, runs gsettings, reloads running apps.
+# ~/.config/<app>/, JSON-patches the pi-agent and Claude Code settings, runs
+# gsettings, hands the theme name to the Emacs daemon, reloads running apps.
+#
+# (Obsidian was in this list until 2026-08-08 — retired with the vault's move
+# to org-roam; see the retired-targets note further down.)
 set -euo pipefail
 
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd)}"
