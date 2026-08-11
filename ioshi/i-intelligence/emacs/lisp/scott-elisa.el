@@ -11,8 +11,10 @@
 
 (defgroup scott-elisa nil "elisa, the eminix assistant." :group 'tools)
 
-(defconst scott/elisa-models '("qwen2.5-coder:3b" "qwen2.5-coder:7b")
-  "Chat models elisa can toggle; car is the default (snappy, RAG-grounded).")
+(defconst scott/elisa-models '("qwen2.5-coder:3b" "qwen2.5:7b")
+  "Chat models elisa can toggle; car is the default (snappy, RAG-grounded).
+The 3b coder is code-focused and lightweight; the 7b is general-purpose
+for broader Emacs/NixOS/Linux questions (needs more RAM).")
 
 (defvar scott/elisa-model (car scott/elisa-models)
   "Current elisa chat model.")
@@ -35,8 +37,21 @@
   (make-llm-ollama :chat-model scott/elisa-model
                    :embedding-model "nomic-embed-text"))
 
+(defun scott/elisa--ollama-running-p ()
+  "Return non-nil if Ollama is reachable on localhost:11434."
+  (ignore-errors
+    (with-current-buffer (url-retrieve-synchronously
+                          "http://localhost:11434/api/tags" nil nil 1)
+      (let ((status (buffer-substring
+                     (point-min)
+                     (line-end-position))))
+        (kill-buffer)
+        (string-prefix-p "HTTP/1.1 200" status)))))
+
 (defun scott/elisa--setup ()
   "Load ELISA and point it at Ollama + the elisa framing. Idempotent."
+  (unless (scott/elisa--ollama-running-p)
+    (user-error "Ollama is not running — start it with `ollama serve' or systemctl --user start ollama"))
   (require 'elisa)
   ;; ELISA calls `ellama-context-add-*-quote-noninteractive', which live in
   ;; ellama-context.el and are NOT autoloaded (ellama only requires that file
@@ -44,6 +59,7 @@
   (require 'ellama-context)
   (setq elisa-chat-provider (scott/elisa--provider)
         elisa-embeddings-provider (make-llm-ollama :embedding-model "nomic-embed-text")
+        elisa-sqlite-vec-path (or elisa-sqlite-vec-path (getenv "ELISA_VEC0_PATH"))
         elisa-chat-prompt-template
         (concat
          "You are elisa, the eminix distribution assistant. eminix is a NixOS + EWM "
@@ -72,6 +88,14 @@
   (message "elisa: reindexing collections in the background"))
 
 ;;;###autoload
+(defun scott/elisa-reindex-notes ()
+  "Re-embed the org-roam vault (incremental)."
+  (interactive)
+  (unless scott/elisa--ready (scott/elisa--setup))
+  (elisa-async-parse-directory scott/elisa-org-directory)
+  (message "elisa: reindexing notes in the background"))
+
+;;;###autoload
 (defun scott/elisa-toggle-model ()
   "Flip the elisa chat model between 3b and 7b."
   (interactive)
@@ -83,16 +107,17 @@
 
 ;;;###autoload
 (defun scott/elisa-ask-notes (prompt)
-  "Ask elisa against the org-roam vault only (personal notes)."
+  "Ask elisa against the org-roam vault only (personal notes).
+Note: run `scott/elisa-reindex-notes' first if you've added new notes."
   (interactive "selisa notes> ")
   (unless scott/elisa--ready (scott/elisa--setup))
-  (elisa-async-parse-directory scott/elisa-org-directory)
   (elisa-chat prompt (list scott/elisa-org-directory)))
 
 (defvar scott/elisa-map
   (let ((m (make-sparse-keymap)))
     (define-key m (kbd "i") #'scott/elisa-ask)
     (define-key m (kbd "r") #'scott/elisa-reindex)
+    (define-key m (kbd "R") #'scott/elisa-reindex-notes)
     (define-key m (kbd "m") #'scott/elisa-toggle-model)
     (define-key m (kbd "n") #'scott/elisa-ask-notes)
     m)
