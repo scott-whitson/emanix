@@ -17,22 +17,62 @@
 ;; itself survived both times, because it is started from --eval on the command
 ;; line, which Emacs processes after init.
 ;;
-;; Keep this under ~30 lines. It is unguarded by construction: there is no
-;; outer file to catch a mistake made here.
+;; This file is small by design, not by a specific line count — every line
+;; here is unguarded, so keep it to what a loader strictly needs. It is
+;; unguarded by construction: there is no outer file to catch a mistake
+;; made here.
 
 (defvar scott/init-error nil
   "The error that aborted `config.el', or nil on a healthy boot.
 Check it with: emacsclient -e \\='scott/init-error\\='.
 When non-nil, `fallback.el' ran and the tab bar says so.")
 
-(condition-case err
-    ;; NOERROR nil on purpose: config.el MUST signal so the handler runs.
-    (load (expand-file-name "config.el" user-emacs-directory) nil :nomessage)
-  (error
-   (setq scott/init-error err)
-   (message "scott/init: config.el FAILED (%S) — loading fallback.el" err)
-   ;; NOERROR t here: if fallback.el is missing too, do not cascade.
-   (load (expand-file-name "fallback.el" user-emacs-directory)
-         :noerror :nomessage)))
+(defvar scott/init-backtrace nil
+  "Backtrace captured at the moment `config.el' signalled, or nil.
+`condition-case' unwinds the stack before its handler runs, so
+`--debug-init' shows nothing once a handler exists to catch the error —
+`signal-hook-function' below runs earlier, in the original dynamic
+context, before that unwind, so this still captures something useful.
+Populated only when debugging was requested (`debug-on-error', or
+`init-file-debug' — what `--debug-init' actually sets in this Emacs;
+see `startup.el''s `load-user-init-file'): the hook below fires on
+EVERY signal, even the many harmless ones org-roam's db sync raises and
+catches internally on a healthy boot, so it must stay off otherwise.
+Check it with: emacsclient -e \\='(insert scott/init-backtrace)\\='.")
+
+;; Resolve config.el/fallback.el next to init.el's OWN true location, not
+;; `user-emacs-directory'. liveElisp makes init.el an out-of-store symlink
+;; into the checkout, deployed the moment a host runs `git pull' — but
+;; config.el and fallback.el reach `user-emacs-directory' only via
+;; `xdg.configFile', which needs a rebuild. A pulled-not-yet-rebuilt host
+;; would otherwise have the new loader and neither file it loads. Resolving
+;; against init.el's truename finds both, because they always ship together
+;; in the checkout. `load-file-name' is nil when this is evaluated rather
+;; than loaded (e.g. from a REPL), hence the fallback to
+;; `user-emacs-directory'.
+(defvar scott/init-dir
+  (if load-file-name
+      (file-name-directory (file-truename load-file-name))
+    user-emacs-directory))
+
+(let ((signal-hook-function
+       ;; Gated on debugging having been requested: this fires on EVERY
+       ;; signal, not just the one that eventually escapes to the handler
+       ;; below, so leave it unbound (nil, same as the default) otherwise.
+       ;; Rebinds itself to nil first: a fault in `backtrace' itself must
+       ;; not recurse back into this hook.
+       (and (or debug-on-error init-file-debug)
+            (lambda (&rest _)
+              (let ((signal-hook-function nil))
+                (setq scott/init-backtrace (with-output-to-string (backtrace))))))))
+  (condition-case err
+      ;; NOERROR nil on purpose: config.el MUST signal so the handler runs.
+      (load (expand-file-name "config.el" scott/init-dir) nil :nomessage)
+    (error
+     (setq scott/init-error err)
+     (message "scott/init: config.el FAILED (%S) — loading fallback.el" err)
+     ;; NOERROR t here: if fallback.el is missing too, do not cascade.
+     (load (expand-file-name "fallback.el" scott/init-dir)
+           :noerror :nomessage))))
 
 ;;; init.el ends here

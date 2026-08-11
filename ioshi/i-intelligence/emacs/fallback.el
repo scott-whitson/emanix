@@ -62,5 +62,33 @@ visible symptoms pointed somewhere other than the fault."
       (tab-bar-mode 1))
   (error (message "fallback: tab-bar setup failed: %S" e)))
 
+;; Slot keys only — config.el's `with-eval-after-load 'ewm' block also binds
+;; s-i (elisa) and s-S-<return> (ghostty-pi), neither of which this file
+;; requires, so those are deliberately left out here. EWM's own keymap
+;; already provides s-d and s-<arrows>, so the launcher and directional
+;; navigation survive without any of this; only slot switching was M-x-only
+;; before this block existed.
+(condition-case e
+    (with-eval-after-load 'ewm
+      (when (boundp 'ewm-mode-map)
+        (dotimes (i 9)
+          (let ((slot (1+ i)))
+            (define-key ewm-mode-map (kbd (format "s-%d" slot))
+              (lambda ()
+                (interactive)
+                (scott/ewm-select-slot slot)))))
+        (define-key ewm-mode-map (kbd "s-0")
+          (lambda ()
+            (interactive)
+            (scott/ewm-select-slot 10)))
+        (define-key ewm-mode-map (kbd "s-r") #'scott/ewm-rename-workspace)
+        (define-key ewm-mode-map (kbd "s-q") #'scott/ewm-close-slot)
+        (define-key ewm-mode-map (kbd "s-w") #'scott/ewm-launch-firefox)
+        (define-key ewm-mode-map (kbd "s-<return>")
+          (lambda ()
+            (interactive)
+            (start-process "ghostty" nil "ghostty")))))
+  (error (message "fallback: ewm slot keys failed: %S" e)))
+
 (provide 'fallback)
 ;;; fallback.el ends here
