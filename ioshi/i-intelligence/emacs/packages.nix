@@ -52,8 +52,8 @@
     apheleia # async format-on-save that preserves point and undo history
     # Tree-sitter grammars. These land in <deps>/lib/*.so, which Emacs does NOT
     # search by default (verified 2026-08-07: without the treesit-extra-load-path
-    # fixup in init.el the *-ts-modes silently fail to activate). Add a language
-    # here AND nowhere else — init.el discovers whatever this list provides.
+    # fixup in config.el the *-ts-modes silently fail to activate). Add a language
+    # here AND nowhere else — config.el discovers whatever this list provides.
     (treesit-grammars.with-grammars (g: [
       g.tree-sitter-nix
       g.tree-sitter-python

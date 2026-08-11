@@ -51,6 +51,8 @@ printf '\n'
 printf 'symlinks:\n'
 for path in \
     "$HOME/.config/emacs/init.el" \
+    "$HOME/.config/emacs/config.el" \
+    "$HOME/.config/emacs/fallback.el" \
     "$HOME/.config/zellij" \
     "$HOME/.claude/settings.json" \
     "$HOME/.pi/agent/auth.json"; do

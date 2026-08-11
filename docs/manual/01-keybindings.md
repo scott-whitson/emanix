@@ -61,7 +61,56 @@ Slots are generic — no app is tied to a number. Names are session-local; set t
 The top bar — clock, battery, volume/wifi/cpu/ram/gpu, and the slot list — is
 rendered in the Emacs tab-bar (`scott-modeline.el`, `scott-ewm.el`), not a
 separate bar. Compositor bindings live in EWM's `ewm-mode-map`; the eminix
-additions are in the `with-eval-after-load 'ewm` block of `init.el`.
+additions are in the `with-eval-after-load 'ewm` block of `config.el`.
+
+---
+
+## Config layout: a loader, a config, and a fallback
+
+`~/.config/emacs/` holds three top-level files. The split is a safety boundary,
+not organisation:
+
+| File | Role |
+| --- | --- |
+| `init.el` | 38-line loader. Loads `config.el` inside a `condition-case`. Must never break, so it is rarely edited. |
+| `config.el` | All actual configuration. Free to be edited and to break. |
+| `fallback.el` | Minimum viable desktop, loaded only when `config.el` fails. |
+
+**Why the loader is a separate file.** A signal raised inside a `load`ed file
+propagates to its caller, so `init.el` catches two failures that no guard
+*inside* the config could:
+
+- a **read-time** failure such as an unbalanced paren — nothing in `config.el`
+  runs, so nothing in it can catch anything;
+- a **load-time** failure such as a `require` that signals.
+
+Both happened on 2026-08-10 and both presented identically — no top bar, `s-d`
+dead, no window navigation — because Emacs is the compositor here. EWM itself
+survived both, since it starts from `--eval` on the command line, which Emacs
+processes after init.
+
+**How to tell you are in the fallback.** The tab bar shows a red
+`⚠ CONFIG FAILED` item at the far left. For the reason:
+
+```bash
+emacsclient -e 'scott/init-error'
+```
+
+`nil` is a healthy boot. Anything else is the error that aborted `config.el`.
+
+**What the fallback restores:** the top bar (`scott/modeline-mode`), the
+launcher (`C-c o`), the `scott/ewm-*` slot commands and a theme. Not completion,
+meow, magit, org or apheleia — recoverable by fixing `config.el`, and not the
+desktop.
+
+**Editing caution.** `config.el` is an out-of-store symlink into the checkout
+(`liveElisp`), so an edit is live on the next Emacs start with no rebuild. That
+is why the guard is a runtime one: both 2026-08-10 incidents were uncommitted
+live edits, which no build-time or pre-commit check would have caught.
+
+**Testing it:** `./tests/init-guard.sh` reproduces both faults against a temp
+copy and asserts the desktop survives each, plus that a healthy config is
+unaffected.
 
 ---
 
@@ -82,7 +131,7 @@ acts on it. Enter insert with `i` / `a`; `ESC` returns to normal.
 | `Q` / `X` | Go to line |
 | `SPC` | Leader (`SPC ?` = full meow cheatsheet) |
 
-Config: `meow-normal-define-key` in `init.el`. **`C-c d` is Dirvish, not a line
+Config: `meow-normal-define-key` in `config.el`. **`C-c d` is Dirvish, not a line
 delete** — to delete lines use `x` (select, repeat to extend) then `d`.
 
 ---

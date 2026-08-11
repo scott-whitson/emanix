@@ -42,9 +42,14 @@ check "pi on PATH"  "command -v pi"
 
 # --- Nix + Emacs pilot checks ---
 check "nix installed"          "command -v nix || [[ -x /nix/var/nix/profiles/default/bin/nix ]]"
-check "emacs daemon active"    "systemctl --user is-active --quiet emacs"
-check "emacsclient responds"   "[[ -x \$HOME/.nix-profile/bin/emacsclient ]] && \$HOME/.nix-profile/bin/emacsclient -e t"
+# One check, not two: resolving emacsclient from PATH and getting a reply proves
+# the daemon is up, whereas `systemctl --user is-active emacs` is false on rafik
+# (EWM's Emacs is not that unit) and ~/.nix-profile/bin/emacsclient does not
+# exist there at all. Same hardcoded-path bug that was fixed in dot-theme-set.
+check "emacs daemon responds"  "command -v emacsclient >/dev/null && emacsclient -e t"
 check "emacs config symlinked" "[[ -L \$HOME/.config/emacs/init.el ]]"
+check "emacs config.el present"   "[[ -e \$HOME/.config/emacs/config.el ]]"
+check "emacs fallback.el present" "[[ -e \$HOME/.config/emacs/fallback.el ]]"
 check "org-roam db present"    "[[ -f \$HOME/.config/emacs/org-roam.db ]]"
 
 echo ""

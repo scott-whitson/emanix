@@ -1,696 +1,93 @@
-;;; init.el --- managed in dotfiles repo: modules/home-manager/emacs/ -*- lexical-binding: t; -*-
-;; Packages are installed by Nix (modules/home-manager/emacs.nix).
-;; This file only configures them.
+;;; init.el --- loader -*- lexical-binding: t; -*-
 
-(eval-and-compile
-  (defvar display-time-format)
-  (defvar display-time-default-load-average)
-  (defvar display-line-numbers-type)
-  (defvar corfu-auto)
-  (defvar corfu-auto-delay)
-  (defvar dired-listing-switches)
-  (defvar dired-dwim-target)
-  (defvar org-directory)
-  (defvar org-roam-directory)
-  (defvar tab-bar-format)
-  (defvar tab-bar-show)
-  (defvar meow-cheatsheet-layout)
-  (declare-function ewm--focused-frame "ewm")
-  (declare-function ewm--strip-frames "ewm")
-  (declare-function ewm-frame-new "ewm")
-  (declare-function ewm-workspace-rename "ewm")
-  (declare-function ewm--strip-frames "ewm")
-  (declare-function ewm--send-intercept-keys "ewm-input")
-  (declare-function org-roam-capture "org-roam")
-  (declare-function org-roam-node-find "org-roam")
-  (declare-function org-roam-node-insert "org-roam")
-  (declare-function org-roam-db-autosync-mode "org-roam")
-  (declare-function embark-act "embark")
-  (declare-function embark-bindings "embark"))
-
-(add-to-list 'load-path (locate-user-emacs-file "lisp"))
-(setq custom-file (locate-user-emacs-file "custom.el"))
-(load custom-file :no-error)
-
-;; --- Basics ---
-(set-face-attribute 'default nil :family "JetBrainsMono Nerd Font" :height 110)
-;; Symbol coverage for TUIs in vterm (Claude Code's ⏵ ⏸ ⏺ ✻ ✦) comes from
-;; pkgs.noto-fonts via fontconfig fallback — see ../packages.nix. Deliberately
-;; NOT set-fontset-font: on this pgtk/ftcrhb build those calls are inert
-;; (verified — forcing a range to another family changes nothing).
-(setq make-backup-files nil
-      auto-save-default nil
-      create-lockfiles nil
-      use-short-answers t
-      ring-bell-function #'ignore)
-(savehist-mode 1)
-(recentf-mode 1)
-(global-auto-revert-mode 1)
-(setq auto-revert-use-file-system-watcher nil  ; force polling — inotify is flaky on NixOS
-      auto-revert-interval 1                    ; poll every 1s
-      auto-revert-verbose nil)
-(column-number-mode 1)
-
-;; Window navigation & resizing (Shift+arrows)
-(global-set-key (kbd "S-<left>") #'shrink-window-horizontally)
-(global-set-key (kbd "S-<right>") #'enlarge-window-horizontally)
-(global-set-key (kbd "S-<down>") #'shrink-window)
-(global-set-key (kbd "S-<up>")    #'enlarge-window)
-
-;; Clock + battery + status for the EWM tab-bar panel (no status bar under EWM).
-;; Volume/wifi/cpu/ram/gpu/clock/battery all render once in the tab-bar via
-;; scott/tab-bar-status, not the mode-line.
-(setq-default display-time-format "%a %b %e %I:%M %p"
-              display-time-default-load-average nil)
-(display-time-mode 1)
-(display-battery-mode 1)
-;; Keep the per-window mode-line clean — the panel lives in the tab-bar now.
-(setq global-mode-string nil)
-(setq-default display-line-numbers-type t)
-(add-hook 'prog-mode-hook #'display-line-numbers-mode)
-
-;; --- Minibuffer completion: vertico + orderless + consult + marginalia + embark ---
-(require 'vertico)
-(require 'orderless)
-(require 'marginalia)
-(require 'consult)
-(require 'corfu)
-(vertico-mode 1)
-(marginalia-mode 1)
-(setq completion-styles '(orderless basic)
-      completion-category-defaults nil
-      completion-category-overrides '((file (styles partial-completion))))
-(global-set-key (kbd "C-s") #'consult-line)
-(global-set-key (kbd "C-x b") #'consult-buffer)
-(global-set-key (kbd "M-g g") #'consult-goto-line)
-(global-set-key (kbd "M-y") #'consult-yank-pop)
-(global-set-key (kbd "C-c f") #'consult-ripgrep)
-(global-set-key (kbd "C-.") #'embark-act)
-(global-set-key (kbd "C-h B") #'embark-bindings)
-
-;; --- In-buffer completion ---
-(global-corfu-mode 1)
-(setq corfu-auto t)
-(setq-default corfu-auto-delay 0.15)
-
-;; --- Meow: modal editing (qwerty layout, per meow README) ---
-(require 'avy)
-(require 'meow)
-(defun meow-setup ()
-  (setq meow-cheatsheet-layout meow-cheatsheet-layout-qwerty)
-  (meow-motion-define-key
-   '("j" . meow-next)
-   '("k" . meow-prev)
-   '("<escape>" . ignore))
-  (meow-leader-define-key
-   '("j" . "H-j") '("k" . "H-k")
-   '("1" . meow-digit-argument) '("2" . meow-digit-argument)
-   '("3" . meow-digit-argument) '("4" . meow-digit-argument)
-   '("5" . meow-digit-argument) '("6" . meow-digit-argument)
-   '("7" . meow-digit-argument) '("8" . meow-digit-argument)
-   '("9" . meow-digit-argument) '("0" . meow-digit-argument)
-   '("/" . meow-keypad-describe-key)
-   '("?" . meow-cheatsheet))
-  (meow-normal-define-key
-   '("0" . meow-expand-0) '("9" . meow-expand-9) '("8" . meow-expand-8)
-   '("7" . meow-expand-7) '("6" . meow-expand-6) '("5" . meow-expand-5)
-   '("4" . meow-expand-4) '("3" . meow-expand-3) '("2" . meow-expand-2)
-   '("1" . meow-expand-1)
-   '("-" . negative-argument)
-   '(";" . meow-reverse)
-   '("," . meow-inner-of-thing)
-   '("." . meow-bounds-of-thing)
-   '("[" . meow-beginning-of-thing)
-   '("]" . meow-end-of-thing)
-   '("a" . meow-append)
-   '("A" . meow-open-below)
-   '("b" . meow-back-word)
-   '("B" . meow-back-symbol)
-   '("c" . meow-change)
-   '("d" . meow-delete)
-   '("D" . meow-backward-delete)
-   '("e" . meow-next-word)
-   '("E" . meow-next-symbol)
-   '("f" . meow-find)
-   '("F" . avy-goto-char-2)
-   '("g" . meow-cancel-selection)
-   '("G" . meow-grab)
-   '("h" . meow-left)
-   '("H" . meow-left-expand)
-   '("i" . meow-insert)
-   '("I" . meow-open-above)
-   '("j" . meow-next)
-   '("J" . meow-next-expand)
-   '("k" . meow-prev)
-   '("K" . meow-prev-expand)
-   '("l" . meow-right)
-   '("L" . meow-right-expand)
-   '("m" . meow-join)
-   '("n" . meow-search)
-   '("o" . meow-block)
-   '("O" . meow-to-block)
-   '("p" . meow-yank)
-   '("q" . meow-quit)
-   '("Q" . meow-goto-line)
-   '("r" . meow-replace)
-   '("R" . meow-swap-grab)
-   '("s" . meow-kill)
-   '("t" . meow-till)
-   '("u" . meow-undo)
-   '("U" . meow-undo-in-selection)
-   '("v" . meow-visit)
-   '("w" . meow-mark-word)
-   '("W" . meow-mark-symbol)
-   '("x" . meow-line)
-   '("X" . meow-goto-line)
-   '("y" . meow-save)
-   '("Y" . meow-sync-grab)
-   '("z" . meow-pop-selection)
-   '("'" . repeat)
-   '("<escape>" . ignore)))
-(meow-setup)
-(meow-global-mode 1)
-
-;; Line movement (global bindings, works with Meow selections)
-;; System commands
-(defun scott-reboot ()
-  "Reboot the system."
-  (interactive)
-  (when (yes-or-no-p "Reboot now? ")
-    (start-process "reboot" nil "sudo" "reboot")))
-
-(defun scott-shutdown ()
-  "Shut down the system."
-  (interactive)
-  (when (yes-or-no-p "Shut down now? ")
-    (start-process "shutdown" nil "sudo" "shutdown" "now")))
-
-;; --- Files: dired + dirvish ---
-(require 'dirvish)
-(dirvish-override-dired-mode 1)
-(setq dired-listing-switches "-alh --group-directories-first"
-      dired-dwim-target t)
-(global-set-key (kbd "C-c d") #'dirvish)
-
-;; --- Git ---
-(require 'magit)
-(global-set-key (kbd "C-x g") #'magit-status)
-
-;; --- Code: navigation, LSP, formatting (added 2026-08-07) ---
-;; Emacs 30 ships nearly all of this: project.el (C-x p), xref (M-. / M-,),
-;; eglot (LSP client), flymake (diagnostics) and python-ts-mode are built in.
-;; Only nix-ts-mode, apheleia and the tree-sitter grammars come from Nix —
-;; see ../emacs/packages.nix.
-
-;; Tree-sitter grammar discovery. Nix installs grammars as bare .so files in
-;; <emacs-packages-deps>/lib/, a directory Emacs never searches, so without
-;; this every *-ts-mode silently falls back with no error (verified 2026-08-07).
-;; Derive the dir from load-path rather than hardcoding a store path: init.el
-;; is a live out-of-store symlink and must survive a rebuild changing hashes.
-(require 'treesit)
-(dolist (dir load-path)
-  (when (string-match "\\`\\(.*\\)/share/emacs/site-lisp\\(?:/\\|\\'\\)" dir)
-    (let ((lib (expand-file-name "lib" (match-string 1 dir))))
-      (when (file-directory-p lib)
-        (add-to-list 'treesit-extra-load-path (file-name-as-directory lib))))))
-
-;; Major modes. Only claim a file extension when its grammar actually loaded,
-;; so a grammar dropped from packages.nix degrades to fundamental/python-mode
-;; instead of erroring on every visit.
-(when (treesit-language-available-p 'nix)
-  (autoload 'nix-ts-mode "nix-ts-mode" "Major mode for Nix, via tree-sitter." t)
-  (add-to-list 'auto-mode-alist '("\\.nix\\'" . nix-ts-mode)))
-(when (treesit-language-available-p 'python)
-  (add-to-list 'major-mode-remap-alist '(python-mode . python-ts-mode)))
-
-;; LSP. eglot attaches per-buffer and routes everything through native Emacs
-;; machinery — completions reach corfu, errors reach flymake, jumps reach xref.
-;; nixd and basedpyright are eglot's own defaults for these modes; they are
-;; listed explicitly so the config states its own contract rather than
-;; inheriting whatever a future eglot ships.
-(with-eval-after-load 'eglot
-  (add-to-list 'eglot-server-programs '(nix-ts-mode . ("nixd")))
-  (add-to-list 'eglot-server-programs
-               '((python-mode python-ts-mode) . ("basedpyright-langserver" "--stdio")))
-  ;; Formatting is apheleia's job (below). Letting the server also format on
-  ;; save would race it and, for Nix, disagree with nixpkgs-fmt.
-  (setq-default eglot-workspace-configuration
-                '(:basedpyright (:analysis (:diagnosticMode "workspace")))))
-
-(dolist (hook '(nix-ts-mode-hook python-ts-mode-hook))
-  (add-hook hook #'eglot-ensure))
-
-;; Format on save. nixpkgs-fmt is this repo's own formatter (flake.nix exposes
-;; it as `formatter`), so `nix fmt` and a save from Emacs produce identical
-;; bytes. apheleia formats asynchronously and splices the result, leaving point
-;; and undo history intact — unlike a naive before-save-hook.
-(require 'apheleia)
-(with-eval-after-load 'apheleia
-  (setf (alist-get 'nixpkgs-fmt apheleia-formatters) '("nixpkgs-fmt"))
-  (setf (alist-get 'nix-ts-mode apheleia-mode-alist) 'nixpkgs-fmt)
-  (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff-isort ruff)))
-(apheleia-global-mode 1)
-
-;; Diagnostics + refactoring, under one prefix (C-c e, chosen 2026-08-07 —
-;; flymake ships no bindings of its own and C-c a/c/d/f/n/o/q/t were taken).
-;; Navigation keys are deliberately absent: C-x p (project), M-. / M-, (xref)
-;; and C-s / C-c f (consult) already cover it with stock bindings.
-(global-set-key (kbd "C-c e n") #'flymake-goto-next-error)
-(global-set-key (kbd "C-c e p") #'flymake-goto-prev-error)
-(global-set-key (kbd "C-c e l") #'consult-flymake)
-(global-set-key (kbd "C-c e r") #'eglot-rename)
-(global-set-key (kbd "C-c e a") #'eglot-code-actions)
-(global-set-key (kbd "C-c e =") #'apheleia-format-buffer)
-
-;; Show the project name in the mode line's buffer id and let C-x p f start
-;; from the current file's project without prompting.
-(setq project-mode-line t)
-
-;; --- Org + org-roam ---
-(require 'org)
-(setq org-return-follows-link t)
-(require 'org-id)
-;; Org-roam root. Full vault migrated from the Obsidian vault
-;; (~/docs/vault/Whitsgrove) on 2026-07-11 via ~/docs/convert-vault.py.
-;; 315 .md → .org files converted, originals archived to
-;; ~/docs/vault/Whitsgrove/_obsidian_archive/. Vault is now clean —
-;; only sync-conflict detritus remains.
-(setq org-directory (expand-file-name "~/docs/org"))
-(make-directory org-directory t)
-(when (require 'org-roam nil :no-error)
-  (setq org-roam-directory org-directory)
-  (org-roam-db-autosync-mode 1)
-  (global-set-key (kbd "C-c n f") #'org-roam-node-find)
-  (global-set-key (kbd "C-c n i") #'org-roam-node-insert)
-  (global-set-key (kbd "C-c n c") #'org-roam-capture))
-(global-set-key (kbd "C-c a") #'org-agenda)
-
-;; Kill org buffers after agenda closes — they're only opened for scanning.
-;; NB: this kills EVERY org-mode buffer, not just the ones the agenda opened,
-;; so an org file you were editing yourself also goes when you quit the agenda.
-(defun scott/org-agenda-kill-buffers ()
-  "Kill all org-mode buffers after closing the agenda."
-  (dolist (buf (buffer-list))
-    (when (with-current-buffer buf (derived-mode-p 'org-mode))
-      (kill-buffer buf))))
-(add-hook 'org-agenda-quit-hook #'scott/org-agenda-kill-buffers)
-
-;; org-babel: executable src blocks in notes (the "living ops journal"
-;; workflow, adopted 2026-08-05). Shell blocks are off by default — enable.
-;; Execution still asks y/n per block (org-confirm-babel-evaluate stays t):
-;; notes sync across machines, so a stale block shouldn't run silently.
-(org-babel-do-load-languages
- 'org-babel-load-languages
- '((emacs-lisp . t)
-   (shell . t)
-   (python . t)))
-
-;; --- Org agenda ---
-(setq org-agenda-files (list org-directory))
-(setq org-agenda-include-diary nil)           ; we use org files, not diary
-(setq org-deadline-warning-days 14)            ; default lead time
-(setq org-agenda-skip-deadline-if-done t)
-(setq org-agenda-skip-scheduled-if-done t)     ; don't show done recurring items
-;; Show SCHEDULED items as reminders on the day-of (not a deadline)
-(setq org-agenda-scheduled-leaders '("" "(S%2d earlier)"))
-(setq org-agenda-prefix-format
-      '((agenda . " %i %-12:c%?-12t% s")
-        (todo   . " %i %-12:c")
-        (tags   . " %i %-12:c")
-        (search . " %i %-12:c")))
-
-;; Custom agenda commands:
-;;   C-c a o  → yearly overview (all notable dates this year)
-;;   C-c a m  → month calendar
-;;   C-c a w  → week calendar
-(setq org-agenda-custom-commands
-      '(("o" "Notable dates (year)"
-         ((agenda ""
-                  ((org-agenda-span 365)
-                   (org-agenda-start-day "2026-01-01")
-                   (org-deadline-warning-days 0))))
-         ((org-agenda-files (list (expand-file-name "Dates.org" org-directory)))))
-        ("m" "Month calendar"
-         ((agenda "" ((org-agenda-span 'month))))
-         ((org-agenda-files (list (expand-file-name "Dates.org" org-directory)))))
-        ("w" "Week agenda"
-         ((agenda ""))
-         ((org-agenda-files (list (expand-file-name "Dates.org" org-directory)))))))
-
-;; --- Calendar sync (Python tool) ---
-;; The Google Calendar sync will be handled by a small Python tool.
-;; Emacs should stay focused on editing Dates.org and launching the tool.
-
-(defun scott/current-quarter-name (&optional time)
-  "Return the current quarter name in YYYY-QN format."
-  (let* ((time (or time (current-time)))
-         (month (string-to-number (format-time-string "%m" time)))
-         (quarter (1+ (/ (1- month) 3))))
-    (format "%s-Q%d" (format-time-string "%Y" time) quarter)))
-
-(defun scott/current-quarter-file ()
-  "Return the current-quarter note path, preferring root then Quarterly/."
-  (let* ((name (scott/current-quarter-name))
-         (root (expand-file-name (concat name ".org") org-directory))
-         (archived (expand-file-name (concat "Quarterly/" name ".org") org-directory)))
-    (cond ((file-exists-p root) root)
-          ((file-exists-p archived) archived)
-          (t root))))
-
-(defun scott/open-quarterly-tracker ()
-  "Open the current-quarter tracker note.
-If the note does not exist on this machine, do NOT silently create and
-save an empty template — that races with Syncthing: on a freshly-synced
-box the empty file can win the conflict and quarantine the real,
-populated note (happened 2026-07-16 with 2026-Q3). Instead confirm
-first, so an unsynced note gets a chance to arrive rather than be
-clobbered; only a genuinely new quarter gets a fresh template."
-  (interactive)
-  (let* ((name (scott/current-quarter-name))
-         (file (scott/current-quarter-file)))
-    (if (file-exists-p file)
-        (find-file file)
-      (if (yes-or-no-p
-           (format "No %s note here — create it? (choose no if it may just be unsynced) "
-                   name))
-          (progn
-            (find-file file)
-            (when (zerop (buffer-size))
-              (insert ":PROPERTIES:\n:ID:       " (org-id-new) "\n:END:\n")
-              (insert "#+title: " name "\n\n")
-              (insert "* Goals\n\n")
-              (insert "* Active work\n\n")
-              (insert "* Notes\n\n")
-              (save-buffer)))
-        (message
-         "Not creating %s — waiting for sync. Re-run C-c q once it arrives."
-         name)))))
-
-(global-set-key (kbd "C-c q") #'scott/open-quarterly-tracker)
-
-(defun scott/calendar-sync ()
-  "Launch the Python calendar sync tool."
-  (interactive)
-  (start-process-shell-command
-   "calendar-sync" nil
-   (expand-file-name "~/dotfiles/bin/calendar-sync") "sync"))
-
-(global-set-key (kbd "C-c c") #'scott/calendar-sync)
-
-;; --- Google Docs sync (org ↔ Google Docs) ---
-;; Bidirectional sync between org files and Google Docs.
-;; Requires: Google Cloud project with Docs API + Drive API enabled,
-;; OAuth credentials configured in gdocs-accounts.
-;; M-x gdocs-authenticate, then M-x gdocs-create or M-x gdocs-open.
-;; rafik-only. init.el is shared by every host, and use-package :vc
-;; fetches from GitHub on load - without this guard whistle and datacore
-;; would pull gdocs too, for a workflow only rafik has. A wrapping `when`
-;; rather than use-package's :if on purpose: :if guards the runtime body,
-;; but :vc install work can run at macro-expansion time. A false `when`
-;; never expands the macro at all.
-(when (equal (system-name) "rafik")
-  ;; Two separate problems, both fixed here (2026-08-10):
-  ;;
-  ;; 1. ~/.config/emacs/elpa is NOT on load-path. This Emacs takes its
-  ;;    packages from Nix, so package-activate-all never runs and whatever
-  ;;    package-vc downloaded is invisible to `require'. gdocs.el really is
-  ;;    at ~/.config/emacs/elpa/gdocs/gdocs.el, but (locate-library "gdocs")
-  ;;    returned nil. Add the elpa subdirectories explicitly.
-  ;;
-  ;; 2. A bare (require 'gdocs) SIGNALS when it fails, and nothing above
-  ;;    catches it, so the failure aborted every remaining form in init.el.
-  ;;    After a reboot that meant no top bar (scott/modeline-mode), no s-d
-  ;;    (scott/launcher) and no EWM window commands (scott/ewm--goto and
-  ;;    friends) -- all defined below this point. Never let an optional
-  ;;    package take the desktop down: require it with :no-error and only
-  ;;    configure it if it actually loaded.
-  (let ((elpa (expand-file-name "elpa" user-emacs-directory)))
-    (when (file-directory-p elpa)
-      (dolist (d (directory-files elpa t "\\`[^.]"))
-        (when (file-directory-p d) (add-to-list 'load-path d)))))
-  (if (require 'gdocs nil :no-error)
-      (progn
-        (setq gdocs-auto-push-on-save t)
-        ;; Credentials live outside the checkout (mode 600) so the OAuth
-        ;; client secret is never committed. Absent file = no account.
-        (load (expand-file-name "gdocs-creds.el" user-emacs-directory)
-              :noerror :nomessage))
-    (message "gdocs not loadable; skipping (see the comment above)")))
-
-;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline scott-launcher scott-pi))
-  (require feature nil :no-error))
-;; App launcher — the EWM s-d experience on every machine (C-c o works
-;; under EWM too; s-d remains on eminix).
-(when (fboundp 'scott/launch-app)
-  (global-set-key (kbd "C-c o") #'scott/launch-app))
-
-;; Terminal in a buffer — the terminal answer on non-EWM machines (decided
-;; 2026-08-04: a real terminal app can never be a buffer outside EWM's own
-;; compositor, so vterm IS the "ghostty in a split"). C-u C-c t = new vterm.
-;; Explicit autoload: the nix-installed package's autoloads don't reliably
-;; reach the daemon session (observed 2026-08-04 — installed but M-x-less).
-(autoload 'vterm "vterm" "Open a vterm terminal buffer." t)
-(global-set-key (kbd "C-c t") #'vterm)
-
-;; Keep TUI symbols on the character grid (Claude Code, 2026-08-04).
-;; Measured against the 9px cell of JetBrainsMono Nerd Font, Claude Code emits
-;; several symbols that render 11-14px wide, shoving the rest of the line right:
-;; the media-control block (⏵ ⏸ ⏺ — mode indicators), ⎿ (tool-result corner),
-;; ✔ ✘, ◻ ◼, and the dingbat + braille spinner frames. No available font fixes
-;; this: nothing in nixpkgs draws that block at cell width, set-fontset-font is
-;; inert on this pgtk/ftcrhb build, and a proportional fallback cannot be
-;; rescaled to a fixed advance (one factor that fits ⏺ shrinks ⏵ to 5px).
-;; A display table sidesteps fonts entirely — redisplay substitutes a glyph
-;; JetBrains already draws at exactly 9px. Buffer text is untouched (copy/paste
-;; and search still see the original char); this is purely what gets painted.
-(require 'disp-table)
-
-(defvar scott/vterm-glyph-substitutions
-  '((?⏴ . ?◀) (?⏵ . ?▶) (?⏸ . ?‖) (?⏹ . ?■) (?⏺ . ?●)
-    (?⎿ . ?└) (?✔ . ?✓) (?✘ . ?✗) (?◻ . ?□) (?◼ . ?■))
-  "Alist of (WIDE-CHAR . CELL-WIDTH-CHAR) substitutions for vterm buffers.
-Each cdr is verified to render at the default face's cell width.")
-
-(defun scott/vterm-fix-glyph-widths ()
-  "Remap off-grid TUI symbols to cell-width glyphs in the current buffer."
-  (let ((dt (make-display-table)))
-    (pcase-dolist (`(,from . ,to) scott/vterm-glyph-substitutions)
-      (aset dt from (vector (make-glyph-code to))))
-    ;; Spinner frames: the dingbat (✳..✿) and braille (⠀..⣿) animations cycle
-    ;; through glyphs of differing widths, so the whole line jitters each tick.
-    ;; Collapse each set to one static cell-width mark.
-    (dotimes (i (1+ (- #x273F #x2733)))
-      (aset dt (+ #x2733 i) (vector (make-glyph-code ?*))))
-    (dotimes (i (1+ (- #x28FF #x2800)))
-      (aset dt (+ #x2800 i) (vector (make-glyph-code ?·))))
-    (setq buffer-display-table dt)))
-
-(add-hook 'vterm-mode-hook #'scott/vterm-fix-glyph-widths)
-
-;; Frame title must ALWAYS contain "emacs": GlazeWM's ignore rule on the
-;; work laptop matches WSLg windows by title to leave the Emacs frame
-;; unmanaged (the default title is bare "%b" once a second frame exists,
-;; which would silently re-enroll Emacs into tiling). Harmless elsewhere.
-(setq frame-title-format '("%b — emacs@" system-name))
-(when (fboundp 'scott/theme-init)
-  (scott/theme-init))
-(when (fboundp 'scott/modeline-mode)
-  (scott/modeline-mode 1))
-
-;; Slots are generic: no app or name is tied to a number. Apps launch into
-;; whatever slot you're on (e.g. `s-w' → Firefox), and you name slots yourself
-;; with `s-r'.
-
-(defun scott/ewm-launch-firefox ()
-  "Launch Firefox in the current EWM session."
-  (interactive)
-  (start-process-shell-command
-   "firefox" nil
-   (or (executable-find "firefox")
-       (executable-find "firefox-esr")
-       "~/dotfiles/bin/firefox")))
-
-;; Keyed slots: each frame carries its slot NUMBER in the `scott/ewm-slot'
-;; frame parameter, so `s-3' owns one specific frame rather than "the 3rd
-;; frame in the strip". Selecting slot 3 never conjures 1 and 2.
+;; This file must never break, so it is deliberately tiny and rarely edited.
+;; The real configuration is config.el; a failure there is caught here.
 ;;
-;; No auto-close: under EWM a new frame inherits the current buffer (a
-;; terminal surface, not *scratch*), and focus is async/compositor-owned, so
-;; "reap the blank slot I just left" has no reliable trigger. Slots close
-;; explicitly via `scott/ewm-close-slot' (s-w); apps that exit are cleaned up
-;; by EWM's own close handler.
+;; Why a separate file rather than a condition-case inside the config: a signal
+;; raised inside a `load'ed file propagates to its CALLER, so this catches both
+;; failure modes seen on 2026-08-10 —
+;;
+;;   read-time  an unbalanced paren, "End of file during parsing". Nothing
+;;              inside config.el could ever catch this, because none of it runs.
+;;   load-time  a bare (require 'gdocs) that signalled because
+;;              ~/.config/emacs/elpa is not on load-path.
+;;
+;; Both aborted every remaining form, and on rafik — where Emacs is the Wayland
+;; compositor — that meant no top bar, no s-d and no window navigation. EWM
+;; itself survived both times, because it is started from --eval on the command
+;; line, which Emacs processes after init.
+;;
+;; This file is small by design, not by a specific line count — every line
+;; here is unguarded, so keep it to what a loader strictly needs. It is
+;; unguarded by construction: there is no outer file to catch a mistake
+;; made here.
 
-(defun scott/ewm--slot-frame (slot output)
-  "Return the frame keyed to SLOT on OUTPUT, or nil."
-  (seq-find (lambda (f) (eql slot (frame-parameter f 'scott/ewm-slot)))
-            (ewm--strip-frames output)))
+(defvar scott/init-error nil
+  "The error that aborted `config.el', or nil on a healthy boot.
+Check it with: emacsclient -e \\='scott/init-error\\='.
+When non-nil, `fallback.el' ran and the tab bar says so.")
 
-(defun scott/ewm--goto (target)
-  "Focus TARGET and refresh the bar.
-The force-update defeats tab-bar's per-frame cache so the highlight
-tracks the switch."
-  (select-frame-set-input-focus target)
-  (force-mode-line-update t))
+(defvar scott/init-backtrace nil
+  "Backtrace captured at the moment `config.el' signalled, or nil.
+`condition-case' unwinds the stack before its handler runs, so
+`--debug-init' shows nothing once a handler exists to catch the error —
+`signal-hook-function' below runs earlier, in the original dynamic
+context, before that unwind, so this still captures something useful.
+Populated only when debugging was requested (`debug-on-error', or
+`init-file-debug' — what `--debug-init' actually sets in this Emacs;
+see `startup.el''s `load-user-init-file'): the hook below fires on
+EVERY signal, even the many harmless ones org-roam's db sync raises and
+catches internally on a healthy boot, so it must stay off otherwise.
+Check it with: emacsclient -e \\='(insert scott/init-backtrace)\\='.")
 
-(defun scott/ewm-close-slot ()
-  "Close the current EWM slot/frame.
-EWM's delete-frame handling refocuses a same-output neighbour and drops
-the frame from the strip; its advice refuses to close the last frame."
-  (interactive)
-  (unless (bound-and-true-p ewm--module-mode)
-    (user-error "EWM is not active"))
-  (delete-frame (if (fboundp 'ewm--focused-frame)
-                    (ewm--focused-frame)
-                  (selected-frame)))
-  (force-mode-line-update t))
+;; Resolve config.el/fallback.el next to init.el's OWN true location, not
+;; `user-emacs-directory'. liveElisp makes init.el an out-of-store symlink
+;; into the checkout, deployed the moment a host runs `git pull' — but
+;; config.el and fallback.el reach `user-emacs-directory' only via
+;; `xdg.configFile', which needs a rebuild. A pulled-not-yet-rebuilt host
+;; would otherwise have the new loader and neither file it loads. Resolving
+;; against init.el's truename finds both, because they always ship together
+;; in the checkout. `load-file-name' is nil when this is evaluated rather
+;; than loaded (e.g. from a REPL), hence the fallback to
+;; `user-emacs-directory'.
+;;
+;; `ignore-errors' matters as much as the fallback value it guards: this
+;; form runs BEFORE the `condition-case' below exists, so — together with
+;; the `let' binding right after it — it is the one place in this file an
+;; uncaught signal is fatal by construction. `file-truename' is not
+;; guaranteed not to signal (a symlink cycle does it, verified); letting
+;; that propagate here would abort init.el fifteen lines before its own
+;; guard, loading neither config.el nor fallback.el — the exact
+;; total-desktop-loss this split exists to prevent, reintroduced one form
+;; earlier than the fix for it.
+(defvar scott/init-dir
+  (or (and load-file-name
+           (ignore-errors
+             (file-name-directory (file-truename load-file-name))))
+      user-emacs-directory)
+  "Directory to load `config.el' and `fallback.el' from.
+Init.el's own truename when loaded normally; `user-emacs-directory' when
+`load-file-name' is nil (evaluated rather than loaded) or when resolving
+the truename itself signals (e.g. a symlink cycle).")
 
-(defun scott/ewm-select-slot (slot)
-  "Focus the frame keyed to SLOT on the current output, creating it once.
-Slots are identified by number, not strip position, so selecting slot 3
-never creates 1 and 2."
-  (interactive "nSlot: ")
-  (unless (and (integerp slot) (>= slot 1))
-    (user-error "Slot must be a positive integer"))
-  (unless (bound-and-true-p ewm--module-mode)
-    (user-error "EWM is not active"))
-  (let* ((frame (if (fboundp 'ewm--focused-frame)
-                    (ewm--focused-frame)
-                  (selected-frame)))
-         (output (frame-parameter frame 'ewm-output)))
-    (unless output
-      (user-error "Current frame has no EWM output"))
-    ;; Adopt the leftmost frame as slot 1 (home) the first time, so it shows
-    ;; in the bar as a numbered slot.
-    (unless (scott/ewm--slot-frame 1 output)
-      (when-let* ((home (car (ewm--strip-frames output))))
-        (set-frame-parameter home 'scott/ewm-slot 1)))
-    (if-let* ((existing (scott/ewm--slot-frame slot output)))
-        (scott/ewm--goto existing)
-      (let ((before (ewm--strip-frames output)))
-        (ewm-frame-new)
-        (let ((new (car (seq-difference (ewm--strip-frames output) before))))
-          (unless new
-            (user-error "Slot %d creation failed" slot))
-          (set-frame-parameter new 'scott/ewm-slot slot)
-          (scott/ewm--goto new))))))
+(let ((signal-hook-function
+       ;; Gated on debugging having been requested: this fires on EVERY
+       ;; signal, not just the one that eventually escapes to the handler
+       ;; below, so leave it unbound (nil, same as the default) otherwise.
+       ;; Rebinds itself to nil first: a fault in `backtrace' itself must
+       ;; not recurse back into this hook.
+       (and (or debug-on-error init-file-debug)
+            (lambda (&rest _)
+              (let ((signal-hook-function nil))
+                (setq scott/init-backtrace (with-output-to-string (backtrace))))))))
+  (condition-case err
+      ;; NOERROR nil on purpose: config.el MUST signal so the handler runs.
+      (load (expand-file-name "config.el" scott/init-dir) nil :nomessage)
+    (error
+     (setq scott/init-error err)
+     (message "scott/init: config.el FAILED (%S) — loading fallback.el" err)
+     ;; NOERROR t here: if fallback.el is missing too, do not cascade.
+     (load (expand-file-name "fallback.el" scott/init-dir)
+           :noerror :nomessage))))
 
-(defun scott/ewm-rename-workspace (name)
-  "Rename the current EWM workspace/slot to NAME (shown in the tab bar).
-An empty NAME clears the custom label, falling back to the frame name."
-  (interactive "sWorkspace name: ")
-  (unless (bound-and-true-p ewm--module-mode)
-    (user-error "EWM is not active"))
-  (let ((frame (if (fboundp 'ewm--focused-frame)
-                   (ewm--focused-frame)
-                 (selected-frame))))
-    (ewm-workspace-rename name frame)
-    (set-frame-parameter frame 'ewm-workspace-name
-                         (unless (string-empty-p name) name))
-    (force-mode-line-update t)))
-
-(defun scott/ewm--slot-label (frame)
-  "Short display label for FRAME's slot.
-Prefers the tracked workspace name, else the frame name, decorations
-stripped and truncated for the bar."
-  (let ((n (or (frame-parameter frame 'ewm-workspace-name)
-               (frame-parameter frame 'name)
-               "")))
-    (setq n (replace-regexp-in-string "\\`\\*ewm:[ \t]*" "" n))
-    (setq n (replace-regexp-in-string "\\*\\'" "" n))
-    (setq n (string-trim n))
-    (if (string-empty-p n) "?"
-      (truncate-string-to-width n 10 nil nil "…"))))
-
-(defun scott/ewm-tab-bar-slots ()
-  "Tab-bar segment listing EWM slots on the focused output, sorted by slot
-number, current one highlighted, each clickable to focus it.
-Returns nil off EWM, so it is a no-op in a plain Emacs frame."
-  (when (fboundp 'ewm--focused-frame)
-    (let* ((focused (ewm--focused-frame))
-           (output (frame-parameter focused 'ewm-output))
-           (frames (and output (ewm--strip-frames output)))
-           (pos 0)
-           pairs)
-      ;; Pair each frame with its slot number (its `scott/ewm-slot' tag, or
-      ;; its strip position for any not-yet-adopted frame), then sort so the
-      ;; bar reads 1, 2, 3 … regardless of physical strip order.
-      (dolist (f frames)
-        (setq pos (1+ pos))
-        (push (cons (or (frame-parameter f 'scott/ewm-slot) pos) f) pairs))
-      (setq pairs (sort (nreverse pairs) (lambda (a b) (< (car a) (car b)))))
-      (mapcar
-       (lambda (pair)
-         (let* ((num (car pair))
-                (f (cdr pair))
-                (cur (eq f focused))
-                (label (format " %d:%s " num (scott/ewm--slot-label f)))
-                (face (if cur 'tab-bar-tab 'tab-bar-tab-inactive)))
-           (list (intern (format "ewm-slot-%d" num))
-                 'menu-item
-                 (propertize label 'face face)
-                 (lambda () (interactive) (scott/ewm--goto f)))))
-       pairs))))
-
-;; Frame-global panel: system stats + clock + battery, rendered ONCE at the top
-;; of the (full-screen, under EWM) frame — the actual bar.
-(when (fboundp 'scott/tab-bar-status)
-  ;; Left: EWM slot list (scott/ewm-tab-bar-slots, no-op off EWM).
-  ;; Right: system stats + clock + battery.
-  (setq tab-bar-format '(scott/ewm-tab-bar-slots
-                         tab-bar-format-align-right
-                         scott/tab-bar-status))
-  (setq tab-bar-show t)   ; always show the panel, even with a single/zero tab
-  (tab-bar-mode 1))
-
-;; elisa — local, config-aware eminix assistant (Emacs/Linux/NixOS RAG via a
-;; sqlite-vec ELISA fork + ellama + local Ollama). Binds the C-c i map.
-(require 'scott-elisa nil :no-error)
-
-;; EWM-only session glue (swayidle/swaylock + touchpad) — no-op elsewhere.
-;; EWM is loaded via `emacs --eval (require 'ewm)' which runs AFTER this init
-;; file, so `(featurep 'ewm)' is still nil here: a plain `when' guard skips
-;; the require and input/session glue never loads (symptom: tap-to-click and
-;; swayidle silently absent, (fboundp 'scott/ewm-start-swayidle) => nil).
-;; Defer to the moment the ewm feature actually arrives; on non-EWM hosts it
-;; never loads, so this stays a no-op there.
-(with-eval-after-load 'ewm
-  (require 'scott-ewm nil :no-error)
-  (when (boundp 'ewm-mode-map)
-    ;; Super+number restores the old workspace-switch rhythm, but in EWM frame
-    ;; slots. Slots create on demand: super-3 opens/switches to slot 3.
-    (dotimes (i 9)
-      (let ((slot (1+ i)))
-        (define-key ewm-mode-map (kbd (format "s-%d" slot))
-          (lambda ()
-            (interactive)
-            (scott/ewm-select-slot slot)))))
-    (define-key ewm-mode-map (kbd "s-0")
-      (lambda ()
-        (interactive)
-        (scott/ewm-select-slot 10)))
-    ;; Rename the current frame/slot in the top bar.
-    (define-key ewm-mode-map (kbd "s-r") #'scott/ewm-rename-workspace)
-    ;; Close the current slot (manual lifecycle; no auto-close under EWM).
-    ;; s-q mirrors Hyprland's `$mod, Q, killactive' muscle memory.
-    (define-key ewm-mode-map (kbd "s-q") #'scott/ewm-close-slot)
-    ;; Launch Firefox into the current slot (was s-w under Hyprland).
-    (define-key ewm-mode-map (kbd "s-w") #'scott/ewm-launch-firefox)
-    ;; Super+Enter: open Ghostty terminal (muscle memory from Hyprland).
-    (define-key ewm-mode-map (kbd "s-<return>")
-      (lambda ()
-        (interactive)
-        (start-process "ghostty" nil "ghostty")))
-    ;; Super+Shift+Enter: open Pi agent in Ghostty.
-    (define-key ewm-mode-map (kbd "s-S-<return>")
-      (lambda ()
-        (interactive)
-        (start-process "ghostty-pi" nil "ghostty" "-e" "pi")))
-    ;; Summon elisa (ask) from ANY slot. It must be a single intercepted key:
-    ;; the C-c i prefix can't reach Emacs from a focused Wayland surface (the
-    ;; follow-up key goes to the surface). C-c i still gives the full command
-    ;; set when a native Emacs frame is focused.
-    (when (fboundp 'scott/elisa-ask)
-      (define-key ewm-mode-map (kbd "s-i") #'scott/elisa-ask))
-    (when (fboundp 'ewm--send-intercept-keys)
-      (ewm--send-intercept-keys))))
+;;; init.el ends here
