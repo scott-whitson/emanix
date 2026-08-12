@@ -111,6 +111,11 @@
 (global-set-key (kbd "M-g g") #'consult-goto-line)
 (global-set-key (kbd "M-y") #'consult-yank-pop)
 (global-set-key (kbd "C-c f") #'consult-ripgrep)
+;; Bookmarks: the built-in binding is C-x r b (register/rectangle family), which
+;; nobody remembers. Bookmarked dirs jump into dirvish. See ~/.config/emacs/bookmarks
+;; — win-desktop / win-downloads point at the Windows-side folders (Desktop is
+;; OneDrive-redirected, hence the unguessable path).
+(global-set-key (kbd "C-c b") #'consult-bookmark)
 (global-set-key (kbd "C-.") #'embark-act)
 (global-set-key (kbd "C-h B") #'embark-bindings)
 
