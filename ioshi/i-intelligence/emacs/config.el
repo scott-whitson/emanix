@@ -600,3 +600,26 @@ Each cdr is verified to render at the default face's cell width.")
       (define-key ewm-mode-map (kbd "s-i") #'scott/elisa-ask))
     (when (fboundp 'ewm--send-intercept-keys)
       (ewm--send-intercept-keys))))
+
+;; ecomms — work M365/Teams/CW front end, from the checkout at
+;; ~/projects/ecomms (not a nix package: the elisp is edited alongside the
+;; Python it drives). Gated to whistle because the credentials and the
+;; checkout are work-only. NOTE this is a hostname gate: the machine was
+;; renamed weasel -> whistle on 2026-08-04, and another rename would silently
+;; disable the indicator rather than erroring.
+(when (string= (system-name) "whistle")
+  (add-to-list 'load-path (expand-file-name "~/projects/ecomms/emacs"))
+  (if (not (require 'ecomms nil :no-error))
+      (message "ecomms not loadable; skipping (checkout missing?)")
+    (require 'ecomms-planner nil :no-error)  ; adds C-c m p to the map
+    (global-set-key (kbd "C-c m") ecomms-command-map)
+    ;; Frame-global unread indicator, left of the system stats. Its own
+    ;; tab-bar item (keyed `ecomms-unread'), so scott-modeline.el is untouched.
+    (setq tab-bar-format '(scott/ewm-tab-bar-slots
+                           tab-bar-format-align-right
+                           ecomms-tab-bar-item
+                           scott/tab-bar-status))
+    ;; Global 180s poller. Must be a session-long timer, not a buffer-scoped
+    ;; one: nothing keeps an ecomms buffer alive, and the bar needs the data
+    ;; regardless.
+    (ecomms-watch-mode 1)))
