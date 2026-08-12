@@ -69,6 +69,32 @@
 (setq-default display-line-numbers-type t)
 (add-hook 'prog-mode-hook #'display-line-numbers-mode)
 
+;; --- Scratch buffer ---
+;; Banner is figlet's `slant' font, generated once and pasted (NOT shelled out
+;; at startup). Two constraints on editing it: every line must stay commented,
+;; because *scratch* is lisp-interaction-mode and a bare banner breaks
+;; `eval-buffer'; and every backslash must be doubled, because this is a string
+;; literal. Regenerate with: nix run nixpkgs#figlet -- -f slant Eminix
+;; The command list below is a scratchpad, not a menu — churn it freely.
+(setq initial-scratch-message "\
+;;     ______          _       _
+;;    / ____/___ ___  (_)___  (_)  __
+;;   / __/ / __ `__ \\/ / __ \\/ / |/_/
+;;  / /___/ / / / / / / / / / />  <
+;; /_____/_/ /_/ /_/_/_/ /_/_/_/|_|
+;;
+;;  C-j = eval + print inline     C-x C-e = eval, echo area
+;;  M-: = eval from minibuffer    C-x * q = quick calc
+
+(scott/open-quarterly-tracker)
+(scott/calendar-sync)
+(org-agenda nil \"w\")
+(magit-status \"~/dotfiles\")
+(scott/weather)
+(scott/openrouter-cost)
+(call-interactively #'scott/launch-app)
+")
+
 ;; --- Minibuffer completion: vertico + orderless + consult + marginalia + embark ---
 (require 'vertico)
 (require 'orderless)
