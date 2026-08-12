@@ -31,7 +31,7 @@
       folders.downloads = {
         id = "downloads";
         label = "downloads";
-        path = "/home/scott/Downloads";
+        path = "/home/scott/downloads";
         devices = [ "datacore" ];
       };
       folders.work-projects = {

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# FHS wrapper for IB Gateway on NixOS
+# Provides system libraries that JxBrowser needs
+
+# Build LD_LIBRARY_PATH from all the libraries we installed
+LIB_PATHS=(
+  "/nix/store/*/lib"
+)
+
+# Find all lib directories
+for store_dir in /nix/store/*-libXtst-*/lib /nix/store/*-libXrender-*/lib /nix/store/*-libXdamage-*/lib /nix/store/*-libXrandr-*/lib /nix/store/*-libXcomposite-*/lib /nix/store/*-libXcursor-*/lib /nix/store/*-alsa-lib-*/lib /nix/store/*-nss-*/lib /nix/store/*-nspr-*/lib /nix/store/*-atk-*/lib /nix/store/*-at-spi2-atk-*/lib /nix/store/*-gtk3-*/lib /nix/store/*-gdk-pixbuf-*/lib /nix/store/*-pango-*/lib /nix/store/*-cairo-*/lib /nix/store/*-libdrm-*/lib /nix/store/*-mesa-*/lib /nix/store/*-libxkbcommon-*/lib /nix/store/*-wayland-*/lib /nix/store/*-gcc-*/lib /nix/store/*-libz-*/lib; do
+  if [[ -d "$store_dir" ]]; then
+    export LD_LIBRARY_PATH="${store_dir}:${LD_LIBRARY_PATH:-}"
+  fi
+done
+
+# Also add standard Nix library paths
+export LD_LIBRARY_PATH="/nix/store/$(ls /nix/store | grep -m1 'gcc.*lib')/lib:${LD_LIBRARY_PATH:-}"
+
+exec "$@"

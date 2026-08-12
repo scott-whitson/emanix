@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+export LD_LIBRARY_PATH="/nix/store/hngmi01i8wgi25a0byrxcn4ysz5j79mw-gcc-15.2.0-lib/lib:/nix/store/jfwi9rpnv76d1j078qydipb0srmrmpnp-libz-1.2.8.2025.03.07/lib:${LD_LIBRARY_PATH:-}"
+cd /home/scott/projects/minne
+exec uv run minne-ensemble "$@"
