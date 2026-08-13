@@ -63,11 +63,14 @@ here depends on it.
 
 ~/projects/orgcapture/                 ← laptop; Syncthing-delivered to datacore
 ├── pyproject.toml                       as ~/projects/work/orgcapture
-├── docker-compose.yml
+├── docker-compose.yml                   NO secret lives here — this tree replicates
 ├── Dockerfile
-├── .env                               ← uncommitted: bot token, allowed chat IDs
+├── orgcapture.env.example             ← template only, no real values
 ├── src/orgcapture/                    ← the service
 └── tests/
+
+/etc/orgcapture/orgcapture.env         ← on datacore only: bot token + allowed chat IDs
+                                         scott:scott 0600, outside every synced root
 
 /srv/data/stacks-state/orgcapture/     ← on datacore, bind-mounted into the container
 ├── journal.jsonl                      ← one record per write; powers /undo and replay dedupe
@@ -266,12 +269,21 @@ Packaging it as a compose stack rather than a systemd unit is deliberate: dataco
 NixOS cutover is designed to carry the compose stacks over unchanged, so this
 survives the rebuild. A hand-rolled Debian systemd unit would not.
 
-Secrets live in an uncommitted `.env` (bot token, allowed chat IDs), gitignored, with
-a committed `.env.example`. After the cutover they move to agenix alongside
-`secrets/openrouter-auth.age`. Note that `.env` sits in a Syncthing-replicated
-directory, so the bot token reaches every peer that syncs `~/projects` — acceptable
-for these three machines, and another reason to move it to agenix rather than leave
-it indefinitely.
+**Secrets live outside the project, at `/etc/orgcapture/orgcapture.env`** (bot token,
+allowed chat IDs), owned `scott:scott` and mode 0600, with a committed
+`orgcapture.env.example` as the template.
+
+The location is deliberate. The project directory is Syncthing-replicated
+(`~/projects` on the laptop ↔ `~/projects/work` on datacore), so a `.env` beside the
+compose file would put the bot token on three machines. `/etc` is not covered by any
+of datacore's six Syncthing roots. This also mirrors the existing convention for the
+other Telegram-sending service on this network, whose token lives in
+`/etc/comsat/comsat.env`.
+
+Compose reads `env_file` host-side as the invoking user at `up` time — it is not a
+bind mount — so the token never enters the container filesystem, only its environment.
+A missing file fails the `up` loudly, which is the right failure. After the NixOS
+cutover, agenix renders this same path and nothing else changes.
 
 ## Testing
 
