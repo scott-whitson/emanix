@@ -122,8 +122,13 @@ user typed.
 2026-07-16 an empty `2026-Q3` won a Syncthing conflict and quarantined the real
 populated note; a headless service racing sync is strictly worse than Emacs doing it
 with a `yes-or-no-p` in front. Instead the capture is appended to `pending.jsonl`
-and the reply reads `parked — no 2026-Q4 note yet, hit C-c q`. Pending entries flush
-in order on the next successful capture, or on `/flush`.
+and the reply reads `parked — no 2026-Q4 note yet, hit C-c q in Emacs, then /flush`.
+Pending entries are written, in order, when you send `/flush` — not implicitly on the
+next successful capture. Flushing is a deliberate act because it is the one bulk write
+in the system: folding it into the capture path would mean an ordinary note silently
+dragging days of backlog in with it, and would blur `/undo`, which is defined as
+reversing a single capture subtree. Nothing is hidden by this — the park reply names
+the missing quarter and tells you the two steps.
 
 **Atomicity.** Read the file, build the new content in memory, write to a tempfile in
 the same directory, `fsync`, `os.replace`. Writes are append-only — no existing line
