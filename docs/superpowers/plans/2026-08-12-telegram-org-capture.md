@@ -1362,8 +1362,17 @@ def test_downscale_leaves_small_images_alone():
 
 
 def test_archive_path_is_year_bucketed_under_the_synced_work_tree():
-    assert archive_path(Path("/org/work"), datetime(2026, 8, 12, 14, 32, 7)) == Path(
-        "/org/work/assets/captures/2026/2026-08-12-143207.jpg"
+    assert archive_path(Path("/org/work"), datetime(2026, 8, 12, 14, 32, 7), 42) == Path(
+        "/org/work/assets/captures/2026/2026-08-12-143207-42.jpg"
+    )
+
+
+def test_archive_paths_in_the_same_second_do_not_collide():
+    # An album arrives as several updates inside one second. Without the id in
+    # the name the second photo overwrites the first.
+    when = datetime(2026, 8, 12, 14, 32, 7)
+    assert archive_path(Path("/org/work"), when, 1) != archive_path(
+        Path("/org/work"), when, 2
     )
 
 
@@ -1410,10 +1419,17 @@ def downscale(image: bytes, max_edge: int = 1568) -> bytes:
     return buffer.getvalue()
 
 
-def archive_path(org_root: Path, when: datetime) -> Path:
-    """Where the original photo is kept. Must sit under the synced work tree."""
+def archive_path(org_root: Path, when: datetime, update_id: int) -> Path:
+    """Where the original photo is kept. Must sit under the synced work tree.
+
+    UPDATE_ID is in the filename because a Telegram album arrives as several
+    separate updates in the same second: on a timestamp alone they would
+    collide, and the second photo would overwrite the first while the first
+    note entry went on linking to that name. It is also stable under
+    redelivery, so a replay rewrites identical bytes rather than a new file.
+    """
     stamp = when.strftime("%Y-%m-%d-%H%M%S")
-    return org_root / "assets" / "captures" / str(when.year) / f"{stamp}.jpg"
+    return org_root / "assets" / "captures" / str(when.year) / f"{stamp}-{update_id}.jpg"
 
 
 def org_link(note: Path, image: Path) -> str:
@@ -1459,10 +1475,10 @@ def test_capture_photo_archives_transcribes_and_links(tmp_path, monkeypatch):
     )
     reply = Capturer(_config(tmp_path)).capture_photo(1, _jpeg(), "", WHEN)
     text = note.read_text(encoding="utf-8")
-    archived = tmp_path / "work/assets/captures/2026/2026-08-12-143200.jpg"
+    archived = tmp_path / "work/assets/captures/2026/2026-08-12-143200-1.jpg"
     assert archived.exists()
     assert "- top left idea" in text
-    assert "[[file:../assets/captures/2026/2026-08-12-143200.jpg]]" in text
+    assert "[[file:../assets/captures/2026/2026-08-12-143200-1.jpg]]" in text
     assert "top left idea" in reply
 
 
@@ -1479,7 +1495,7 @@ def test_capture_photo_writes_the_entry_even_when_transcription_fails(
     reply = Capturer(_config(tmp_path)).capture_photo(1, _jpeg(), "", WHEN)
     text = note.read_text(encoding="utf-8")
     assert "transcription failed" in text
-    assert "[[file:../assets/captures/2026/2026-08-12-143200.jpg]]" in text
+    assert "[[file:../assets/captures/2026/2026-08-12-143200-1.jpg]]" in text
     assert "transcription failed" in reply
 
 
@@ -1517,7 +1533,7 @@ Add this method to `Capturer`, after `capture_text`:
 
         # Archive first, unconditionally. The photo must survive even if every
         # step after this one fails.
-        archived = archive_path(self.config.org_root, when)
+        archived = archive_path(self.config.org_root, when, update_id)
         archived.parent.mkdir(parents=True, exist_ok=True)
         archived.write_bytes(image)
 
