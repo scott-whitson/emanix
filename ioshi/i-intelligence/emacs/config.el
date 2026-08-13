@@ -316,6 +316,55 @@
   (global-set-key (kbd "C-c n c") #'org-roam-capture))
 (global-set-key (kbd "C-c a") #'org-agenda)
 
+;; Auto-update #+DATE: header on save (for weblorg revision dates).
+;; Only runs in ~/projects/websites/ to avoid touching other org files.
+(defun scott/org-update-revision-date ()
+  "Update the #+DATE: header to today's date if the file is in ~/projects/websites/."
+  (when (and buffer-file-name
+             (string-prefix-p (expand-file-name "~/projects/websites/")
+                              (file-truename buffer-file-name)))
+    (save-excursion
+      (goto-char (point-min))
+      (when (re-search-forward "^\\#\\+DATE:"
+                               (if (re-search-forward "^\\* " nil t) (match-beginning 0) (point-max))
+                               t)
+        (let ((date-str (format-time-string "%Y-%m-%d")))
+          (kill-line)
+          (insert (format "<%s>" date-str)))))))
+(add-hook 'org-mode-hook
+          (lambda ()
+            (add-hook 'after-save-hook #'scott/org-update-revision-date nil :local)))
+
+;; --- weblorg: pure Emacs Lisp static site generator ---
+(when (require 'weblorg nil :no-error)
+  ;; weblorg is configured via publish.el files in each site directory.
+  ;; Run with: emacs --script publish.el
+  ;;
+  ;; Keybindings for quick publishing:
+  (defun scott/weblorg-publish-eminix ()
+    "Publish the eminix.org website."
+    (interactive)
+    (let ((default-directory "~/projects/websites/eminix"))
+      (shell-command "emacs --script publish.el")))
+
+  (defun scott/weblorg-publish-scottwhitson ()
+    "Publish scottwhitson.com."
+    (interactive)
+    (let ((default-directory "~/projects/websites/scottwhitson"))
+      (shell-command "emacs --script publish.el")))
+
+  (defun scott/weblorg-publish-whitsoninterfacesystems ()
+    "Publish whitsoninterfacesystems.com."
+    (interactive)
+    (let ((default-directory "~/projects/websites/whitsoninterfacesystems"))
+      (shell-command "emacs --script publish.el")))
+
+  ;; Quick access to website directories
+  (defun scott/open-websites-dir ()
+    "Open the websites directory in dired."
+    (interactive)
+    (dired "~/projects/websites")))
+
 ;; Kill org buffers after agenda closes — they're only opened for scanning.
 ;; NB: this kills EVERY org-mode buffer, not just the ones the agenda opened,
 ;; so an org file you were editing yourself also goes when you quit the agenda.

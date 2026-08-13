@@ -43,6 +43,7 @@
     catppuccin-theme
     markdown-mode # transition: vault is still .md until the conversion sub-project
     vterm # native module built by nix; M-x package-install can't do this
+    weblorg # pure Emacs Lisp static site generator with org-roam support
 
     # --- Code editing ---
     # Emacs 30 already ships the hard parts: project.el, eglot (LSP client),
