@@ -1719,12 +1719,14 @@ def main() -> None:
     app.add_handler(CommandHandler("flush", handlers.on_flush))
     app.add_handler(MessageHandler(filters.PHOTO, handlers.on_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.on_text))
-    app.add_handler(
-        MessageHandler(
-            filters.VOICE | filters.AUDIO | filters.Document.ALL | filters.VIDEO,
-            handlers.on_unsupported,
-        )
-    )
+    # Nothing vanishes silently. The first catches any command the three
+    # CommandHandlers above did not claim — a mistyped /bogus otherwise matches
+    # nothing at all. The second catches every non-text, non-photo type: voice,
+    # audio, document, video, and also the sticker/location/contact/poll cases an
+    # enumerated media list quietly misses. A captioned photo carries .caption,
+    # not .text, so it is claimed by the PHOTO handler and never reaches these.
+    app.add_handler(MessageHandler(filters.COMMAND, handlers.on_unsupported))
+    app.add_handler(MessageHandler(~filters.TEXT & ~filters.PHOTO, handlers.on_unsupported))
     app.add_error_handler(on_error)
 
     log.info("polling; org root %s", config.org_root)
@@ -1947,6 +1949,14 @@ find ~/docs/org/work -name '*.sync-conflict-*' -print
 ```
 
 Expected: the capture subtree present, no conflict files.
+
+- [ ] **Step 6b: Smoke test that nothing vanishes silently**
+
+Send `/bogus`, then send a sticker.
+
+Expected: both get `not handled yet — this phase captures text and photos only`. Silence
+from either means the fallthrough handlers are mis-ordered and real messages can be
+dropped without you knowing.
 
 - [ ] **Step 7: Smoke test `/undo`**
 
