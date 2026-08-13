@@ -765,6 +765,17 @@ def test_pending_takes_all_and_clears(tmp_path):
     pending.append("second")
     assert pending.take_all() == ["first", "second"]
     assert pending.take_all() == []
+
+
+def test_appends_are_on_disk_not_just_buffered(tmp_path):
+    # A separately constructed reader sees the record, which is what makes
+    # dedupe survive a crash. Journal.has() is the only thing standing between
+    # Telegram's redelivery and a duplicated capture.
+    Journal(tmp_path / "journal.jsonl").append(_record(update_id=9))
+    assert Journal(tmp_path / "journal.jsonl").has(9)
+
+    Pending(tmp_path / "pending.jsonl").append("parked")
+    assert Pending(tmp_path / "pending.jsonl").take_all() == ["parked"]
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -834,6 +845,11 @@ class Journal:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(asdict(record)) + "\n")
+            # Durable on purpose. The note write is fsynced; if this record is
+            # not, a crash in the write-back window loses the dedupe entry for
+            # a capture that DID land, and Telegram's redelivery writes it twice.
+            handle.flush()
+            os.fsync(handle.fileno())
 
     def last(self) -> Record | None:
         records = self._all()
@@ -859,6 +875,8 @@ class Pending:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps({"text": text}) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
 
     def take_all(self) -> list[str]:
         if not self.path.exists():
@@ -875,7 +893,7 @@ class Pending:
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `cd ~/projects/orgcapture && .venv/bin/pytest tests/test_store.py -v`
-Expected: 4 passed
+Expected: 5 passed
 
 - [ ] **Step 5: Commit**
 
