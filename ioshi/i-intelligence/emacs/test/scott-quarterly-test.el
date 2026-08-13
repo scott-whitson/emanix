@@ -12,11 +12,11 @@
 (ert-deftest scott-quarterly-name-maps-months-to-quarters ()
   "Each month maps to its calendar quarter."
   ;; encode-time: (SEC MIN HOUR DAY MONTH YEAR)
-  (should (equal "2026-Q1" (scott-quarterly-name (encode-time 0 0 12 15 1 2026))))
-  (should (equal "2026-Q1" (scott-quarterly-name (encode-time 0 0 12 31 3 2026))))
-  (should (equal "2026-Q2" (scott-quarterly-name (encode-time 0 0 12 1 4 2026))))
-  (should (equal "2026-Q3" (scott-quarterly-name (encode-time 0 0 12 6 8 2026))))
-  (should (equal "2026-Q4" (scott-quarterly-name (encode-time 0 0 12 31 12 2026)))))
+  (should (equal "2026-Q1" (scott-quarterly--name (encode-time 0 0 12 15 1 2026))))
+  (should (equal "2026-Q1" (scott-quarterly--name (encode-time 0 0 12 31 3 2026))))
+  (should (equal "2026-Q2" (scott-quarterly--name (encode-time 0 0 12 1 4 2026))))
+  (should (equal "2026-Q3" (scott-quarterly--name (encode-time 0 0 12 6 8 2026))))
+  (should (equal "2026-Q4" (scott-quarterly--name (encode-time 0 0 12 31 12 2026)))))
 
 (ert-deftest scott-quarterly-prev-name-wraps-the-year ()
   "The quarter before Q1 is Q4 of the previous year."
@@ -89,6 +89,14 @@ anything else an empty file."
   (let ((file (make-temp-file "quarter" nil ".org" "#+title: 2026-Q2 (Work)\n")))
     (unwind-protect
         (should-not (scott-quarterly--file-id file))
+      (delete-file file)))
+  ;; A heading's ID is not the file's ID. With `org-adapt-indentation' nil a
+  ;; subheading drawer also sits at column 0, so the search must stop at the
+  ;; first heading rather than return an ID that links mid-file.
+  (let ((file (make-temp-file "quarter" nil ".org"
+                              "#+title: 2026-Q2 (Work)\n* Rock\n:PROPERTIES:\n:ID:       heading-id\n:END:\n")))
+    (unwind-protect
+        (should-not (scott-quarterly--file-id file))
       (delete-file file))))
 
 (ert-deftest scott-quarterly-template-work-title-is-suffixed ()
@@ -139,7 +147,7 @@ one still in flight (2026-07-16, 2026-Q3)."
   "Answering yes creates the note for the current quarter with template text."
   (scott-quarterly-test--with-org-dir '("work/Quarterly/")
     (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
-      (let ((name (scott-quarterly-name)))
+      (let ((name (scott-quarterly--name)))
         (unwind-protect
             (progn
               (scott-quarterly-open)
@@ -151,15 +159,19 @@ one still in flight (2026-07-16, 2026-Q3)."
                   (let ((text (buffer-string)))
                     (should (string-match-p (concat "#\\+title: " name " (Work)") text))
                     (should (string-match-p "^\\* Rock$" text))))))
+          ;; `buffer-file-name' is a truename, so compare truenames: if TMPDIR
+          ;; is a symlink a raw prefix test never matches and the buffers leak
+          ;; into later tests.
           (dolist (buf (buffer-list))
             (when (and (buffer-file-name buf)
-                       (string-prefix-p org-directory (buffer-file-name buf)))
+                       (string-prefix-p (file-truename org-directory)
+                                        (file-truename (buffer-file-name buf))))
               (kill-buffer buf))))))))
 
 (ert-deftest scott-quarterly-open-links-back-when-prior-quarter-exists ()
   "A prior-quarter note in the same scope is linked from the new note."
   (scott-quarterly-test--with-org-dir '("work/Quarterly/")
-    (let* ((name (scott-quarterly-name))
+    (let* ((name (scott-quarterly--name))
            (prev (scott-quarterly--prev-name name))
            (prev-file (expand-file-name (concat "work/Quarterly/" prev ".org")
                                         org-directory)))
@@ -176,9 +188,13 @@ one still in flight (2026-07-16, 2026-Q3)."
                 (should (string-match-p
                          (concat "\\[\\[id:older-id-7\\]\\[" prev "\\]\\]")
                          (buffer-string)))))
+          ;; `buffer-file-name' is a truename, so compare truenames: if TMPDIR
+          ;; is a symlink a raw prefix test never matches and the buffers leak
+          ;; into later tests.
           (dolist (buf (buffer-list))
             (when (and (buffer-file-name buf)
-                       (string-prefix-p org-directory (buffer-file-name buf)))
+                       (string-prefix-p (file-truename org-directory)
+                                        (file-truename (buffer-file-name buf))))
               (kill-buffer buf))))))))
 
 (ert-deftest scott-quarterly-open-prefix-arg-forces-work-scope ()
@@ -187,7 +203,7 @@ one still in flight (2026-07-16, 2026-Q3)."
     (let (visited)
       (cl-letf (((symbol-function 'find-file) (lambda (f) (setq visited f)))
                 ((symbol-function 'yes-or-no-p) (lambda (&rest _) nil)))
-        (let ((name (scott-quarterly-name)))
+        (let ((name (scott-quarterly--name)))
           ;; Both notes exist, so no create prompt is involved.
           (write-region "" nil (expand-file-name (concat name ".org") org-directory)
                         nil 'silent)

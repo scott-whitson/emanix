@@ -11,7 +11,7 @@
 
 (defvar org-directory)
 
-(defun scott-quarterly-name (&optional time)
+(defun scott-quarterly--name (&optional time)
   "Return the quarter name for TIME in YYYY-QN format.
 TIME defaults to now."
   (let* ((time (or time (current-time)))
@@ -39,7 +39,7 @@ TIME defaults to now."
 NAME defaults to the current quarter.  Work notes have exactly one
 location.  Personal notes keep their historical resolution: the org root
 holds the current quarter, Quarterly/ holds archived ones."
-  (let ((name (or name (scott-quarterly-name))))
+  (let ((name (or name (scott-quarterly--name))))
     (pcase scope
       ('work (expand-file-name (concat name ".org") (scott-quarterly--dir 'work)))
       ('personal
@@ -69,7 +69,7 @@ of a new quarter would resolve to the wrong scope."
   "Return `personal' when that tree is present here, otherwise `work'."
   (if (scott-quarterly--scope-available-p 'personal) 'personal 'work))
 
-(defconst scott-quarterly-sections
+(defconst scott-quarterly--sections
   '("Rock" "Top of Mind" "New This Quarter" "Workspace")
   "Top-level headings stamped into a new quarter note.
 These are the sections past quarters converged on: Rock is the one big
@@ -78,13 +78,23 @@ with Context/P1/P2/Parking lot beneath each, New This Quarter is the
 mid-quarter inbox, Workspace is tooling and environment work.")
 
 (defun scott-quarterly--file-id (file)
-  "Return the top-level :ID: property of FILE, or nil if it has none."
+  "Return the file-level :ID: property of FILE, or nil if it has none.
+Only the first 4096 bytes are read: the file-level property drawer is the
+first thing in an org file, and this is called on notes that can be long.
+The search also stops at the first heading — with `org-adapt-indentation'
+nil (the default since Org 9.5) a subheading's property drawer sits at
+column 0 too, so an unbounded search would return a heading's ID and the
+back-link would land mid-file instead of at the note."
   (when (and file (file-readable-p file))
     (with-temp-buffer
       (insert-file-contents file nil 0 4096)
       (goto-char (point-min))
-      (when (re-search-forward "^:ID:[ \t]+\\([^ \t\n]+\\)" nil t)
-        (match-string 1)))))
+      (let ((limit (save-excursion
+                     (if (re-search-forward "^\\*+ " nil t)
+                         (match-beginning 0)
+                       (point-max)))))
+        (when (re-search-forward "^:ID:[ \t]+\\([^ \t\n]+\\)" limit t)
+          (match-string 1))))))
 
 (defun scott-quarterly--template (scope name &optional prev-id prev-name)
   "Return the buffer text for a new quarter NAME note in SCOPE.
@@ -92,7 +102,7 @@ When PREV-ID and PREV-NAME are given, append a link back to that note."
   (concat ":PROPERTIES:\n:ID:       " (org-id-new) "\n:END:\n"
           "#+title: " name (if (eq scope 'work) " (Work)" "") "\n\n"
           (mapconcat (lambda (section) (format "* %s\n\n" section))
-                     scott-quarterly-sections "")
+                     scott-quarterly--sections "")
           (when (and prev-id prev-name)
             (format "[[id:%s][%s]]\n" prev-id prev-name))))
 
@@ -123,7 +133,7 @@ gets a chance to arrive rather than be clobbered; only a genuinely new
 quarter gets a fresh template."
   (interactive "P")
   (let* ((scope (if arg 'work (scott-quarterly--default-scope)))
-         (name (scott-quarterly-name))
+         (name (scott-quarterly--name))
          (file (scott-quarterly--file scope name)))
     (if (file-exists-p file)
         (find-file file)

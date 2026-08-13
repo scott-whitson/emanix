@@ -202,12 +202,15 @@
    (shell . t)
    (python . t)))
 
-(require 'scott-quarterly nil :no-error)
-(global-set-key (kbd "C-c q") #'scott-quarterly-open)
-
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline scott-launcher))
+(dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline
+                   scott-launcher scott-quarterly))
   (require feature nil :no-error))
+;; Quarterly tracker — C-c q opens this quarter's note, C-u C-c q forces the
+;; work one on a machine that has both trees.
+(when (fboundp 'scott-quarterly-open)
+  (global-set-key (kbd "C-c q") #'scott-quarterly-open))
+
 ;; App launcher — the EWM s-d experience on every machine (C-c o works
 ;; under EWM too; s-d remains on eminix).
 (when (fboundp 'scott/launch-app)
