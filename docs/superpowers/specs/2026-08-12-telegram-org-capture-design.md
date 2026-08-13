@@ -58,14 +58,16 @@ this.
         └── 2026/
             └── 2026-08-12-143207.jpg  ← archived whiteboard photos
 
-~/projects/datacore-config/stacks/orgcapture/    ← on datacore
+~/projects/orgcapture/                 ← laptop; Syncthing-delivered to datacore
+├── pyproject.toml                       as ~/projects/work/orgcapture
 ├── docker-compose.yml
+├── Dockerfile
 ├── .env                               ← uncommitted: bot token, allowed chat IDs
-└── src/                               ← the service
+├── src/orgcapture/                    ← the service
+└── tests/
 
-~/.local/state/orgcapture/             ← on datacore, bind-mounted into the container
-├── offset                             ← Telegram getUpdates offset
-├── journal.jsonl                      ← one record per write; powers /undo
+/srv/data/stacks-state/orgcapture/     ← on datacore, bind-mounted into the container
+├── journal.jsonl                      ← one record per write; powers /undo and replay dedupe
 └── pending.jsonl                      ← captures parked because the quarter note is absent
 ```
 
@@ -168,9 +170,16 @@ target file and heading. Writing happens immediately — no confirm step. Captur
 meant to be one-tap; a bad transcription is caught by reading the reply, and `/undo`
 is one message away.
 
-**Idempotency.** The poll offset persists to `~/.local/state/orgcapture/offset`, and
-every handled `update_id` is recorded in the journal. A crash between write and
-offset-commit cannot double-file, because a replayed `update_id` is skipped.
+**Idempotency.** The update cursor is Telegram's, not ours: unconfirmed updates are
+held server-side and redelivered after a restart, which is what makes messages sent
+while the container is down arrive rather than vanish. Redelivery is made safe by
+recording every handled `update_id` in the journal and skipping replays — so no local
+offset file is needed, and none is kept.
+
+The residual gap is narrow and accepted: an update already fetched but not yet
+handled when the process dies is lost, because the library confirms the cursor on
+fetch. Every successful capture replies with the org text it wrote, so a message with
+no reply is the signal to resend.
 
 **Errors never drop a message.** Any unhandled exception is caught, logged, and
 replied to the sender with the error text. An error reply still commits the offset —
@@ -210,19 +219,35 @@ capture subtree. Grouping by `media_group_id` is not attempted.
 
 ## Deployment
 
-A new stack at `~/projects/datacore-config/stacks/orgcapture/`, matching the five
-stacks already there (`control-center`, `headscale`, `hindsight`, `immich`, `media`).
-Compose builds the image from local source.
+The service lives at `~/projects/orgcapture/` on the work laptop, which Syncthing
+delivers to datacore as `~/projects/work/orgcapture/` (the laptop's `~/projects`
+folder root maps to datacore's `~/projects/work`). Compose builds the image from that
+source in place. Deploy is `docker compose up -d --build` on datacore.
+
+This follows `pearl-platform`, which already lives in the projects tree with its own
+compose files — not `datacore-config`, which holds third-party infrastructure stacks
+pinned to published images. It also keeps a fast local test loop: the org writer is
+pure and gets exercised on the laptop rather than over SSH.
 
 Mounts: `~/docs/org/work` read-write, `~/.pi/agent/auth.json` read-only,
-`~/.local/state/orgcapture` read-write. `restart: unless-stopped`.
+`/srv/data/stacks-state/orgcapture` read-write. `restart: unless-stopped`,
+`TZ=America/New_York` (datacore's system zone).
+
+Runtime state lives under `/srv/data/stacks-state/`, matching the five existing
+stacks. It must not live in the projects tree: the journal and pending queue are
+per-host runtime state, and syncing them back to the laptop would be meaningless at
+best and, on a restore, would replay or block captures.
 
 Packaging it as a compose stack rather than a systemd unit is deliberate: datacore's
 NixOS cutover is designed to carry the compose stacks over unchanged, so this
 survives the rebuild. A hand-rolled Debian systemd unit would not.
 
-Secrets live in an uncommitted `.env` (bot token, allowed chat IDs). After the
-cutover they move to agenix alongside `secrets/openrouter-auth.age`.
+Secrets live in an uncommitted `.env` (bot token, allowed chat IDs), gitignored, with
+a committed `.env.example`. After the cutover they move to agenix alongside
+`secrets/openrouter-auth.age`. Note that `.env` sits in a Syncthing-replicated
+directory, so the bot token reaches every peer that syncs `~/projects` — acceptable
+for these three machines, and another reason to move it to agenix rather than leave
+it indefinitely.
 
 ## Testing
 
