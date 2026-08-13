@@ -16,47 +16,50 @@ token and a chat, not a receiver.
 
 ## Scope
 
-This phase is capture only: **text and photos, from Telegram, into the current work
-quarterly tracker.**
+This phase is capture only: **text and photos, from Telegram, into the current
+personal quarterly tracker.**
 
 Talking to pi from the phone is deliberately out. It is the rarer need, and letting
 it in now would make capture — the thing used several times a week — wait on session
 lifetime, timeouts, and streaming design. The handler is structured so a later
 `/ask` command is an added handler, not a rewrite.
 
-## Prerequisite: land the work quarterly tracker
+## Which tracker: personal, not work
 
-This design targets the *post-migration* tracker layout. That work is written and
-green but not landed:
+**Corrected 2026-08-12, after the service was built.** The first draft of this design
+targeted the *work* quarterly tracker under `~/docs/org/work/`. That was wrong: these
+are personal captures and they belong in the personal tracker, which lives in a
+different Syncthing folder entirely.
 
-- Branch `worktree-work-quarterly-tracker` (worktree at
-  `~/dotfiles/.claude/worktrees/work-quarterly-tracker`) holds six commits:
-  `lisp/scott-quarterly.el`, its ERT suite, and `tools/migrate-work-quarters.sh`.
-- `emacs -Q --batch -L lisp -L test -l test/scott-quarterly-test.el
-  -f ert-run-tests-batch-and-exit` passes 14/14 as of 2026-08-12.
-- Four files in that worktree are modified and uncommitted.
-- Neither the merge to `main` nor the file migration has run. `work/Quarterly/`
-  does not exist on any machine; the six quarter notes are still split between
-  `work/Quarterly Notes/` and loose files in `work/`.
+The personal tracker's current quarter sits at the org root — `~/docs/org/2026-Q3.org`
+— with archived quarters in `~/docs/org/Quarterly/`. That is exactly the resolution
+`scott-quarterly--file` performs for the `personal` scope: prefer the root, fall back
+to `Quarterly/`. The service mirrors that rule rather than inventing one.
 
-Landing it must come first, per its own spec
-(`2026-08-06-work-quarterly-tracker-design.md`) and plan
-(`plans/archive/2026-08-06-work-quarterly-tracker.md`). Building capture against the
-current split layout would mean globbing two directories and two naming conventions,
-then throwing that resolver away — and captures would land in an invented heading
-rather than the `New This Quarter` section the tracker already reserves for exactly
-this.
+Two consequences follow from the folder layout. The Syncthing root for this tree is
+`~/docs` (that is where `.stfolder` lives), so everything under `~/docs/org`
+replicates — including the photo archive. And `~/docs` syncs between datacore and
+rafik but **not** to the work laptop, which carries only the separate
+`~/docs/org/work` folder. So captures appear on datacore and rafik and are not
+visible from the work laptop at all; verifying a capture from there means SSH.
+
+The work-tracker consolidation (`2026-08-06-work-quarterly-tracker-design.md`) is
+therefore no longer a prerequisite for this service. It remains worth doing on its own
+merits — it is what makes `C-c q` resolve correctly on the work laptop — but nothing
+here depends on it.
 
 ## Target state
 
 ```
-~/docs/org/work/                       ← Syncthing folder root (.stfolder lives here)
-├── Quarterly/
-│   └── 2026-Q3.org                    ← capture target, path constructed not searched
-└── assets/
-    └── captures/
-        └── 2026/
-            └── 2026-08-12-143207.jpg  ← archived whiteboard photos
+~/docs/                                ← Syncthing folder root (.stfolder lives here)
+└── org/
+    ├── 2026-Q3.org                    ← capture target: current quarter at the root
+    ├── Quarterly/
+    │   └── 2026-Q1.org                ← archived quarters; the fallback candidate
+    └── assets/
+        └── captures/
+            └── 2026/
+                └── 2026-08-12-143207-4821.jpg   ← archived photos, <stamp>-<update_id>
 
 ~/projects/orgcapture/                 ← laptop; Syncthing-delivered to datacore
 ├── pyproject.toml                       as ~/projects/work/orgcapture
@@ -71,34 +74,40 @@ this.
 └── pending.jsonl                      ← captures parked because the quarter note is absent
 ```
 
-Everything written must live under `~/docs/org/work/` — that directory, not
-`~/docs/org`, holds `.stfolder`. Assets placed outside it would not sync anywhere.
+Everything written must live under `~/docs/` — that is where `.stfolder` is. Assets
+placed outside it would not sync anywhere.
 
 ## The org write path
 
-**Target file.** Constructed, never searched:
-`~/docs/org/work/Quarterly/<YYYY>-Q<N>.org`, where `N = ((month - 1) / 3) + 1` on
-calendar months — the same rule as `scott-quarterly--name` in `scott-quarterly.el`.
-The Python service reimplements this one-line rule rather than shelling out to
-Emacs; datacore is headless and an `emacsclient` dependency there would be a new
-failure mode for no gain.
+**Target file.** Two candidates, derived not searched, tried in the personal scope's
+own preference order:
 
-**Target heading.** The first level-1 heading whose title is exactly
-`New This Quarter`. This is one of the four sections in the new-quarter template
-(`Rock`, `Top of Mind`, `New This Quarter`, `Workspace`) and is documented there as
-the "inbox for work that appeared mid-quarter."
+1. `~/docs/org/<YYYY>-Q<N>.org` — the current quarter, at the org root
+2. `~/docs/org/Quarterly/<YYYY>-Q<N>.org` — the archive, for a quarter already filed
 
-If the quarter note exists but has no `New This Quarter` heading — true of every
-migrated pre-2026-Q4 note, including the current 2026-Q3 — the service appends the
-heading at end of file, then writes beneath it. It searches by heading text, so
-moving the section afterward in Emacs is safe.
+`N = ((month - 1) / 3) + 1` on calendar months, the same rule as
+`scott-quarterly--name`. The first candidate that exists wins. If neither exists the
+capture parks, and messages name the first candidate, since that is where the note
+would be created. Deriving both paths keeps the resolver pure and testable; the only
+filesystem contact is the two `exists()` checks. The Python service reimplements the
+rule rather than shelling out to Emacs — datacore is headless, and an `emacsclient`
+dependency there would be a new failure mode for no gain.
 
-Note that migrated notes keep their freeform shape, and 2026-Q3 in particular has no
-level-1 headings at all: its content sits at `**` (`Beta Todos`) and `***`
-(`Beta Notes`) with no parent. Appending `* New This Quarter` at end of file is still
-correct there — those earlier headings simply remain as they are, above it. The
-implementation must key on heading *text at level 1*, not on being the file's only
-outline structure.
+**Target heading.** The first level-1 heading whose title is `New This Quarter`. This
+is one of the four sections in the new-quarter template (`Rock`, `Top of Mind`,
+`New This Quarter`, `Workspace`), which `scott-quarterly--template` stamps into
+personal and work quarters alike, and it is documented there as the inbox for work
+that appeared mid-quarter.
+
+If the quarter note exists but has no such heading, the service appends it at end of
+file and writes beneath it. It matches on heading text, so moving the section
+afterward in Emacs is safe, and the match tolerates trailing tags — a
+`* New This Quarter :inbox:` is found rather than duplicated.
+
+The current personal 2026-Q3 is exactly this case: `#+title: 2026-Q3`, one
+`* Active work` heading, then a flat run of `* TODO` items and a trailing bullet list.
+It has no `New This Quarter`, so the first capture appends the section at the bottom
+and every later capture lands inside it. Nothing above the insertion point is touched.
 
 **Entry format.** Each capture is one level-2 subtree, so it folds and `/undo` is a
 clean subtree delete:
@@ -194,9 +203,17 @@ loop.
 ## Images
 
 The largest available photo size is downloaded to
-`~/docs/org/work/assets/captures/<YYYY>/<YYYY-MM-DD-HHMMSS>.jpg`. The org link is
-relative to the quarter note — `[[file:../assets/captures/2026/...jpg]]` — so it
-resolves on every machine regardless of home directory.
+`~/docs/org/assets/captures/<YYYY>/<YYYY-MM-DD-HHMMSS>-<update_id>.jpg`. The Telegram
+`update_id` is in the filename because an album arrives as several separate updates
+inside the same second: on a timestamp alone they collide, and the second photo
+overwrites the first while the first entry goes on linking to that name. It is also
+stable under redelivery, so a replay rewrites identical bytes rather than a new file.
+
+The org link is relative to the quarter note, so it resolves on every machine
+regardless of home directory — and the relative form adapts to which candidate
+resolved: `[[file:assets/captures/2026/...jpg]]` from a current-quarter note at the org
+root, `[[file:../assets/captures/2026/...jpg]]` from an archived note under
+`Quarterly/`.
 
 Before the vision call the image is downscaled to a 1568px long edge, which is the
 useful ceiling for these models and keeps cost predictable on a phone photo.
@@ -234,9 +251,11 @@ compose files — not `datacore-config`, which holds third-party infrastructure 
 pinned to published images. It also keeps a fast local test loop: the org writer is
 pure and gets exercised on the laptop rather than over SSH.
 
-Mounts: `~/docs/org/work` read-write, `~/.pi/agent/auth.json` read-only,
+Mounts: `~/docs/org` read-write at `/org`, `~/.pi/agent/auth.json` read-only,
 `/srv/data/stacks-state/orgcapture` read-write. `restart: unless-stopped`,
-`TZ=America/New_York` (datacore's system zone).
+`TZ=America/New_York` (datacore's system zone). `ORGCAPTURE_HOST_ORG_ROOT` carries the
+host path so `/where` reports something you can actually open, rather than the
+container's `/org`.
 
 Runtime state lives under `/srv/data/stacks-state/`, matching the five existing
 stacks. It must not live in the projects tree: the journal and pending queue are
@@ -275,11 +294,14 @@ Manual smoke from the phone, after deploy: send text, send a whiteboard photo, r
 
 ## Verification
 
-- `/where` reports `~/docs/org/work/Quarterly/2026-Q3.org`.
-- A text capture appears under `New This Quarter` in Emacs on the work laptop after
-  Syncthing settles, with no conflict files in the tree.
-- A whiteboard photo yields a subtree containing a legible transcription and a
-  working `[[file:../assets/...]]` link that opens in Emacs.
+- `/where` reports `~/docs/org/2026-Q3.org`.
+- A text capture appears under `New This Quarter` on datacore, and then on rafik once
+  Syncthing settles, with no conflict files in the tree. It will NOT appear on the work
+  laptop — that machine does not sync this folder.
+- A whiteboard photo yields a subtree containing a legible transcription and a working
+  `[[file:assets/...]]` link that opens in Emacs.
+- `/bogus` and a sticker each get an explicit "not handled yet" reply — silence from
+  either means real messages can be dropped unnoticed.
 - Killing the container mid-run and restarting it neither loses nor duplicates a
   message sent while it was down.
 - `pytest` green.
@@ -294,10 +316,10 @@ Manual smoke from the phone, after deploy: send text, send a whiteboard photo, r
   later, but it is not in this phase.
 - **`/ask` and any conversational pi access.** The seam is left; the feature is not
   built.
-- **Routing to any file other than the current work quarter.** No agent-chosen
+- **Routing to any file other than the current personal quarter.** No agent-chosen
   headings, no client-note routing. Captures land in one known place and are triaged
   in Emacs.
 - **Classification of text.** With a fixed destination heading, text needs no model
   at all. The only model call in this design is whiteboard transcription.
-- **Personal (non-work) quarterly notes.** The work laptop does not sync them and
-  datacore is the host doing the writing.
+- **The work quarterly tracker.** Work captures are a separate concern in a separate
+  Syncthing folder. Nothing here writes to `~/docs/org/work`.
