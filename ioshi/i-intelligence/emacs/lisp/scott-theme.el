@@ -105,11 +105,11 @@ override would look worse than Modus's coherent default."
         (bg-tab-bar ,surface0)
         (bg-tab-current ,surface1)
         (bg-tab-other ,surface0)
-        ;; Bottom bar. border-* replaces Modus's #959595 box; setting it to
-        ;; surface1 gives a hairline rather than a bright outline.
+        ;; Bottom bar. border-* replaces Modus's #959595 box; using text
+        ;; color makes the focused window's border clearly visible.
         (bg-mode-line-active ,surface0)
         (fg-mode-line-active ,text)
-        (border-mode-line-active ,surface1)
+        (border-mode-line-active ,text)
         (bg-mode-line-inactive ,surface0)
         (fg-mode-line-inactive ,subtext0)
         (border-mode-line-inactive ,surface0)))
