@@ -235,15 +235,25 @@ for f in *.org; do
   printf '%s %s\n' "$(basename "$f" .org)" "$(awk '/^\*+ /{exit} /^:ID:/{print $2; exit}' "$f")"
 done | sort > /tmp/claude-1000/-home-scott/quarterly-migration/ids-after.txt
 
-sed 's/^\([0-9]*\)_q\([1-4]\)/\1-Q\2/' /tmp/claude-1000/-home-scott/quarterly-migration/ids-before.txt \
-  | sed 's/^[0-9]\{14\}-//' | sort > /tmp/claude-1000/-home-scott/quarterly-migration/ids-before-normalized.txt
+# Strip the org-roam timestamp prefix FIRST, then rewrite YYYY_qN -> YYYY-QN.
+# Order matters: with the prefix still attached, '^[0-9]*_q' never matches
+# (the prefix is followed by '-', not '_q'), the substitution silently does
+# nothing, and the diff below would compare unlike strings.
+sed -e 's/^[0-9]\{14\}-//' -e 's/^\([0-9]\{4\}\)_q\([1-4]\)/\1-Q\2/' \
+  /tmp/claude-1000/-home-scott/quarterly-migration/ids-before.txt \
+  | sort > /tmp/claude-1000/-home-scott/quarterly-migration/ids-before-normalized.txt
+
+head -3 /tmp/claude-1000/-home-scott/quarterly-migration/ids-before-normalized.txt
 
 diff /tmp/claude-1000/-home-scott/quarterly-migration/ids-before-normalized.txt \
      /tmp/claude-1000/-home-scott/quarterly-migration/ids-after.txt && echo "IDS OK"
 grep -h '^#+title:' *.org
 ```
 
-Expected: `IDS OK`, and six title lines each ending ` (Work)`.
+Expected: the `head -3` shows lines like `2025-Q2 <uuid>` (no timestamp prefix, no
+`_q`), then `IDS OK`, then six title lines each ending ` (Work)`. If the `head -3`
+still shows timestamp prefixes, the normalization did not apply and the `diff` result
+means nothing — stop and fix it before trusting the migration.
 
 - [ ] **Step 8: Confirm nothing is left behind**
 
