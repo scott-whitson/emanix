@@ -86,7 +86,7 @@
 ;;  C-j = eval + print inline     C-x C-e = eval, echo area
 ;;  M-: = eval from minibuffer    C-x * q = quick calc
 
-(scott/open-quarterly-tracker)
+(scott-quarterly-open)
 (scott/calendar-sync)
 (org-agenda nil \"w\")
 (magit-status \"~/dotfiles\")
@@ -446,53 +446,6 @@
 ;; The Google Calendar sync will be handled by a small Python tool.
 ;; Emacs should stay focused on editing Dates.org and launching the tool.
 
-(defun scott/current-quarter-name (&optional time)
-  "Return the current quarter name in YYYY-QN format."
-  (let* ((time (or time (current-time)))
-         (month (string-to-number (format-time-string "%m" time)))
-         (quarter (1+ (/ (1- month) 3))))
-    (format "%s-Q%d" (format-time-string "%Y" time) quarter)))
-
-(defun scott/current-quarter-file ()
-  "Return the current-quarter note path, preferring root then Quarterly/."
-  (let* ((name (scott/current-quarter-name))
-         (root (expand-file-name (concat name ".org") org-directory))
-         (archived (expand-file-name (concat "Quarterly/" name ".org") org-directory)))
-    (cond ((file-exists-p root) root)
-          ((file-exists-p archived) archived)
-          (t root))))
-
-(defun scott/open-quarterly-tracker ()
-  "Open the current-quarter tracker note.
-If the note does not exist on this machine, do NOT silently create and
-save an empty template — that races with Syncthing: on a freshly-synced
-box the empty file can win the conflict and quarantine the real,
-populated note (happened 2026-07-16 with 2026-Q3). Instead confirm
-first, so an unsynced note gets a chance to arrive rather than be
-clobbered; only a genuinely new quarter gets a fresh template."
-  (interactive)
-  (let* ((name (scott/current-quarter-name))
-         (file (scott/current-quarter-file)))
-    (if (file-exists-p file)
-        (find-file file)
-      (if (yes-or-no-p
-           (format "No %s note here — create it? (choose no if it may just be unsynced) "
-                   name))
-          (progn
-            (find-file file)
-            (when (zerop (buffer-size))
-              (insert ":PROPERTIES:\n:ID:       " (org-id-new) "\n:END:\n")
-              (insert "#+title: " name "\n\n")
-              (insert "* Goals\n\n")
-              (insert "* Active work\n\n")
-              (insert "* Notes\n\n")
-              (save-buffer)))
-        (message
-         "Not creating %s — waiting for sync. Re-run C-c q once it arrives."
-         name)))))
-
-(global-set-key (kbd "C-c q") #'scott/open-quarterly-tracker)
-
 (defun scott/calendar-sync ()
   "Launch the Python calendar sync tool."
   (interactive)
@@ -543,8 +496,12 @@ clobbered; only a genuinely new quarter gets a fresh template."
     (message "gdocs not loadable; skipping (see the comment above)")))
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline scott-launcher scott-pi))
+(dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline scott-launcher scott-pi scott-quarterly))
   (require feature nil :no-error))
+;; Quarterly tracker — C-c q opens this quarter's note, C-u C-c q forces the
+;; work one on a machine that has both trees.
+(when (fboundp 'scott-quarterly-open)
+  (global-set-key (kbd "C-c q") #'scott-quarterly-open))
 ;; App launcher — the EWM s-d experience on every machine (C-c o works
 ;; under EWM too; s-d remains on eminix).
 (when (fboundp 'scott/launch-app)
@@ -674,3 +631,26 @@ Each cdr is verified to render at the default face's cell width.")
       (define-key ewm-mode-map (kbd "s-i") #'scott/elisa-ask))
     (when (fboundp 'ewm--send-intercept-keys)
       (ewm--send-intercept-keys))))
+
+;; ecomms — work M365/Teams/CW front end, from the checkout at
+;; ~/projects/ecomms (not a nix package: the elisp is edited alongside the
+;; Python it drives). Gated to whistle because the credentials and the
+;; checkout are work-only. NOTE this is a hostname gate: the machine was
+;; renamed weasel -> whistle on 2026-08-04, and another rename would silently
+;; disable the indicator rather than erroring.
+(when (string= (system-name) "whistle")
+  (add-to-list 'load-path (expand-file-name "~/projects/ecomms/emacs"))
+  (if (not (require 'ecomms nil :no-error))
+      (message "ecomms not loadable; skipping (checkout missing?)")
+    (require 'ecomms-planner nil :no-error)  ; adds C-c m p to the map
+    (global-set-key (kbd "C-c m") ecomms-command-map)
+    ;; Frame-global unread indicator, left of the system stats. Its own
+    ;; tab-bar item (keyed `ecomms-unread'), so scott-modeline.el is untouched.
+    (setq tab-bar-format '(scott/ewm-tab-bar-slots
+                           tab-bar-format-align-right
+                           ecomms-tab-bar-item
+                           scott/tab-bar-status))
+    ;; Global 180s poller. Must be a session-long timer, not a buffer-scoped
+    ;; one: nothing keeps an ecomms buffer alive, and the bar needs the data
+    ;; regardless.
+    (ecomms-watch-mode 1)))
