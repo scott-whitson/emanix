@@ -363,7 +363,32 @@
   (defun scott/open-websites-dir ()
     "Open the websites directory in dired."
     (interactive)
-    (dired "~/projects/websites")))
+    (dired "~/projects/websites"))
+
+  ;; Deploy helpers (requires SSH access to satcom)
+  (defun scott/deploy-eminix ()
+    "Build and deploy eminix.net to satcom."
+    (interactive)
+    (let ((default-directory "~/projects/websites"))
+      (shell-command "./deploy.sh eminix")))
+
+  (defun scott/deploy-scottwhitson ()
+    "Build and deploy scottwhitson.com to satcom."
+    (interactive)
+    (let ((default-directory "~/projects/websites"))
+      (shell-command "./deploy.sh scottwhitson")))
+
+  (defun scott/deploy-whitsoninterfacesystems ()
+    "Build and deploy whitsoninterfacesystems.com to satcom."
+    (interactive)
+    (let ((default-directory "~/projects/websites"))
+      (shell-command "./deploy.sh whitsoninterfacesystems")))
+
+  (defun scott/deploy-all-sites ()
+    "Build and deploy all sites to satcom."
+    (interactive)
+    (let ((default-directory "~/projects/websites"))
+      (shell-command "./deploy.sh all"))))
 
 ;; Kill org buffers after agenda closes — they're only opened for scanning.
 ;; NB: this kills EVERY org-mode buffer, not just the ones the agenda opened,
