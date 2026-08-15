@@ -1,5 +1,11 @@
 # Datacore Debian → NixOS Cutover Implementation Plan
 
+> **Superseded 2026-08-15 (install flow only):** the Ventoy staging and
+> `fresh-eminix-install` invocation in Task 4 are replaced by the eminix
+> installer-ISO flow — see `2026-08-15-eminix-installer-iso.md` Task 15 for
+> the exact deltas. Everything else in this plan (data sync, identity flip,
+> headscale handover, soak, retirement) is unchanged.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
 > **Tasks 1–2 are repo work an agent can execute. Tasks 3–8 are operational and
@@ -28,7 +34,7 @@
 ## File Structure
 
 | File | Responsibility |
-|---|---|
+| --- | --- |
 | `secrets/secrets.nix` | **Modify.** `datacore` recipient becomes the OLD box's host key |
 | `secrets/openrouter-auth.age`, `secrets/ibkr-creds.age` | **Rekeyed** by agenix; not hand-edited |
 | `hosts/datacore/configuration.nix` | **Modify.** Add `docker-compose` and `restic` — both already resolve via the docker/backrest wrappers, but kept on PATH for interactive use (the Task 8 restore test) at zero closure cost |
@@ -41,11 +47,13 @@
 **Agent-executable.**
 
 **Files:**
+
 - Modify: `secrets/secrets.nix`
 - Rekeyed: `secrets/openrouter-auth.age`, `secrets/ibkr-creds.age`
 - Delete: `~/.ssh/datacore_host_ed25519`, `~/.ssh/datacore_host_ed25519.pub`
 
 **Interfaces:**
+
 - Produces: a `datacore` recipient in `secrets/secrets.nix` whose value equals the old box's `/etc/ssh/ssh_host_ed25519_key.pub`. Task 4 stages that same key on the USB, and the installer greps this file for it.
 
 - [ ] **Step 1: Capture the old box's actual host key**
@@ -156,9 +164,11 @@ git push origin main
 **Agent-executable.**
 
 **Files:**
+
 - Modify: `hosts/datacore/configuration.nix`
 
 **Interfaces:**
+
 - Produces: `docker compose` and `restic` on datacore's PATH. Task 5 brings up stacks with `docker compose up -d`; backrest shells out to `restic`.
 
 **Why this task exists:** `~/projects/datacore-config` invokes `docker compose` at 16 call sites, and backrest shells out to restic. Both already resolve without this task — `virtualisation.docker.package`'s wrapper sets `DOCKER_CLI_PLUGIN_DIRS` so `docker compose` is already on the plugin path, and `pkgs.backrest`'s wrapper sets `BACKREST_RESTIC_COMMAND` to a store restic path. This task exists so `docker-compose` and `restic` are also reachable as **plain interactive commands** on datacore's PATH — needed for the Task 8 restore test — at zero closure cost, since both store paths are already pulled in by the mechanisms above.
@@ -377,7 +387,7 @@ with `docker exec headscale headscale preauthkeys create --user scott
 The old box carries **three** repos, and firstboot only creates the first:
 
 | Path | Purpose |
-|---|---|
+| --- | --- |
 | `~/dotfiles` | The flake checkout. `scott.dotfiles.path` points here, and `liveElisp` symlinks `~/.config/emacs` into it — if it is missing, Emacs' config is a dangling link |
 | `~/projects/dotfiles` | **The git mirror.** rafik's `origin` is literally `scott@datacore:~/projects/dotfiles`. Without this, rafik cannot pull at all |
 | `~/projects/datacore-config` | The compose stacks |

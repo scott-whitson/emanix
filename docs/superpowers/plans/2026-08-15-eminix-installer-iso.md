@@ -917,3 +917,32 @@ is the previous boot generation plus a git revert (the old multi-recipient
 files survive in history). (c) First ISO build downloads a large closure — plan
 for it. (d) The disko cross-check warning on the HP (Task 14) — expected if the
 HP presents its NVMe differently; the `--disk` override is the escape hatch.
+
+**As-built corrections (Tasks 1–7 landed 2026-08-15, commits cef1de9, f220547,
+03be7c7, c9eb164, 6503b68):**
+
+1. **Keys baking is one `environment.etc` merge**, not `lib.optional` inside
+   `environment.systemPackages` — the plan's sketch was structurally wrong
+   (a module attrset cannot be an element of a package list). Implemented as
+   `{ "eminix/dotfiles"... } // lib.optionalAttrs hasKeys { "eminix/keys"... } // { "issue"... }`.
+2. **NetworkManager, not bare iwd.** The installer profile (`installation-device.nix`)
+   already enables NetworkManager, whose wpa_supplicant backend sets
+   `networking.wireless.enable = true` — which iwd asserts against. Resolved
+   with `networking.networkmanager.wifi.backend = "iwd"` (nixpkgs enables iwd
+   automatically), so both `nmcli`/`nmtui` and `iwctl` work.
+3. **`--check-only` must not require root** — the uid check moved below the
+   check-only branch, so the verification path runs as any user on any
+   machine (the plan's Task 5 step 4 runs it as scott).
+4. **Disk auto-detect excludes mounted disks.** On rafik the checklist reports
+   `disk ✗ none detected` — correct fail-closed behavior (rafik's NVMe is
+   live); detection matters on the ISO/QEMU where the target disk is
+   unmounted. The plan's "disk ✓ (the NVMe)" expectation was written for a
+   different context.
+5. **`git` dropped from systemPackages** — `installation-cd-base` already sets
+   `programs.git.enable`; the plan's line was redundant.
+6. **`resolve_disk` returns 0 when no disk is found** — the sketch's
+   `[ -n "$best" ] || return` returned 1 under `set -e` and killed the script
+   before the checklist could report the gap.
+7. **Runbook rewrite also carries the host-key-inheritance staging commands**
+   (the `ssh -t` flow) and the `live.nixos.passwd=` sshd note — both were
+   implied by the plan, made explicit in the doc.
