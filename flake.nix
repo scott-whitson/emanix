@@ -137,6 +137,15 @@
             ./ioshi/hi-hardware/disko/datacore.nix
           ];
         };
+
+        # The installer ISO — a minimal live system carrying the flake + keys.
+        # Deliberately NOT via mkHost: this is a tool, not an eminix host.
+        # Spec: docs/superpowers/specs/2026-08-15-eminix-installer-iso-design.md
+        installer = nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit nixpkgs disko; };
+          modules = [ ./installer/iso.nix ];
+        };
       };
 
       # --- Disko configurations (declarative disk partitioning) ---
