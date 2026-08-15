@@ -14,3 +14,6 @@ result
 
 # Subagent-driven-development scratch (ledgers, briefs, review packages)
 .superpowers/
+
+# Private host keys — never committed (public .pub halves ARE committed)
+keys/*_host_ed25519
