@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# eminix-iso — build the eminix installer ISO and optionally flash it.
+# Usage:
+#   bin/eminix-iso                 # build only; prints the ISO path
+#   bin/eminix-iso --no-keys       # build without baked keys (debug/rescue ISO)
+#   bin/eminix-iso /dev/sdX        # build and dd to the device (destructive!)
+#
+# The ISO carries the flake at /etc/eminix/dotfiles and, unless --no-keys,
+# every staged host key under /etc/eminix/keys — so an ISO built with keys IS
+# your identity: keep the .iso file and the stick like a host key.
+# Spec: docs/superpowers/specs/2026-08-15-eminix-installer-iso-design.md
+set -euo pipefail
+
+die() { printf '\n\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
+say() { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO"
+
+BUILD_KEYS=1
+DEV=""
+for a in "$@"; do
+  case "$a" in
+    --no-keys) BUILD_KEYS=0 ;;
+    *) DEV="$a" ;;
+  esac
+done
+
+if [ "$BUILD_KEYS" -eq 1 ]; then
+  # Every committed .pub must have a staged private half, else the ISO would
+  # bake a keypair missing its private part and fail at install.
+  missing=""
+  for pub in keys/*_host_ed25519.pub; do
+    [ -e "$pub" ] || continue
+    priv="${pub%.pub}"
+    [ -f "$priv" ] || missing="$missing $(basename "$priv")"
+  done
+  if [ -n "$missing" ]; then
+    die "no private key staged for:$missing
+  rafik:   sudo cp /etc/ssh/ssh_host_ed25519_key keys/rafik_host_ed25519
+  others:  ssh -t <host> 'sudo cat /etc/ssh/ssh_host_ed25519_key' > keys/<host>_host_ed25519
+  (or pass --no-keys for a debug ISO that carries no identity)"
+  fi
+  # Belt-and-braces: private halves must never be tracked.
+  if git ls-files keys/ | grep -v '\.pub$' >/dev/null; then
+    die "a private key is tracked in git — fix before building."
+  fi
+fi
+
+say "Building installer ISO"
+nix build .#nixosConfigurations.installer.config.system.build.isoImage
+ISO="$(find result/iso -maxdepth 1 -name '*.iso' -print -quit 2>/dev/null || true)"
+[ -n "$ISO" ] || die "no ISO produced under result/iso/ — see the build log above."
+say "Built: $ISO ($(du -h "$ISO" | cut -f1))"
+
+if [ -z "$DEV" ]; then
+  echo "Flash it:  sudo bin/eminix-iso /dev/sdX"
+  exit 0
+fi
+
+[ -b "$DEV" ] || die "$DEV is not a block device."
+echo
+echo "This ERASES $DEV entirely."
+read -rp "Type the device path to confirm ($DEV): " c
+[ "$c" = "$DEV" ] || die "aborted."
+
+say "Flashing $ISO to $DEV"
+sudo dd if="$ISO" of="$DEV" bs=4M status=progress conv=fsync
+sync
+say "Done. Remove the stick and boot the target from it."

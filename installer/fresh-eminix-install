@@ -1,53 +1,199 @@
 #!/usr/bin/env bash
 # fresh-eminix-install — one-shot NixOS installer for an eminix host.
 #
-# Run as root in the NixOS live ISO, from the Ventoy-staged checkout:
-#   sudo bash /run/media/*/Ventoy/dotfiles/installer/fresh-eminix-install [host] [disk]
+# Usage (in the eminix installer ISO, or any NixOS live ISO):
+#   sudo fresh-eminix-install [host] [--disk /dev/X] [--check-only]
 #
-# Defaults to rafik on /dev/nvme0n1. Pass a host to install a different one —
-# e.g. `... fresh-eminix-install datacore` — and a disk if it is not nvme0n1.
-# The host must exist in flake.nix's nixosConfigurations, must have a disko
-# layout, and must be a recipient in secrets/secrets.nix (the preflight checks
-# all three). Automates: preflight -> disko -> inject host key -> nixos-install
+# Defaults to rafik. The repo is located automatically (EMINIX_REPO, the
+# script's parent, /etc/eminix/dotfiles on the ISO, or common mounts); the
+# host key comes from the baked ISO keys, a staged <host>-keys/ dir beside the
+# repo, or a prompt; the target disk is auto-detected (largest non-removable
+# device with no mounted partitions) unless --disk is given. --check-only
+# prints the preflight checklist and exits without touching anything.
+#
+# Automates: preflight -> disko -> inject host key -> nixos-install
 # -> set password -> reboot. Full context: docs/ioshi/eminix-install.md.
+# Spec: docs/superpowers/specs/2026-08-15-eminix-installer-iso-design.md
 set -euo pipefail
-
-FLAKE_HOST="${1:-rafik}"
-DISK="${2:-/dev/nvme0n1}"
-
-SELF="$(realpath "${BASH_SOURCE[0]}")"
-REPO="$(dirname "$(dirname "$SELF")")"          # .../dotfiles
-# The USB directory staged beside dotfiles/ is named per host — rafik-keys/,
-# datacore-keys/ — and holds that host's pre-generated SSH host key. That is
-# physical media this repo cannot create for you.
-KEY_DIR="$(dirname "$REPO")/${FLAKE_HOST}-keys"   # staged beside dotfiles/ on the USB
-HOST_KEY="$KEY_DIR/${FLAKE_HOST}_host_ed25519"
 
 say()  { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mWARNING:\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
-[ "$(id -u)" -eq 0 ] || die "run as root (sudo)."
-[ -f "$REPO/flake.nix" ] || die "repo not found at $REPO — run from the Ventoy-staged dotfiles checkout."
+# --- Args: [host] [--disk /dev/X | positional] [--check-only] ----------------
+FLAKE_HOST=""
+DISK=""
+CHECK_ONLY=0
+args=("$@")
+i=0
+while [ "$i" -lt "${#args[@]}" ]; do
+  a="${args[$i]}"
+  case "$a" in
+    --check-only) CHECK_ONLY=1 ;;
+    --disk)
+      i=$((i + 1))
+      DISK="${args[$i]:-}"
+      [ -n "$DISK" ] || die "--disk needs a value."
+      ;;
+    --disk=*) DISK="${a#--disk=}" ;;
+    -*) die "unknown option: $a" ;;
+    *)
+      if [ -z "$FLAKE_HOST" ]; then FLAKE_HOST="$a"; else DISK="${DISK:-$a}"; fi
+      ;;
+  esac
+  i=$((i + 1))
+done
+FLAKE_HOST="${FLAKE_HOST:-rafik}"
 
-say "Preflight"
-[ -d /sys/firmware/efi ] || die "not in UEFI mode — reboot the installer in UEFI (disable CSM/Legacy)."
+# --- Locate the repo ----------------------------------------------------------
+resolve_repo() {
+  if [ -n "${EMINIX_REPO:-}" ] && [ -f "$EMINIX_REPO/flake.nix" ]; then
+    REPO="$EMINIX_REPO"
+    return
+  fi
+  SELF="$(realpath "${BASH_SOURCE[0]}")"
+  if [ -f "$(dirname "$(dirname "$SELF")")/flake.nix" ]; then
+    REPO="$(dirname "$(dirname "$SELF")")"
+    return
+  fi
+  for cand in /etc/eminix/dotfiles /mnt/dotfiles /run/media/*/*/dotfiles /media/*/dotfiles; do
+    # shellcheck disable=SC2086 # globs are the point of the bounded scan
+    [ -f "$cand/flake.nix" ] && { REPO="$cand"; return; }
+  done
+  die "could not locate the dotfiles repo. Tried: \$EMINIX_REPO, the script's
+parent, /etc/eminix/dotfiles, /mnt/dotfiles, /run/media/*/*/dotfiles,
+/media/*/dotfiles. Set EMINIX_REPO to the repo path and re-run."
+}
 
-if command -v bootctl >/dev/null 2>&1 && bootctl status 2>/dev/null | grep -qi "Secure Boot: enabled"; then
-  warn "Secure Boot is ENABLED. systemd-boot is unsigned — the installed system will NOT boot."
-  warn "Disable Secure Boot in firmware (F1) before rebooting into the installed system."
-  read -rp "Continue the install anyway? [y/N] " a; [ "$a" = y ] || die "aborted — disable Secure Boot first."
+# --- Locate the host key (baked ISO -> staged dir -> prompt) ------------------
+# Sets KEY_DIR, or leaves it empty (check-only reports; real mode dies later).
+resolve_keys() {
+  KEY_DIR=""
+  if [ -f "/etc/eminix/keys/${FLAKE_HOST}_host_ed25519" ] &&
+    [ -f "/etc/eminix/keys/${FLAKE_HOST}_host_ed25519.pub" ]; then
+    KEY_DIR=/etc/eminix/keys
+    return
+  fi
+  if [ -f "$(dirname "$REPO")/${FLAKE_HOST}-keys/${FLAKE_HOST}_host_ed25519" ]; then
+    KEY_DIR="$(dirname "$REPO")/${FLAKE_HOST}-keys"
+    return
+  fi
+  if [ "$CHECK_ONLY" -eq 0 ]; then
+    read -rp "Directory holding ${FLAKE_HOST}_host_ed25519(.pub): " kd
+    if [ -n "$kd" ] && [ -f "$kd/${FLAKE_HOST}_host_ed25519" ]; then KEY_DIR="$kd"; fi
+  fi
+}
+
+# --- Target disk: largest non-removable, RW, with no mounted partitions -------
+resolve_disk() {
+  if [ -n "$DISK" ]; then return; fi
+  best=""
+  best_size=0
+  for name in $(lsblk -bndo NAME); do
+    [ "$(lsblk -bndo RO "/dev/$name")" = "0" ] || continue        # skip read-only
+    [ "$(lsblk -bndo TRAN "/dev/$name")" = "usb" ] && continue    # skip the stick
+    lsblk -no MOUNTPOINTS "/dev/$name" | grep -q . && continue    # skip mounted disks
+    size="$(lsblk -bndo SIZE "/dev/$name")"
+    if [ "${size:-0}" -gt "$best_size" ]; then best="$name"; best_size="$size"; fi
+  done
+  if [ -n "$best" ]; then DISK="/dev/$best"; fi
+}
+
+# --- Preflight ----------------------------------------------------------------
+resolve_repo
+resolve_keys
+resolve_disk
+
+CHECK_REPO=n
+CHECK_KEYS=n
+CHECK_UEFI=n
+CHECK_NET=n
+CHECK_DISK=n
+SB_STATUS="off"
+
+[ -f "$REPO/flake.nix" ] && CHECK_REPO=y
+
+# Host key fingerprint. Source of truth pre-Part-II: the agenix recipient in
+# secrets/secrets.nix. Post-Part-II (no secrets.nix): the keypair's internal
+# consistency against its own .pub, which is what the rekeyed secrets were
+# encrypted to. Either way a mismatch fails closed.
+if [ -n "$KEY_DIR" ]; then
+  HOST_KEY="$KEY_DIR/${FLAKE_HOST}_host_ed25519"
+  if [ -f "$HOST_KEY" ] && [ -f "$HOST_KEY.pub" ]; then
+    if [ -f "$REPO/secrets/secrets.nix" ]; then
+      host_pub="$(sed -nE "s/.*${FLAKE_HOST}[[:space:]]*=[[:space:]]*\"(ssh-ed25519 [^\"]+)\".*/\\1/p" "$REPO/secrets/secrets.nix")"
+      if [ -n "$host_pub" ]; then
+        want_fp="$(printf '%s\n' "$host_pub" | ssh-keygen -lf - | awk '{print $2}')"
+        have_fp="$(ssh-keygen -lf "$HOST_KEY.pub" | awk '{print $2}')"
+        [ "$want_fp" = "$have_fp" ] && CHECK_KEYS=y
+      fi
+    else
+      # No secrets.nix (agenix-rekey era): the staged pair must be self-consistent.
+      if cmp -s <(ssh-keygen -y -f "$HOST_KEY") <(cut -d' ' -f1-2 "$HOST_KEY.pub"); then
+        CHECK_KEYS=y
+      fi
+    fi
+  fi
 fi
 
-ping -c1 -W4 cache.nixos.org >/dev/null 2>&1 || die "no network — connect ethernet, or 'iwctl' to join wifi, then retry."
+if [ -d /sys/firmware/efi ]; then CHECK_UEFI=y; fi
 
-[ -f "$HOST_KEY" ] && [ -f "$HOST_KEY.pub" ] || die "host key not found at $HOST_KEY(.pub) — stage ${FLAKE_HOST}-keys/ beside dotfiles/ on the USB."
-host_pub="$(sed -nE "s/.*${FLAKE_HOST}[[:space:]]*=[[:space:]]*\"(ssh-ed25519 [^\"]+)\".*/\\1/p" "$REPO/secrets/secrets.nix")"
-[ -n "$host_pub" ] || die "could not read the ${FLAKE_HOST} recipient from secrets/secrets.nix — add its host key there and rekey before installing."
-want_fp="$(printf '%s\n' "$host_pub" | ssh-keygen -lf - | awk '{print $2}')"
-have_fp="$(ssh-keygen -lf "$HOST_KEY.pub" | awk '{print $2}')"
-[ "$want_fp" = "$have_fp" ] || die "staged host key ($have_fp) != agenix recipient in secrets.nix ($want_fp) — agenix would fail on first boot."
-say "Host key matches the agenix recipient ($have_fp) ✓"
+if command -v bootctl >/dev/null 2>&1 && bootctl status 2>/dev/null | grep -qi "Secure Boot: enabled"; then
+  SB_STATUS="ENABLED"
+fi
+
+if ping -c1 -W4 cache.nixos.org >/dev/null 2>&1; then CHECK_NET=y; fi
+
+[ -n "$DISK" ] && [ -b "$DISK" ] && CHECK_DISK=y
+
+print_checklist() {
+  printf '\n\033[1;36meminix installer preflight — %s\033[0m\n' "$FLAKE_HOST"
+  printf '  repo        %s %s\n' "$([ "$CHECK_REPO" = y ] && echo ✓ || echo ✗)" "$REPO"
+  if [ "$CHECK_KEYS" = y ]; then
+    printf '  keys        %s %s/%s_host_ed25519\n' ✓ "$KEY_DIR" "$FLAKE_HOST"
+  else
+    printf '  keys        %s (none staged for %s)\n' ✗ "$FLAKE_HOST"
+  fi
+  printf '  UEFI        %s\n' "$([ "$CHECK_UEFI" = y ] && echo ✓ || echo ✗)"
+  printf '  network     %s\n' "$([ "$CHECK_NET" = y ] && echo ✓ || echo ✗)"
+  printf '  disk        %s %s\n' "$([ "$CHECK_DISK" = y ] && echo ✓ || echo ✗)" "${DISK:-none detected}"
+  printf '  Secure Boot %s\n' "$SB_STATUS"
+}
+
+FAILED=""
+[ "$CHECK_REPO" = y ] || FAILED="$FAILED repo"
+[ "$CHECK_KEYS" = y ] || FAILED="$FAILED keys"
+[ "$CHECK_UEFI" = y ] || FAILED="$FAILED UEFI"
+[ "$CHECK_NET" = y ]  || FAILED="$FAILED network"
+[ "$CHECK_DISK" = y ] || FAILED="$FAILED disk"
+
+if [ "$CHECK_ONLY" -eq 1 ]; then
+  print_checklist
+  [ -z "$FAILED" ] && { say "check-only: all good."; exit 0; }
+  die "check-only: missing:$FAILED"
+fi
+
+# Anything below this line is destructive — check-only never gets here.
+[ "$(id -u)" -eq 0 ] || die "run as root (sudo)."
+
+print_checklist
+[ -z "$FAILED" ] || die "preflight failed:$FAILED"
+
+if [ "$SB_STATUS" = "ENABLED" ]; then
+  warn "Secure Boot is ENABLED. systemd-boot is unsigned — the installed system will NOT boot."
+  warn "Disable Secure Boot in firmware before rebooting into the installed system."
+  read -rp "Continue the install anyway? [y/N] " a
+  [ "$a" = y ] || die "aborted — disable Secure Boot first."
+fi
+
+# Cross-check the disko layout's declared device against the auto-detected one
+# (the layout is authoritative; a mismatch is a VM/override or a wrong pick).
+declared="$(grep -oE 'device = "[^"]+"' "$REPO/ioshi/hi-hardware/disko/$FLAKE_HOST.nix" 2>/dev/null | head -1 | cut -d'"' -f2 || true)"
+if [ -n "$declared" ] && [ "$declared" != "$DISK" ]; then
+  warn "disko layout for $FLAKE_HOST declares $declared but the target is $DISK."
+  read -rp "Continue? [y/N] " a
+  [ "$a" = y ] || die "aborted."
+fi
 
 say "Target disk"
 lsblk -d -o NAME,SIZE,MODEL,TRAN "$DISK" || die "$DISK not present."
@@ -55,9 +201,13 @@ printf '\033[1;31m>>> This ERASES %s completely. <<<\033[0m\n' "$DISK"
 read -rp "Type 'yes' to wipe $DISK and install $FLAKE_HOST: " ok
 [ "$ok" = yes ] || die "aborted."
 
-say "Partitioning + formatting with disko — set the LUKS passphrase when prompted"
-nix --experimental-features 'nix-command flakes' run github:nix-community/disko/latest -- \
-  --mode destroy,format,mount --flake "$REPO#$FLAKE_HOST"
+say "Partitioning + formatting with disko"
+if command -v disko >/dev/null 2>&1; then
+  disko --mode destroy,format,mount --flake "$REPO#$FLAKE_HOST"
+else
+  nix run github:nix-community/disko/latest -- \
+    --mode destroy,format,mount --flake "$REPO#$FLAKE_HOST"
+fi
 
 say "Injecting the $FLAKE_HOST host key (so agenix decrypts on first boot)"
 install -d -m 755 /mnt/etc/ssh
@@ -72,5 +222,5 @@ nixos-enter --root /mnt -c 'passwd scott'
 
 say "$FLAKE_HOST installed."
 echo "After reboot (remove the USB), log in and run:  eminix-firstboot"
-if [ -f /mnt/etc/ssh/ssh_host_ed25519_key ]; then :; fi
-read -rp "Reboot now? [y/N] " r; [ "$r" = y ] && reboot
+read -rp "Reboot now? [y/N] " r
+[ "$r" = y ] && reboot
