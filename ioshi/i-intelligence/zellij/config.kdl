@@ -6,7 +6,7 @@
 // Kept outside the repo because ~/.config/zellij is a live symlink into the
 // checkout and must stay clean. This directory must exist or zellij fails to
 // start with an IoError; Home Manager creates and seeds it.
-theme_dir "/home/scott/.local/share/dotfiles/zellij-themes/active"
+theme_dir "$HOME/.local/share/eminix/zellij-themes/active"
 theme "eminix"
 
 keybinds clear-defaults=true {
@@ -156,7 +156,7 @@ keybinds clear-defaults=true {
         bind "Alt ]" { NextSwapLayout; }
         bind "Alt f" { ToggleFloatingPanes; }
         bind "Ctrl y" {
-            LaunchOrFocusPlugin "file:/home/scott/.config/zellij/plugins/zellij_forgot.wasm" {
+            LaunchOrFocusPlugin "file:$HOME/.config/zellij/plugins/zellij_forgot.wasm" {
                 floating true
                 move_to_focused_tab true
             }
