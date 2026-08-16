@@ -23,14 +23,9 @@
   # .stignore already excludes /auth.json from Syncthing.
   #
   # Gated on eminix.pi.enable, NOT on "is this a NixOS host with agenix".
-  # The scott.standalone guard removed on 2026-08-07 was replaced with an
-  # unconditional symlink on that reasoning, which is wrong: being a NixOS
-  # host with agenix in the common core does not mean every secret should be
-  # symlinked everywhere. datacore IS a recipient of openrouter-auth.age (it
-  # must be, to activate at all — see secrets/secrets.nix) but does not run
-  # pi, so symlinking would be pointless clutter, not a decrypt failure.
-  # Recipient-ness is per secret and orthogonal to what any host does with
-  # the plaintext once decrypted; see secrets/secrets.nix.
+  # The secret itself (e.g. an OpenRouter auth key) is declared by the
+  # consuming flake; this module only symlinks the decrypted secret into the
+  # pi agent's home when this host actually runs pi.
   home.file.".pi/agent/auth.json" = lib.mkIf config.eminix.pi.enable {
     source = config.lib.file.mkOutOfStoreSymlink "/run/agenix/openrouter-auth";
   };

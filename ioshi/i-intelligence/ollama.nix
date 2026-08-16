@@ -5,8 +5,8 @@
   # system module does.
   #
   # Imported by profiles/roles/workstation.nix, NOT by profiles/eminix.nix. That
-  # distinction is load-bearing: rafik is the only workstation, so this file
-  # reaches only rafik. whistle and datacore have services.ollama.enable = false
+  # distinction is load-bearing: a workstation host, so this file
+  # reaches only workstation hosts. non-workstation hosts set services.ollama.enable = false
   # and get plain pkgs.ollama. If this moved into the eminix core, the Vulkan
   # package below would follow onto a WSL box and a headless server that have no
   # use for it.

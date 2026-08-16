@@ -11,7 +11,7 @@ in
     type = lib.types.bool;
     default = config.eminix.gui;
     defaultText = "config.eminix.gui";
-    description = "Install ghostty + its managed config. Defaults to the gui flag; whistle (gui=false) sets it true — WSLg renders it like any Wayland app.";
+    description = "Install ghostty + its managed config. Defaults to the gui flag; non-GUI hosts (WSLg) set it true.";
   };
 
   config = lib.mkIf config.eminix.ghostty.enable {

@@ -32,8 +32,8 @@
     # dirty the working tree — the Helix drift caveat in docs/manual/02-theming.md.
     #
     # Colours are ANSI indices 0-15, so they resolve against whatever terminal
-    # renders the session. Under ssh from rafik into whistle the rendering
-    # terminal is rafik's ghostty, so hardcoded per-host colours would clash.
+    # renders the session. Under ssh between hosts the rendering
+    # terminal is the local ghostty, so hardcoded per-host colours would clash.
     # A palette switch therefore needs no zellij change at all; only dark/light
     # does.
     #

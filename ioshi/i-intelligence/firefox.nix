@@ -15,7 +15,7 @@ in
   # Gated on eminix.gui. The ibgateway branch imported this unconditionally,
   # which put a browser on the headless server and on WSL. programs.firefox
   # installs the package itself, so packages.nix must NOT also list `firefox` —
-  # doing both gave rafik two identical firefox entries in home.packages.
+  # doing both gives two identical firefox entries in home.packages.
   config = lib.mkIf config.eminix.gui {
     # Firefox, following the active palette's variant via the
     # ui.systemUsesDarkTheme pref below. Deliberately NOT Catppuccin-themed:
