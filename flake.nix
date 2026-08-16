@@ -102,6 +102,10 @@
         modules = [ ./installer/iso.nix ];
       };
 
+      # The installer ISO as a package (nix build .#installerIso).
+      packages.${system}.installerIso =
+        self.nixosConfigurations.installer.config.system.build.isoImage;
+
       # Disko configurations are defined by consumers (per-host disk layouts
       # are personal). The installer carries the disko INPUT so consuming
       # flakes can build their own.
