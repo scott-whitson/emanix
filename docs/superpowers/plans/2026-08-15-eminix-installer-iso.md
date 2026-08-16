@@ -946,3 +946,14 @@ HP presents its NVMe differently; the `--disk` override is the escape hatch.
 7. **Runbook rewrite also carries the host-key-inheritance staging commands**
    (the `ssh -t` flow) and the `live.nixos.passwd=` sshd note — both were
    implied by the plan, made explicit in the doc.
+8. **QEMU validation (Task 6, 2026-08-16):** the full staged-repo
+   `nix build` is infeasible in a 2GB QEMU VM — the live ISO's `/nix` is
+   memory-backed tmpfs, so a multi-GB closure thrashes/ENOSPC. Replaced the
+   VM build check with `nix flake check` (eval-completeness is what a missing
+   staged file would break); the real multi-GB build is validated by the HP
+   install (Task 14). Also: QEMU without OVMF boots legacy BIOS, so the
+   checklist's UEFI reads ✗ in the VM and ✓ on real UEFI hardware; pass
+   `-drive if=pflash,format=raw,readonly=on,file=<OVMF>/OVMF_CODE.fd` for a
+   UEFI-capable VM. The `diskoConfigurations` warning from `nix flake check`
+   is pre-existing and cosmetic (a custom flake output the checker doesn't
+   recognize).
