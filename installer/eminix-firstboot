@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
 # eminix-firstboot — one-time post-install setup, run once after the first boot.
-# Joins the tailnet, prints the Syncthing device id to pair on datacore, and
-# clones the dotfiles to ~/dotfiles (liveElisp home). Safe to re-run.
+#
+# The DISTRIBUTION's firstboot does only what is true of every eminix box:
+# join the tailnet. Personal steps (cloning a personal config repo, pairing
+# Syncthing folders, registering host keys) belong to the consuming flake —
+# override this script or add hooks via the flake that builds your ISO.
+# Safe to re-run.
 # Packaged onto PATH by ioshi/os-system/firstboot.nix.
 
 say() { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
 
-# 1. Tailnet (self-hosted headscale; login-server URL is baked into the flake).
+# 1. Tailnet (login-server URL is baked into the flake via eminix.tailscale).
 if tailscale status >/dev/null 2>&1; then
   say "Tailscale already connected."
 else
-  say "Tailnet join. On datacore, mint a key:"
-  echo "    docker exec headscale headscale preauthkeys create --user 1 --expiration 1h"
-  read -rsp "Paste the preauthkey (hidden): " key || true; echo
+  say "Tailnet join. Mint a preauthkey on your coordination server, then:"
+  echo "    echo '<key>' | sudo tee /var/lib/tailscale-authkey"
+  echo "    sudo systemctl restart tailscaled-autoconnect"
+  read -rsp "Paste the preauthkey now (hidden), or press Enter to do it manually: " key || true; echo
   if [ -n "$key" ]; then
     printf '%s' "$key" | sudo tee /var/lib/tailscale-authkey >/dev/null
     sudo systemctl restart tailscaled-autoconnect
@@ -20,44 +25,10 @@ else
     tailscale status || true
     sudo rm -f /var/lib/tailscale-authkey   # tailscale state holds the identity now
   else
-    echo "  (skipped — no key entered)"
-  fi
-fi
-
-# 2. Syncthing pairing (two-sided — add this id on datacore:8384, share pi-agent + docs).
-say "Syncthing device id — add on datacore and share pi-agent + docs:"
-syncthing --device-id 2>/dev/null || echo "  (syncthing not up yet — 'systemctl status syncthing' then re-run)"
-
-# 3. Live-edit checkout (liveElisp symlinks ~/.config/emacs into ~/dotfiles).
-if [ -d "$HOME/dotfiles/.git" ]; then
-  say "dotfiles already present at $HOME/dotfiles."
-else
-  say "Cloning dotfiles to ~/dotfiles"
-  git clone git@github.com:scott-whitson/dotfiles "$HOME/dotfiles" \
-    || echo "  clone failed — add your github key, then: git clone git@github.com:scott-whitson/dotfiles ~/dotfiles"
-fi
-
-# 4. Verify secrets decrypted (proves the host-key injection worked).
-# With agenix-rekey, a BRAND-NEW host (no inherited key) has no rekeyed secret
-# yet — that is expected, not a failure; print the bootstrap instead.
-say "Sanity checks"
-if [ -r "$HOME/.pi/agent/auth.json" ] && ! grep -q REPLACE-ME "$HOME/.pi/agent/auth.json" 2>/dev/null; then
-  echo "  openrouter auth.json: decrypted ✓"
-else
-  echo "  openrouter auth.json: not decrypted."
-  if [ -f /etc/ssh/ssh_host_ed25519_key.pub ] \
-    && ! grep -q "$(cut -d' ' -f1-2 /etc/ssh/ssh_host_ed25519_key.pub)" "$HOME/dotfiles/keys/$(hostname)_host_ed25519.pub" 2>/dev/null; then
-    echo
-    echo "  This looks like a BRAND-NEW host. On the BUILDER (rafik), register it:"
-    echo "      cd ~/dotfiles"
-    echo "      cp <this host's key> keys/$(hostname)_host_ed25519.pub   # from /etc/ssh/ssh_host_ed25519_key.pub here"
-    echo "      nix run github:oddlama/agenix-rekey -- rekey -a"
-    echo "      git add keys/ secrets/rekeyed/ && git commit -m 'secrets: add $(hostname)' && git push"
-    echo "  Then here:  sudo nixos-rebuild switch --flake github:scott-whitson/dotfiles#$(hostname)"
-    echo "  The agenix unit finds the rekeyed secret and auth.json appears."
-  else
-    echo "  check agenix (host key) — an inherited key should have decrypted this."
+    echo "  (skipped — follow the instructions above)"
   fi
 fi
 
 say "eminix first-boot complete."
+say "Personal setup (config repo, secrets, sync folders) is defined by your"
+say "consuming flake — see its firstboot or post-install documentation."

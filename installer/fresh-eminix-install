@@ -4,8 +4,8 @@
 # Usage (in the eminix installer ISO, or any NixOS live ISO):
 #   sudo fresh-eminix-install [host] [--disk /dev/X] [--check-only]
 #
-# Defaults to rafik. The repo is located automatically (EMINIX_REPO, the
-# script's parent, /etc/eminix/dotfiles on the ISO, or common mounts); the
+# The host is required. The repo is located automatically (EMINIX_REPO, the
+# script's parent, /etc/eminix/flake on the ISO, or common mounts); the
 # host key comes from the baked ISO keys, a staged <host>-keys/ dir beside the
 # repo, or a prompt; the target disk is auto-detected (largest non-removable
 # device with no mounted partitions) unless --disk is given. --check-only
@@ -43,7 +43,7 @@ while [ "$i" -lt "${#args[@]}" ]; do
   esac
   i=$((i + 1))
 done
-FLAKE_HOST="${FLAKE_HOST:-rafik}"
+[ -n "$FLAKE_HOST" ] || die "usage: fresh-eminix-install <host> [--disk /dev/X] [--check-only]"
 
 # --- Locate the repo ----------------------------------------------------------
 resolve_repo() {
@@ -56,13 +56,13 @@ resolve_repo() {
     REPO="$(dirname "$(dirname "$SELF")")"
     return
   fi
-  for cand in /etc/eminix/dotfiles /mnt/dotfiles /run/media/*/*/dotfiles /media/*/dotfiles; do
+  for cand in /etc/eminix/flake /mnt/flake /run/media/*/*/flake /media/*/flake; do
     # shellcheck disable=SC2086 # globs are the point of the bounded scan
     [ -f "$cand/flake.nix" ] && { REPO="$cand"; return; }
   done
-  die "could not locate the dotfiles repo. Tried: \$EMINIX_REPO, the script's
-parent, /etc/eminix/dotfiles, /mnt/dotfiles, /run/media/*/*/dotfiles,
-/media/*/dotfiles. Set EMINIX_REPO to the repo path and re-run."
+  die "could not locate the eminix flake. Tried: \$EMINIX_REPO, the script's
+parent, /etc/eminix/flake, /mnt/flake, /run/media/*/*/flake,
+/media/*/flake. Set EMINIX_REPO to the repo path and re-run."
 }
 
 # --- Locate the host key (baked ISO -> staged dir -> prompt) ------------------
