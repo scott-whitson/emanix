@@ -7,6 +7,7 @@
   # System packages (docker CLI comes from virtualisation.docker.enable)
   environment.systemPackages = with pkgs; [
     docker-compose
+    love
   ];
 
   # nixpkgs.config (allowUnfree, permittedInsecurePackages) is set once in

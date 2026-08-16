@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Moonring launcher — native LÖVE on Wayland (preferred), Proton fallback.
+#
+# Moonring is a LÖVE game shipped as a Windows exe. Two ways to run it:
+#
+# 1) NATIVE (default):  love Moonring.exe  -> SDL2 speaks Wayland directly,
+#    so it is a normal Wayland app and keyboard "just works" (no X11 at all).
+#    "Unable to load Steam" in the log is expected (no luasteam) and harmless.
+#    Saves live in ~/.local/share/love/Moonring/.
+#
+# 2) PROTON FALLBACK:  steam steam://rungameid/2373630  -> runs under Wine via
+#    X11/XWayland. EWM merges all X11 into one surface and never moves X11
+#    input focus to individual windows, so Wine gets no keys (mouse works,
+#    keyboard dead). The fallback re-asserts X focus with `xdotool windowfocus`.
+#    Use with:  moonring --proton
+#
+# Never stacks instances (flock held while the game runs), so double-clicking
+# the launcher cannot open two copies.
+#
+# Usage: launcher menu (Moonring.desktop) or a terminal.
+
+set -euo pipefail
+
+MOONRING_DIR="$HOME/.local/share/Steam/steamapps/common/Moonring"
+GAME_NAME='Moonring'
+LOCK="${XDG_RUNTIME_DIR:-/tmp}/.moonring-launch.lock"
+
+# Single-flight guard: if another moonring is already running (holding the
+# lock), exit immediately.
+exec 9>"$LOCK"
+flock -n 9 || exit 0
+
+# --- Path 1: native LÖVE on Wayland -------------------------------------
+if [ "${1:-}" != "--proton" ] \
+   && [ -x "$(command -v love)" ] \
+   && [ -f "$MOONRING_DIR/Moonring.exe" ]; then
+  cd "$MOONRING_DIR"
+  exec env SDL_VIDEODRIVER=wayland love Moonring.exe
+fi
+
+# --- Path 2: Proton under XWayland + X-focus re-assertion ---------------
+MAX_WAIT="${MOONRING_MAX_WAIT:-180}"
+
+game_win() {
+  DISPLAY=:0 xdotool search --onlyvisible --limit 1 --name "$GAME_NAME" 2>/dev/null || true
+}
+
+if [ -z "$(game_win)" ]; then
+  steam steam://rungameid/2373630 &
+fi
+
+win=""
+for _ in $(seq 1 $((MAX_WAIT * 2))); do
+  win=$(game_win)
+  [ -n "$win" ] && break
+  sleep 0.5
+done
+[ -n "$win" ] || exit 0
+
+flock -u 9 2>/dev/null || true
+
+while true; do
+  win=$(game_win)
+  [ -n "$win" ] || break
+  DISPLAY=:0 xdotool windowfocus --sync "$win" 2>/dev/null || true
+  sleep 2
+done
