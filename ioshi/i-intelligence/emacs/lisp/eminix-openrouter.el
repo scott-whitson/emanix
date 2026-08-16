@@ -1,4 +1,4 @@
-;;; scott-openrouter.el --- OpenRouter 7-day cost surface (super+u) -*- lexical-binding: t; -*-
+;;; eminix-openrouter.el --- OpenRouter 7-day cost surface (super+u) -*- lexical-binding: t; -*-
 ;; Replaces base/bin hypr-or-cost: exact rolling 7-day cost via the
 ;; management key (activity API, lags ~1 day) topped up with today's
 ;; usage from the regular key.
@@ -6,19 +6,19 @@
 (require 'iso8601)
 (require 'json)
 
-(defconst scott-openrouter--auth-file "~/.pi/agent/auth.json")
+(defconst eminix-openrouter--auth-file "~/.pi/agent/auth.json")
 
-(defun scott-openrouter--keys ()
+(defun eminix-openrouter--keys ()
   "Return (MANAGEMENT-KEY . REGULAR-KEY) from the pi auth file."
   (let ((auth (json-parse-string
                (with-temp-buffer
-                 (insert-file-contents scott-openrouter--auth-file)
+                 (insert-file-contents eminix-openrouter--auth-file)
                  (buffer-string))
                :object-type 'alist :null-object nil)))
     (cons (alist-get 'key (alist-get 'openrouter-management auth))
           (alist-get 'key (alist-get 'openrouter auth)))))
 
-(defun scott-openrouter--fetch-json (url key)
+(defun eminix-openrouter--fetch-json (url key)
   "GET URL with bearer KEY; return parsed alist tree."
   (let ((url-request-extra-headers
          `(("Authorization" . ,(concat "Bearer " key)))))
@@ -28,7 +28,7 @@
                                 :null-object nil)
         (kill-buffer)))))
 
-(defun scott-openrouter--summarize (activity key-data now)
+(defun eminix-openrouter--summarize (activity key-data now)
   "Summarize ACTIVITY entries and KEY-DATA relative to time NOW.
 Mirrors the logic of the retired hypr-or-cost script."
   (let ((cutoff (time-subtract now (days-to-time 7)))
@@ -56,32 +56,32 @@ Mirrors the logic of the retired hypr-or-cost script."
        (format "$%.2f — this month" monthly)))))
 
 ;;;###autoload
-(defun scott/openrouter-cost ()
+(defun eminix/openrouter-cost ()
   "Show the rolling 7-day OpenRouter cost summary."
   (interactive)
-  (pcase-let ((`(,mgmt . ,regular) (scott-openrouter--keys)))
+  (pcase-let ((`(,mgmt . ,regular) (eminix-openrouter--keys)))
     (unless (and mgmt regular)
-      (user-error "OpenRouter keys missing from %s" scott-openrouter--auth-file))
-    (let* ((activity (alist-get 'data (scott-openrouter--fetch-json
+      (user-error "OpenRouter keys missing from %s" eminix-openrouter--auth-file))
+    (let* ((activity (alist-get 'data (eminix-openrouter--fetch-json
                                        "https://openrouter.ai/api/v1/activity?limit=500" mgmt)))
-           (key-data (alist-get 'data (scott-openrouter--fetch-json
+           (key-data (alist-get 'data (eminix-openrouter--fetch-json
                                        "https://openrouter.ai/api/v1/auth/key" regular)))
            (buf (get-buffer-create "*openrouter*")))
       (with-current-buffer buf
         (let ((inhibit-read-only t))
           (erase-buffer)
           (insert "OpenRouter Cost\n\n"
-                  (scott-openrouter--summarize activity key-data (current-time))
+                  (eminix-openrouter--summarize activity key-data (current-time))
                   "\n"))
         (special-mode))
       (pop-to-buffer buf))))
 
-(defun scott/openrouter-cost-frame ()
-  "Hyprland entry point: `scott/openrouter-cost' in a floating frame."
+(defun eminix/openrouter-cost-frame ()
+  "Hyprland entry point: `eminix/openrouter-cost' in a floating frame."
   (let ((frame (make-frame '((name . "emacs-openrouter")
                              (title . "emacs-openrouter")))))
     (select-frame-set-input-focus frame)
-    (scott/openrouter-cost)))
+    (eminix/openrouter-cost)))
 
-(provide 'scott-openrouter)
-;;; scott-openrouter.el ends here
+(provide 'eminix-openrouter)
+;;; eminix-openrouter.el ends here

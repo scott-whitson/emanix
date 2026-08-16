@@ -59,7 +59,7 @@
 
 ;; Clock + battery + status for the EWM tab-bar panel (no status bar under EWM).
 ;; Volume/wifi/cpu/ram/gpu/clock/battery all render once in the tab-bar via
-;; scott/tab-bar-status, not the mode-line.
+;; eminix/tab-bar-status, not the mode-line.
 (setq-default display-time-format "%a %b %e %I:%M %p"
               display-time-default-load-average nil)
 (display-time-mode 1)
@@ -86,13 +86,13 @@
 ;;  C-j = eval + print inline     C-x C-e = eval, echo area
 ;;  M-: = eval from minibuffer    C-x * q = quick calc
 
-(scott-quarterly-open)
-(scott/calendar-sync)
+(eminix-quarterly-open)
+(eminix/calendar-sync)
 (org-agenda nil \"w\")
 (magit-status \"~/dotfiles\")
-(scott/weather)
-(scott/openrouter-cost)
-(call-interactively #'scott/launch-app)
+(eminix/weather)
+(eminix/openrouter-cost)
+(call-interactively #'eminix/launch-app)
 ")
 
 ;; --- Minibuffer completion: vertico + orderless + consult + marginalia + embark ---
@@ -204,13 +204,13 @@
 
 ;; Line movement (global bindings, works with Meow selections)
 ;; System commands
-(defun scott-reboot ()
+(defun eminix-reboot ()
   "Reboot the system."
   (interactive)
   (when (yes-or-no-p "Reboot now? ")
     (start-process "reboot" nil "sudo" "reboot")))
 
-(defun scott-shutdown ()
+(defun eminix-shutdown ()
   "Shut down the system."
   (interactive)
   (when (yes-or-no-p "Shut down now? ")
@@ -316,89 +316,15 @@
   (global-set-key (kbd "C-c n c") #'org-roam-capture))
 (global-set-key (kbd "C-c a") #'org-agenda)
 
-;; Auto-update #+DATE: header on save (for weblorg revision dates).
-;; Only runs in ~/projects/websites/ to avoid touching other org files.
-(defun scott/org-update-revision-date ()
-  "Update the #+DATE: header to today's date if the file is in ~/projects/websites/."
-  (when (and buffer-file-name
-             (string-prefix-p (expand-file-name "~/projects/websites/")
-                              (file-truename buffer-file-name)))
-    (save-excursion
-      (goto-char (point-min))
-      (when (re-search-forward "^\\#\\+DATE:"
-                               (if (re-search-forward "^\\* " nil t) (match-beginning 0) (point-max))
-                               t)
-        (let ((date-str (format-time-string "%Y-%m-%d")))
-          (kill-line)
-          (insert (format "<%s>" date-str)))))))
-(add-hook 'org-mode-hook
-          (lambda ()
-            (add-hook 'after-save-hook #'scott/org-update-revision-date nil :local)))
-
-;; --- weblorg: pure Emacs Lisp static site generator ---
-(when (require 'weblorg nil :no-error)
-  ;; weblorg is configured via publish.el files in each site directory.
-  ;; Run with: emacs --script publish.el
-  ;;
-  ;; Keybindings for quick publishing:
-  (defun scott/weblorg-publish-eminix ()
-    "Publish the eminix.org website."
-    (interactive)
-    (let ((default-directory "~/projects/websites/eminix"))
-      (shell-command "emacs --script publish.el")))
-
-  (defun scott/weblorg-publish-scottwhitson ()
-    "Publish scottwhitson.com."
-    (interactive)
-    (let ((default-directory "~/projects/websites/scottwhitson"))
-      (shell-command "emacs --script publish.el")))
-
-  (defun scott/weblorg-publish-whitsoninterfacesystems ()
-    "Publish whitsoninterfacesystems.com."
-    (interactive)
-    (let ((default-directory "~/projects/websites/whitsoninterfacesystems"))
-      (shell-command "emacs --script publish.el")))
-
-  ;; Quick access to website directories
-  (defun scott/open-websites-dir ()
-    "Open the websites directory in dired."
-    (interactive)
-    (dired "~/projects/websites"))
-
-  ;; Deploy helpers (requires SSH access to satcom)
-  (defun scott/deploy-eminix ()
-    "Build and deploy eminix.net to satcom."
-    (interactive)
-    (let ((default-directory "~/projects/websites"))
-      (shell-command "./deploy.sh eminix")))
-
-  (defun scott/deploy-scottwhitson ()
-    "Build and deploy scottwhitson.com to satcom."
-    (interactive)
-    (let ((default-directory "~/projects/websites"))
-      (shell-command "./deploy.sh scottwhitson")))
-
-  (defun scott/deploy-whitsoninterfacesystems ()
-    "Build and deploy whitsoninterfacesystems.com to satcom."
-    (interactive)
-    (let ((default-directory "~/projects/websites"))
-      (shell-command "./deploy.sh whitsoninterfacesystems")))
-
-  (defun scott/deploy-all-sites ()
-    "Build and deploy all sites to satcom."
-    (interactive)
-    (let ((default-directory "~/projects/websites"))
-      (shell-command "./deploy.sh all"))))
-
 ;; Kill org buffers after agenda closes — they're only opened for scanning.
 ;; NB: this kills EVERY org-mode buffer, not just the ones the agenda opened,
 ;; so an org file you were editing yourself also goes when you quit the agenda.
-(defun scott/org-agenda-kill-buffers ()
+(defun eminix/org-agenda-kill-buffers ()
   "Kill all org-mode buffers after closing the agenda."
   (dolist (buf (buffer-list))
     (when (with-current-buffer buf (derived-mode-p 'org-mode))
       (kill-buffer buf))))
-(add-hook 'org-agenda-quit-hook #'scott/org-agenda-kill-buffers)
+(add-hook 'org-agenda-quit-hook #'eminix/org-agenda-kill-buffers)
 
 ;; org-babel: executable src blocks in notes (the "living ops journal"
 ;; workflow, adopted 2026-08-05). Shell blocks are off by default — enable.
@@ -446,14 +372,14 @@
 ;; The Google Calendar sync will be handled by a small Python tool.
 ;; Emacs should stay focused on editing Dates.org and launching the tool.
 
-(defun scott/calendar-sync ()
+(defun eminix/calendar-sync ()
   "Launch the Python calendar sync tool."
   (interactive)
   (start-process-shell-command
    "calendar-sync" nil
    (expand-file-name "~/dotfiles/bin/calendar-sync") "sync"))
 
-(global-set-key (kbd "C-c c") #'scott/calendar-sync)
+(global-set-key (kbd "C-c c") #'eminix/calendar-sync)
 
 ;; --- Google Docs sync (org ↔ Google Docs) ---
 ;; Bidirectional sync between org files and Google Docs.
@@ -477,8 +403,8 @@
   ;;
   ;; 2. A bare (require 'gdocs) SIGNALS when it fails, and nothing above
   ;;    catches it, so the failure aborted every remaining form in init.el.
-  ;;    After a reboot that meant no top bar (scott/modeline-mode), no s-d
-  ;;    (scott/launcher) and no EWM window commands (scott/ewm--goto and
+  ;;    After a reboot that meant no top bar (eminix/modeline-mode), no s-d
+  ;;    (eminix/launcher) and no EWM window commands (eminix/ewm--goto and
   ;;    friends) -- all defined below this point. Never let an optional
   ;;    package take the desktop down: require it with :no-error and only
   ;;    configure it if it actually loaded.
@@ -496,16 +422,16 @@
     (message "gdocs not loadable; skipping (see the comment above)")))
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(scott-theme scott-weather scott-openrouter scott-modeline scott-launcher scott-pi scott-quarterly))
+(dolist (feature '(eminix-theme eminix-weather eminix-openrouter eminix-modeline eminix-launcher eminix-pi eminix-quarterly))
   (require feature nil :no-error))
 ;; Quarterly tracker — C-c q opens this quarter's note, C-u C-c q forces the
 ;; work one on a machine that has both trees.
-(when (fboundp 'scott-quarterly-open)
-  (global-set-key (kbd "C-c q") #'scott-quarterly-open))
+(when (fboundp 'eminix-quarterly-open)
+  (global-set-key (kbd "C-c q") #'eminix-quarterly-open))
 ;; App launcher — the EWM s-d experience on every machine (C-c o works
 ;; under EWM too; s-d remains on eminix).
-(when (fboundp 'scott/launch-app)
-  (global-set-key (kbd "C-c o") #'scott/launch-app))
+(when (fboundp 'eminix/launch-app)
+  (global-set-key (kbd "C-c o") #'eminix/launch-app))
 
 ;; Terminal in a buffer — the terminal answer on non-EWM machines (decided
 ;; 2026-08-04: a real terminal app can never be a buffer outside EWM's own
@@ -528,16 +454,16 @@
 ;; and search still see the original char); this is purely what gets painted.
 (require 'disp-table)
 
-(defvar scott/vterm-glyph-substitutions
+(defvar eminix/vterm-glyph-substitutions
   '((?⏴ . ?◀) (?⏵ . ?▶) (?⏸ . ?‖) (?⏹ . ?■) (?⏺ . ?●)
     (?⎿ . ?└) (?✔ . ?✓) (?✘ . ?✗) (?◻ . ?□) (?◼ . ?■))
   "Alist of (WIDE-CHAR . CELL-WIDTH-CHAR) substitutions for vterm buffers.
 Each cdr is verified to render at the default face's cell width.")
 
-(defun scott/vterm-fix-glyph-widths ()
+(defun eminix/vterm-fix-glyph-widths ()
   "Remap off-grid TUI symbols to cell-width glyphs in the current buffer."
   (let ((dt (make-display-table)))
-    (pcase-dolist (`(,from . ,to) scott/vterm-glyph-substitutions)
+    (pcase-dolist (`(,from . ,to) eminix/vterm-glyph-substitutions)
       (aset dt from (vector (make-glyph-code to))))
     ;; Spinner frames: the dingbat (✳..✿) and braille (⠀..⣿) animations cycle
     ;; through glyphs of differing widths, so the whole line jitters each tick.
@@ -548,51 +474,51 @@ Each cdr is verified to render at the default face's cell width.")
       (aset dt (+ #x2800 i) (vector (make-glyph-code ?·))))
     (setq buffer-display-table dt)))
 
-(add-hook 'vterm-mode-hook #'scott/vterm-fix-glyph-widths)
+(add-hook 'vterm-mode-hook #'eminix/vterm-fix-glyph-widths)
 
 ;; Frame title must ALWAYS contain "emacs": GlazeWM's ignore rule on the
 ;; work laptop matches WSLg windows by title to leave the Emacs frame
 ;; unmanaged (the default title is bare "%b" once a second frame exists,
 ;; which would silently re-enroll Emacs into tiling). Harmless elsewhere.
 (setq frame-title-format '("%b — emacs@" system-name))
-(when (fboundp 'scott/theme-init)
-  (scott/theme-init))
-(when (fboundp 'scott/modeline-mode)
-  (scott/modeline-mode 1))
+(when (fboundp 'eminix/theme-init)
+  (eminix/theme-init))
+(when (fboundp 'eminix/modeline-mode)
+  (eminix/modeline-mode 1))
 
 ;; Slots are generic: no app or name is tied to a number. Apps launch into
 ;; whatever slot you're on (e.g. `s-w' → Firefox), and you name slots yourself
 ;; with `s-r'.
 
-;; Window-management commands, extracted 2026-08-10 to lisp/scott-ewm-slots.el
+;; Window-management commands, extracted 2026-08-10 to lisp/eminix-ewm-slots.el
 ;; so fallback.el can require them too. See that file's header for why it must
 ;; not require `ewm'.
-(require 'scott-ewm-slots nil :no-error)
+(require 'eminix-ewm-slots nil :no-error)
 
 ;; Frame-global panel: system stats + clock + battery, rendered ONCE at the top
 ;; of the (full-screen, under EWM) frame — the actual bar.
-(when (fboundp 'scott/tab-bar-status)
-  ;; Left: EWM slot list (scott/ewm-tab-bar-slots, no-op off EWM).
+(when (fboundp 'eminix/tab-bar-status)
+  ;; Left: EWM slot list (eminix/ewm-tab-bar-slots, no-op off EWM).
   ;; Right: system stats + clock + battery.
-  (setq tab-bar-format '(scott/ewm-tab-bar-slots
+  (setq tab-bar-format '(eminix/ewm-tab-bar-slots
                          tab-bar-format-align-right
-                         scott/tab-bar-status))
+                         eminix/tab-bar-status))
   (setq tab-bar-show t)   ; always show the panel, even with a single/zero tab
   (tab-bar-mode 1))
 
 ;; elisa — local, config-aware eminix assistant (Emacs/Linux/NixOS RAG via a
 ;; sqlite-vec ELISA fork + ellama + local Ollama). Binds the C-c i map.
-(require 'scott-elisa nil :no-error)
+(require 'eminix-elisa nil :no-error)
 
 ;; EWM-only session glue (swayidle/swaylock + touchpad) — no-op elsewhere.
 ;; EWM is loaded via `emacs --eval (require 'ewm)' which runs AFTER this init
 ;; file, so `(featurep 'ewm)' is still nil here: a plain `when' guard skips
 ;; the require and input/session glue never loads (symptom: tap-to-click and
-;; swayidle silently absent, (fboundp 'scott/ewm-start-swayidle) => nil).
+;; swayidle silently absent, (fboundp 'eminix/ewm-start-swayidle) => nil).
 ;; Defer to the moment the ewm feature actually arrives; on non-EWM hosts it
 ;; never loads, so this stays a no-op there.
 (with-eval-after-load 'ewm
-  (require 'scott-ewm nil :no-error)
+  (require 'eminix-ewm nil :no-error)
   (when (boundp 'ewm-mode-map)
     ;; Super+number restores the old workspace-switch rhythm, but in EWM frame
     ;; slots. Slots create on demand: super-3 opens/switches to slot 3.
@@ -601,18 +527,18 @@ Each cdr is verified to render at the default face's cell width.")
         (define-key ewm-mode-map (kbd (format "s-%d" slot))
           (lambda ()
             (interactive)
-            (scott/ewm-select-slot slot)))))
+            (eminix/ewm-select-slot slot)))))
     (define-key ewm-mode-map (kbd "s-0")
       (lambda ()
         (interactive)
-        (scott/ewm-select-slot 10)))
+        (eminix/ewm-select-slot 10)))
     ;; Rename the current frame/slot in the top bar.
-    (define-key ewm-mode-map (kbd "s-r") #'scott/ewm-rename-workspace)
+    (define-key ewm-mode-map (kbd "s-r") #'eminix/ewm-rename-workspace)
     ;; Close the current slot (manual lifecycle; no auto-close under EWM).
     ;; s-q mirrors Hyprland's `$mod, Q, killactive' muscle memory.
-    (define-key ewm-mode-map (kbd "s-q") #'scott/ewm-close-slot)
+    (define-key ewm-mode-map (kbd "s-q") #'eminix/ewm-close-slot)
     ;; Launch Firefox into the current slot (was s-w under Hyprland).
-    (define-key ewm-mode-map (kbd "s-w") #'scott/ewm-launch-firefox)
+    (define-key ewm-mode-map (kbd "s-w") #'eminix/ewm-launch-firefox)
     ;; Super+Enter: open Ghostty terminal (muscle memory from Hyprland).
     (define-key ewm-mode-map (kbd "s-<return>")
       (lambda ()
@@ -627,30 +553,16 @@ Each cdr is verified to render at the default face's cell width.")
     ;; the C-c i prefix can't reach Emacs from a focused Wayland surface (the
     ;; follow-up key goes to the surface). C-c i still gives the full command
     ;; set when a native Emacs frame is focused.
-    (when (fboundp 'scott/elisa-ask)
-      (define-key ewm-mode-map (kbd "s-i") #'scott/elisa-ask))
+    (when (fboundp 'eminix/elisa-ask)
+      (define-key ewm-mode-map (kbd "s-i") #'eminix/elisa-ask))
     (when (fboundp 'ewm--send-intercept-keys)
       (ewm--send-intercept-keys))))
 
-;; ecomms — work M365/Teams/CW front end, from the checkout at
-;; ~/projects/ecomms (not a nix package: the elisp is edited alongside the
-;; Python it drives). Gated to whistle because the credentials and the
-;; checkout are work-only. NOTE this is a hostname gate: the machine was
-;; renamed weasel -> whistle on 2026-08-04, and another rename would silently
-;; disable the indicator rather than erroring.
-(when (string= (system-name) "whistle")
-  (add-to-list 'load-path (expand-file-name "~/projects/ecomms/emacs"))
-  (if (not (require 'ecomms nil :no-error))
-      (message "ecomms not loadable; skipping (checkout missing?)")
-    (require 'ecomms-planner nil :no-error)  ; adds C-c m p to the map
-    (global-set-key (kbd "C-c m") ecomms-command-map)
-    ;; Frame-global unread indicator, left of the system stats. Its own
-    ;; tab-bar item (keyed `ecomms-unread'), so scott-modeline.el is untouched.
-    (setq tab-bar-format '(scott/ewm-tab-bar-slots
-                           tab-bar-format-align-right
-                           ecomms-tab-bar-item
-                           scott/tab-bar-status))
-    ;; Global 180s poller. Must be a session-long timer, not a buffer-scoped
-    ;; one: nothing keeps an ecomms buffer alive, and the bar needs the data
-    ;; regardless.
-    (ecomms-watch-mode 1)))
+;; --- Consumer extension point ---
+;; Personal elisp ships at ~/.config/emacs/personal.el (written by the
+;; consuming flake's Home Manager config) and loads LAST, so it can override
+;; anything above. Missing file = no-op; an error is logged, never fatal — a
+;; signal here must not trip init.el's fallback (total desktop loss).
+(condition-case err
+    (load (locate-user-emacs-file "personal.el") :no-error :nomessage)
+  (error (message "eminix: personal.el failed (%S)" err)))

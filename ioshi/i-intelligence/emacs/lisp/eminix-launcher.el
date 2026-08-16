@@ -1,11 +1,11 @@
-;;; scott-launcher.el --- XDG app launcher, EWM-s-d-style -*- lexical-binding: t; -*-
+;;; eminix-launcher.el --- XDG app launcher, EWM-s-d-style -*- lexical-binding: t; -*-
 
 ;; The launcher half of EWM's s-d, portable to non-EWM machines (whistle).
 ;; completing-read over XDG desktop entries, launch the pick. Under EWM the
 ;; new window becomes a buffer as usual; under WSLg it opens as its own
 ;; Wayland window — the launch UX is identical either way.
 
-(defun scott/launcher--entries ()
+(defun eminix/launcher--entries ()
   "Alist of (NAME . EXEC) from XDG desktop files visible to this profile."
   (let (entries)
     (dolist (dir (list (expand-file-name "~/.local/share/applications")
@@ -28,13 +28,13 @@
                 (push (cons name exec) entries)))))))
     (nreverse entries)))
 
-(defun scott/launch-app (name)
+(defun eminix/launch-app (name)
   "Launch the desktop application NAME (the s-d launcher, sans EWM)."
   (interactive
    (list (completing-read "Launch: "
-                          (mapcar #'car (scott/launcher--entries))
+                          (mapcar #'car (eminix/launcher--entries))
                           nil t)))
-  (let* ((exec (cdr (assoc name (scott/launcher--entries))))
+  (let* ((exec (cdr (assoc name (eminix/launcher--entries))))
          ;; Drop desktop-spec field codes (%u, %F, ...) — we pass no files.
          (cmd (string-trim (replace-regexp-in-string "%[a-zA-Z]" "" exec)))
          (process-environment
@@ -49,5 +49,5 @@
             env)))
     (start-process-shell-command name nil cmd)))
 
-(provide 'scott-launcher)
-;;; scott-launcher.el ends here
+(provide 'eminix-launcher)
+;;; eminix-launcher.el ends here

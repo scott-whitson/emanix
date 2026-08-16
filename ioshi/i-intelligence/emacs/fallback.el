@@ -21,43 +21,43 @@
 
 ;; require with :no-error returns nil for a missing file, but can still signal
 ;; on an error INSIDE the file — hence the condition-case as well.
-(dolist (feature '(scott-ewm-slots scott-modeline scott-launcher scott-theme))
+(dolist (feature '(eminix-ewm-slots eminix-modeline eminix-launcher eminix-theme))
   (condition-case e
       (require feature nil :no-error)
     (error (message "fallback: %s failed to load: %S" feature e))))
 
 (condition-case e
-    (when (fboundp 'scott/theme-init) (scott/theme-init))
+    (when (fboundp 'eminix/theme-init) (eminix/theme-init))
   (error (message "fallback: theme-init failed: %S" e)))
 
 (condition-case e
-    (when (fboundp 'scott/modeline-mode) (scott/modeline-mode 1))
+    (when (fboundp 'eminix/modeline-mode) (eminix/modeline-mode 1))
   (error (message "fallback: modeline-mode failed: %S" e)))
 
 (condition-case e
-    (when (fboundp 'scott/launch-app)
-      (global-set-key (kbd "C-c o") #'scott/launch-app))
+    (when (fboundp 'eminix/launch-app)
+      (global-set-key (kbd "C-c o") #'eminix/launch-app))
   (error (message "fallback: launcher binding failed: %S" e)))
 
-(defun scott/fallback-tab-bar-item ()
+(defun eminix/fallback-tab-bar-item ()
   "Tab-bar item announcing that `config.el' failed to load.
 Deliberately loud. A silent degraded mode is worse than a hard failure: on
 2026-08-10 a broken config survived a reboot without being noticed, and the
 visible symptoms pointed somewhere other than the fault."
   `((fallback menu-item
-              ,(propertize " ⚠ CONFIG FAILED — see scott/init-error "
+              ,(propertize " ⚠ CONFIG FAILED — see eminix/init-error "
                            'face 'error)
               ignore)))
 
 (condition-case e
     (progn
       (setq tab-bar-format
-            (append '(scott/fallback-tab-bar-item)
-                    (and (fboundp 'scott/ewm-tab-bar-slots)
-                         '(scott/ewm-tab-bar-slots))
+            (append '(eminix/fallback-tab-bar-item)
+                    (and (fboundp 'eminix/ewm-tab-bar-slots)
+                         '(eminix/ewm-tab-bar-slots))
                     '(tab-bar-format-align-right)
-                    (and (fboundp 'scott/tab-bar-status)
-                         '(scott/tab-bar-status))))
+                    (and (fboundp 'eminix/tab-bar-status)
+                         '(eminix/tab-bar-status))))
       (setq tab-bar-show t)
       (tab-bar-mode 1))
   (error (message "fallback: tab-bar setup failed: %S" e)))
@@ -76,14 +76,14 @@ visible symptoms pointed somewhere other than the fault."
             (define-key ewm-mode-map (kbd (format "s-%d" slot))
               (lambda ()
                 (interactive)
-                (scott/ewm-select-slot slot)))))
+                (eminix/ewm-select-slot slot)))))
         (define-key ewm-mode-map (kbd "s-0")
           (lambda ()
             (interactive)
-            (scott/ewm-select-slot 10)))
-        (define-key ewm-mode-map (kbd "s-r") #'scott/ewm-rename-workspace)
-        (define-key ewm-mode-map (kbd "s-q") #'scott/ewm-close-slot)
-        (define-key ewm-mode-map (kbd "s-w") #'scott/ewm-launch-firefox)
+            (eminix/ewm-select-slot 10)))
+        (define-key ewm-mode-map (kbd "s-r") #'eminix/ewm-rename-workspace)
+        (define-key ewm-mode-map (kbd "s-q") #'eminix/ewm-close-slot)
+        (define-key ewm-mode-map (kbd "s-w") #'eminix/ewm-launch-firefox)
         (define-key ewm-mode-map (kbd "s-<return>")
           (lambda ()
             (interactive)

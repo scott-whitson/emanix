@@ -14,12 +14,12 @@
   # Vulkan for GPU acceleration on the Radeon 780M (gfx1103): ROCm does not
   # support this iGPU, but Vulkan works via Mesa/RADV.
   #
-  # elisa (Emacs, user scott) reaches it at localhost:11434 regardless of the
+  # elisa (Emacs, any user) reaches it at localhost:11434 regardless of the
   # service user.
   services.ollama = {
     enable = true;
     package = pkgs.ollama-vulkan; # GPU acceleration via Vulkan (Radeon 780M)
-    # These must match scott/elisa-models in emacs/lisp/scott-elisa.el. A model
+    # These must match eminix/elisa-models in emacs/lisp/eminix-elisa.el. A model
     # elisa can toggle to but that is not listed here is not pre-pulled, so the
     # first use stalls on a cold download — or fails outright offline.
     loadModels = [

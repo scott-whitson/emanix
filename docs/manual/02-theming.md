@@ -73,7 +73,7 @@ reverted the active theme.
 
 Only ghostty and btop are themed by symlinking a rendered config into place.
 Everything else uses a different mechanism per app: Emacs (including the EWM
-top bar) is themed by calling `scott/theme-set` in the running daemon; pi's
+top bar) is themed by calling `eminix/theme-set` in the running daemon; pi's
 agent theme is regenerated from `colors.toml` on every switch; zellij and
 Claude Code follow the terminal's own ANSI palette rather than reading
 anything theme-specific; GTK goes through `gsettings`; and Firefox chrome is
@@ -102,7 +102,7 @@ two apps it did cover, and it undercounts what the system now reaches.
 7. Writes Claude Code's `theme` key to `dark-ansi`/`light-ansi`.
 8. Sources `gtk.conf` and runs `gsettings` for `color-scheme` and `gtk-theme`.
 9. Runs `themes/<name>/post-set.sh` if present and executable.
-10. Calls `(scott/theme-set "<name>")` in the running Emacs daemon, resolving
+10. Calls `(eminix/theme-set "<name>")` in the running Emacs daemon, resolving
     `emacsclient` from `PATH`. Emacs maps the name via `themes/<name>/emacs-theme`.
 11. Signals ghostty (`SIGUSR2`) to reload.
 

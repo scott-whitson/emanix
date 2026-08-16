@@ -59,7 +59,7 @@ Slots are generic — no app is tied to a number. Names are session-local; set t
 | `s-c` / `s-v` | Copy / paste (`kill-ring-save` / `yank`) |
 
 The top bar — clock, battery, volume/wifi/cpu/ram/gpu, and the slot list — is
-rendered in the Emacs tab-bar (`scott-modeline.el`, `scott-ewm.el`), not a
+rendered in the Emacs tab-bar (`eminix-modeline.el`, `eminix-ewm.el`), not a
 separate bar. Compositor bindings live in EWM's `ewm-mode-map`; the eminix
 additions are in the `with-eval-after-load 'ewm` block of `config.el`.
 
@@ -93,13 +93,13 @@ processes after init.
 `⚠ CONFIG FAILED` item at the far left. For the reason:
 
 ```bash
-emacsclient -e 'scott/init-error'
+emacsclient -e 'eminix/init-error'
 ```
 
 `nil` is a healthy boot. Anything else is the error that aborted `config.el`.
 
-**What the fallback restores:** the top bar (`scott/modeline-mode`), the
-launcher (`C-c o`), the `scott/ewm-*` slot commands and a theme. Not completion,
+**What the fallback restores:** the top bar (`eminix/modeline-mode`), the
+launcher (`C-c o`), the `eminix/ewm-*` slot commands and a theme. Not completion,
 meow, magit, org or apheleia — recoverable by fixing `config.el`, and not the
 desktop.
 

@@ -22,12 +22,12 @@
 ;; unguarded by construction: there is no outer file to catch a mistake
 ;; made here.
 
-(defvar scott/init-error nil
+(defvar eminix/init-error nil
   "The error that aborted `config.el', or nil on a healthy boot.
-Check it with: emacsclient -e \\='scott/init-error\\='.
+Check it with: emacsclient -e \\='eminix/init-error\\='.
 When non-nil, `fallback.el' ran and the tab bar says so.")
 
-(defvar scott/init-backtrace nil
+(defvar eminix/init-backtrace nil
   "Backtrace captured at the moment `config.el' signalled, or nil.
 `condition-case' unwinds the stack before its handler runs, so
 `--debug-init' shows nothing once a handler exists to catch the error —
@@ -38,7 +38,7 @@ Populated only when debugging was requested (`debug-on-error', or
 see `startup.el''s `load-user-init-file'): the hook below fires on
 EVERY signal, even the many harmless ones org-roam's db sync raises and
 catches internally on a healthy boot, so it must stay off otherwise.
-Check it with: emacsclient -e \\='(insert scott/init-backtrace)\\='.")
+Check it with: emacsclient -e \\='(insert eminix/init-backtrace)\\='.")
 
 ;; Resolve config.el/fallback.el next to init.el's OWN true location, not
 ;; `user-emacs-directory'. liveElisp makes init.el an out-of-store symlink
@@ -60,7 +60,7 @@ Check it with: emacsclient -e \\='(insert scott/init-backtrace)\\='.")
 ;; guard, loading neither config.el nor fallback.el — the exact
 ;; total-desktop-loss this split exists to prevent, reintroduced one form
 ;; earlier than the fix for it.
-(defvar scott/init-dir
+(defvar eminix/init-dir
   (or (and load-file-name
            (ignore-errors
              (file-name-directory (file-truename load-file-name))))
@@ -79,15 +79,15 @@ the truename itself signals (e.g. a symlink cycle).")
        (and (or debug-on-error init-file-debug)
             (lambda (&rest _)
               (let ((signal-hook-function nil))
-                (setq scott/init-backtrace (with-output-to-string (backtrace))))))))
+                (setq eminix/init-backtrace (with-output-to-string (backtrace))))))))
   (condition-case err
       ;; NOERROR nil on purpose: config.el MUST signal so the handler runs.
-      (load (expand-file-name "config.el" scott/init-dir) nil :nomessage)
+      (load (expand-file-name "config.el" eminix/init-dir) nil :nomessage)
     (error
-     (setq scott/init-error err)
-     (message "scott/init: config.el FAILED (%S) — loading fallback.el" err)
+     (setq eminix/init-error err)
+     (message "eminix/init: config.el FAILED (%S) — loading fallback.el" err)
      ;; NOERROR t here: if fallback.el is missing too, do not cascade.
-     (load (expand-file-name "fallback.el" scott/init-dir)
+     (load (expand-file-name "fallback.el" eminix/init-dir)
            :noerror :nomessage))))
 
 ;;; init.el ends here

@@ -86,7 +86,7 @@ in
   hardware.graphics.enable = true;
 
   # elisa reads this to load the sqlite-vec (vec0) extension into ELISA's DB;
-  # keeps the /nix/store path in Nix so the liveElisp scott-elisa.el stays
+  # keeps the /nix/store path in Nix so the liveElisp eminix-elisa.el stays
   # store-path-free. Present in the login shell → inherited by the EWM daemon.
   environment.sessionVariables.ELISA_VEC0_PATH = "${pkgs.sqlite-vec}/lib/vec0.so";
 
@@ -102,7 +102,7 @@ in
     brightnessctl
     # Screen lock (ext-session-lock): swayidle fires swaylock on logind's
     # before-sleep (lid close → suspend) and on loginctl lock-session.
-    # swayidle is started from emacs (lisp/scott-ewm.el) so it inherits
+    # swayidle is started from emacs (lisp/eminix-ewm.el) so it inherits
     # WAYLAND_DISPLAY and dies with the session. Config: swaylock.nix (HM).
     swaylock
     swayidle

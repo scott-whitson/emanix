@@ -19,7 +19,7 @@
 
   # OpenRouter keys: symlink into the HM-owned ~/.pi/agent from the agenix
   # secret at /run/agenix/openrouter-auth. HM owns this dir, so there is no
-  # root/scott ownership collision (agenix no longer creates ~/.pi/agent).
+  # root/user ownership collision (agenix no longer creates ~/.pi/agent).
   # .stignore already excludes /auth.json from Syncthing.
   #
   # Gated on eminix.pi.enable, NOT on "is this a NixOS host with agenix".
