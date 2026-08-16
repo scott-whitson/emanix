@@ -274,7 +274,7 @@ in
     };
 
     age.secrets.ibkr-creds = {
-      file = ../../secrets/ibkr-creds.age;
+      rekeyFile = ../../secrets/ibkr-creds.age;
       owner = "ibgateway";
       group = "ibgateway";
       mode = "0400";

@@ -1,8 +1,26 @@
 # mkHost — compose an eminix nixosSystem from a role and an optional hi layer.
 # The flake applies the first argument set (its inputs + shared modules); each
 # host calls the result with { hostName, role, hardware ? null, extraModules ? [] }.
-{ nixpkgs, home-manager, ewm, agenix, agenix-rekey, nixos-wsl, nixpkgsModule, hmModule, sharedSpecialArgs, system }:
+{ nixpkgs, home-manager, ewm, agenix, agenix-rekey, nixos-wsl, nixpkgsModule, hmModule, sharedSpecialArgs, system, dotfilesRoot }:
 { hostName, role, hardware ? null, extraModules ? [ ] }:
+let
+  # agenix-rekey: secrets live master-key-encrypted under secrets/, and are
+  # rekeyed per host into secrets/rekeyed/<host>/ at build time. hostPubkey
+  # MUST be the committed keys/<host>_host_ed25519.pub path — every host
+  # evaluates on the builder (rafik), where /etc/ssh/... is the BUILDER's own
+  # key, so a /etc path would rekey every host for rafik. localStorageDir MUST
+  # derive from the flake root as the flake sees it (self.outPath, passed in
+  # as dotfilesRoot) — a relative path from lib/ evaluates to a different
+  # store copy and fails agenix-rekey's origin check.
+  rekeyModule = {
+    age.rekey = {
+      masterIdentities = [ "/home/scott/.ssh/id_ed25519" ];
+      storageMode = "local";
+      localStorageDir = "${dotfilesRoot}/secrets/rekeyed/${hostName}";
+      hostPubkey = ../keys + "/${hostName}_host_ed25519.pub";
+    };
+  };
+in
 nixpkgs.lib.nixosSystem {
   inherit system;
   specialArgs = sharedSpecialArgs // { inherit ewm nixos-wsl; };
@@ -19,19 +37,7 @@ nixpkgs.lib.nixosSystem {
     nixpkgsModule
     agenix.nixosModules.default
     agenix-rekey.nixosModules.default
-    # agenix-rekey: secrets live master-key-encrypted under secrets/, and are
-    # rekeyed per host into secrets/rekeyed/<host>/ at build time. hostPubkey
-    # MUST be the committed keys/<host>_host_ed25519.pub path — every host
-    # evaluates on the builder (rafik), where /etc/ssh/... is the BUILDER's own
-    # key, so a /etc path would rekey every host for rafik.
-    {
-      age.rekey = {
-        masterIdentities = [ "/home/scott/.ssh/id_ed25519" ];
-        storageMode = "local";
-        localStorageDir = "${../.}/secrets/rekeyed/${hostName}";
-        hostPubkey = ../keys + "/${hostName}_host_ed25519.pub";
-      };
-    }
+    rekeyModule
     home-manager.nixosModules.home-manager
     hmModule
   ]

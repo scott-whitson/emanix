@@ -89,6 +89,7 @@
       # Compose an eminix host: profile (os+i) + its hi layer.
       mkHost = import ./lib/mkHost.nix {
         inherit nixpkgs home-manager ewm agenix agenix-rekey nixos-wsl nixpkgsModule hmModule sharedSpecialArgs system;
+        dotfilesRoot = self.outPath;
       };
 
     in
@@ -170,10 +171,12 @@
       };
 
       # agenix-rekey wiring — lets `nix run github:oddlama/agenix-rekey`
-      # see every host so secrets are rekeyed per host from the master copy.
+      # see every HOST so secrets are rekeyed per host from the master copy.
+      # The installer is a tool, not a secrets consumer — it has no agenix
+      # module and must not be a rekey node.
       agenix-rekey = agenix-rekey.configure {
         userFlake = self;
-        nixosConfigurations = self.nixosConfigurations;
+        nixosConfigurations = builtins.removeAttrs self.nixosConfigurations [ "installer" ];
       };
 
       formatter.${system} = pkgs.nixpkgs-fmt;
