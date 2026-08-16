@@ -28,6 +28,25 @@ in
       "--init-directory ${config.users.users.${config.eminix.username}.home}/.config/emacs";
   };
 
+  # XDG portal backend: EWM's own packaged portals.conf sets
+  # `default=gnome;gtk;`, but xdg-desktop-portal-gnome cannot activate
+  # outside a GNOME session. FileChooser (Firefox uploads, GTK apps) then
+  # hard-fails with "Backend call failed: Could not activate remote peer
+  # 'org.freedesktop.impl.portal.desktop.gnome'" and the dialog never
+  # appears. Pin the preferred backend to GTK for every desktop, including
+  # "ewm" (the per-desktop file beats the common one beats the packaged
+  # one).
+  xdg.portal.config = {
+    common = { default = [ "gtk" ]; };
+    ewm = { default = [ "gtk" ]; };
+  };
+
+  # dconf service: portal-gtk (and other GTK apps) persist settings through
+  # dconf/GSettings. Without it every portal dialog logs "failed to commit
+  # changes to dconf: The name is not activatable" — harmless noise, but it
+  # also means window size / recent-file state is never remembered.
+  programs.dconf.enable = true;
+
   # Launch EWM directly from the tty1 login shell, INSIDE the logind session
   # scope. The shipped systemd user unit runs outside any session and cannot
   # acquire DRM master without a display manager (verified on zord-old:

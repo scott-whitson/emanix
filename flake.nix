@@ -90,12 +90,16 @@
           server = import ./profiles/roles/server.nix;
           wsl = import ./profiles/roles/wsl.nix;
         };
+        installer = import ./installer/iso.nix;
       };
 
       # The host composer, parameterized: { hostName, role, username, hardware, extraModules }
       lib = { inherit mkHost; };
 
-      # The installer ISO — a tool, not an eminix host.
+      # A generic installer ISO — stages the distro flake, no keys. The
+      # distro ships a DEBUG/rescue ISO; real installs are built by consuming
+      # flakes (dotfiles) via nixosModules.installer with
+      # eminix.installer.{flake,keysDir} set.
       nixosConfigurations.installer = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit nixpkgs disko; };
