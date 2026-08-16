@@ -23,6 +23,10 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    agenix-rekey = {
+      url = "github:oddlama/agenix-rekey";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nixos-wsl = {
       url = "github:nix-community/NixOS-WSL";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -38,6 +42,7 @@
     , disko
     , nixos-hardware
     , agenix
+    , agenix-rekey
     , nixos-wsl
     , ...
     }:
@@ -83,7 +88,7 @@
 
       # Compose an eminix host: profile (os+i) + its hi layer.
       mkHost = import ./lib/mkHost.nix {
-        inherit nixpkgs home-manager ewm agenix nixos-wsl nixpkgsModule hmModule sharedSpecialArgs system;
+        inherit nixpkgs home-manager ewm agenix agenix-rekey nixos-wsl nixpkgsModule hmModule sharedSpecialArgs system;
       };
 
     in
@@ -162,6 +167,13 @@
           deadnix
           statix
         ];
+      };
+
+      # agenix-rekey wiring — lets `nix run github:oddlama/agenix-rekey`
+      # see every host so secrets are rekeyed per host from the master copy.
+      agenix-rekey = agenix-rekey.configure {
+        userFlake = self;
+        nixosConfigurations = self.nixosConfigurations;
       };
 
       formatter.${system} = pkgs.nixpkgs-fmt;
