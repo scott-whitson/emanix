@@ -1,10 +1,10 @@
-{ pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   # os layer — settings shared by every eminix host.
   programs.zsh.enable = true;
 
-  users.users.scott = {
+  users.users.${config.eminix.username} = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" "docker" "video" ];
     shell = pkgs.zsh;

@@ -12,5 +12,5 @@
   # controlled and synced across hosts.
   home.file.".claude/settings.json".source =
     config.lib.file.mkOutOfStoreSymlink
-      "${config.scott.dotfiles.path}/ioshi/i-intelligence/claude/settings.json";
+      "${config.eminix.src.path}/ioshi/i-intelligence/claude/settings.json";
 }

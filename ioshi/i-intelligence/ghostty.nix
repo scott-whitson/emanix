@@ -4,17 +4,17 @@ let
   themeLib = import ../../lib/themes.nix { inherit pkgs; };
   palettes = themeLib.palettes;
   ghostty = themeLib.ghostty;
-  activePalette = palettes.${config.scott.theme} or palettes.catppuccin-mocha;
+  activePalette = palettes.${config.eminix.theme} or palettes.catppuccin-mocha;
 in
 {
-  options.scott.ghostty.enable = lib.mkOption {
+  options.eminix.ghostty.enable = lib.mkOption {
     type = lib.types.bool;
-    default = config.scott.gui;
-    defaultText = "config.scott.gui";
+    default = config.eminix.gui;
+    defaultText = "config.eminix.gui";
     description = "Install ghostty + its managed config. Defaults to the gui flag; whistle (gui=false) sets it true — WSLg renders it like any Wayland app.";
   };
 
-  config = lib.mkIf config.scott.ghostty.enable {
+  config = lib.mkIf config.eminix.ghostty.enable {
     # Every palette is pre-rendered here; the runtime switcher picks one.
     # theme.conf is deliberately NOT declared as home.file: bin/dot-theme-set
     # owns that path, and two owners means Home Manager renames the runtime
@@ -76,7 +76,7 @@ in
       lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         target="$HOME/.config/ghostty/theme.conf"
         if [ ! -e "$target" ]; then
-          run ln -sfn "$HOME/.config/ghostty/themes/${config.scott.theme}.conf" "$target"
+          run ln -sfn "$HOME/.config/ghostty/themes/${config.eminix.theme}.conf" "$target"
         fi
       '';
   };

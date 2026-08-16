@@ -26,14 +26,14 @@
       EDITOR = "emacsclient";
       VISUAL = "emacsclient";
       PAGER = "less";
-      DOTFILES = "$HOME/dotfiles";
+      EMINIX = "$HOME/projects/eminix";
       # Interactive convenience only — nothing in the repo reads it.
-      DOTFILES_ROLE = config.scott.role;
+      EMINIX_ROLE = config.eminix.role;
     };
 
     initContent = ''
-      # dotfiles helpers on PATH
-      export PATH="$DOTFILES/bin:$PATH"
+      # eminix helpers on PATH
+      export PATH="$EMINIX/bin:$PATH"
 
       # Local bin
       export PATH="$HOME/.local/bin:$PATH"

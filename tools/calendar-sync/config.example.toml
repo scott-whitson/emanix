@@ -1,7 +1,0 @@
-# calendar-sync config
-# Copy this to ~/.config/calendar-sync/config.toml and fill in your values.
-
-[google]
-calendar_id = "your-calendar-id@group.calendar.google.com"
-client_id = "your-client-id.apps.googleusercontent.com"
-client_secret = "your-client-secret"

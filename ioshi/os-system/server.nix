@@ -1,16 +1,12 @@
 { config, lib, pkgs, ... }:
 
 {
-  # Shared NixOS server module (Phase 2).
+  # Shared NixOS server module.
   # NOT the whole i-intelligence dir: that default.nix is the Home Manager
   # aggregate (pi.nix/emacs.nix use `home.*`, an HM-only option) — importing
   # it at system level throws "definitions for `home', which is an option
-  # that does not exist" (caught by Task 3's build gate). secrets.nix is the
-  # one file in there that IS a system module (agenix), same selective
-  # pattern profiles/eminix.nix already uses for its i-intelligence picks.
-  imports = [
-    ../../ioshi/i-intelligence/secrets.nix
-  ];
+  # that does not exist". Secrets (agenix) are supplied by the consuming
+  # flake via extraModules, not by the distribution.
 
   # Headless server
   systemd.targets.multi-user.enable = true;

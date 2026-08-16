@@ -1,16 +1,14 @@
-{ nixos-wsl, ... }:
+{ config, lib, nixos-wsl, pkgs, ... }:
 
 {
   # An eminix instance inside WSL. No hardware layer — nixos-wsl supplies
   # boot and mounts, WSLg supplies the display.
   imports = [ nixos-wsl.nixosModules.default ];
 
-  home-manager.users.scott = {
-    scott.gui = false;
-    scott.ewm.enable = false;
-    # gui = false, but a real terminal under WSLg is still wanted, and ssh
-    # sessions from other hosts land in zellij. Both opt in surgically.
-    scott.ghostty.enable = true;
-    scott.zellij.enable = true;
+  home-manager.users.${config.eminix.username} = {
+    eminix.gui = false;
+    eminix.ewm.enable = false;
+    eminix.ghostty.enable = true;
+    eminix.zellij.enable = true;
   };
 }

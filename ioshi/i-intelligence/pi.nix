@@ -22,7 +22,7 @@
   # root/scott ownership collision (agenix no longer creates ~/.pi/agent).
   # .stignore already excludes /auth.json from Syncthing.
   #
-  # Gated on scott.pi.enable, NOT on "is this a NixOS host with agenix".
+  # Gated on eminix.pi.enable, NOT on "is this a NixOS host with agenix".
   # The scott.standalone guard removed on 2026-08-07 was replaced with an
   # unconditional symlink on that reasoning, which is wrong: being a NixOS
   # host with agenix in the common core does not mean every secret should be
@@ -31,7 +31,7 @@
   # pi, so symlinking would be pointless clutter, not a decrypt failure.
   # Recipient-ness is per secret and orthogonal to what any host does with
   # the plaintext once decrypted; see secrets/secrets.nix.
-  home.file.".pi/agent/auth.json" = lib.mkIf config.scott.pi.enable {
+  home.file.".pi/agent/auth.json" = lib.mkIf config.eminix.pi.enable {
     source = config.lib.file.mkOutOfStoreSymlink "/run/agenix/openrouter-auth";
   };
 

@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 {
-  options.scott = {
+  options.eminix = {
     theme = lib.mkOption {
       type = lib.types.str;
       default = "catppuccin-mocha";
@@ -28,7 +28,7 @@
         `role` argument that selects profiles/roles/<role>.nix, so the option and
         the imported profile cannot drift apart.
 
-        Replaced scott.dotfiles.profile on 2026-08-08, which encoded the same
+        Replaced eminix.dotfiles.profile on 2026-08-08, which encoded the same
         fact in a second vocabulary ("desktop" for what the role calls
         "workstation") and was set by hand in each role profile.
       '';
@@ -51,20 +51,20 @@
       '';
     };
 
-    dotfiles = {
+    src = {
       path = lib.mkOption {
         type = lib.types.str;
-        default = "${config.home.homeDirectory}/projects/dotfiles";
-        description = "Path to the dotfiles repo";
+        default = "${config.home.homeDirectory}/projects/eminix";
+        description = "Path to the eminix source checkout (used for live-editable config).";
       };
       liveElisp = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Symlink emacs elisp out-of-store from the dotfiles checkout for live editing. Disable on hosts with no checkout; elisp is then copied into the store (edits need a rebuild).";
+        description = "Symlink emacs elisp out-of-store from the eminix checkout for live editing. Disable on hosts with no checkout; elisp is then copied into the store (edits need a rebuild).";
       };
     };
   };
 
-  # Theme options are consumed by other modules via `config.scott.theme`.
+  # Theme options are consumed by other modules via `config.eminix.theme`.
   # The theme library functions are passed via `dotfilesLib.theme` (set in flake.nix).
 }

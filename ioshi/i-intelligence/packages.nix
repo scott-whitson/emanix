@@ -47,7 +47,7 @@
     imagemagick
 
     # Media (GUI): NOT listed here. mpv.nix's `programs.mpv.enable`, gated on
-    # the same config.scott.gui, already supplies it — nixpkgs's top-level
+    # the same config.eminix.gui, already supplies it — nixpkgs's top-level
     # `pkgs.mpv` is itself a wrapper with pname "mpv-with-scripts" (even with
     # an empty scripts list), so adding it here too collided with mpv.nix's
     # wrapped derivation in this same buildEnv (two different
@@ -59,7 +59,7 @@
     mosh
     nmap
     iperf3
-  ] ++ lib.optionals config.scott.gui [
+  ] ++ lib.optionals config.eminix.gui [
     # Wayland tools
     grim
     slurp
@@ -117,5 +117,5 @@
   # ghostty for non-gui hosts that opt in (whistle/WSLg). gui hosts already
   # get it from the gui block above — appended HERE so their list is
   # byte-identical (order is derivation-load-bearing, see Task-1 gate).
-  ++ lib.optional (config.scott.ghostty.enable && !config.scott.gui) pkgs.ghostty;
+  ++ lib.optional (config.eminix.ghostty.enable && !config.eminix.gui) pkgs.ghostty;
 }

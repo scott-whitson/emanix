@@ -1,24 +1,24 @@
-# mkHost — compose an eminix nixosSystem from a role and an optional hi layer.
-# The flake applies the first argument set (its inputs + shared modules); each
-# host calls the result with { hostName, role, hardware ? null, extraModules ? [] }.
-{ nixpkgs, home-manager, ewm, agenix, agenix-rekey, nixos-wsl, nixpkgsModule, hmModule, sharedSpecialArgs, system, dotfilesRoot }:
-{ hostName, role, hardware ? null, extraModules ? [ ] }:
+# mkHost — compose an eminix nixosSystem from a role, a user, and optional
+# hardware + personal modules. The flake applies the first argument set (its
+# inputs + shared modules); each host calls the result with
+# { hostName, role, username, hardware ? null, extraModules ? [] }.
+#
+# This is the DISTRIBUTION's composer: it knows nothing about any particular
+# user's secrets, keys, or home-manager config. Personal modules (secrets,
+# SSH keys, home-manager imports) arrive via `extraModules` from the consuming
+# flake (e.g. dotfiles).
+{ nixpkgs, home-manager, ewm, agenix, nixos-wsl, nixpkgsModule, mkHmModule, sharedSpecialArgs, system }:
+{ hostName, role, username, hardware ? null, extraModules ? [ ] }:
 let
-  # agenix-rekey: secrets live master-key-encrypted under secrets/, and are
-  # rekeyed per host into secrets/rekeyed/<host>/ at build time. hostPubkey
-  # MUST be the committed keys/<host>_host_ed25519.pub path — every host
-  # evaluates on the builder (rafik), where /etc/ssh/... is the BUILDER's own
-  # key, so a /etc path would rekey every host for rafik. localStorageDir MUST
-  # derive from the flake root as the flake sees it (self.outPath, passed in
-  # as dotfilesRoot) — a relative path from lib/ evaluates to a different
-  # store copy and fails agenix-rekey's origin check.
-  rekeyModule = {
-    age.rekey = {
-      masterIdentities = [ "/home/scott/.ssh/id_ed25519" ];
-      storageMode = "local";
-      localStorageDir = "${dotfilesRoot}/secrets/rekeyed/${hostName}";
-      hostPubkey = ../keys + "/${hostName}_host_ed25519.pub";
-    };
+  # eminix.username is a NixOS-level option (declared in profiles/eminix.nix),
+  # read by os-system/base.nix, i-intelligence/ewm.nix, and the role profiles
+  # to address home-manager.users.<username>. Set it from the mkHost argument.
+  #
+  # eminix.role is an HM-level option (declared in i-intelligence/theme.nix),
+  # read by HM modules (e.g. zsh.nix). It is set inside the user's HM config.
+  eminixCoreModule = {
+    eminix.username = username;
+    home-manager.users.${username}.eminix.role = role;
   };
 in
 nixpkgs.lib.nixosSystem {
@@ -27,19 +27,14 @@ nixpkgs.lib.nixosSystem {
   modules = [
     ../profiles/eminix.nix
     ../profiles/roles/${role}.nix
-    # mkDefault: whistle must force this empty — NixOS setting the hostname at
-    # activation breaks WSL's systemd user-session bootstrap (NixOS-WSL#888).
+    # mkDefault: NixOS-WSL needs to force this empty (setting the hostname at
+    # activation breaks WSL's systemd user-session bootstrap, NixOS-WSL#888).
     { networking.hostName = nixpkgs.lib.mkDefault hostName; }
-    # scott.role comes from the same argument that selected the role profile
-    # above, so the option and the imported profile cannot disagree. Modules
-    # that need to branch on host shape read this rather than re-deriving it.
-    { home-manager.users.scott.scott.role = role; }
+    eminixCoreModule
     nixpkgsModule
     agenix.nixosModules.default
-    agenix-rekey.nixosModules.default
-    rekeyModule
     home-manager.nixosModules.home-manager
-    hmModule
+    (mkHmModule username)
   ]
   ++ nixpkgs.lib.optional (hardware != null) hardware
   ++ extraModules;

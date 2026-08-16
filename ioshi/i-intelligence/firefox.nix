@@ -3,20 +3,20 @@
 let
   themeLib = import ../../lib/themes.nix { inherit pkgs; };
   palettes = themeLib.palettes;
-  # Resolved once, from config.scott.theme, at rebuild time — NOT what
+  # Resolved once, from config.eminix.theme, at rebuild time — NOT what
   # `dot-theme-set` changes. Unlike ghostty (which pre-renders all four
   # palettes so the runtime switcher can pick one), Firefox renders exactly
   # this one palette and the switcher never touches it. Running
   # `dot-theme-set` does not change Firefox at all, on restart or ever;
-  # only editing scott.theme and rebuilding does. See docs/manual/02-theming.md.
-  activePalette = palettes.${config.scott.theme} or palettes.catppuccin-mocha;
+  # only editing eminix.theme and rebuilding does. See docs/manual/02-theming.md.
+  activePalette = palettes.${config.eminix.theme} or palettes.catppuccin-mocha;
 in
 {
-  # Gated on scott.gui. The ibgateway branch imported this unconditionally,
+  # Gated on eminix.gui. The ibgateway branch imported this unconditionally,
   # which put a browser on the headless server and on WSL. programs.firefox
   # installs the package itself, so packages.nix must NOT also list `firefox` —
   # doing both gave rafik two identical firefox entries in home.packages.
-  config = lib.mkIf config.scott.gui {
+  config = lib.mkIf config.eminix.gui {
     # Firefox, following the active palette's variant via the
     # ui.systemUsesDarkTheme pref below. Deliberately NOT Catppuccin-themed:
     # catppuccin/nix's firefox port works by installing

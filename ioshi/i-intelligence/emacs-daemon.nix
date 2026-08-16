@@ -10,7 +10,7 @@ let
     ((pkgs.emacsPackagesFor pkgs.emacs-pgtk).overrideScope emacsPkgs.orgOverride).emacsWithPackages emacsPkgs.list;
 in
 {
-  config = lib.mkIf (!config.scott.ewm.enable) {
+  config = lib.mkIf (!config.eminix.ewm.enable) {
     # On EWM machines the Emacs build is system-owned (ewm.nix). Non-EWM
     # machines install it user-side and run the daemon as a systemd user
     # service.

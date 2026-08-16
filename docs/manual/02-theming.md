@@ -77,13 +77,13 @@ top bar) is themed by calling `scott/theme-set` in the running daemon; pi's
 agent theme is regenerated from `colors.toml` on every switch; zellij and
 Claude Code follow the terminal's own ANSI palette rather than reading
 anything theme-specific; GTK goes through `gsettings`; and Firefox chrome is
-rendered by Nix from `config.scott.theme` at build time. That is **not** the
+rendered by Nix from `config.eminix.theme` at build time. That is **not** the
 same mechanism as ghostty: ghostty pre-renders all four palettes into
 `~/.config/ghostty/themes/`, and the runtime switcher picks one of them.
 Firefox renders exactly one palette into the generated `userChrome.css`, and
 the runtime switcher (`dot-theme-set`) never picks — it has no way to touch
 Firefox at all. Running `dot-theme-set` never changes Firefox, on restart or
-ever; only editing `scott.theme` in `home/scott/default.nix` and rebuilding
+ever; only editing `eminix.theme` in `host config` and rebuilding
 does. "Themed by file symlink" was never a complete description even for the
 two apps it did cover, and it undercounts what the system now reaches.
 

@@ -12,20 +12,20 @@ in
 {
   imports = [ "${ewm}/nix/service.nix" ];
 
-  # Autologin scott on the console — LUKS already gates the machine, and the
-  # tty1 launch hook below takes over the session to start EWM.
-  services.getty.autologinUser = "scott";
+  # Autologin the primary user on the console — LUKS already gates the
+  # machine, and the tty1 launch hook below takes over the session to start EWM.
+  services.getty.autologinUser = config.eminix.username;
 
   programs.ewm = {
     enable = true;
     emacsPackage = theEmacs;
 
-    # Point EWM at our Emacs config in the dotfiles repo.
+    # Point EWM at our Emacs config in the eminix checkout.
     # ~/.config/emacs is populated by home-manager in both liveElisp modes
     # (symlinks to the checkout, or store copies) — never point at the repo
     # directly; it does not exist on every host.
     extraEmacsArgs =
-      "--init-directory /home/scott/.config/emacs";
+      "--init-directory ${config.users.users.${config.eminix.username}.home}/.config/emacs";
   };
 
   # Launch EWM directly from the tty1 login shell, INSIDE the logind session

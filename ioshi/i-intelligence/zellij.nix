@@ -1,10 +1,10 @@
 { config, lib, ... }:
 
 {
-  options.scott.zellij.enable = lib.mkEnableOption
+  options.eminix.zellij.enable = lib.mkEnableOption
     "zellij with the zellaude bar, deployed live from ioshi/i-intelligence/zellij";
 
-  config = lib.mkIf config.scott.zellij.enable {
+  config = lib.mkIf config.eminix.zellij.enable {
     # Package only — no `settings`: the kdl files in
     # ioshi/i-intelligence/zellij are the single source of truth, and
     # zellaude writes to its own settings json (a store copy would be
@@ -16,7 +16,7 @@
     # emacs lisp dir). HM recreates it every rebuild, so plugin upgrades
     # can't strand a stale hand-made link.
     xdg.configFile."zellij".source = config.lib.file.mkOutOfStoreSymlink
-      "${config.scott.dotfiles.path}/ioshi/i-intelligence/zellij";
+      "${config.eminix.src.path}/ioshi/i-intelligence/zellij";
 
     # SSH logins land in the persistent session. Guards: never inside an
     # existing zellij, never for TRAMP (TERM=dumb). Not `exec`: detaching
@@ -47,7 +47,7 @@
     #
     # BOTH are named `eminix`: zellij selects a theme by NAME, so switching
     # swaps which file is visible in theme_dir rather than editing config.kdl.
-    home.file.".local/share/dotfiles/zellij-themes/available/eminix-dark.kdl".text = ''
+    home.file.".local/share/eminix/zellij-themes/available/eminix-dark.kdl".text = ''
       themes {
         eminix {
           text_unselected {
@@ -170,7 +170,7 @@
       }
     '';
 
-    home.file.".local/share/dotfiles/zellij-themes/available/eminix-light.kdl".text = ''
+    home.file.".local/share/eminix/zellij-themes/available/eminix-light.kdl".text = ''
       themes {
         eminix {
           text_unselected {
@@ -298,11 +298,11 @@
     # Seed the active symlink if absent, same pattern as ghostty's theme.conf.
     home.activation.seedZellijTheme =
       lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        active="$HOME/.local/share/dotfiles/zellij-themes/active"
+        active="$HOME/.local/share/eminix/zellij-themes/active"
         run mkdir -p "$active"
         if [ ! -e "$active/theme.kdl" ]; then
           run ln -sfn \
-            "$HOME/.local/share/dotfiles/zellij-themes/available/eminix-dark.kdl" \
+            "$HOME/.local/share/eminix/zellij-themes/available/eminix-dark.kdl" \
             "$active/theme.kdl"
         fi
       '';

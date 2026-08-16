@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-# calendar-sync — two-way sync between Dates.org and Google Calendar
-set -euo pipefail
-ROOT="${DOTFILES:-$HOME/dotfiles}"
-SCRIPT="$ROOT/tools/calendar-sync/calendar_sync.py"
-exec nix-shell -p 'python312.withPackages (ps: [ ps.google-api-python-client ps.google-auth ps.google-auth-oauthlib ps.python-dateutil ])' \
-  --run "python3 \"$SCRIPT\" $*"
