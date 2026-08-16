@@ -217,8 +217,14 @@ install -m 644 "$HOST_KEY.pub" /mnt/etc/ssh/ssh_host_ed25519_key.pub
 say "Installing $FLAKE_HOST — builds the system closure, a few minutes"
 nixos-install --flake "$REPO#$FLAKE_HOST" --no-root-password
 
-say "Set a password for scott"
-nixos-enter --root /mnt -c 'passwd scott'
+# The username is defined by the consuming flake's host config. Probe the
+# mounted home dir (the only user that exists at this point), else prompt.
+USERNAME="$(nixos-enter --root /mnt -c 'ls /home | head -1' 2>/dev/null)"
+if [ -z "$USERNAME" ]; then
+  read -rp "Username: " USERNAME
+fi
+say "Set a password for $USERNAME"
+nixos-enter --root /mnt -c "passwd $USERNAME"
 
 say "$FLAKE_HOST installed."
 echo "After reboot (remove the USB), log in and run:  eminix-firstboot"
