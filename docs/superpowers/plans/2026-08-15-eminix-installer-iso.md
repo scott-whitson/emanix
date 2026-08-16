@@ -957,3 +957,30 @@ HP presents its NVMe differently; the `--disk` override is the escape hatch.
    UEFI-capable VM. The `diskoConfigurations` warning from `nix flake check`
    is pre-existing and cosmetic (a custom flake output the checker doesn't
    recognize).
+
+**As-built corrections (Tasks 8–11 landed 2026-08-16, commits 1f63da9, 7b034ba,
+4c49348):**
+
+1. **The plan's master-key assumption was wrong — the local `~/.ssh/id_ed25519`
+   was NOT a recipient of the old secrets.** The `scott` recipient in
+   `secrets.nix` (`swhitson-11l`) had a different private key, which no longer
+   exists on rafik. The conversion decrypted with **rafik's host key**
+   (`/etc/ssh/ssh_host_ed25519_key` — a recipient of both secrets) and
+   re-encrypted to scott's current key. Consequence: the old multi-recipient
+   files in git history can no longer be decrypted (the `swhitson-11l` key is
+   gone); `/tmp/agenix-backup/` on rafik is the only copy decryptable by a
+   key that still exists. If recovery ever matters, back that directory up
+   somewhere durable. This is why Task 9 was paused for Scott's explicit go.
+2. **The `installer` nixosConfiguration must be excluded from the rekey
+    scope** (`builtins.removeAttrs self.nixosConfigurations [ "installer" ]`)
+    — it has no agenix module, and agenix-rekey refuses to continue while any
+    configured node lacks it.
+3. **`localStorageDir` must derive from `self.outPath`** (passed in as
+    `dotfilesRoot`), not a relative path from `lib/`. A relative path
+    evaluates to a *different store copy* of the flake than the one
+    agenix-rekey resolves as its root, failing the origin check with
+    "doesn't seem to be a direct subpath of the flake directory".
+4. **`ibkr-creds` lives in `ioshi/i-intelligence/ibgateway.nix`**, not the
+    secrets module — its `file =` had to become `rekeyFile =` there too, or
+    rafik's activation (ibgateway is enabled) would have hit the
+    master-encrypted file and failed to decrypt.
