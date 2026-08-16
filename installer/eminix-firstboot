@@ -38,11 +38,26 @@ else
 fi
 
 # 4. Verify secrets decrypted (proves the host-key injection worked).
+# With agenix-rekey, a BRAND-NEW host (no inherited key) has no rekeyed secret
+# yet — that is expected, not a failure; print the bootstrap instead.
 say "Sanity checks"
 if [ -r "$HOME/.pi/agent/auth.json" ] && ! grep -q REPLACE-ME "$HOME/.pi/agent/auth.json" 2>/dev/null; then
   echo "  openrouter auth.json: decrypted ✓"
 else
-  echo "  openrouter auth.json: MISSING or placeholder — check agenix (host key) / that you ran 'agenix -e' before install"
+  echo "  openrouter auth.json: not decrypted."
+  if [ -f /etc/ssh/ssh_host_ed25519_key.pub ] \
+    && ! grep -q "$(cut -d' ' -f1-2 /etc/ssh/ssh_host_ed25519_key.pub)" "$HOME/dotfiles/keys/$(hostname)_host_ed25519.pub" 2>/dev/null; then
+    echo
+    echo "  This looks like a BRAND-NEW host. On the BUILDER (rafik), register it:"
+    echo "      cd ~/dotfiles"
+    echo "      cp <this host's key> keys/$(hostname)_host_ed25519.pub   # from /etc/ssh/ssh_host_ed25519_key.pub here"
+    echo "      nix run github:oddlama/agenix-rekey -- rekey -a"
+    echo "      git add keys/ secrets/rekeyed/ && git commit -m 'secrets: add $(hostname)' && git push"
+    echo "  Then here:  sudo nixos-rebuild switch --flake github:scott-whitson/dotfiles#$(hostname)"
+    echo "  The agenix unit finds the rekeyed secret and auth.json appears."
+  else
+    echo "  check agenix (host key) — an inherited key should have decrypted this."
+  fi
 fi
 
 say "eminix first-boot complete."
