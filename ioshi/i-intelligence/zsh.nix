@@ -29,6 +29,9 @@
       # The eminix checkout — derives from the src option so consumers
       # (dotfiles) that check out elsewhere get the right path in elisp/shell.
       EMINIX = config.eminix.src.path;
+      # Themes dir the active-theme tooling reads — consumer-controlled
+      # (the distro ships no themes/ dir).
+      EMINIX_THEMES_DIR = config.eminix.src.themesDir;
       # Interactive convenience only — nothing in the repo reads it.
       EMINIX_ROLE = config.eminix.role;
     };

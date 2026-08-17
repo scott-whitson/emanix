@@ -55,6 +55,14 @@
         default = "${config.home.homeDirectory}/projects/eminix";
         description = "Path to the eminix source checkout (used for live-editable config).";
       };
+      themesDir = lib.mkOption {
+        type = lib.types.str;
+        # The distro's checkout ships no themes/ dir — the active-theme tooling
+        # reads them from the CONSUMER's checkout. Derive from src.path by
+        # default; consumers that keep themes elsewhere override this.
+        default = "${config.eminix.src.path}/themes";
+        description = "Path to the themes directory the active-theme tooling reads from.";
+      };
       liveElisp = lib.mkOption {
         type = lib.types.bool;
         default = true;
