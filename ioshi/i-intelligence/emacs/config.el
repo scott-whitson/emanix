@@ -89,7 +89,7 @@
 (eminix-quarterly-open)
 (eminix/calendar-sync)
 (org-agenda nil \"w\")
-(magit-status \"~/dotfiles\")
+(magit-status (getenv \"EMINIX\"))
 (eminix/weather)
 (eminix/openrouter-cost)
 (call-interactively #'eminix/launch-app)
@@ -301,11 +301,8 @@
 (require 'org)
 (setq org-return-follows-link t)
 (require 'org-id)
-;; Org-roam root. Full vault migrated from the Obsidian vault
-;; (~/docs/vault/Whitsgrove) on 2026-07-11 via ~/docs/convert-vault.py.
-;; 315 .md → .org files converted, originals archived to
-;; ~/docs/vault/Whitsgrove/_obsidian_archive/. Vault is now clean —
-;; only sync-conflict detritus remains.
+;; Org-roam root. The default is the conventional ~/docs/org; consumers can
+;; override org-directory/org-roam-directory in their personal layer.
 (setq org-directory (expand-file-name "~/docs/org"))
 (make-directory org-directory t)
 (when (require 'org-roam nil :no-error)
@@ -377,7 +374,7 @@
   (interactive)
   (start-process-shell-command
    "calendar-sync" nil
-   (expand-file-name "~/dotfiles/bin/calendar-sync") "sync"))
+   (expand-file-name "bin/calendar-sync" (or (getenv "EMINIX") "")) "sync"))
 
 (global-set-key (kbd "C-c c") #'eminix/calendar-sync)
 

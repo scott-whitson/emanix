@@ -153,11 +153,11 @@ Work when a native Emacs buffer is focused.
 | `C-x g` | `magit-status` |
 | `C-c n f` / `n i` / `n c` | org-roam find / insert / capture |
 | `C-c a` | org-agenda |
-| `C-c p` | Pi: open Pi in Ghostty (`~/dotfiles/bin/pi` fallback if PATH is missing it) |
+| `C-c p` | Pi: open Pi in Ghostty (`$EMINIX/bin/pi` fallback if PATH is missing it) |
 | `C-c C-c` | Confirm / finish (Org, Pi, etc.) |
 
 Fuller personal reference is in the vault notes *Emacs Shortcuts*, *Emacs Command
-Map*, and *Meow* (`~/docs/org`, reachable via `C-c n f`).
+Map*, and *Meow* (`~/docs/org`, the default org-roam root).
 
 ---
 

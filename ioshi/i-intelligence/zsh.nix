@@ -26,7 +26,9 @@
       EDITOR = "emacsclient";
       VISUAL = "emacsclient";
       PAGER = "less";
-      EMINIX = "$HOME/projects/eminix";
+      # The eminix checkout — derives from the src option so consumers
+      # (dotfiles) that check out elsewhere get the right path in elisp/shell.
+      EMINIX = config.eminix.src.path;
       # Interactive convenience only — nothing in the repo reads it.
       EMINIX_ROLE = config.eminix.role;
     };

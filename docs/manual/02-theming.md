@@ -141,7 +141,7 @@ Themes are generated from `lib/themes.nix`, so adding one is two steps:
 2. Render its directory and check contrast:
 
 ```bash
-cd ~/dotfiles
+cd $EMINIX
 PAL=$(mktemp)
 nix eval --json --impure --expr 'let t = import ./lib/themes.nix { pkgs = import <nixpkgs> {}; };
   in builtins.mapAttrs (n: p: p // { ansi = t.ansiSlots p; }) t.palettes' > "$PAL"

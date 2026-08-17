@@ -4,7 +4,7 @@
 layout {
     default_tab_template {
         pane size=1 borderless=true {
-            plugin location="file:/home/scott/.config/zellij/plugins/zellaude.wasm"
+            plugin location="file:$HOME/.config/zellij/plugins/zellaude.wasm"
         }
         children
     }

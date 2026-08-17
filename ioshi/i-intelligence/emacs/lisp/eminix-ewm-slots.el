@@ -22,7 +22,7 @@
    "firefox" nil
    (or (executable-find "firefox")
        (executable-find "firefox-esr")
-       "~/dotfiles/bin/firefox")))
+       (expand-file-name "bin/firefox" (or (getenv "EMINIX") "")))))
 
 ;; Keyed slots: each frame carries its slot NUMBER in the `eminix/ewm-slot'
 ;; frame parameter, so `s-3' owns one specific frame rather than "the 3rd

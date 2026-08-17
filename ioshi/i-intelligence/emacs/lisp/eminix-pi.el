@@ -40,11 +40,11 @@
   "Return the pi executable path, or nil.
 
 This checks `eminix/pi-program' first, then falls back to the pi
-wrapper script in the dotfiles checkout (`~/dotfiles/bin/pi') because
+wrapper script in the eminix checkout (`$EMINIX/bin/pi') because
 the Emacs daemon often starts without the interactive shell's PATH
-extensions and so never sees `$DOTFILES/bin' on `exec-path'."
+extensions and so never sees the checkout's `bin/' on `exec-path'."
   (or (eminix/pi--executable eminix/pi-program)
-      (eminix/pi--executable (expand-file-name "~/dotfiles/bin/pi"))))
+      (eminix/pi--executable (expand-file-name "bin/pi" (or (getenv "EMINIX") "")))))
 
 (defun eminix/pi--terminal ()
   "Return the terminal executable path, or nil."
@@ -61,7 +61,7 @@ terminal emulation that caused problems with the old vterm approach."
   (let ((pi-bin (eminix/pi--find))
         (term-bin (eminix/pi--terminal)))
     (unless pi-bin
-      (user-error "Pi agent not found (checked `eminix/pi-program' and `~/dotfiles/bin/pi')"))
+      (user-error "Pi agent not found (checked `eminix/pi-program' and `$EMINIX/bin/pi')"))
     (unless term-bin
       (user-error "Terminal %s not found (check `eminix/pi-terminal')" eminix/pi-terminal))
     (start-process "pi-ghostty" nil term-bin "-e" pi-bin)
@@ -81,7 +81,7 @@ If called interactively, the region is taken from the current selection
         (term-bin (eminix/pi--terminal))
         content temp-file)
     (unless pi-bin
-      (user-error "Pi agent not found (checked `eminix/pi-program' and `~/dotfiles/bin/pi')"))
+      (user-error "Pi agent not found (checked `eminix/pi-program' and `$EMINIX/bin/pi')"))
     (unless term-bin
       (user-error "Terminal %s not found (check `eminix/pi-terminal')" eminix/pi-terminal))
     (eminix/pi--ensure-temp-dir)

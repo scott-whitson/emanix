@@ -22,7 +22,9 @@
 (add-to-list 'load-path (expand-file-name "themes/" data-directory))
 
 (defconst eminix-theme--state-file "~/.config/dotfiles/active-theme")
-(defconst eminix-theme--themes-dir "~/dotfiles/themes")
+(defconst eminix-theme--themes-dir
+  (or (getenv "EMINIX_THEMES_DIR")
+      (expand-file-name "themes" (or (getenv "EMINIX") "~/projects/eminix"))))
 (defconst eminix-theme--default "catppuccin-mocha")
 
 ;; Last-resort bg-main/fg-main pairs, used only when a theme's own

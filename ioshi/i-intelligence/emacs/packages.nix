@@ -28,6 +28,9 @@
     ellama
     llm
     (elisa.overrideAttrs (_: {
+      # elisa is the distro's bundled assistant; the canonical source is the
+      # author's public GitHub repo (same person as this flake — intentional,
+      # not a leak: the repo is public).
       src = pkgs.fetchFromGitHub {
         owner = "scott-whitson";
         repo = "elisa";
