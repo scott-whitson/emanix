@@ -374,7 +374,7 @@
   (interactive)
   (start-process-shell-command
    "calendar-sync" nil
-   (expand-file-name "bin/calendar-sync" (or (getenv "EMINIX") "")) "sync"))
+   (expand-file-name "calendar-sync" (or (getenv "EMINIX_BIN_DIR") "")) "sync"))
 
 (global-set-key (kbd "C-c c") #'eminix/calendar-sync)
 

@@ -32,13 +32,18 @@
       # Themes dir the active-theme tooling reads — consumer-controlled
       # (the distro ships no themes/ dir).
       EMINIX_THEMES_DIR = config.eminix.src.themesDir;
+      # Helper-script dir — likewise consumer-controlled (no bin/ in the
+      # distro). Read from elisp too, so it must be a session variable and
+      # not merely a PATH entry.
+      EMINIX_BIN_DIR = config.eminix.src.binDir;
       # Interactive convenience only — nothing in the repo reads it.
       EMINIX_ROLE = config.eminix.role;
     };
 
     initContent = ''
-      # eminix helpers on PATH
-      export PATH="$EMINIX/bin:$PATH"
+      # Helper scripts live in the CONSUMER's checkout, not the distro's —
+      # $EMINIX/bin was always a path that did not exist.
+      export PATH="$EMINIX_BIN_DIR:$PATH"
 
       # Local bin
       export PATH="$HOME/.local/bin:$PATH"

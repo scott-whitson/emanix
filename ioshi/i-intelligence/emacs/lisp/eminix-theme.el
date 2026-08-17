@@ -22,9 +22,11 @@
 (add-to-list 'load-path (expand-file-name "themes/" data-directory))
 
 (defconst eminix-theme--state-file "~/.config/dotfiles/active-theme")
+;; Fallback is the CONSUMER checkout, not $EMINIX: the distro ships no
+;; themes/. Matters when the daemon starts without the shell's environment.
 (defconst eminix-theme--themes-dir
   (or (getenv "EMINIX_THEMES_DIR")
-      (expand-file-name "themes" (or (getenv "EMINIX") "~/projects/eminix"))))
+      (expand-file-name "themes" "~/dotfiles")))
 (defconst eminix-theme--default "catppuccin-mocha")
 
 ;; Last-resort bg-main/fg-main pairs, used only when a theme's own

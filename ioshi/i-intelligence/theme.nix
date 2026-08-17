@@ -55,13 +55,35 @@
         default = "${config.home.homeDirectory}/projects/eminix";
         description = "Path to the eminix source checkout (used for live-editable config).";
       };
+      dotfilesPath = lib.mkOption {
+        type = lib.types.str;
+        default = "${config.home.homeDirectory}/dotfiles";
+        example = "/home/alice/projects/dotfiles";
+        description = ''
+          Path to the CONSUMER's checkout — the flake that imports eminix and
+          supplies the personal layer. Distinct from src.path, which is the
+          distro's own checkout.
+
+          themesDir and binDir derive from this, because the distro ships
+          neither themes/ nor bin/: both are consumer-supplied. Override this
+          on a host whose consumer checkout is not ~/dotfiles.
+        '';
+      };
       themesDir = lib.mkOption {
         type = lib.types.str;
-        # The distro's checkout ships no themes/ dir — the active-theme tooling
-        # reads them from the CONSUMER's checkout. Derive from src.path by
-        # default; consumers that keep themes elsewhere override this.
-        default = "${config.eminix.src.path}/themes";
+        # Derives from dotfilesPath, NOT src.path: the distro's checkout ships
+        # no themes/ dir, so the old ${src.path}/themes default pointed at a
+        # directory that exists on no machine.
+        default = "${config.eminix.src.dotfilesPath}/themes";
         description = "Path to the themes directory the active-theme tooling reads from.";
+      };
+      binDir = lib.mkOption {
+        type = lib.types.str;
+        # Same reasoning as themesDir. The helper scripts (dot-theme-set,
+        # calendar-sync, the firefox and pi wrappers) live in the consumer's
+        # checkout; the distro ships no bin/.
+        default = "${config.eminix.src.dotfilesPath}/bin";
+        description = "Path to the helper-script directory put on PATH and resolved from elisp.";
       };
       liveElisp = lib.mkOption {
         type = lib.types.bool;
