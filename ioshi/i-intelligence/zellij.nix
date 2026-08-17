@@ -1,5 +1,20 @@
 { config, lib, ... }:
 
+let
+  zellijDir = "${config.eminix.src.path}/ioshi/i-intelligence/zellij";
+
+  # zellij's KDL parser performs NO expansion. Verified against 0.44.3:
+  # "$HOME/x", "~/x" and a relative "x" are all taken literally, and a
+  # theme_dir that does not resolve is a hard IoError — zellij refuses to
+  # start at all. The KDL files therefore carry $HOME as a build-time
+  # PLACEHOLDER, substituted here for the real home directory.
+  #
+  # Shell scripts under plugins/ are deliberately NOT substituted: $HOME
+  # expands correctly there, and baking a path in would only make them
+  # user-specific.
+  substHome = builtins.replaceStrings [ "$HOME" ] [ config.home.homeDirectory ];
+  renderKdl = f: substHome (builtins.readFile f);
+in
 {
   options.eminix.zellij.enable = lib.mkEnableOption
     "zellij with the zellaude bar, deployed live from ioshi/i-intelligence/zellij";
@@ -12,11 +27,21 @@
     # zellij in every interactive shell.
     programs.zellij.enable = true;
 
-    # One live symlink for the whole config dir (same pattern as the
-    # emacs lisp dir). HM recreates it every rebuild, so plugin upgrades
-    # can't strand a stale hand-made link.
-    xdg.configFile."zellij".source = config.lib.file.mkOutOfStoreSymlink
-      "${config.eminix.src.path}/ioshi/i-intelligence/zellij";
+    # SPLIT deployment, not one live symlink for the whole dir. The KDL files
+    # need $HOME substituted (see renderKdl above), which can only happen at
+    # build time, so they are generated; plugins/ stays a live out-of-store
+    # symlink, preserving the property that HM recreates it every rebuild so a
+    # plugin upgrade can't strand a stale hand-made link.
+    #
+    # Cost of the split: editing config.kdl or a layout now needs a rebuild to
+    # take effect. That is the price of zellij not expanding anything — before
+    # this, the KDL carried a hardcoded /home/<user> path instead, which worked
+    # only for the one user who wrote it.
+    xdg.configFile."zellij/config.kdl".text = renderKdl ./zellij/config.kdl;
+    xdg.configFile."zellij/layouts/default.kdl".text =
+      renderKdl ./zellij/layouts/default.kdl;
+    xdg.configFile."zellij/plugins".source =
+      config.lib.file.mkOutOfStoreSymlink "${zellijDir}/plugins";
 
     # SSH logins land in the persistent session. Guards: never inside an
     # existing zellij, never for TRAMP (TERM=dumb). Not `exec`: detaching
