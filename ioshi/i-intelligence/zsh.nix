@@ -112,4 +112,25 @@
       et() { emacsclient -t "$@"; }
     '';
   };
+
+  # The same three paths, exported to the SYSTEMD USER MANAGER as well as the
+  # shell. A systemd user service does not start from a login shell, so
+  # programs.zsh.sessionVariables above never reaches one — and the Emacs
+  # daemon is exactly such a service. Without this, elisp that resolves
+  # $EMINIX_BIN_DIR (the calendar-sync binding, the pi fallback, the EWM
+  # firefox slot) gets an empty string and expands to a bare relative path.
+  #
+  # eminix-pi.el's fallback documents the daemon as its reason for existing,
+  # so the daemon is the case that must work, not the one that may be missed.
+  # Landing these here rather than in theme.nix, next to the shell exports
+  # they mirror, so the two lists cannot drift apart.
+  #
+  # HM writes these to ~/.config/environment.d/, which the user manager reads
+  # at start: changing them needs `systemctl --user daemon-reload` plus a
+  # restart of the affected service, not just a rebuild.
+  systemd.user.sessionVariables = {
+    EMINIX = config.eminix.src.path;
+    EMINIX_THEMES_DIR = config.eminix.src.themesDir;
+    EMINIX_BIN_DIR = config.eminix.src.binDir;
+  };
 }
