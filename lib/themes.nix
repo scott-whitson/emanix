@@ -13,6 +13,10 @@ rec {
   palettes = {
     catppuccin-mocha = {
       variant = "dark";
+      # The Emacs theme package this palette maps to. Not derivable from
+      # colours — it names a package — so it belongs with the palette rather
+      # than in a hand-written file beside the generated ones.
+      emacsTheme = "catppuccin";
       colors = {
         rosewater = "#f5e0dc";
         flamingo = "#f2cdcd";
@@ -45,6 +49,7 @@ rec {
 
     catppuccin-latte = {
       variant = "light";
+      emacsTheme = "catppuccin";
       colors = {
         rosewater = "#dc8a78";
         flamingo = "#dd7878";
@@ -83,6 +88,7 @@ rec {
     # enforces that. Do not "tidy" these values without re-running it.
     high-contrast-dark = {
       variant = "dark";
+      emacsTheme = "modus-vivendi";
       colors = {
         rosewater = "#ffd7d0";
         flamingo = "#ffb3a7";
@@ -115,6 +121,7 @@ rec {
 
     high-contrast-light = {
       variant = "light";
+      emacsTheme = "modus-operandi";
       colors = {
         rosewater = "#8a3324";
         flamingo = "#95291e";
