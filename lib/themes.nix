@@ -361,6 +361,16 @@ rec {
         ] ++ ui ++ [ "" "[ansi]" ] ++ ansi ++ [ "" "[palette]" ] ++ pal
       ) + "\n";
 
+  # btop.theme — template substitution. btop has 42 entries drawing on ~17
+  # palette slots, so a template is clearer than a Nix string with 42 holes.
+  btop = palette:
+    let
+      slots = lib.attrNames palette.colors;
+      from = map (s: "@${s}@") slots;
+      to = map (s: palette.colors.${s}) slots;
+    in
+    builtins.replaceStrings from to (builtins.readFile ./templates/btop.theme.in);
+
   # gtk.conf — sourced by dot-theme-set, so key=value with no quoting games.
   gtk = name: palette:
     let dark = palette.variant == "dark"; in
@@ -382,5 +392,6 @@ rec {
     colors = palette.colors;
     colorsToml = colorsToml name palette;
     gtk = gtk name palette;
+    btop = btop palette;
   };
 }
