@@ -59,10 +59,13 @@ in
       };
       themesDir = lib.mkOption {
         type = lib.types.str;
-        # Derives from dotfilesPath, NOT src.path: the distro's checkout ships
-        # no themes/ dir, so the old ${src.path}/themes default pointed at a
-        # directory that exists on no machine.
-        default = "${config.eminix.src.dotfilesPath}/themes";
+        # The distro generates the runtime tree now (lib/theme-tree.nix), so
+        # this defaults into the store rather than into the consumer's checkout.
+        # It pointed at ${src.dotfilesPath}/themes from 2026-08-17 until
+        # 2026-08-18, which was correct while the distro shipped no themes —
+        # that premise is what generating them removes. Consumers with their own
+        # tree still override this.
+        default = toString (import ../../lib/theme-tree.nix { inherit pkgs; });
         description = "Path to the themes directory the active-theme tooling reads from.";
       };
       binDir = lib.mkOption {
