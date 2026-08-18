@@ -159,12 +159,24 @@
                   }).config.system.build.toplevel.drvPath
               } > $out
             '';
+
+          # tests/contrast-check.py is a pure function of palette data (no
+          # Emacs, no temp trees, no subprocess timeouts like init-guard.sh),
+          # so it costs nothing to run on every `nix flake check`. The script
+          # reads palettes as JSON on stdin, so the palettes are serialized at
+          # build time and piped in.
+          palettesJson = pkgs.writeText "eminix-palettes.json"
+            (builtins.toJSON (eminixLib.theme { inherit pkgs; }).palettes);
         in
         {
           role-workstation = evalRole "workstation";
           role-server = evalRole "server";
           # Also exercises the homeModules seam, so it cannot silently break.
           role-wsl = evalRole "wsl";
+
+          palette-contrast = pkgs.runCommand "eminix-palette-contrast" { } ''
+            ${pkgs.python3}/bin/python3 ${./tests/contrast-check.py} < ${palettesJson} > $out
+          '';
         };
 
       # Builder dev shell.
