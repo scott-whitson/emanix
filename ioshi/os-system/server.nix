@@ -11,9 +11,6 @@
   # Headless server
   systemd.targets.multi-user.enable = true;
 
-  # Docker
-  virtualisation.docker.enable = true;
-
   # Network
   networking.networkmanager.enable = true;
 

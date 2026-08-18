@@ -1,8 +1,16 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   # os layer — settings shared by every eminix host.
   programs.zsh.enable = true;
+
+  # Docker on every role, base.nix included, because base.nix already puts the
+  # primary user in the `docker` group unconditionally. It used to be declared
+  # identically in os-system/{server,desktop}.nix and NOT in the wsl role, so a
+  # WSL host carried a group grant for a daemon it did not have. Bootloader and
+  # networkmanager stay in the desktop/server modules: WSL must not set a
+  # bootloader, and NixOS-WSL manages its own networking.
+  virtualisation.docker.enable = lib.mkDefault true;
 
   users.users.${config.eminix.username} = {
     isNormalUser = true;

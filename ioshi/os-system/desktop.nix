@@ -17,9 +17,6 @@
   programs.steam.enable = true;
 
 
-  # Docker
-  virtualisation.docker.enable = true;
-
   # Network
   networking.networkmanager.enable = true;
 
