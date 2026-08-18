@@ -114,9 +114,12 @@ SB_STATUS="off"
 [ -f "$REPO/flake.nix" ] && CHECK_REPO=y
 
 # Host key fingerprint. Source of truth pre-Part-II: the agenix recipient in
-# secrets/secrets.nix. Post-Part-II (no secrets.nix): the keypair's internal
-# consistency against its own .pub, which is what the rekeyed secrets were
-# encrypted to. Either way a mismatch fails closed.
+# secrets/secrets.nix. Post-Part-II (no secrets.nix): the repo's committed
+# keys/<host>_host_ed25519.pub — flake.nix's agenix-rekey wiring
+# (age.rekey.hostPubkey = ./keys/<host>_host_ed25519.pub) encrypts every
+# secret to exactly that file, so it — not the staged pair's own internal
+# consistency — is the actual recipient this check must confirm against.
+# Either way a mismatch fails closed.
 if [ -n "$KEY_DIR" ]; then
   HOST_KEY="$KEY_DIR/${FLAKE_HOST}_host_ed25519"
   if [ -f "$HOST_KEY" ] && [ -f "$HOST_KEY.pub" ]; then
@@ -128,9 +131,24 @@ if [ -n "$KEY_DIR" ]; then
         [ "$want_fp" = "$have_fp" ] && CHECK_KEYS=y
       fi
     else
-      # No secrets.nix (agenix-rekey era): the staged pair must be self-consistent.
-      if cmp -s <(ssh-keygen -y -f "$HOST_KEY") <(cut -d' ' -f1-2 "$HOST_KEY.pub"); then
-        CHECK_KEYS=y
+      # No secrets.nix (agenix-rekey era): the repo's committed
+      # keys/<host>_host_ed25519.pub is the real recipient (see comment
+      # above). Compare fingerprints, not file bytes — a staged .pub can
+      # differ from the committed one in comment/trailing whitespace while
+      # being the same key.
+      REPO_PUB="$REPO/keys/${FLAKE_HOST}_host_ed25519.pub"
+      if [ -f "$REPO_PUB" ]; then
+        want_fp="$(ssh-keygen -lf "$REPO_PUB" | awk '{print $2}')"
+        have_fp="$(ssh-keygen -lf "$HOST_KEY.pub" | awk '{print $2}')"
+        if [ "$want_fp" = "$have_fp" ]; then
+          CHECK_KEYS=y
+        else
+          warn "staged key for $FLAKE_HOST does NOT match the repo's recipient — agenix would fail to decrypt on first boot."
+          warn "  repo recipient ($REPO_PUB):   $want_fp"
+          warn "  staged key     ($HOST_KEY.pub): $have_fp"
+        fi
+      else
+        warn "no $REPO_PUB in this repo — cannot verify the staged key against a recipient."
       fi
     fi
   fi
