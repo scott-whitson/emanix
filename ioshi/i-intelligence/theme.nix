@@ -14,12 +14,6 @@
       description = "Machine has a graphical session. Gates cursor theme, Wayland tools, GUI apps, swaylock, and ghostty config.";
     };
 
-    ewm.enable = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "This machine's Emacs is the system-owned EWM build (ewm.nix). When false, the home layer installs the non-EWM pgtk Emacs and runs the daemon as a systemd user service (emacs-daemon.nix).";
-    };
-
     role = lib.mkOption {
       type = lib.types.enum [ "workstation" "server" "wsl" ];
       default = "workstation";
@@ -31,21 +25,6 @@
         Replaced eminix.dotfiles.profile on 2026-08-08, which encoded the same
         fact in a second vocabulary ("desktop" for what the role calls
         "workstation") and was set by hand in each role profile.
-      '';
-    };
-
-    pi.enable = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = ''
-        This host actually runs the pi agent, so it gets the OpenRouter
-        credential symlinked from agenix.
-
-        Set false on hosts that hold ~/.pi/agent only as a Syncthing peer
-        (they receive the secret via agenix — a recipient of the secret is a
-        per-host agenix concern — but do not run pi, so there is no reason to
-        deploy the symlink there). This option gates the symlink only; it
-        does not gate, and never gated, recipient status.
       '';
     };
 
