@@ -16,6 +16,13 @@ let
   #
   # eminix.role is an HM-level option (declared in i-intelligence/theme.nix),
   # read by HM modules (e.g. zsh.nix). It is set inside the user's HM config.
+  #
+  # NOT mkDefault, unlike the role profiles and the HM wiring block. Those
+  # carry the distribution's OPINIONS, which a consumer may outrank. These two
+  # are the ARGUMENTS mkHost was called with: overriding `role` to something
+  # other than the profile mkHost actually imported yields an incoherent host,
+  # with the HM modules branching on one role while the NixOS tier composed
+  # another. Role output is an opinion; mkHost input is an invariant.
   eminixCoreModule = {
     eminix.username = username;
     home-manager.users.${username}.eminix.role = role;

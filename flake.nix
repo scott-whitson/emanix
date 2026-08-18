@@ -58,17 +58,26 @@
 
       # Home Manager wiring: import the eminix HM modules for the given user.
       # The consuming flake adds personal home config via extraModules.
+      # mkDefault throughout, for the same reason as the role profiles: these
+      # are the distribution's opinions about how to wire Home Manager, not
+      # invariants. Until they were mkDefault the comment below was a lie —
+      # a consumer taking it up got "conflicting definition values" instead of
+      # their own stateVersion.
       mkHmModule = username: {
         home-manager = {
           extraSpecialArgs = sharedSpecialArgs;
-          useGlobalPkgs = true;
-          useUserPackages = true;
-          backupFileExtension = "hm-bak";
+          useGlobalPkgs = nixpkgs.lib.mkDefault true;
+          useUserPackages = nixpkgs.lib.mkDefault true;
+          # Consumers who would rather HM refuse than move a file aside can
+          # set this to null. Note it is what renames a clobbered file to
+          # <name>.hm-bak, which lands IN a checkout when the target is an
+          # out-of-store symlink into one.
+          backupFileExtension = nixpkgs.lib.mkDefault "hm-bak";
           users.${username} = {
             imports = [ ./ioshi/i-intelligence ];
             # The distribution tracks nixpkgs unstable; consumers pin their own
             # stateVersion in personal config if they need a different one.
-            home.stateVersion = "26.05";
+            home.stateVersion = nixpkgs.lib.mkDefault "26.05";
           };
         };
       };
