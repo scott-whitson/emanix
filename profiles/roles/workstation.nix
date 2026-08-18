@@ -8,8 +8,6 @@
     ../../ioshi/i-intelligence/ollama.nix
   ];
 
-  # The role is the single source of truth for these, which previously
-  # encoded the same fact by hand in several places.
   # mkDefault throughout: a role is the STARTING SHAPE for a host, not a
   # constraint on it. A consumer overriding one of these in extraModules is
   # making an informed choice (a GUI-capable WSL box, a server that does run
@@ -18,6 +16,5 @@
   # definitions a consumer cannot outrank.
   home-manager.users.${config.eminix.username} = {
     eminix.gui = lib.mkDefault true;
-    eminix.ewm.enable = lib.mkDefault true;
   };
 }

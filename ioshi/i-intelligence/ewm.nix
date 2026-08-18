@@ -16,6 +16,17 @@ in
 {
   imports = [ "${ewm}/nix/service.nix" ];
 
+  # The EWM switch, stated ONCE. Importing this module means the system owns
+  # the Emacs build, so the home layer must not also install the non-EWM pgtk
+  # Emacs and start a user daemon — that would build two full emacs-pgtk
+  # derivations and start the very daemon the tty1 launch hook below pkills.
+  #
+  # Set here rather than by hand in profiles/roles/workstation.nix (where it
+  # lived until 2026-08-18, alongside the role's imports of this file) so the
+  # two cannot disagree: the import IS the switch. A hard definition, not
+  # mkDefault — this is an invariant of importing ewm.nix, not an opinion.
+  home-manager.users.${config.eminix.username}.eminix.ewm.enable = true;
+
   # Autologin the primary user on the console — LUKS already gates the
   # machine, and the tty1 launch hook below takes over the session to start EWM.
   services.getty.autologinUser = config.eminix.username;

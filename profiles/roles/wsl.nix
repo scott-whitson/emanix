@@ -13,7 +13,6 @@
   # definitions a consumer cannot outrank.
   home-manager.users.${config.eminix.username} = {
     eminix.gui = lib.mkDefault false;
-    eminix.ewm.enable = lib.mkDefault false;
     eminix.ghostty.enable = lib.mkDefault true;
     eminix.zellij.enable = lib.mkDefault true;
   };
