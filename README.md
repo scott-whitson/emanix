@@ -5,11 +5,21 @@ opinionated NixOS distribution where *Emacs is the desktop*. It is organized
 around **ioshi**, a three-concern architecture:
 
 - **i — intelligence interface** (`ioshi/i-intelligence/`): Emacs, EWM, the pi
-  agent, theming, and the user workspace. These are *Home Manager modules*.
+  agent, theming, and the user workspace. Mostly Home Manager modules, but see
+  the note below — `ewm.nix` and `ollama.nix` are NixOS modules.
 - **os — operating system** (`ioshi/os-system/`): the NixOS substrate
   (base, desktop, server).
 - **hi — hardware / internet** (`ioshi/hi-hardware/`): hardware abstraction and
   the shared network layer (Tailscale).
+
+The three concerns are **descriptive, not enforced**. They say what a piece of
+config *is about*, not which module system delivers it — so `i-intelligence/`
+legitimately holds both Home Manager and NixOS modules (EWM is an intelligence
+concern that happens to need a system-level compositor service), and
+`hi-hardware/` is thin because the distribution needs little hardware
+abstraction, not because it is unfinished. Nothing checks the boundary and
+nothing is meant to; if you are deciding where a file goes, ask what it is
+about, not how it is wired.
 
 This repository is the *distribution*. It is generic: it does not hard-code any
 user's username, SSH keys, email, secrets, or hostnames. Personal configuration
@@ -24,6 +34,7 @@ profiles/eminix.nix                            # the distribution's common core 
 profiles/roles/{workstation,server,wsl}.nix    # per-shape config layered on top
 lib/{mkHost.nix,themes.nix}                    # host composer + theme lib
 installer/                                     # installer ISO + scripts
+checks/                                        # fixtures for the flake's eval checks
 ```
 
 ## Using it from a consuming flake
