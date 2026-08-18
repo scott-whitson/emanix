@@ -109,6 +109,12 @@
 (global-set-key (kbd "C-s") #'consult-line)
 (global-set-key (kbd "C-x b") #'consult-buffer)
 (global-set-key (kbd "M-g g") #'consult-goto-line)
+;; Heading navigation — the "table of contents" for markdown and org buffers,
+;; and imenu everywhere else. M-g already hosts goto-line, so this extends an
+;; existing prefix rather than claiming a new one. Folding needs no binding:
+;; markdown-mode already puts markdown-cycle on TAB and markdown-shifttab on
+;; S-TAB, org-style.
+(global-set-key (kbd "M-g i") #'consult-imenu)
 (global-set-key (kbd "M-y") #'consult-yank-pop)
 (global-set-key (kbd "C-c f") #'consult-ripgrep)
 ;; Bookmarks: the built-in binding is C-x r b (register/rectangle family), which
@@ -419,8 +425,15 @@
     (message "gdocs not loadable; skipping (see the comment above)")))
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(eminix-theme eminix-weather eminix-openrouter eminix-modeline eminix-launcher eminix-pi eminix-quarterly))
+(dolist (feature '(eminix-theme eminix-weather eminix-openrouter eminix-modeline eminix-launcher eminix-pi eminix-quarterly eminix-prose))
   (require feature nil :no-error))
+;; Prose rendering — markdown and org files read as documents, not source.
+;; C-c z toggles back to raw monospace for heavy editing. Chosen 2026-08-17;
+;; C-c a/b/c/d/e/f/i/m/n/o/q/t were already taken.
+(when (fboundp 'eminix-prose-mode)
+  (add-hook 'markdown-mode-hook #'eminix-prose-mode)
+  (add-hook 'org-mode-hook #'eminix-prose-mode)
+  (global-set-key (kbd "C-c z") #'eminix-prose-toggle))
 ;; Quarterly tracker — C-c q opens this quarter's note, C-u C-c q forces the
 ;; work one on a machine that has both trees.
 (when (fboundp 'eminix-quarterly-open)

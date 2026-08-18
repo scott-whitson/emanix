@@ -118,6 +118,18 @@
     # this package) is the only thing in nixpkgs checked that has them.
     # Picked up by fontconfig fallback; set-fontset-font is inert here.
     noto-fonts
+    # Prose faces for eminix-prose-mode (markdown/org rendered as documents).
+    # Plex Sans for body, Plex Serif for headings — a designed companion to
+    # a monospace, so it sits next to JetBrainsMono code blocks without
+    # clashing.
+    #
+    # The Latin sub-families ONLY, never the bare `ibm-plex' meta-package:
+    # that one joins every script family and closes over 334 MB (Chinese SC
+    # 118, Chinese TC 77, Japanese 76, Korean 27, plus Arabic/Devanagari/
+    # Hebrew/Thai/Condensed/Math/Mono). These two are the identical OTFs the
+    # meta-package symlinks to, at 11.1 MB the pair.
+    ibm-plex.sans
+    ibm-plex.serif
   ]
   # ghostty for non-gui hosts that opt in (non-GUI hosts (WSLg)). gui hosts already
   # get it from the gui block above — appended HERE so their list is

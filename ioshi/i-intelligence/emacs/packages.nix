@@ -52,6 +52,11 @@ let
     org
     catppuccin-theme
     markdown-mode # transition: vault is still .md until the conversion sub-project
+    # --- Prose rendering (eminix-prose.el) ---
+    visual-fill-column # centered reading column; markdown/org prose buffers
+    org-modern # bullets, block framing, tag/timestamp styling for org
+    org-appear # reveal org emphasis markers at point (markdown's equivalent
+    # is hand-rolled in eminix-prose.el — no package provides it)
     vterm # native module built by nix; M-x package-install can't do this
     weblorg # pure Emacs Lisp static site generator with org-roam support
 

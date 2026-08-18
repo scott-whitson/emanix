@@ -213,5 +213,15 @@ enabled, or nil if nothing could be loaded at all."
   "Load the theme matching the active dotfiles theme."
   (eminix/theme-set (eminix-theme--active-name)))
 
+(defun eminix/theme-palette-color (key)
+  "Return the active dotfiles theme's palette colour for KEY, or nil.
+KEY is a name from themes/<name>/colors.toml's [palette] section, e.g.
+\"base\", \"surface0\", \"text\". This is the public read path into the
+palette: other modules (eminix-prose.el) need theme-derived colours and
+must not grow a second TOML reader. Returns nil rather than signalling
+when the theme directory or the key is missing, matching
+`eminix-theme--read-palette-value'."
+  (eminix-theme--read-palette-value (eminix-theme--active-name) key))
+
 (provide 'eminix-theme)
 ;;; eminix-theme.el ends here

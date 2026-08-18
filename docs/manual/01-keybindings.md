@@ -144,6 +144,8 @@ Work when a native Emacs buffer is focused.
 | --- | --- |
 | `C-c i i` | Ask elisa (full set: `i` ask / `r` reindex / `m` toggle model / `n` ask notes). `s-i` is the global shortcut for ask. |
 | `C-c q` | Open the current-quarter tracker note |
+| `C-c z` | Toggle prose rendering (markdown/org rendered vs. raw source) |
+| `M-g i` | Jump to a heading in this buffer (`consult-imenu`) |
 | `C-c d` | Dirvish (file manager) |
 | `C-c f` | `consult-ripgrep` (search project) |
 | `C-s` | `consult-line` (search buffer) |
@@ -158,6 +160,22 @@ Work when a native Emacs buffer is focused.
 
 Fuller personal reference is in the vault notes *Emacs Shortcuts*, *Emacs Command
 Map*, and *Meow* (`~/docs/org`, the default org-roam root).
+
+### Prose rendering for markdown and org
+
+`.md` and `.org` files open in `eminix-prose-mode`: IBM Plex Sans body text,
+serif headings, hidden markup that reappears on the line at point, a centered
+90-column reading width, and monospace code blocks and tables.
+
+- `C-c z` — toggle back to plain monospace source
+- `M-g i` — jump to a heading (`consult-imenu`)
+- `TAB` / `S-TAB` — fold a section / the whole outline (markdown-mode's own)
+
+Code blocks and tables stay monospace — tables align by character count, so a
+proportional font would break them. The code-block background is read from the
+active theme's `surface0`, so it follows a theme switch with no extra config.
+
+Implementation is `ioshi/i-intelligence/emacs/lisp/eminix-prose.el`.
 
 ---
 
