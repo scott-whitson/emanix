@@ -1,11 +1,20 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 
+let
+  # The palette set is the real constraint on eminix.theme, so the option's
+  # type is derived from it rather than restating it in prose.
+  palettes = (import ../../lib/themes.nix { inherit pkgs; }).palettes;
+in
 {
   options.eminix = {
     theme = lib.mkOption {
-      type = lib.types.str;
+      # enum, not str: an unknown name used to build cleanly and then break at
+      # RUNTIME — ghostty.nix seeds theme.conf by interpolating this value into
+      # a symlink target, so a typo produced a dangling link and a ghostty that
+      # could not load its config. Now it is an eval error naming the valid set.
+      type = lib.types.enum (lib.attrNames palettes);
       default = "catppuccin-mocha";
-      description = "Active theme name (must match a key in lib/themes.nix palettes)";
+      description = "Active theme name. Must be a key in lib/themes.nix palettes.";
     };
 
     gui = lib.mkOption {

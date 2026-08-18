@@ -10,7 +10,12 @@
 
   options.eminix.username = lib.mkOption {
     type = lib.types.str;
-    default = "eminix-user";
+    # NO default, deliberately. It defaulted to "eminix-user" until 2026-08-18,
+    # which meant importing nixosModules.eminix outside mkHost silently created
+    # a real account named eminix-user in wheel and docker with no password set.
+    # For a distribution that hardcodes no username, failing loudly with
+    # "option used but not defined" is the correct behaviour. mkHost always
+    # supplies it.
     description = "Primary user account. Set by lib/mkHost.nix from the `username` argument.";
   };
 
