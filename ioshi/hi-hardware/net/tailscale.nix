@@ -41,5 +41,18 @@
       authKeyFile = config.eminix.tailscale.authKeyFile;
     };
     services.resolved.enable = true;
+
+    # extraUpFlags above is ONLY read by tailscaled-autoconnect
+    # (services/networking/tailscale.nix), which nixpkgs defines exclusively
+    # when authKeyFile != null — most hosts here have no authKeyFile, so
+    # nothing in the built system ever runs `tailscale up` with
+    # --login-server on their behalf. eminix-firstboot still needs this
+    # value for its own manual `tailscale up --login-server=...`, and the
+    # alternative (re-evaluating the flake at runtime, or hardcoding this
+    # URL a second time in the script) is worse than a one-line file. This
+    # is the single source of truth the script reads; nothing else consumes
+    # it, so it costs one file in the closure, not a duplicated literal.
+    environment.etc."eminix/tailscale-login-server".text =
+      config.eminix.tailscale.loginServer;
   };
 }

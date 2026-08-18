@@ -10,22 +10,57 @@
 
 say() { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
 
-# 1. Tailnet (login-server URL is baked into the flake via eminix.tailscale).
+# 1. Tailnet. The login-server URL is a per-host config value
+# (config.eminix.tailscale.loginServer) — the module writes it to
+# /etc/eminix/tailscale-login-server so this script has one place to read
+# it from, rather than a URL hardcoded here a second time.
+#
+# tailscaled-autoconnect (systemd) only EXISTS when authKeyFile is set on
+# this host (services/networking/tailscale.nix) — most eminix hosts have no
+# authKeyFile, so on them nothing ever runs `tailscale up` automatically.
+# Where the unit exists, prefer it (it already carries extraUpFlags); where
+# it does not, join directly with an explicit --login-server so a plain
+# `tailscale up` never falls through to Tailscale's own SaaS control plane.
+LOGIN_SERVER_FILE=/etc/eminix/tailscale-login-server
 if tailscale status >/dev/null 2>&1; then
   say "Tailscale already connected."
 else
-  say "Tailnet join. Mint a preauthkey on your coordination server, then:"
-  echo "    echo '<key>' | sudo tee /var/lib/tailscale-authkey"
-  echo "    sudo systemctl restart tailscaled-autoconnect"
-  read -rsp "Paste the preauthkey now (hidden), or press Enter to do it manually: " key || true; echo
-  if [ -n "$key" ]; then
-    printf '%s' "$key" | sudo tee /var/lib/tailscale-authkey >/dev/null
-    sudo systemctl restart tailscaled-autoconnect
-    sleep 2
-    tailscale status || true
-    sudo rm -f /var/lib/tailscale-authkey   # tailscale state holds the identity now
+  LOGIN_SERVER=""
+  [ -r "$LOGIN_SERVER_FILE" ] && LOGIN_SERVER="$(cat "$LOGIN_SERVER_FILE")"
+
+  say "Tailnet join. Mint a preauthkey on your coordination server, then paste it below."
+  if [ -n "$LOGIN_SERVER" ]; then
+    echo "  Login server (from $LOGIN_SERVER_FILE): $LOGIN_SERVER"
   else
-    echo "  (skipped — follow the instructions above)"
+    echo "  WARNING: $LOGIN_SERVER_FILE not found — eminix.tailscale may be disabled"
+    echo "  on this host, or predates this file. A plain 'tailscale up' below will"
+    echo "  enrol against Tailscale's own control plane, not a self-hosted one."
+  fi
+  read -rsp "Paste the preauthkey now (hidden), or press Enter to do it manually: " key || true; echo
+
+  if [ -n "$key" ]; then
+    if systemctl list-unit-files tailscaled-autoconnect.service >/dev/null 2>&1; then
+      # authKeyFile is set on this host — let the unit do it, it already
+      # carries extraUpFlags (--login-server=...) from the module.
+      printf '%s' "$key" | sudo tee /var/lib/tailscale-authkey >/dev/null
+      sudo systemctl restart tailscaled-autoconnect
+      sleep 2
+      tailscale status || true
+      sudo rm -f /var/lib/tailscale-authkey   # tailscale state holds the identity now
+    elif [ -n "$LOGIN_SERVER" ]; then
+      sudo tailscale up "--login-server=${LOGIN_SERVER}" "--authkey=${key}"
+      tailscale status || true
+    else
+      say "No tailscaled-autoconnect unit and no login server on file — joining without one."
+      sudo tailscale up "--authkey=${key}"
+      tailscale status || true
+    fi
+  else
+    if [ -n "$LOGIN_SERVER" ]; then
+      echo "  (skipped — run: sudo tailscale up --login-server=${LOGIN_SERVER} --authkey=<key>)"
+    else
+      echo "  (skipped — run 'sudo tailscale up' manually)"
+    fi
   fi
 fi
 
