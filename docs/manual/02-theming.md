@@ -76,15 +76,16 @@ every `dot-theme-set` switch by a consumer-side `bin/gen-pi-theme.py`; that
 script is gone from the consumer, and nothing regenerates this file at switch
 time any more — it is baked into the store path once, at build time.
 
-**A `post-set.sh` hook exists in the switcher but is currently unreachable.**
-`dot-theme-set` still contains the code to run `post-set.sh` at the end of its
-sequence if the file is present and executable (see step 9 below) — but the
-theme tree is now a read-only Nix store path that `lib/theme-tree.nix` builds,
-and nothing in that derivation writes a `post-set.sh`. No theme, shipped or
-custom, can have one under the current generator, so the hook can never fire.
-This is a real capability the generator quietly dropped, not a design
-decision — it would need `lib/theme-tree.nix` (or a per-host override of
-`eminix.src.themesDir`) to supply the file before it works again.
+**A `post-set.sh` hook was removed from the switcher on 2026-08-18.**
+`dot-theme-set` used to run a theme-specific `post-set.sh` at the end of its
+sequence if the file was present and executable, but the theme tree is a
+read-only Nix store path that `lib/theme-tree.nix` builds, and nothing in that
+derivation ever wrote a `post-set.sh`. No theme, shipped or custom, could have
+one under the current generator, so the hook could never fire — it was dead
+code, not a design decision, and has been deleted rather than left dormant. If
+it is ever wanted again, it would need `lib/theme-tree.nix` (or a per-host
+override of `eminix.src.themesDir`) to start supplying the file, and the
+`dot-theme-set` code to run it would need to be reintroduced alongside that.
 
 **These files are generated, not hand-written.** `lib/theme-tree.nix` renders
 them from the palette in `lib/themes.nix`, which is the single source of
@@ -130,13 +131,10 @@ two apps it did cover, and it undercounts what the system now reaches.
    generated from `colors.toml` at build time — nothing is regenerated here.
 7. Writes Claude Code's `theme` key to `dark-ansi`/`light-ansi`.
 8. Sources `gtk.conf` and runs `gsettings` for `color-scheme` and `gtk-theme`.
-9. Runs `$EMINIX_THEMES_DIR/<name>/post-set.sh` if present and executable —
-   this code path is currently unreachable, since the generated tree never
-   contains a `post-set.sh` (see "Theme directory anatomy" above).
-10. Calls `(eminix/theme-set "<name>")` in the running Emacs daemon, resolving
-    `emacsclient` from `PATH`. Emacs maps the name via
-    `$EMINIX_THEMES_DIR/<name>/emacs-theme`.
-11. Signals ghostty (`SIGUSR2`) to reload.
+9. Calls `(eminix/theme-set "<name>")` in the running Emacs daemon, resolving
+   `emacsclient` from `PATH`. Emacs maps the name via
+   `$EMINIX_THEMES_DIR/<name>/emacs-theme`.
+10. Signals ghostty (`SIGUSR2`) to reload.
 
 zellij and Claude Code are themed by **terminal ANSI colours**, not by hex, so
 they follow whichever terminal renders them — including over ssh, where that
@@ -247,8 +245,10 @@ not a limitation.
 - **No keybinding for `dot-theme-toggle`.** The Hyprland-era `$mod+Shift+T`
   went with Hyprland; nothing is bound under EWM.
 
-These are explicit omissions, not oversights. `post-set.sh` would be the
-natural place to add them per-theme, but that hook is currently unreachable
-(see "Theme directory anatomy" above) — it would need `lib/theme-tree.nix` to
-start generating one, or a per-host override of `eminix.src.themesDir`
-pointing at a tree that supplies one, before it could run.
+These are explicit omissions, not oversights. A per-theme `post-set.sh` hook
+would be the natural place to add them, but that hook was removed from
+`dot-theme-set` on 2026-08-18 as permanently dead code (see "Theme directory
+anatomy" above) — it would need `lib/theme-tree.nix` to start generating a
+`post-set.sh`, or a per-host override of `eminix.src.themesDir` pointing at a
+tree that supplies one, and the runner code reintroduced in `dot-theme-set`
+before it could run again.
