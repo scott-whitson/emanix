@@ -3,12 +3,17 @@
 # inputs + shared modules); each host calls the result with
 # { hostName, role, username, hardware ? null, extraModules ? [] }.
 #
+# `homeModules` are Home Manager modules for that user; `extraModules` are
+# NixOS modules for the host. Both are optional. Use homeModules rather than
+# reaching into home-manager.users.<username> from extraModules — mkHost
+# already knows the username, and spelling it again is how the two drift.
+#
 # This is the DISTRIBUTION's composer: it knows nothing about any particular
 # user's secrets, keys, or home-manager config. Personal modules (secrets,
 # SSH keys, home-manager imports) arrive via `extraModules` from the consuming
 # flake (e.g. dotfiles).
 { nixpkgs, home-manager, ewm, agenix, nixos-wsl, nixpkgsModule, mkHmModule, sharedSpecialArgs, system }:
-{ hostName, role, username, hardware ? null, extraModules ? [ ] }:
+{ hostName, role, username, hardware ? null, extraModules ? [ ], homeModules ? [ ] }:
 let
   # eminix.username is a NixOS-level option (declared in profiles/eminix.nix),
   # read by os-system/base.nix, i-intelligence/ewm.nix, and the role profiles
@@ -27,6 +32,14 @@ let
     eminix.username = username;
     home-manager.users.${username}.eminix.role = role;
   };
+
+  # homeModules — the seam for configuring the user mkHost already owns.
+  # Without it every consumer host re-spells
+  # `home-manager.users.<username>.…` inside extraModules, restating the name
+  # they just passed as `username`. Modules listed here are spliced under it.
+  homeModule = {
+    home-manager.users.${username}.imports = homeModules;
+  };
 in
 nixpkgs.lib.nixosSystem {
   inherit system;
@@ -38,6 +51,7 @@ nixpkgs.lib.nixosSystem {
     # activation breaks WSL's systemd user-session bootstrap, NixOS-WSL#888).
     { networking.hostName = nixpkgs.lib.mkDefault hostName; }
     eminixCoreModule
+    homeModule
     nixpkgsModule
     agenix.nixosModules.default
     home-manager.nixosModules.home-manager

@@ -47,12 +47,17 @@ checks/                                        # fixtures for the flake's eval c
       hostName = "myhost";
       role = "workstation";   # workstation | server | wsl
       username = "alice";
-      hardware = ./myhost-hardware.nix;       # optional
-      extraModules = [ ./myhost-config.nix ]; # secrets, keys, HM user config
+      hardware = ./myhost-hardware.nix;         # optional
+      extraModules = [ ./myhost-system.nix ];   # NixOS modules: secrets, keys
+      homeModules = [ ./alice-home.nix ];       # Home Manager modules for alice
     };
   };
 }
 ```
+
+Use `homeModules` for the user's Home Manager config rather than reaching into
+`home-manager.users.alice` from `extraModules` — `mkHost` already knows the
+username, and spelling it again in the consumer is how the two drift apart.
 
 `mkHost` composes the distribution core + role profile + Home Manager wiring
 for the given username. Everything personal arrives via `hardware` /

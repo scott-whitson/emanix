@@ -159,24 +159,6 @@
         "type": "github"
       }
     },
-    "nixos-hardware": {
-      "inputs": {
-        "nixpkgs": "nixpkgs_2"
-      },
-      "locked": {
-        "lastModified": 1784100666,
-        "narHash": "sha256-HF/mrw5NYQfKFZgkfV2h1UL5/E3ccfsE2XJ1AbbLLJ0=",
-        "owner": "NixOS",
-        "repo": "nixos-hardware",
-        "rev": "fccfa9031a85b78a437f2f153c1f6449f3bc3185",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "repo": "nixos-hardware",
-        "type": "github"
-      }
-    },
     "nixos-wsl": {
       "inputs": {
         "flake-compat": "flake-compat",
@@ -232,19 +214,6 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1767892417,
-        "narHash": "sha256-8bW3q88CEg2u4hSP66Vf4lpbLonHz7hqDNBMcCY7E9U=",
-        "rev": "3497aa5c9457a9d88d71fa93a4a8368816fbeeba",
-        "type": "tarball",
-        "url": "https://releases.nixos.org/nixos/unstable/nixos-26.05pre924538.3497aa5c9457/nixexprs.tar.xz"
-      },
-      "original": {
-        "type": "tarball",
-        "url": "https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz"
-      }
-    },
-    "nixpkgs_3": {
-      "locked": {
         "lastModified": 1783224372,
         "narHash": "sha256-8i/87eeoqiGE4yOTjwSA3Eh/ziJRQEmd/unYU+K27sk=",
         "owner": "NixOS",
@@ -266,9 +235,8 @@
         "emacs-overlay": "emacs-overlay",
         "ewm": "ewm",
         "home-manager": "home-manager_2",
-        "nixos-hardware": "nixos-hardware",
         "nixos-wsl": "nixos-wsl",
-        "nixpkgs": "nixpkgs_3"
+        "nixpkgs": "nixpkgs_2"
       }
     },
     "systems": {

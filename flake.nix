@@ -18,7 +18,6 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nixos-hardware.url = "github:NixOS/nixos-hardware";
     agenix = {
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -152,6 +151,9 @@
                     inherit role;
                     username = "checkuser";
                     hardware = ./checks/stub-hardware.nix;
+                    # A do-nothing consumer module, so the homeModules seam is
+                    # evaluated rather than merely accepted.
+                    homeModules = [{ }];
                   }).config.system.build.toplevel.drvPath
               } > $out
             '';
@@ -159,6 +161,7 @@
         {
           role-workstation = evalRole "workstation";
           role-server = evalRole "server";
+          # Also exercises the homeModules seam, so it cannot silently break.
           role-wsl = evalRole "wsl";
         };
 
