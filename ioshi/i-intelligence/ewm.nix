@@ -2,12 +2,16 @@
 
 let
   emacsPkgs = import ./emacs/packages.nix { inherit pkgs; };
-  # The ONE eminix Emacs: our package set (packages.nix) + EWM's module,
-  # org pinned. This is the sole emacs-pgtk build — Home Manager delivers
-  # config only (see emacs.nix). Exposed on the system PATH below so
-  # emacsclient is available (EDITOR/VISUAL point at it via zsh.nix).
-  theEmacs =
-    ((pkgs.emacsPackagesFor pkgs.emacs-pgtk).overrideScope emacsPkgs.orgOverride).emacsWithPackages (epkgs: emacsPkgs.list epkgs ++ [ config.programs.ewm.ewmPackage ]);
+  # The EWM variant of the eminix Emacs: the shared build (emacs/packages.nix,
+  # which owns the package set and the org pin) plus EWM's own package. The
+  # non-EWM variant is emacs-daemon.nix, which calls the same builder with no
+  # extras — so "sole build" is not this file's claim to make; the two differ
+  # only by what is passed here. Home Manager delivers config only (emacs.nix).
+  # Exposed on the system PATH below so emacsclient is available
+  # (EDITOR/VISUAL point at it via zsh.nix).
+  theEmacs = emacsPkgs.mkEmacs {
+    extraPackages = [ config.programs.ewm.ewmPackage ];
+  };
 in
 {
   imports = [ "${ewm}/nix/service.nix" ];
@@ -88,7 +92,7 @@ in
   # elisa reads this to load the sqlite-vec (vec0) extension into ELISA's DB;
   # keeps the /nix/store path in Nix so the liveElisp eminix-elisa.el stays
   # store-path-free. Present in the login shell → inherited by the EWM daemon.
-  environment.sessionVariables.ELISA_VEC0_PATH = "${pkgs.sqlite-vec}/lib/vec0.so";
+  environment.sessionVariables.ELISA_VEC0_PATH = emacsPkgs.elisaVecPath;
 
   # XWayland display — X11 apps (Steam, etc.) use this to find XWayland.
   # XWayland is started from the loginShellInit below, after the compositor

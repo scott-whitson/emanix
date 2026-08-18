@@ -1,7 +1,14 @@
-# Single source of truth for the eminix Emacs package set + the org pin.
-# Consumed by ioshi/i-intelligence/ewm.nix (the sole build site).
+# The ONE eminix Emacs build. Owns the package set, the org pin, and the
+# derivation itself — mkEmacs is the only way to build it.
+#
+# Until 2026-08-18 this file exported `orgOverride` and `list` and each
+# consumer assembled its own emacsWithPackages from them, so ewm.nix and
+# emacs-daemon.nix carried the same expression twice, differing only in the
+# EWM package. Any change to the base derivation had to be made in both or
+# workstation and WSL hosts quietly got different Emacsen. Callers now pass
+# what differs and nothing else.
 { pkgs, ... }:
-{
+let
   # org ELPA pin — the current emacs-overlay snapshot resolves org with a
   # stale hash; override the source until inputs are regenerated upstream.
   orgOverride = _eself: esuper: {
@@ -63,4 +70,17 @@
       g.tree-sitter-python
     ]))
   ];
+in
+{
+  # The sole build site. `extraPackages` carries the caller's difference —
+  # ewm.nix appends EWM's own package, which this file cannot know about, so
+  # the seam takes a value rather than naming a variant.
+  mkEmacs = { extraPackages ? [ ] }:
+    ((pkgs.emacsPackagesFor pkgs.emacs-pgtk).overrideScope orgOverride).emacsWithPackages
+      (epkgs: list epkgs ++ extraPackages);
+
+  # elisa's sqlite-vec extension. Exported because elisa is in `list` above,
+  # so this file owns the dependency; the two consumers set it on different
+  # tiers (system vs home sessionVariables) but must agree on the value.
+  elisaVecPath = "${pkgs.sqlite-vec}/lib/vec0.so";
 }
