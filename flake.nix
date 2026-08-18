@@ -114,6 +114,46 @@
       # are personal). The installer carries the disko INPUT so consuming
       # flakes can build their own.
 
+      # Evaluation checks — the distro validating ITSELF.
+      #
+      # nix flake check otherwise touches almost nothing here: it does not
+      # reach lib.mkHost, the role profiles, or any of the Home Manager
+      # modules under ioshi/i-intelligence/, so a broken option or a renamed
+      # upstream setting stays green until a CONSUMER's rebuild trips over
+      # it. Each check below composes a throwaway host through the real
+      # mkHost and forces its toplevel, which drags in the role profile, the
+      # NixOS tier, every HM module and NixOS's own assertions.
+      #
+      # EVALUATED, NEVER BUILT. unsafeDiscardStringContext drops the
+      # derivation dependency, so the drvPath is computed (that is the whole
+      # point) but no closure is realized. Deliberate: the workstation role
+      # pulls EWM, whose closure source-compiles and can take down a WSL host
+      # — a check that cannot be run safely on the machine you have is not a
+      # check.
+      #
+      # The username is intentionally NOT the author's. Any module that
+      # hardcodes a real one fails here rather than in a stranger's rebuild.
+      checks.${system} =
+        let
+          evalRole = role:
+            pkgs.runCommand "eminix-eval-${role}" { } ''
+              echo ${
+                builtins.unsafeDiscardStringContext
+                  (mkHost {
+                    hostName = "checkhost";
+                    inherit role;
+                    username = "checkuser";
+                    hardware = ./checks/stub-hardware.nix;
+                  }).config.system.build.toplevel.drvPath
+              } > $out
+            '';
+        in
+        {
+          role-workstation = evalRole "workstation";
+          role-server = evalRole "server";
+          role-wsl = evalRole "wsl";
+        };
+
       # Builder dev shell.
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = with pkgs; [
