@@ -52,9 +52,11 @@ in
           supplies the personal layer. Distinct from src.path, which is the
           distro's own checkout.
 
-          themesDir and binDir derive from this, because the distro ships
-          neither themes/ nor bin/: both are consumer-supplied. Override this
-          on a host whose consumer checkout is not ~/dotfiles.
+          binDir derives from this, because the distro ships no bin/: helper
+          scripts are consumer-supplied. themesDir no longer derives from
+          this — the distro now generates the theme tree itself (see
+          themesDir below); consumers with their own tree still override it.
+          Override this on a host whose consumer checkout is not ~/dotfiles.
         '';
       };
       themesDir = lib.mkOption {

@@ -163,7 +163,8 @@ rec {
   # This is not cosmetic: zellij themes and Claude Code's -ansi themes read
   # these indices, so an inverted light palette renders unreadable.
   #
-  # bin/gen-theme-dir.py must emit this same ordering.
+  # colorsToml below (this same file) consumes this ordering directly for
+  # [ansi] — there is no separate generator that must be kept in sync.
   ansiSlots = palette:
     let accents = [ "red" "green" "yellow" "blue" "pink" "teal" ];
     in
@@ -300,8 +301,9 @@ rec {
     '';
 
   # Slot order for the [palette] section. Ported verbatim from the retired
-  # bin/gen-theme-dir.py so the generated colors.toml is byte-identical to the
-  # committed one; the order is load-bearing only for human diffing.
+  # bin/gen-theme-dir.py; kept for stable, readable diffs of the generated
+  # colors.toml — the committed tree that generator once matched is gone, so
+  # nothing else must match this order any more.
   paletteOrder = [
     "rosewater"
     "flamingo"

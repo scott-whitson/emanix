@@ -22,8 +22,10 @@
 (add-to-list 'load-path (expand-file-name "themes/" data-directory))
 
 (defconst eminix-theme--state-file "~/.config/dotfiles/active-theme")
-;; Fallback is the CONSUMER checkout, not $EMINIX: the distro ships no
-;; themes/. Matters when the daemon starts without the shell's environment.
+;; Fallback matters only if the daemon starts before EMINIX_THEMES_DIR is in
+;; its environment. The distro generates the theme tree itself now (see
+;; lib/theme-tree.nix); this ~/dotfiles hardcode is a stale last resort, not
+;; the source of truth.
 (defconst eminix-theme--themes-dir
   (or (getenv "EMINIX_THEMES_DIR")
       (expand-file-name "themes" "~/dotfiles")))
@@ -51,8 +53,8 @@ it feeds eminix/theme-set, which must never error out to its caller.
 
 This is a narrow regexp over one TOML section, not a general parser: Emacs 30
 has no built-in TOML reader, and colors.toml's own header says not to
-hand-edit it, so the format here is exactly what bin/gen-theme-dir.py emits —
-one `key = \"value\"` pair per line inside [palette]."
+hand-edit it, so the format here is exactly what lib/themes.nix's colorsToml
+emits — one `key = \"value\"` pair per line inside [palette]."
   (let ((path (expand-file-name (format "%s/colors.toml" name)
                                  eminix-theme--themes-dir)))
     (when (file-readable-p path)
