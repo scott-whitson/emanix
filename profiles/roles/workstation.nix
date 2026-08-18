@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, ... }:
 
 {
   # A graphical eminix box: EWM compositor, local models, system syncthing.

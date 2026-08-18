@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ ... }:
 
 {
   # Shared NixOS server module.

@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, pkgs, ... }:
 
 {
   # os layer — settings shared by every eminix host.
@@ -22,8 +22,8 @@
     # collects garbage mid-build until max-free is available again. The weekly
     # timer alone is not enough on a churning host: a WSL host piled up 15.3 GiB of
     # dead paths in the 36 hours after its 2026-08-10 GC run.
-    min-free = 5368709120;   #  5 GiB
-    max-free = 21474836480;  # 20 GiB
+    min-free = 5368709120; #  5 GiB
+    max-free = 21474836480; # 20 GiB
   };
 
   # Daily, not weekly. On a WSL host the vhdx never shrinks below its

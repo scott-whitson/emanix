@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ewm, ... }:
+{ config, pkgs, ewm, ... }:
 
 let
   emacsPkgs = import ./emacs/packages.nix { inherit pkgs; };

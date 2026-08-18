@@ -1,4 +1,4 @@
-{ config, lib, nixos-wsl, pkgs, ... }:
+{ config, lib, nixos-wsl, ... }:
 
 {
   # An eminix instance inside WSL. No hardware layer — nixos-wsl supplies

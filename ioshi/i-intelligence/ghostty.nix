@@ -4,7 +4,6 @@ let
   themeLib = import ../../lib/themes.nix { inherit pkgs; };
   palettes = themeLib.palettes;
   ghostty = themeLib.ghostty;
-  activePalette = palettes.${config.eminix.theme} or palettes.catppuccin-mocha;
 in
 {
   options.eminix.ghostty.enable = lib.mkOption {

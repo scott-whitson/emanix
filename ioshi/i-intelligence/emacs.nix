@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, ... }:
 
 let
   # Elisp lives in the repo and is symlinked out-of-store (liveElisp) so it can

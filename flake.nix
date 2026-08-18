@@ -36,7 +36,6 @@
     , emacs-overlay
     , ewm
     , disko
-    , nixos-hardware
     , agenix
     , nixos-wsl
     , ...

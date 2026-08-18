@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ pkgs, ... }:
 {
   # Local inference host for elisa (the eminix assistant). NixOS *system* service
   # — the Home-Manager services.ollama module has no `loadModels`, only the
@@ -28,9 +28,9 @@
       "nomic-embed-text" # embeddings for elisa
     ];
     environmentVariables = {
-      OLLAMA_KEEP_ALIVE = "30m";  # keep the model warm between questions
-      OLLAMA_NUM_THREADS = "8";   # 8 physical Zen 4 cores > 16 hyperthreads for LLM
-      OLLAMA_IGPU_ENABLE = "1";   # allow Vulkan to use the Radeon 780M iGPU
+      OLLAMA_KEEP_ALIVE = "30m"; # keep the model warm between questions
+      OLLAMA_NUM_THREADS = "8"; # 8 physical Zen 4 cores > 16 hyperthreads for LLM
+      OLLAMA_IGPU_ENABLE = "1"; # allow Vulkan to use the Radeon 780M iGPU
     };
   };
 }
