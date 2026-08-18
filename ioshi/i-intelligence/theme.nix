@@ -3,7 +3,7 @@
 let
   # The palette set is the real constraint on eminix.theme, so the option's
   # type is derived from it rather than restating it in prose.
-  palettes = (import ../../lib/themes.nix { inherit pkgs; }).palettes;
+  inherit (import ../../lib/themes.nix { inherit pkgs; }) palettes;
 in
 {
   options.eminix = {

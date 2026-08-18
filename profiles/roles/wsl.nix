@@ -12,8 +12,10 @@
   # values" and force mkForce. Invariants belong in assertions, not in
   # definitions a consumer cannot outrank.
   home-manager.users.${config.eminix.username} = {
-    eminix.gui = lib.mkDefault false;
-    eminix.ghostty.enable = lib.mkDefault true;
-    eminix.zellij.enable = lib.mkDefault true;
+    eminix = {
+      gui = lib.mkDefault false;
+      ghostty.enable = lib.mkDefault true;
+      zellij.enable = lib.mkDefault true;
+    };
   };
 }

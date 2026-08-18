@@ -49,9 +49,11 @@
       # Applied to all NixOS systems; Home Manager inherits it via
       # useGlobalPkgs.
       nixpkgsModule = {
-        nixpkgs.overlays = [ emacs-overlay.overlays.default ];
-        nixpkgs.config.allowUnfree = true;
-        nixpkgs.config.permittedInsecurePackages = [ "electron-39.8.10" ];
+        nixpkgs = {
+          overlays = [ emacs-overlay.overlays.default ];
+          config.allowUnfree = true;
+          config.permittedInsecurePackages = [ "electron-39.8.10" ];
+        };
       };
 
       # Home Manager wiring: import the eminix HM modules for the given user.
@@ -83,7 +85,7 @@
       # Compose an eminix host: core + role + user + hardware + personal extras.
       mkHost = import ./lib/mkHost.nix {
         inherit nixpkgs home-manager ewm agenix nixos-wsl nixpkgsModule sharedSpecialArgs system;
-        mkHmModule = mkHmModule;
+        inherit mkHmModule;
       };
 
     in

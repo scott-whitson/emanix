@@ -37,11 +37,13 @@ in
     # take effect. That is the price of zellij not expanding anything — before
     # this, the KDL carried a hardcoded /home/<user> path instead, which worked
     # only for the one user who wrote it.
-    xdg.configFile."zellij/config.kdl".text = renderKdl ./zellij/config.kdl;
-    xdg.configFile."zellij/layouts/default.kdl".text =
-      renderKdl ./zellij/layouts/default.kdl;
-    xdg.configFile."zellij/plugins".source =
-      config.lib.file.mkOutOfStoreSymlink "${zellijDir}/plugins";
+    xdg.configFile = {
+      "zellij/config.kdl".text = renderKdl ./zellij/config.kdl;
+      "zellij/layouts/default.kdl".text =
+        renderKdl ./zellij/layouts/default.kdl;
+      "zellij/plugins".source =
+        config.lib.file.mkOutOfStoreSymlink "${zellijDir}/plugins";
+    };
 
     # SSH logins land in the persistent session. Guards: never inside an
     # existing zellij, never for TRAMP (TERM=dumb). Not `exec`: detaching
@@ -72,264 +74,269 @@ in
     #
     # BOTH are named `eminix`: zellij selects a theme by NAME, so switching
     # swaps which file is visible in theme_dir rather than editing config.kdl.
-    home.file.".local/share/eminix/zellij-themes/available/eminix-dark.kdl".text = ''
-      themes {
-        eminix {
-          text_unselected {
-            base 15
-            background 0
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
+    home = {
+      file = {
+        ".local/share/eminix/zellij-themes/available/eminix-dark.kdl".text = ''
+          themes {
+            eminix {
+              text_unselected {
+                base 15
+                background 0
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              text_selected {
+                base 15
+                background 8
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              ribbon_unselected {
+                base 0
+                background 7
+                emphasis_0 1
+                emphasis_1 15
+                emphasis_2 4
+                emphasis_3 5
+              }
+              ribbon_selected {
+                base 0
+                background 2
+                emphasis_0 1
+                emphasis_1 9
+                emphasis_2 5
+                emphasis_3 4
+              }
+              table_title {
+                base 2
+                background 0
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              table_cell_unselected {
+                base 15
+                background 0
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              table_cell_selected {
+                base 15
+                background 8
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              list_unselected {
+                base 15
+                background 0
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              list_selected {
+                base 15
+                background 8
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              frame_selected {
+                base 2
+                background 0
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 5
+                emphasis_3 0
+              }
+              frame_highlight {
+                base 9
+                background 0
+                emphasis_0 5
+                emphasis_1 9
+                emphasis_2 9
+                emphasis_3 9
+              }
+              exit_code_success {
+                base 2
+                background 0
+                emphasis_0 6
+                emphasis_1 0
+                emphasis_2 5
+                emphasis_3 4
+              }
+              exit_code_error {
+                base 1
+                background 0
+                emphasis_0 3
+                emphasis_1 0
+                emphasis_2 0
+                emphasis_3 0
+              }
+              multiplayer_user_colors {
+                player_1 5
+                player_2 4
+                player_3 0
+                player_4 3
+                player_5 6
+                player_6 0
+                player_7 1
+                player_8 0
+                player_9 0
+                player_10 0
+              }
+            }
           }
-          text_selected {
-            base 15
-            background 8
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          ribbon_unselected {
-            base 0
-            background 7
-            emphasis_0 1
-            emphasis_1 15
-            emphasis_2 4
-            emphasis_3 5
-          }
-          ribbon_selected {
-            base 0
-            background 2
-            emphasis_0 1
-            emphasis_1 9
-            emphasis_2 5
-            emphasis_3 4
-          }
-          table_title {
-            base 2
-            background 0
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          table_cell_unselected {
-            base 15
-            background 0
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          table_cell_selected {
-            base 15
-            background 8
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          list_unselected {
-            base 15
-            background 0
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          list_selected {
-            base 15
-            background 8
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          frame_selected {
-            base 2
-            background 0
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 5
-            emphasis_3 0
-          }
-          frame_highlight {
-            base 9
-            background 0
-            emphasis_0 5
-            emphasis_1 9
-            emphasis_2 9
-            emphasis_3 9
-          }
-          exit_code_success {
-            base 2
-            background 0
-            emphasis_0 6
-            emphasis_1 0
-            emphasis_2 5
-            emphasis_3 4
-          }
-          exit_code_error {
-            base 1
-            background 0
-            emphasis_0 3
-            emphasis_1 0
-            emphasis_2 0
-            emphasis_3 0
-          }
-          multiplayer_user_colors {
-            player_1 5
-            player_2 4
-            player_3 0
-            player_4 3
-            player_5 6
-            player_6 0
-            player_7 1
-            player_8 0
-            player_9 0
-            player_10 0
-          }
-        }
-      }
-    '';
+        '';
 
-    home.file.".local/share/eminix/zellij-themes/available/eminix-light.kdl".text = ''
-      themes {
-        eminix {
-          text_unselected {
-            base 0
-            background 15
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
+        ".local/share/eminix/zellij-themes/available/eminix-light.kdl".text = ''
+          themes {
+            eminix {
+              text_unselected {
+                base 0
+                background 15
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              text_selected {
+                base 0
+                background 7
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              ribbon_unselected {
+                base 15
+                background 8
+                emphasis_0 1
+                emphasis_1 0
+                emphasis_2 4
+                emphasis_3 5
+              }
+              ribbon_selected {
+                base 15
+                background 2
+                emphasis_0 1
+                emphasis_1 9
+                emphasis_2 5
+                emphasis_3 4
+              }
+              table_title {
+                base 2
+                background 15
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              table_cell_unselected {
+                base 0
+                background 15
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              table_cell_selected {
+                base 0
+                background 7
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              list_unselected {
+                base 0
+                background 15
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              list_selected {
+                base 0
+                background 7
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 2
+                emphasis_3 5
+              }
+              frame_selected {
+                base 2
+                background 15
+                emphasis_0 9
+                emphasis_1 6
+                emphasis_2 5
+                emphasis_3 15
+              }
+              frame_highlight {
+                base 9
+                background 15
+                emphasis_0 5
+                emphasis_1 9
+                emphasis_2 9
+                emphasis_3 9
+              }
+              exit_code_success {
+                base 2
+                background 15
+                emphasis_0 6
+                emphasis_1 15
+                emphasis_2 5
+                emphasis_3 4
+              }
+              exit_code_error {
+                base 1
+                background 15
+                emphasis_0 3
+                emphasis_1 15
+                emphasis_2 15
+                emphasis_3 15
+              }
+              multiplayer_user_colors {
+                player_1 5
+                player_2 4
+                player_3 15
+                player_4 3
+                player_5 6
+                player_6 15
+                player_7 1
+                player_8 15
+                player_9 15
+                player_10 15
+              }
+            }
           }
-          text_selected {
-            base 0
-            background 7
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          ribbon_unselected {
-            base 15
-            background 8
-            emphasis_0 1
-            emphasis_1 0
-            emphasis_2 4
-            emphasis_3 5
-          }
-          ribbon_selected {
-            base 15
-            background 2
-            emphasis_0 1
-            emphasis_1 9
-            emphasis_2 5
-            emphasis_3 4
-          }
-          table_title {
-            base 2
-            background 15
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          table_cell_unselected {
-            base 0
-            background 15
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          table_cell_selected {
-            base 0
-            background 7
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          list_unselected {
-            base 0
-            background 15
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          list_selected {
-            base 0
-            background 7
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 2
-            emphasis_3 5
-          }
-          frame_selected {
-            base 2
-            background 15
-            emphasis_0 9
-            emphasis_1 6
-            emphasis_2 5
-            emphasis_3 15
-          }
-          frame_highlight {
-            base 9
-            background 15
-            emphasis_0 5
-            emphasis_1 9
-            emphasis_2 9
-            emphasis_3 9
-          }
-          exit_code_success {
-            base 2
-            background 15
-            emphasis_0 6
-            emphasis_1 15
-            emphasis_2 5
-            emphasis_3 4
-          }
-          exit_code_error {
-            base 1
-            background 15
-            emphasis_0 3
-            emphasis_1 15
-            emphasis_2 15
-            emphasis_3 15
-          }
-          multiplayer_user_colors {
-            player_1 5
-            player_2 4
-            player_3 15
-            player_4 3
-            player_5 6
-            player_6 15
-            player_7 1
-            player_8 15
-            player_9 15
-            player_10 15
-          }
-        }
-      }
-    '';
+        '';
 
-    # theme_dir must EXIST before zellij starts: pointing it at a missing
-    # directory is a hard IoError, not a warning, and zellij refuses to run.
-    # Seed the active symlink if absent, same pattern as ghostty's theme.conf.
-    home.activation.seedZellijTheme =
-      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        active="$HOME/.local/share/eminix/zellij-themes/active"
-        run mkdir -p "$active"
-        if [ ! -e "$active/theme.kdl" ]; then
-          run ln -sfn \
-            "$HOME/.local/share/eminix/zellij-themes/available/eminix-dark.kdl" \
-            "$active/theme.kdl"
-        fi
-      '';
+      };
+
+      # theme_dir must EXIST before zellij starts: pointing it at a missing
+      # directory is a hard IoError, not a warning, and zellij refuses to run.
+      # Seed the active symlink if absent, same pattern as ghostty's theme.conf.
+      activation.seedZellijTheme =
+        lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+          active="$HOME/.local/share/eminix/zellij-themes/active"
+          run mkdir -p "$active"
+          if [ ! -e "$active/theme.kdl" ]; then
+            run ln -sfn \
+              "$HOME/.local/share/eminix/zellij-themes/available/eminix-dark.kdl" \
+              "$active/theme.kdl"
+          fi
+        '';
+    };
   };
 }

@@ -5,7 +5,7 @@
 # evaluate. These three settings are the minimum that satisfies those
 # assertions; nothing here is ever built or booted (see the checks output in
 # flake.nix, which discards the derivation's string context).
-{ ... }:
+_:
 {
   fileSystems."/" = {
     device = "/dev/vda1";

@@ -20,29 +20,32 @@
   # Network
   networking.networkmanager.enable = true;
 
-  # Printing
-  services.printing.enable = true;
-
   # Bluetooth
   hardware.bluetooth.enable = true;
 
-  # Input — touchpad (user preference, shared across hosts)
-  services.libinput = {
-    enable = true;
-    touchpad = {
-      naturalScrolling = true;
-      disableWhileTyping = true;
-    };
-  };
-
   # Audio
   security.rtkit.enable = true;
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
-    jack.enable = true;
+
+  # Printing, input (touchpad), and audio (pipewire)
+  services = {
+    printing.enable = true;
+
+    # Input — touchpad (user preference, shared across hosts)
+    libinput = {
+      enable = true;
+      touchpad = {
+        naturalScrolling = true;
+        disableWhileTyping = true;
+      };
+    };
+
+    pipewire = {
+      enable = true;
+      alsa.enable = true;
+      alsa.support32Bit = true;
+      pulse.enable = true;
+      jack.enable = true;
+    };
   };
 
   # Boot

@@ -1,4 +1,4 @@
-{ ... }:
+_:
 
 {
   # Shared NixOS server module.

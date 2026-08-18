@@ -404,8 +404,7 @@ rec {
     ghostty = ghostty palette;
     swaylock = swaylock palette;
     firefoxChrome = firefoxChrome palette;
-    variant = palette.variant;
-    colors = palette.colors;
+    inherit (palette) variant colors;
     colorsToml = colorsToml name palette;
     gtk = gtk name palette;
     btop = btop palette;

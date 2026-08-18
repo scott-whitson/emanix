@@ -2,8 +2,7 @@
 
 let
   themeLib = import ../../lib/themes.nix { inherit pkgs; };
-  palettes = themeLib.palettes;
-  ghostty = themeLib.ghostty;
+  inherit (themeLib) palettes ghostty;
 in
 {
   options.eminix.ghostty.enable = lib.mkOption {

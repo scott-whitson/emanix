@@ -2,7 +2,7 @@
 
 let
   themeLib = import ../../lib/themes.nix { inherit pkgs; };
-  palettes = themeLib.palettes;
+  inherit (themeLib) palettes;
   # Resolved once, from config.eminix.theme, at rebuild time — NOT what
   # `dot-theme-set` changes. Unlike ghostty (which pre-renders all four
   # palettes so the runtime switcher can pick one), Firefox renders exactly

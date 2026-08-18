@@ -2,7 +2,7 @@
 
 let
   themeLib = import ../../lib/themes.nix { inherit pkgs; };
-  palettes = themeLib.palettes;
+  inherit (themeLib) palettes;
   activePalette = palettes.${config.eminix.theme} or palettes.catppuccin-mocha;
 in
 {
