@@ -57,6 +57,22 @@ Slots are generic — no app is tied to a number. Names are session-local; set t
 | --- | --- |
 | `s-l` | Lock session (`swaylock`) |
 | `s-c` / `s-v` | Copy / paste (`kill-ring-save` / `yank`) |
+| `C-c R` | Restart EWM — saves file buffers, then exits so tty1 autologin relaunches |
+
+`C-c R` is the one session binding that is NOT a Super key: it is deliberately
+a `C-c` chord so a stray Super press cannot end the session, and it only needs
+to fire while Emacs has focus. **No reboot is needed to restart the
+compositor** — `ewm.nix` launches EWM from the tty1 login shell, which waits on
+the Emacs daemon and lets getty's autologin log back in when it exits, so
+killing the daemon *is* the restart.
+
+It avoids `save-buffers-kill-emacs`, which prompts once per modified buffer and
+again per buffer with a live process — a long interactive walk on a daemon that
+has been up for days. Instead it saves file buffers unattended and calls
+`kill-emacs`. The trade-off: live processes (vterm shells, running agents) are
+terminated without a prompt, so anything unsaved that is not a file buffer is
+lost. If the relaunch dies within 15s the login hook touches `/tmp/.ewm-flap`
+and the next login drops to a plain shell; remove it and log out to re-arm.
 
 The top bar — clock, battery, volume/wifi/cpu/ram/gpu, and the slot list — is
 rendered in the Emacs tab-bar (`eminix-modeline.el`, `eminix-ewm.el`), not a

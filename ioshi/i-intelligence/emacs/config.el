@@ -655,6 +655,12 @@ Each cdr is verified to render at the default face's cell width.")
 ;; never loads, so this stays a no-op there.
 (with-eval-after-load 'ewm
   (require 'eminix-ewm nil :no-error)
+  ;; Restart the compositor session. Global rather than in `ewm-mode-map': it
+  ;; only needs to fire while emacs has focus, and it is deliberately a C-c
+  ;; chord so a stray super key cannot end the session. Bound inside this
+  ;; block so non-EWM hosts (whistle) never get a key that would kill an
+  ;; emacs which is not a compositor.
+  (global-set-key (kbd "C-c R") #'eminix/ewm-restart)
   (when (boundp 'ewm-mode-map)
     ;; Super+number restores the old workspace-switch rhythm, but in EWM frame
     ;; slots. Slots create on demand: super-3 opens/switches to slot 3.

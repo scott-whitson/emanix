@@ -108,4 +108,28 @@ Useful when the black Xwayland buffer lingers after closing Steam."
   (delete-file "/tmp/.X11-unix/X0" nil)
   (message "Xwayland killed"))
 
+(defun eminix/ewm-restart ()
+  "Save every file buffer, then exit so the tty1 login loop relaunches EWM.
+
+No reboot is needed: ewm.nix launches EWM from the tty1 login shell, which
+then waits on this daemon and lets getty's autologin log straight back in
+when it exits.  Killing this daemon IS the restart.
+
+Why not `save-buffers-kill-emacs': that prompts once per modified buffer and
+again per buffer with a live process, which on a daemon that has been up for
+days is a long interactive walk.  This saves file buffers unattended and then
+calls `kill-emacs', which runs `kill-emacs-hook' but asks nothing.
+
+The trade-off, stated plainly: live processes (vterm shells, running agents)
+are terminated without a prompt.  Anything unsaved that is NOT a file buffer
+is lost.  That is the intended bargain for a deliberate restart.
+
+Recovery: if the relaunch dies within 15s the login hook touches
+/tmp/.ewm-flap and the next login drops to a plain shell instead of looping.
+Remove that file and log out to re-arm."
+  (interactive)
+  (when (yes-or-no-p "Restart EWM — save file buffers and end the session? ")
+    (save-some-buffers t)
+    (kill-emacs)))
+
 ;;; eminix-ewm.el ends here
