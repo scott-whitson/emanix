@@ -12,6 +12,9 @@
   (defvar dired-dwim-target)
   (defvar org-directory)
   (defvar org-roam-directory)
+  ;; Defined in org.el. Declared here because the buffer-hygiene section sits
+  ;; above the point where org is required.
+  (defvar org-agenda-new-buffers)
   (defvar tab-bar-format)
   (defvar tab-bar-show)
   (defvar meow-cheatsheet-layout)
@@ -94,6 +97,85 @@
 (eminix/openrouter-cost)
 (call-interactively #'eminix/launch-app)
 ")
+
+;; --- Buffer hygiene: kill buffers by named group ---
+;;
+;; Long-lived daemons accumulate buffers faster than you close them, and the
+;; worst offender is any command that opens files to scan them — the org
+;; agenda opens one buffer per agenda file. `eminix/org-agenda-release-buffers'
+;; handles the case where you quit the agenda properly, but nothing cleans up
+;; if you follow a TODO with RET and never go back.
+;;
+;; Emacs already ships `kill-matching-buffers-no-ask' (by regexp),
+;; `clean-buffer-list' (by age) and ibuffer's filter groups. What it lacks is
+;; a NAMED group behind a single prompt, including a "*" that wipes back to
+;; roughly a fresh daemon without dropping the daemon.
+;;
+;; Every kill goes through `kill-buffer', so a modified file still offers to
+;; save and a buffer with a live process still asks. No group, "*" included,
+;; can silently lose work.
+
+(defvar eminix/buffer-protect-names '("*scratch*" "*Messages*")
+  "Buffer names `eminix/kill-buffer-group' will never kill.")
+
+(defun eminix/buffer-protected-p (buf)
+  "Non-nil if BUF must survive a group kill.
+Buffers whose name begins with a space are protected wholesale. By Emacs
+convention those are internal — the minibuffers, ` *server*', encoding
+scratch space — and killing ` *server*' in a daemon takes emacsclient down
+with it, which on this setup means every frame across every zellij session.
+Nothing a user means by \"close my buffers\" lives in that namespace.
+
+NOT VERIFIED: whether EWM represents client windows as buffers on the
+graphical hosts. It appears to work in frames (`ewm-frame-new',
+`ewm--focused-frame'), which the \"*\" group does not touch, but if a wipe
+ever disturbs the window manager on rafik, add its buffers here."
+  (or (eq buf (current-buffer))
+      (minibufferp buf)
+      (string-prefix-p " " (buffer-name buf))
+      (member (buffer-name buf) eminix/buffer-protect-names)))
+
+(defun eminix/buffer-under-p (buf dir)
+  "Non-nil if BUF visits a file under DIR."
+  (when-let* ((f (buffer-file-name buf)))
+    (string-prefix-p (expand-file-name dir) (file-truename f))))
+
+(defvar eminix/buffer-group-alist
+  (list
+   ;; The precise one: only what the last agenda run had to open.
+   (cons "agenda" (lambda (buf) (memq buf org-agenda-new-buffers)))
+   (cons "org"    (lambda (buf) (with-current-buffer buf (derived-mode-p 'org-mode))))
+   (cons "dired"  (lambda (buf) (with-current-buffer buf (derived-mode-p 'dired-mode))))
+   (cons "files"  (lambda (buf) (buffer-file-name buf)))
+   ;; The wildcard: everything not protected.
+   (cons "*"      (lambda (_buf) t)))
+  "Alist of (NAME . PREDICATE) for `eminix/kill-buffer-group'.
+PREDICATE is called with a buffer and returns non-nil to kill it.
+Protected buffers (see `eminix/buffer-protected-p') are filtered out before
+any predicate runs, so no group can reach them.  Consumers add their own
+path-specific groups from the personal layer.")
+
+(defun eminix/kill-buffer-group (name)
+  "Kill every buffer matching the group NAME in `eminix/buffer-group-alist'."
+  (interactive
+   (list (completing-read "Kill buffer group: "
+                          (mapcar #'car eminix/buffer-group-alist)
+                          nil t)))
+  (let ((pred (cdr (assoc name eminix/buffer-group-alist)))
+        (killed 0))
+    (unless pred (user-error "No such buffer group: %s" name))
+    (dolist (buf (buffer-list))
+      (when (and (not (eminix/buffer-protected-p buf))
+                 (funcall pred buf)
+                 (kill-buffer buf))
+        (setq killed (1+ killed))))
+    ;; Drop dead references, or `org-agenda-new-buffers' stops being a usable
+    ;; count of what is actually open.
+    (setq org-agenda-new-buffers (seq-filter #'buffer-live-p org-agenda-new-buffers))
+    (message "Killed %d buffer%s in group %S" killed (if (= killed 1) "" "s") name)))
+
+;; `C-c k' is meow-dispatch; `C-c K' is the super-kill.
+(global-set-key (kbd "C-c K") #'eminix/kill-buffer-group)
 
 ;; --- Minibuffer completion: vertico + orderless + consult + marginalia + embark ---
 (require 'vertico)
