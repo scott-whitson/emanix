@@ -319,15 +319,32 @@
   (global-set-key (kbd "C-c n c") #'org-roam-capture))
 (global-set-key (kbd "C-c a") #'org-agenda)
 
-;; Kill org buffers after agenda closes — they're only opened for scanning.
-;; NB: this kills EVERY org-mode buffer, not just the ones the agenda opened,
-;; so an org file you were editing yourself also goes when you quit the agenda.
-(defun eminix/org-agenda-kill-buffers ()
-  "Kill all org-mode buffers after closing the agenda."
-  (dolist (buf (buffer-list))
-    (when (with-current-buffer buf (derived-mode-p 'org-mode))
-      (kill-buffer buf))))
-(add-hook 'org-agenda-quit-hook #'eminix/org-agenda-kill-buffers)
+;; Release the org buffers the agenda opened for scanning.
+;;
+;; This replaces an earlier version that hung a kill-every-org-buffer function
+;; on `org-agenda-quit-hook'. THAT HOOK DOES NOT EXIST — grep the org tree and
+;; you get zero hits; org has never defined or run it. `add-hook' interns any
+;; symbol handed to it without complaint, so the cleanup looked installed and
+;; never fired once. Agenda scans leaked a buffer per agenda file, forever.
+;;
+;; The mechanism that does work is org's own. `org-get-agenda-file-buffer'
+;; pushes onto `org-agenda-new-buffers' ONLY buffers it had to create; a file
+;; already being visited is returned as-is and never recorded, so buffers the
+;; user opened by hand are safe by construction. `org-release-buffers' kills
+;; that list, offering to save anything modified first.
+;;
+;; `x' (org-agenda-exit) already does this. `q' (org-agenda-quit) and `Q'
+;; (org-agenda-Quit) do not — hence the advice. Their shared chokepoint
+;; `org-agenda--quit' is private, so we attach to the two public commands
+;; instead and stay off org's internals. On the `x' path org has already
+;; released and nulled the list, making the advice a harmless no-op.
+(defun eminix/org-agenda-release-buffers (&rest _)
+  "Release only the org buffers the agenda itself opened.
+Buffers visited by hand are untouched."
+  (org-release-buffers org-agenda-new-buffers)
+  (setq org-agenda-new-buffers nil))
+(advice-add 'org-agenda-quit :after #'eminix/org-agenda-release-buffers)
+(advice-add 'org-agenda-Quit :after #'eminix/org-agenda-release-buffers)
 
 ;; org-babel: executable src blocks in notes (the "living ops journal"
 ;; workflow, adopted 2026-08-05). Shell blocks are off by default — enable.
@@ -340,7 +357,34 @@
    (python . t)))
 
 ;; --- Org agenda ---
-(setq org-agenda-files (list org-directory))
+;; Agenda file discovery is RECURSIVE. A bare directory in `org-agenda-files'
+;; is expanded non-recursively by org, so the previous `(list org-directory)'
+;; found only .org files sitting directly in the org root — none at all in a
+;; vault that files its notes under subdirectories. Symptom: an empty
+;; `C-c a t' with no error to explain it.
+;;
+;; Recomputed before every agenda build rather than once at startup: this
+;; daemon runs for weeks and the list would go stale the first time org-roam
+;; captured a new note.
+(defun eminix/org-agenda-file-list ()
+  "Every .org file under `org-directory', recursively.
+Dot-directories are skipped — .stfolder (Syncthing) and .claude (tooling
+state) hold no tasks.  The PREDICATE argument of
+`directory-files-recursively' receives a full directory path rather than a
+base name, hence the `file-name-nondirectory' before the prefix test."
+  (directory-files-recursively
+   (expand-file-name org-directory)
+   "\\.org\\'" nil
+   (lambda (dir)
+     (not (string-prefix-p "." (file-name-nondirectory dir))))))
+
+(defun eminix/org-refresh-agenda-files (&rest _)
+  "Recompute `org-agenda-files' from the current state of the vault."
+  (setq org-agenda-files (eminix/org-agenda-file-list)))
+
+(eminix/org-refresh-agenda-files)
+(advice-add 'org-agenda    :before #'eminix/org-refresh-agenda-files)
+(advice-add 'org-todo-list :before #'eminix/org-refresh-agenda-files)
 (setq org-agenda-include-diary nil)           ; we use org files, not diary
 (setq org-deadline-warning-days 14)            ; default lead time
 (setq org-agenda-skip-deadline-if-done t)
