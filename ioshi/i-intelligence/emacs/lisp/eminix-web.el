@@ -138,14 +138,20 @@ file's mere presence says nothing about formatting."
 Parsed, not grepped: \"prettier\" also appears as a dependency name, and a
 devDependency is a build-tool choice, not a request to reformat on save.
 Malformed JSON answers nil — this runs from a mode hook and must not
-signal on a file someone is mid-edit."
+signal on a file someone is mid-edit.  So does JSON that parses but is
+not an object (`5', `\"x\"', `[]', `true'): `json-parse-buffer' returns
+those happily and `assq' would then signal `wrong-type-argument' out of
+`find-file' and `after-save-hook' alike, which is why the `assq' sits
+INSIDE the `ignore-errors' rather than after it."
   (let ((f (expand-file-name "package.json" dir)))
     (and (file-readable-p f)
          (with-temp-buffer
            (insert-file-contents f)
            (goto-char (point-min))
-           (let ((json (ignore-errors (json-parse-buffer :object-type 'alist))))
-             (and json (assq 'prettier json) t))))))
+           (and (ignore-errors
+                  (let ((json (json-parse-buffer :object-type 'alist)))
+                    (assq 'prettier json)))
+                t)))))
 
 (defun eminix-web-djlint-configured-p (dir)
   "Non-nil when DIR or an ancestor up to the project root declares djlint."

@@ -132,6 +132,17 @@ This is why package.json is parsed rather than grepped."
   (eminix-web-test--with-tree '(("package.json" . "{not json\n"))
     (should-not (eminix-web-prettier-configured-p root))))
 
+(ert-deftest eminix-web-prettier-configured-p-non-object-package-json ()
+  "JSON that PARSES but is not an object also answers nil.
+`json-parse-buffer' happily returns 5, \"x\", [] or t for these, and an
+`assq' against a non-list then signals `wrong-type-argument' — out of
+`find-file' (\"File mode specification error\") and out of
+`after-save-hook' alike, since both reach here through a mode hook.  The
+`assq' therefore has to sit inside the `ignore-errors', not after it."
+  (dolist (content '("5\n" "\"x\"\n" "[]\n" "true\n" "null\n"))
+    (eminix-web-test--with-tree (list (cons "package.json" content))
+      (should-not (eminix-web-prettier-configured-p root)))))
+
 ;; --- mode dispatch ----------------------------------------------------
 
 (ert-deftest eminix-web-html-mode-template-gets-web-mode ()
