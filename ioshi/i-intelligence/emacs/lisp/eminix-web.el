@@ -7,10 +7,19 @@
 ;;
 ;; It also gates format-on-save behind the repo's own declared config, and
 ;; the gate is the point: none of those repos declares any formatter config,
-;; and `apheleia-global-mode' is already on, so an ungated hook would rewrite
-;; all 134 files on their first save.  The repo owns its formatting — exactly
-;; as ruff + pyproject.toml already decides Python line length per repo
-;; (pearl 88, distrosim 120) without this config knowing either number.
+;; and `apheleia-global-mode' is already on.  The gate cannot be "leave
+;; `apheleia-mode-alist' untouched" alone: apheleia ships its OWN non-nil
+;; entries for `web-mode', `html-ts-mode', `css-ts-mode' and `css-mode' (all
+;; prettier), and only `mhtml-mode' formats to nil.  Before this file, every
+;; `.html' opened in `mhtml-mode' by the stock `auto-mode-alist' entry, so
+;; the "leave it nil" mhtml behaviour was never tested against anything else.
+;; Once this file routes `.html' to `web-mode'/`html-ts-mode' on path, that
+;; accidental protection is gone, so `eminix-web--apheleia-skip-p' on
+;; `apheleia-skip-functions' is the actual gate: it, not
+;; `apheleia-mode-alist', decides whether a save formats at all.  The repo
+;; owns its formatting — exactly as ruff + pyproject.toml already decides
+;; Python line length per repo (pearl 88, distrosim 120) without this config
+;; knowing either number.
 ;;
 ;; web-mode is soft-required.  A missing package must cost template-aware
 ;; editing and nothing else; on rafik this Emacs is the compositor.
@@ -160,6 +169,36 @@ stock `mhtml-mode' rather than nothing."
   "Placeholder; implemented in Task 5."
   nil)
 
+;; --- Format-on-save gate ------------------------------------------------
+;;
+;; Registered on `apheleia-skip-functions', not expressed through
+;; `apheleia-mode-alist'.  Apheleia consults `apheleia-skip-functions'
+;; before every format and skips the buffer if any of them return non-nil;
+;; that is the only apheleia extension point this file uses, so
+;; `apheleia-mode-alist' — and apheleia's own stock defaults in it — is
+;; never touched.  This function decides WHETHER to format; the buffer-local
+;; `apheleia-formatter' that Task 5's hook bodies set decides WHAT WITH
+;; (apheleia's stock `web-mode' entry is plain prettier, which does not
+;; understand Jinja2's `{% %}', so the choice of formatter still has to be
+;; ours even once the gate is open).
+
+(defun eminix-web--apheleia-skip-p ()
+  "Non-nil when apheleia should skip formatting the current buffer.
+
+Skips only when BOTH hold: the buffer is in a mode this file dispatches
+to (`web-mode', `html-ts-mode', `mhtml-mode', or a `css-base-mode'
+derivative), and the repo has declared no matching formatter config —
+djlint for `web-mode' templates, prettier for the rest.  A buffer with no
+`buffer-file-name' — nothing on disk to look an ancestor config up from —
+answers nil rather than erroring, since `and' short-circuits before
+`file-name-directory' ever sees a nil argument."
+  (and buffer-file-name
+       (derived-mode-p 'web-mode 'html-ts-mode 'mhtml-mode 'css-base-mode)
+       (let ((dir (file-name-directory buffer-file-name)))
+         (if (derived-mode-p 'web-mode)
+             (not (eminix-web-djlint-configured-p dir))
+           (not (eminix-web-prettier-configured-p dir))))))
+
 (defun eminix-web-setup ()
   "Install the mode rules and the gated format-on-save hooks.
 Idempotent: `add-to-list' and `add-hook' both no-op on a repeat, so this
@@ -176,9 +215,15 @@ is safe to re-run after `M-x load-file' on a live daemon."
   (add-to-list 'auto-mode-alist '("\\.html?\\'" . eminix-web-html-mode))
   (when (treesit-language-available-p 'css)
     (add-to-list 'major-mode-remap-alist '(css-mode . css-ts-mode)))
-  ;; Format-on-save gate. One hook covers both CSS modes: `css-mode' and
-  ;; `css-ts-mode' both derive from `css-base-mode' (verified 2026-08-20),
-  ;; and a derived mode runs its parent's hooks.
+  ;; The actual gate — see the comment above `eminix-web--apheleia-skip-p'.
+  ;; Soft-required: apheleia is expected everywhere in this distro
+  ;; (config.el requires it unconditionally), but a unit test loading only
+  ;; this file, or some future Emacs without it, must not error here.
+  (when (boundp 'apheleia-skip-functions)
+    (add-hook 'apheleia-skip-functions #'eminix-web--apheleia-skip-p))
+  ;; One hook covers both CSS modes: `css-mode' and `css-ts-mode' both
+  ;; derive from `css-base-mode' (verified 2026-08-20), and a derived mode
+  ;; runs its parent's hooks.
   (add-hook 'web-mode-hook #'eminix-web--maybe-enable-djlint)
   (add-hook 'html-ts-mode-hook #'eminix-web--maybe-enable-prettier)
   (add-hook 'mhtml-mode-hook #'eminix-web--maybe-enable-prettier)

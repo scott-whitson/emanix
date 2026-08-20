@@ -3,6 +3,8 @@
 (require 'eminix-web)
 (require 'cl-lib)
 (require 'seq)
+(require 'css-mode)
+(require 'apheleia nil :no-error)
 
 ;; --- eminix-web-template-file-p ---------------------------------------
 
@@ -161,6 +163,8 @@ fundamental-mode with no error to explain why."
   "setup installs the .html dispatch, and calling it twice adds one entry."
   (let ((auto-mode-alist (copy-sequence auto-mode-alist))
         (major-mode-remap-alist (copy-sequence major-mode-remap-alist))
+        (apheleia-skip-functions (and (boundp 'apheleia-skip-functions)
+                                       (copy-sequence apheleia-skip-functions)))
         (web-mode-engines-alist nil))
     (eminix-web-setup)
     (eminix-web-setup)
@@ -172,6 +176,8 @@ fundamental-mode with no error to explain why."
   "Our .html entry must sit BEFORE any stock entry, or mhtml-mode wins."
   (let ((auto-mode-alist (copy-sequence auto-mode-alist))
         (major-mode-remap-alist (copy-sequence major-mode-remap-alist))
+        (apheleia-skip-functions (and (boundp 'apheleia-skip-functions)
+                                       (copy-sequence apheleia-skip-functions)))
         (web-mode-engines-alist nil))
     (eminix-web-setup)
     (should (eq 'eminix-web-html-mode
@@ -179,16 +185,84 @@ fundamental-mode with no error to explain why."
                                 #'string-match-p nil)))))
 
 (ert-deftest eminix-web-setup-does-not-widen-apheleia-mode-alist ()
-  "The gate lives in hooks. An apheleia-mode-alist entry would format
-every buffer in every repo — the outcome this design exists to prevent."
+  "The gate lives in `apheleia-skip-functions', not `apheleia-mode-alist'.
+Asserting the alist is unchanged, not that it is empty: apheleia ships its
+OWN non-nil entries for these modes (all prettier, discovered in fix round
+1 — `web-mode', `html-ts-mode', `css-ts-mode' and `css-mode' all resolve
+to a formatter there already, only `mhtml-mode' is nil), so \"these
+entries are nil\" was never a true property of this alist and the earlier
+version of this test only looked green because it was skipped in the bare
+batch harness that never loaded apheleia."
   (skip-unless (boundp 'apheleia-mode-alist))
   (let ((auto-mode-alist (copy-sequence auto-mode-alist))
         (major-mode-remap-alist (copy-sequence major-mode-remap-alist))
-        (apheleia-mode-alist (copy-sequence apheleia-mode-alist))
-        (web-mode-engines-alist nil))
+        (apheleia-skip-functions (and (boundp 'apheleia-skip-functions)
+                                       (copy-sequence apheleia-skip-functions)))
+        (web-mode-engines-alist nil)
+        (before (copy-tree apheleia-mode-alist)))
     (eminix-web-setup)
-    (dolist (m '(web-mode html-ts-mode css-ts-mode css-mode mhtml-mode))
-      (should-not (alist-get m apheleia-mode-alist)))))
+    (should (equal before apheleia-mode-alist))))
+
+;; --- format-on-save gate ------------------------------------------------
+
+(ert-deftest eminix-web-apheleia-skip-p-closes-gate-for-unconfigured-template ()
+  "No djlint config anywhere in the tree: the gate closes for a template."
+  (eminix-web-test--with-tree
+      '(("repo/.git/" . nil)
+        ("repo/app/templates/base.html" . "<div></div>\n"))
+    (with-temp-buffer
+      (setq buffer-file-name
+            (expand-file-name "repo/app/templates/base.html" root))
+      (web-mode)
+      (should (eminix-web--apheleia-skip-p)))))
+
+(ert-deftest eminix-web-apheleia-skip-p-opens-gate-for-configured-template ()
+  "A `.djlintrc' at the project root opens the gate for that template."
+  (eminix-web-test--with-tree
+      '(("repo/.git/" . nil)
+        ("repo/.djlintrc" . "profile=jinja\n")
+        ("repo/app/templates/base.html" . "<div></div>\n"))
+    (with-temp-buffer
+      (setq buffer-file-name
+            (expand-file-name "repo/app/templates/base.html" root))
+      (web-mode)
+      (should-not (eminix-web--apheleia-skip-p)))))
+
+(ert-deftest eminix-web-apheleia-skip-p-closes-gate-for-unconfigured-css ()
+  "No prettier config anywhere in the tree: the gate closes for CSS."
+  (eminix-web-test--with-tree
+      '(("repo/.git/" . nil)
+        ("repo/static/widget.css" . "body {}\n"))
+    (with-temp-buffer
+      (setq buffer-file-name (expand-file-name "repo/static/widget.css" root))
+      (css-mode)
+      (should (eminix-web--apheleia-skip-p)))))
+
+(ert-deftest eminix-web-apheleia-skip-p-opens-gate-for-configured-css ()
+  "A `.prettierrc.json' at the project root opens the gate for that CSS."
+  (eminix-web-test--with-tree
+      '(("repo/.git/" . nil)
+        ("repo/.prettierrc.json" . "{}\n")
+        ("repo/static/widget.css" . "body {}\n"))
+    (with-temp-buffer
+      (setq buffer-file-name (expand-file-name "repo/static/widget.css" root))
+      (css-mode)
+      (should-not (eminix-web--apheleia-skip-p)))))
+
+(ert-deftest eminix-web-apheleia-skip-p-no-buffer-file-name-does-not-signal ()
+  "An unsaved buffer has no ancestor to look a config up from.
+Must return nil, not signal — `and' short-circuits on the nil
+`buffer-file-name' before `file-name-directory' ever runs."
+  (with-temp-buffer
+    (web-mode)
+    (should-not (eminix-web--apheleia-skip-p))))
+
+(ert-deftest eminix-web-apheleia-skip-p-ignores-unrelated-modes ()
+  "A buffer in some other mode entirely is none of this gate's business."
+  (with-temp-buffer
+    (setq buffer-file-name "/tmp/p/x.py")
+    (fundamental-mode)
+    (should-not (eminix-web--apheleia-skip-p))))
 
 (provide 'eminix-web-test)
 ;;; eminix-web-test.el ends here
