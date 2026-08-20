@@ -4,6 +4,8 @@
 (require 'cl-lib)
 (require 'seq)
 (require 'css-mode)
+(require 'mhtml-mode)
+(require 'html-ts-mode)
 (require 'apheleia nil :no-error)
 
 ;; --- eminix-web-template-file-p ---------------------------------------
@@ -159,13 +161,41 @@ fundamental-mode with no error to explain why."
       (eminix-web-html-mode))
     (should-not (eq major-mode 'fundamental-mode))))
 
+;; --- setup isolation ----------------------------------------------------
+;;
+;; `eminix-web-setup' mutates global state: `auto-mode-alist',
+;; `major-mode-remap-alist', `web-mode-engines-alist',
+;; `apheleia-skip-functions', and four mode hooks.  Every test that calls
+;; it must let-bind all of that, or its `add-to-list'/`add-hook' calls
+;; leak into the real global and contaminate every later test in the same
+;; batch run.  Fix round 2 found exactly this: an injected mutation to
+;; `apheleia-mode-alist' inside `eminix-web-setup' passed the guard test
+;; silently when the full suite ran, because an earlier setup-calling test
+;; had already leaked that mutation into the real global before the guard
+;; test ever took its "before" snapshot.  `apheleia-mode-alist' is not
+;; written to by `eminix-web-setup' today, but is bound here anyway, so a
+;; test calling `eminix-web-setup' can never leak an unintended future
+;; mutation into it either, whether or not it currently does.
+
+(defmacro eminix-web-test--with-setup-isolation (&rest body)
+  "Run BODY with every global `eminix-web-setup' can touch let-bound."
+  (declare (indent 0))
+  `(let ((auto-mode-alist (copy-sequence auto-mode-alist))
+         (major-mode-remap-alist (copy-sequence major-mode-remap-alist))
+         (web-mode-engines-alist nil)
+         (web-mode-hook (copy-sequence web-mode-hook))
+         (html-ts-mode-hook (copy-sequence html-ts-mode-hook))
+         (mhtml-mode-hook (copy-sequence mhtml-mode-hook))
+         (css-base-mode-hook (copy-sequence css-base-mode-hook))
+         (apheleia-skip-functions (and (boundp 'apheleia-skip-functions)
+                                        (copy-tree apheleia-skip-functions)))
+         (apheleia-mode-alist (and (boundp 'apheleia-mode-alist)
+                                    (copy-tree apheleia-mode-alist))))
+     ,@body))
+
 (ert-deftest eminix-web-setup-claims-html-and-is-idempotent ()
   "setup installs the .html dispatch, and calling it twice adds one entry."
-  (let ((auto-mode-alist (copy-sequence auto-mode-alist))
-        (major-mode-remap-alist (copy-sequence major-mode-remap-alist))
-        (apheleia-skip-functions (and (boundp 'apheleia-skip-functions)
-                                       (copy-sequence apheleia-skip-functions)))
-        (web-mode-engines-alist nil))
+  (eminix-web-test--with-setup-isolation
     (eminix-web-setup)
     (eminix-web-setup)
     (should (eq 'eminix-web-html-mode (cdr (assoc "\\.html?\\'" auto-mode-alist))))
@@ -174,11 +204,7 @@ fundamental-mode with no error to explain why."
 
 (ert-deftest eminix-web-setup-dispatch-precedes-stock-mhtml ()
   "Our .html entry must sit BEFORE any stock entry, or mhtml-mode wins."
-  (let ((auto-mode-alist (copy-sequence auto-mode-alist))
-        (major-mode-remap-alist (copy-sequence major-mode-remap-alist))
-        (apheleia-skip-functions (and (boundp 'apheleia-skip-functions)
-                                       (copy-sequence apheleia-skip-functions)))
-        (web-mode-engines-alist nil))
+  (eminix-web-test--with-setup-isolation
     (eminix-web-setup)
     (should (eq 'eminix-web-html-mode
                 (assoc-default "x.html" auto-mode-alist
@@ -192,16 +218,19 @@ OWN non-nil entries for these modes (all prettier, discovered in fix round
 to a formatter there already, only `mhtml-mode' is nil), so \"these
 entries are nil\" was never a true property of this alist and the earlier
 version of this test only looked green because it was skipped in the bare
-batch harness that never loaded apheleia."
+batch harness that never loaded apheleia.
+
+The \"before\" snapshot is `copy-tree', not `copy-sequence': a shallow
+copy shares the entry cons cells with the live alist, so a hypothetical
+in-place mutation (`setf'/`setcdr' on an EXISTING entry, as opposed to
+`add-to-list' consing on a new one) would change the snapshot right along
+with the live value and this `equal' would hold vacuously no matter what
+`eminix-web-setup' did."
   (skip-unless (boundp 'apheleia-mode-alist))
-  (let ((auto-mode-alist (copy-sequence auto-mode-alist))
-        (major-mode-remap-alist (copy-sequence major-mode-remap-alist))
-        (apheleia-skip-functions (and (boundp 'apheleia-skip-functions)
-                                       (copy-sequence apheleia-skip-functions)))
-        (web-mode-engines-alist nil)
-        (before (copy-tree apheleia-mode-alist)))
-    (eminix-web-setup)
-    (should (equal before apheleia-mode-alist))))
+  (eminix-web-test--with-setup-isolation
+    (let ((before (copy-tree apheleia-mode-alist)))
+      (eminix-web-setup)
+      (should (equal before apheleia-mode-alist)))))
 
 ;; --- format-on-save gate ------------------------------------------------
 
