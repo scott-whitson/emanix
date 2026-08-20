@@ -232,6 +232,55 @@ with the live value and this `equal' would hold vacuously no matter what
       (eminix-web-setup)
       (should (equal before apheleia-mode-alist)))))
 
+(defun eminix-web-test--emacs-batch (form)
+  "Evaluate FORM in a FRESH `emacs --batch' and return its stdout.
+The lisp directory is put on the subprocess load path; stderr (the
+`Loading ...' chatter) is discarded, so only what FORM `princ's comes
+back.  A subprocess is the only honest way to test a LOAD-ORDER property:
+this test file itself requires `html-ts-mode', so in-process the library
+is loaded and its `auto-mode-alist' entry installed long before any test
+runs, and the bug under test could never reproduce."
+  (with-temp-buffer
+    (call-process (expand-file-name invocation-name invocation-directory)
+                  nil (list t nil) nil
+                  "--batch"
+                  "-L" (file-name-directory (locate-library "eminix-web"))
+                  "--eval" (prin1-to-string form))
+    (buffer-string)))
+
+(ert-deftest eminix-web-setup-dispatch-survives-a-plain-html-visit ()
+  "Visiting a plain .html must not permanently disable our .html dispatch.
+
+`html-ts-mode.el' runs (add-to-list \\='auto-mode-alist \\='(\"\\\\.html\\\\\\='\" .
+html-ts-mode)) at FILE LOAD time and is autoloaded, so unless it is
+already loaded when `eminix-web-setup' prepends ours, it loads on the
+first dispatch to `html-ts-mode' and lands IN FRONT of our entry.  Every
+later .html then bypasses the dispatch entirely — permanently, on a
+daemon — which sends templates to `html-ts-mode' and therefore to the
+PRETTIER half of the gate, mangling Jinja2 in any repo that declares
+prettier config.  Sequence: template, plain, SAME template again."
+  (let ((out (eminix-web-test--emacs-batch
+              '(progn
+                 (require 'eminix-web)
+                 (eminix-web-setup)
+                 (let* ((root (file-name-as-directory
+                               (make-temp-file "eminix-web-shadow" t)))
+                        (tpl (expand-file-name "templates/t.html" root))
+                        (plain (expand-file-name "plain.html" root)))
+                   (unwind-protect
+                       (progn
+                         (make-directory (expand-file-name "templates" root) t)
+                         (with-temp-file tpl (insert "<div></div>\n"))
+                         (with-temp-file plain (insert "<div></div>\n"))
+                         (dolist (f (list tpl plain tpl))
+                           (find-file f)
+                           (princ (format "%s\n" major-mode))
+                           (set-buffer-modified-p nil)
+                           (kill-buffer)))
+                     (delete-directory root t)))))))
+    (should (equal '("web-mode" "html-ts-mode" "web-mode")
+                   (split-string out "\n" t)))))
+
 ;; --- format-on-save gate ------------------------------------------------
 
 (ert-deftest eminix-web-apheleia-skip-p-closes-gate-for-unconfigured-template ()

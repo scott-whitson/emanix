@@ -28,6 +28,21 @@
 (require 'seq)
 (require 'web-mode nil :no-error)
 (require 'apheleia nil :no-error)
+;; Loaded here, eagerly, for its SIDE EFFECT and not for any symbol.
+;; `html-ts-mode.el' runs (add-to-list 'auto-mode-alist '("\\.html\\'" .
+;; html-ts-mode)) at FILE LOAD time, and it is autoloaded — so without this
+;; require it first loads the moment `eminix-web-html-mode' dispatches a
+;; plain `.html' buffer to `html-ts-mode', and its entry lands AHEAD of the
+;; one `eminix-web-setup' prepended.  Our dispatch is then never consulted
+;; again: on a daemon, one plain `.html' visit permanently routes every
+;; later `.html' — templates included — to `html-ts-mode'.  That is not
+;; merely the wrong keymap; it sends templates to the PRETTIER half of the
+;; gate, so a `[tool.djlint]'-only repo silently stops formatting and a repo
+;; declaring both configs gets prettier run on Jinja2, joining `{% extends
+;; %}' and `{% block %}' onto one line.  Requiring it up here means its
+;; entry is already installed before ours is prepended, and ours stays in
+;; front for the life of the session.
+(require 'html-ts-mode nil :no-error)
 
 (defgroup eminix-web nil
   "Major modes and gated format-on-save for Jinja2, HTML and CSS."
@@ -239,8 +254,12 @@ is safe to re-run after `M-x load-file' on a live daemon."
   ;; path. django is the engine name for the Jinja2 family.
   (when (boundp 'web-mode-engines-alist)
     (add-to-list 'web-mode-engines-alist '("django" . "/templates/")))
-  ;; Prepend, so this beats the stock `.html' -> mhtml-mode entry. That entry
-  ;; is deliberately left in place: if this file ever fails to load, .html
+  ;; Prepend, so this beats both the stock `.html' -> mhtml-mode entry and
+  ;; the `.html' -> html-ts-mode one that `html-ts-mode.el' installs when it
+  ;; loads (which the eager require at the top of this file has already
+  ;; forced to happen by now — see the comment there; without it that entry
+  ;; would arrive LATER and land in front of this one). Both are
+  ;; deliberately left in place: if this file ever fails to load, .html
   ;; still opens in a working mode.
   (add-to-list 'auto-mode-alist '("\\.html?\\'" . eminix-web-html-mode))
   (when (treesit-language-available-p 'css)
