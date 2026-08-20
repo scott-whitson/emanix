@@ -189,30 +189,39 @@ stock `mhtml-mode' rather than nothing."
     (html-ts-mode))
    (t (mhtml-mode))))
 
-(defun eminix-web--maybe-enable-djlint ()
-  "Set djlint as this buffer's formatter, if its repo declares djlint config.
+(defun eminix-web--set-djlint-formatter ()
+  "Set djlint as this buffer's formatter.  Unconditional, by design.
 
-Sets `apheleia-formatter' buffer-locally.  This is only half the gate:
-`eminix-web--apheleia-skip-p' on `apheleia-skip-functions' is what decides
-WHETHER a save formats at all (a repo with no matching config skips, no
-matter what this function does).  This function only decides WHAT WITH,
-once that gate is already open — apheleia's own stock `web-mode' entry in
-`apheleia-mode-alist' is plain prettier, which mangles Jinja2's `{% %}',
-so the choice of formatter still has to be made explicitly here."
-  (let ((dir (and buffer-file-name (file-name-directory buffer-file-name))))
-    (when (and dir (eminix-web-djlint-configured-p dir))
-      (setq-local apheleia-formatter 'djlint))))
+Sets `apheleia-formatter' buffer-locally, and asks NOTHING about the
+repo's config.  The two halves of this feature answer two different
+questions, and this one only answers WHAT WITH: apheleia's own stock
+`web-mode' entry in `apheleia-mode-alist' is plain prettier, which mangles
+Jinja2's `{% %}', so a template that is going to be formatted at all must
+be formatted with djlint.  WHETHER it is formatted at all is
+`eminix-web--apheleia-skip-p' on `apheleia-skip-functions', and that is
+the sole decider.
 
-(defun eminix-web--maybe-enable-prettier ()
-  "Set prettier as this buffer's formatter, if its repo declares prettier config.
-See `eminix-web--maybe-enable-djlint' for the division of labour between
-this and `eminix-web--apheleia-skip-p'."
-  (let ((dir (and buffer-file-name (file-name-directory buffer-file-name))))
-    (when (and dir (eminix-web-prettier-configured-p dir))
-      (setq-local apheleia-formatter
-                  (if (derived-mode-p 'css-base-mode)
-                      'prettier-css
-                    'prettier-html)))))
+Asking the config question here too was a bug, not redundancy.  This runs
+ONCE, in the mode hook; the skip function re-runs on EVERY save.  So for a
+buffer already open when a `[tool.djlint]' or `.djlintrc' appeared, the
+gate would open on the next save while this buffer-local was still nil —
+and apheleia, finding no buffer-local, would fall through to its stock
+`web-mode' entry and run PRETTIER on a Jinja2 template.  That is precisely
+the mangling the gate exists to prevent, reached through the convenience
+path the manual advertises (\"takes effect on the next save, with no need
+to reopen the file\").  Setting the formatter unconditionally makes that
+path safe: in an unconfigured repo the skip function still blocks the
+save, so a buffer-local naming djlint costs nothing."
+  (setq-local apheleia-formatter 'djlint))
+
+(defun eminix-web--set-prettier-formatter ()
+  "Set the right prettier parser as this buffer's formatter.
+Unconditional for the same reason as `eminix-web--set-djlint-formatter';
+see there for the division of labour with `eminix-web--apheleia-skip-p'."
+  (setq-local apheleia-formatter
+              (if (derived-mode-p 'css-base-mode)
+                  'prettier-css
+                'prettier-html)))
 
 ;; --- Format-on-save gate ------------------------------------------------
 ;;
@@ -221,11 +230,15 @@ this and `eminix-web--apheleia-skip-p'."
 ;; before every format and skips the buffer if any of them return non-nil;
 ;; that is the only apheleia extension point this file uses, so
 ;; `apheleia-mode-alist' — and apheleia's own stock defaults in it — is
-;; never touched.  This function decides WHETHER to format; the buffer-local
-;; `apheleia-formatter' that Task 5's hook bodies set decides WHAT WITH
-;; (apheleia's stock `web-mode' entry is plain prettier, which does not
-;; understand Jinja2's `{% %}', so the choice of formatter still has to be
-;; ours even once the gate is open).
+;; never touched.  This function is the SOLE decider of WHETHER to format;
+;; the buffer-local `apheleia-formatter' the mode hooks set decides only
+;; WHAT WITH (apheleia's stock `web-mode' entry is plain prettier, which
+;; does not understand Jinja2's `{% %}', so the choice of formatter still
+;; has to be ours even once the gate is open).  The split has to be exactly
+;; there: this runs on every save, the hooks run once per buffer, so a hook
+;; that also asked the config question would leave an already-open buffer
+;; with a nil formatter the moment config appeared under it — and apheleia
+;; would then fall through to prettier on a Jinja2 template.
 
 (defun eminix-web--apheleia-skip-p ()
   "Non-nil when apheleia should skip formatting the current buffer.
@@ -273,10 +286,10 @@ is safe to re-run after `M-x load-file' on a live daemon."
   ;; One hook covers both CSS modes: `css-mode' and `css-ts-mode' both
   ;; derive from `css-base-mode' (verified 2026-08-20), and a derived mode
   ;; runs its parent's hooks.
-  (add-hook 'web-mode-hook #'eminix-web--maybe-enable-djlint)
-  (add-hook 'html-ts-mode-hook #'eminix-web--maybe-enable-prettier)
-  (add-hook 'mhtml-mode-hook #'eminix-web--maybe-enable-prettier)
-  (add-hook 'css-base-mode-hook #'eminix-web--maybe-enable-prettier))
+  (add-hook 'web-mode-hook #'eminix-web--set-djlint-formatter)
+  (add-hook 'html-ts-mode-hook #'eminix-web--set-prettier-formatter)
+  (add-hook 'mhtml-mode-hook #'eminix-web--set-prettier-formatter)
+  (add-hook 'css-base-mode-hook #'eminix-web--set-prettier-formatter))
 
 ;; djlint is the one formatter apheleia does not ship. prettier-html and
 ;; prettier-css are built in and need no definition; both route through

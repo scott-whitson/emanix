@@ -342,6 +342,66 @@ Must return nil, not signal — `and' short-circuits on the nil
     (fundamental-mode)
     (should-not (eminix-web--apheleia-skip-p))))
 
+(ert-deftest eminix-web-unconfigured-repo-is-never-formatted ()
+  "End to end through the real dispatch: an unconfigured repo does not format.
+This is the property the whole feature exists to preserve — 134 templates
+across three repos that declare nothing, left byte-identical.  It now
+rests entirely on the skip function, so it is asserted through apheleia's
+own `apheleia--disallowed-p', which is what `apheleia-format-buffer'
+consults on the save path, rather than by calling
+`eminix-web--apheleia-skip-p' directly.
+
+The second half is the bug this replaced.  `apheleia-formatter' is set
+once, in the mode hook; the skip function re-runs on EVERY save.  While
+the hook also asked the config question, a buffer already open when
+config appeared hit an open gate with a nil buffer-local, and apheleia
+fell through to its own stock `web-mode' entry — PRETTIER, on a Jinja2
+template.  The manual advertises exactly that path (\"takes effect on the
+next save, with no need to reopen the file\"), so it has to be djlint."
+  (skip-unless (fboundp 'apheleia--disallowed-p))
+  (eminix-web-test--with-setup-isolation
+    (eminix-web-test--with-tree
+        '(("repo/.git/" . nil)
+          ("repo/app/templates/base.html"
+           . "{% extends \"b.html\" %}\n{% block c %}x{% endblock %}\n"))
+      (eminix-web-setup)
+      (find-file (expand-file-name "repo/app/templates/base.html" root))
+      (unwind-protect
+          (progn
+            (should (eq major-mode 'web-mode))
+            ;; WHAT WITH is answered unconditionally ...
+            (should (eq 'djlint apheleia-formatter))
+            ;; ... and WHETHER is still no, which is what protects the tree.
+            (should (apheleia--disallowed-p))
+            ;; Config appears under this very buffer's feet.
+            (with-temp-file (expand-file-name "repo/.djlintrc" root)
+              (insert "profile=jinja\n"))
+            (should-not (apheleia--disallowed-p))
+            (should (equal '(djlint) (apheleia--get-formatters))))
+        (set-buffer-modified-p nil)
+        (kill-buffer)))))
+
+(ert-deftest eminix-web-unconfigured-css-is-never-formatted ()
+  "The same two-step for CSS, whose open gate means prettier-css."
+  (skip-unless (fboundp 'apheleia--disallowed-p))
+  (eminix-web-test--with-setup-isolation
+    (eminix-web-test--with-tree
+        '(("repo/.git/" . nil)
+          ("repo/static/widget.css" . "body    {color:red}\n"))
+      (eminix-web-setup)
+      (find-file (expand-file-name "repo/static/widget.css" root))
+      (unwind-protect
+          (progn
+            (should (derived-mode-p 'css-base-mode))
+            (should (eq 'prettier-css apheleia-formatter))
+            (should (apheleia--disallowed-p))
+            (with-temp-file (expand-file-name "repo/.prettierrc" root)
+              (insert "{}\n"))
+            (should-not (apheleia--disallowed-p))
+            (should (equal '(prettier-css) (apheleia--get-formatters))))
+        (set-buffer-modified-p nil)
+        (kill-buffer)))))
+
 ;; --- the gate, applied ------------------------------------------------
 
 (ert-deftest eminix-web-djlint-formatter-is-defined ()
@@ -359,17 +419,21 @@ Must return nil, not signal — `and' short-circuits on the nil
 (ert-deftest eminix-web-djlint-profile-defaults-to-jinja ()
   (should (equal "jinja" eminix-web-djlint-profile)))
 
-(ert-deftest eminix-web-gate-closed-sets-no-formatter ()
-  "An unconfigured repo gets no formatter, so the skip function blocks the save.
-`eminix-web--maybe-enable-djlint' still sets no `apheleia-formatter' here,
-but it is `eminix-web--apheleia-skip-p' that is now the operative reason
-a save on this buffer stays inert; this assertion just confirms the
-buffer-local half of that division of labour holds up its end too."
+(ert-deftest eminix-web-templates-always-get-djlint-never-prettier ()
+  "A template names djlint as its formatter even in an UNCONFIGURED repo.
+The formatter-choice half must not consult the config.  It runs once, in
+the mode hook; the skip function re-runs every save.  Leaving the
+buffer-local nil in an unconfigured repo means that the moment config
+appears — the manual's advertised \"no need to reopen the file\" path —
+apheleia falls through to its own stock `web-mode' entry and runs PRETTIER
+on Jinja2.  Naming djlint unconditionally is harmless while the repo is
+unconfigured, because `eminix-web--apheleia-skip-p' blocks the save
+anyway; see `eminix-web-unconfigured-repo-is-never-formatted'."
   (eminix-web-test--with-tree '(("app/templates/base.html" . "<div></div>\n"))
     (with-temp-buffer
       (setq buffer-file-name (expand-file-name "app/templates/base.html" root))
-      (eminix-web--maybe-enable-djlint)
-      (should-not (and (boundp 'apheleia-formatter) apheleia-formatter)))))
+      (eminix-web--set-djlint-formatter)
+      (should (eq 'djlint apheleia-formatter)))))
 
 (ert-deftest eminix-web-gate-open-sets-djlint ()
   "A repo declaring djlint config gets djlint on its templates."
@@ -378,7 +442,7 @@ buffer-local half of that division of labour holds up its end too."
         ("app/templates/base.html" . "<div></div>\n"))
     (with-temp-buffer
       (setq buffer-file-name (expand-file-name "app/templates/base.html" root))
-      (eminix-web--maybe-enable-djlint)
+      (eminix-web--set-djlint-formatter)
       (should (eq 'djlint apheleia-formatter)))))
 
 (ert-deftest eminix-web-gate-open-sets-prettier-css ()
@@ -388,7 +452,7 @@ buffer-local half of that division of labour holds up its end too."
     (with-temp-buffer
       (setq buffer-file-name (expand-file-name "style.css" root))
       (css-mode)
-      (eminix-web--maybe-enable-prettier)
+      (eminix-web--set-prettier-formatter)
       (should (eq 'prettier-css apheleia-formatter)))))
 
 (ert-deftest eminix-web-gate-open-sets-prettier-html ()
@@ -397,14 +461,17 @@ buffer-local half of that division of labour holds up its end too."
       '((".prettierrc" . "{}\n") ("page.html" . "<div></div>\n"))
     (with-temp-buffer
       (setq buffer-file-name (expand-file-name "page.html" root))
-      (eminix-web--maybe-enable-prettier)
+      (eminix-web--set-prettier-formatter)
       (should (eq 'prettier-html apheleia-formatter)))))
 
 (ert-deftest eminix-web-gate-tolerates-a-buffer-with-no-file ()
   "A hook must not signal in a buffer that has no file yet."
   (with-temp-buffer
-    (should-not (eminix-web--maybe-enable-djlint))
-    (should-not (eminix-web--maybe-enable-prettier))))
+    (eminix-web--set-djlint-formatter)
+    (should (eq 'djlint apheleia-formatter))
+    (css-mode)
+    (eminix-web--set-prettier-formatter)
+    (should (eq 'prettier-css apheleia-formatter))))
 
 (provide 'eminix-web-test)
 ;;; eminix-web-test.el ends here
