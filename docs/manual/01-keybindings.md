@@ -258,6 +258,12 @@ also what selects `web-mode` over the plain `html-ts-mode`. A template
 language other than Jinja2 sets `eminix-web-djlint-profile` in
 `.dir-locals.el`.
 
+One side effect worth knowing: every `.html` that is *not* under a
+`templates/` directory now opens in `html-ts-mode` rather than the old
+`mhtml-mode`. Tree-sitter highlighting and indentation, a different keymap,
+and no mhtml sub-modes for embedded `<script>`/`<style>` blocks — those are
+plain HTML text now rather than live JS and CSS modes.
+
 ---
 
 ## Theme
