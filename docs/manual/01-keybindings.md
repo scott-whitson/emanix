@@ -247,8 +247,11 @@ To opt a repo in:
   recognises). A `prettier` devDependency in `package.json` does *not* count;
   a top-level `prettier` key does.
 
-The opt-in is looked for from the file upward, stopping at the repo root, so
-config at the top of a repo covers all of it.
+The opt-in is looked for from the file upward, so config at the top of a repo
+covers all of it. The search stops at the repo root (the directory holding
+`.git`, which is itself checked) and, for a file with no enclosing repo, one
+level below your home directory — `~` and everything above it are never
+looked at, so a stray `~/.prettierrc` cannot opt in the whole machine.
 
 Templates are recognised by living under a `templates/` directory — that is
 also what selects `web-mode` over the plain `html-ts-mode`. A template

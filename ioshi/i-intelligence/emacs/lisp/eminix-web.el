@@ -96,30 +96,44 @@ disagree about whether a tree is formatted at all.")
 (defun eminix-web--locate-upward (dir predicate)
   "Return the first directory at or above DIR satisfying PREDICATE.
 
-The walk stops after examining a directory containing a `.git' entry —
-that directory is the project root and IS itself examined — or at the
-filesystem root.  Returns nil when PREDICATE never matches.
+The walk examines directories from DIR upward and stops at whichever of
+these comes first:
 
-Stopping at the project root is deliberate: without it a single stray
-~/.djlintrc would silently opt in every repo below it.
+  - a directory containing a `.git' entry — the project root, which IS
+    itself examined before the walk ends;
+  - the home directory, which is NOT examined, nor is anything above it;
+  - the filesystem root.
+
+Returns nil when PREDICATE never matches.
+
+Both stops exist for the same reason: a single stray ~/.djlintrc must not
+silently opt in everything below it.  The `.git' stop alone does not
+achieve that, because it only fires for files that are inside a repo at
+all — a file with no enclosing repo would otherwise be walked all the way
+to `/', and the weblorg trees under ~/docs/org/websites are exactly such
+files.  The two rules do not collide: the home directory is not itself a
+git repo here.
 
 Written as an explicit walk rather than through `project-current' so the
 predicates stay pure functions of a path, testable against a temporary
 tree with no project.el state involved."
   (let ((dir (file-name-as-directory (expand-file-name dir)))
+        (home (file-name-as-directory (expand-file-name "~")))
         (result nil)
         (done nil))
     (while (not done)
-      (when (funcall predicate dir)
-        (setq result dir))
-      (cond
-       (result (setq done t))
-       ((file-exists-p (expand-file-name ".git" dir)) (setq done t))
-       (t
-        (let ((parent (file-name-directory (directory-file-name dir))))
-          (if (or (null parent) (string= parent dir))
-              (setq done t)
-            (setq dir parent))))))
+      (if (string= dir home)
+          (setq done t)
+        (when (funcall predicate dir)
+          (setq result dir))
+        (cond
+         (result (setq done t))
+         ((file-exists-p (expand-file-name ".git" dir)) (setq done t))
+         (t
+          (let ((parent (file-name-directory (directory-file-name dir))))
+            (if (or (null parent) (string= parent dir))
+                (setq done t)
+              (setq dir parent)))))))
     result))
 
 (defun eminix-web--pyproject-declares-djlint-p (dir)
@@ -154,7 +168,10 @@ INSIDE the `ignore-errors' rather than after it."
                 t)))))
 
 (defun eminix-web-djlint-configured-p (dir)
-  "Non-nil when DIR or an ancestor up to the project root declares djlint."
+  "Non-nil when DIR or an ancestor declares djlint.
+The ancestor walk is `eminix-web--locate-upward\='s: up to and including
+a `.git\='-bearing project root, or up to but NOT including the home
+directory, whichever comes first."
   (and dir
        (eminix-web--locate-upward
         dir
@@ -164,7 +181,8 @@ INSIDE the `ignore-errors' rather than after it."
        t))
 
 (defun eminix-web-prettier-configured-p (dir)
-  "Non-nil when DIR or an ancestor up to the project root declares prettier."
+  "Non-nil when DIR or an ancestor declares prettier.
+Same bounded ancestor walk as `eminix-web-djlint-configured-p\='."
   (and dir
        (eminix-web--locate-upward
         dir

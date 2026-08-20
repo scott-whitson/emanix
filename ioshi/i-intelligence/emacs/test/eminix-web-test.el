@@ -143,6 +143,70 @@ This is why package.json is parsed rather than grepped."
     (eminix-web-test--with-tree (list (cons "package.json" content))
       (should-not (eminix-web-prettier-configured-p root)))))
 
+;; --- the upward walk's boundaries ---------------------------------------
+;;
+;; HOME is rebound to a directory inside the temp tree for these.  The
+;; walk reads it through (expand-file-name "~"), which goes to getenv, so a
+;; let-bound `process-environment' is enough and nothing on the real home
+;; directory is touched or depended on.
+
+(defmacro eminix-web-test--with-home (home &rest body)
+  "Run BODY with HOME in the environment set to HOME."
+  (declare (indent 1))
+  `(let ((process-environment
+          (cons (concat "HOME=" (directory-file-name ,home))
+                process-environment)))
+     ,@body))
+
+(ert-deftest eminix-web-locate-upward-stops-below-home-with-no-repo ()
+  "Outside any git repo the walk must still stop, and it stops below HOME.
+The `.git' stop only fires for files that are inside a repo; without a
+second stop, a file with no enclosing repo is walked all the way to `/',
+so a future ~/.prettierrc would silently opt in every non-repo .html and
+.css on the machine — the weblorg trees under ~/docs/org/websites
+included, which the design explicitly leaves alone."
+  (eminix-web-test--with-tree
+      '(("home/.prettierrc" . "{}\n")
+        ("home/sites/eminix/theme/templates/layout.html" . "<div></div>\n"))
+    (eminix-web-test--with-home (expand-file-name "home" root)
+      (should-not (eminix-web-prettier-configured-p
+                   (expand-file-name "home/sites/eminix/theme/templates/"
+                                     root))))))
+
+(ert-deftest eminix-web-locate-upward-examines-nothing-at-or-above-home ()
+  "Not one directory at or above HOME is even offered to the predicate."
+  (eminix-web-test--with-tree '(("home/sites/x/" . nil))
+    (let ((home (file-name-as-directory (expand-file-name "home" root)))
+          (seen nil))
+      (eminix-web-test--with-home home
+        (eminix-web--locate-upward (expand-file-name "home/sites/x/" root)
+                                   (lambda (d) (push d seen) nil)))
+      (should (equal (nreverse seen)
+                     (list (expand-file-name "home/sites/x/" root)
+                           (expand-file-name "home/sites/" root))))
+      (should-not (member home seen)))))
+
+(ert-deftest eminix-web-locate-upward-still-finds-config-below-home ()
+  "The HOME stop is a ceiling, not a blanket: config below it still counts.
+Without this the new bound would silently switch the whole feature off for
+every file outside a git repo."
+  (eminix-web-test--with-tree
+      '(("home/sites/.prettierrc" . "{}\n")
+        ("home/sites/eminix/page.html" . "<div></div>\n"))
+    (eminix-web-test--with-home (expand-file-name "home" root)
+      (should (eminix-web-prettier-configured-p
+               (expand-file-name "home/sites/eminix/" root))))))
+
+(ert-deftest eminix-web-locate-upward-git-root-still-wins-inside-home ()
+  "The `.git' stop is unaffected: it fires first when it comes first."
+  (eminix-web-test--with-tree
+      '(("home/.djlintrc" . "profile=jinja\n")
+        ("home/repo/.git/" . nil)
+        ("home/repo/app/templates/base.html" . "<div></div>\n"))
+    (eminix-web-test--with-home (expand-file-name "home" root)
+      (should-not (eminix-web-djlint-configured-p
+                   (expand-file-name "home/repo/app/templates/" root))))))
+
 ;; --- mode dispatch ----------------------------------------------------
 
 (ert-deftest eminix-web-html-mode-template-gets-web-mode ()
