@@ -62,10 +62,18 @@ let
 
     # --- Code editing ---
     # Emacs 30 already ships the hard parts: project.el, eglot (LSP client),
-    # flymake, xref and python-ts-mode are all built in. Only these three are
-    # actually missing.
+    # flymake, xref, python-ts-mode, html-ts-mode and css-ts-mode are all
+    # built in — the last two only ever looked absent because this list
+    # shipped no grammars for them.
+    #
+    # web-mode is the one deliberate exception to built-ins-first: no built-in
+    # mode parses template tags inside HTML structure, and the Jinja2 in this
+    # world is 134 plain .html files under templates/ directories. mhtml-mode
+    # and html-ts-mode both treat {% block %} as text. jinja2-mode was
+    # rejected as stale (last release 2022).
     nix-ts-mode # no Nix major mode is built in; the tree-sitter one is current
     apheleia # async format-on-save that preserves point and undo history
+    web-mode # the only mode that parses {% %} INSIDE html structure; see below
     # Tree-sitter grammars. These land in <deps>/lib/*.so, which Emacs does NOT
     # search by default (verified 2026-08-07: without the treesit-extra-load-path
     # fixup in config.el the *-ts-modes silently fail to activate). Add a language
@@ -73,6 +81,8 @@ let
     (treesit-grammars.with-grammars (g: [
       g.tree-sitter-nix
       g.tree-sitter-python
+      g.tree-sitter-html
+      g.tree-sitter-css
     ]))
   ];
 in

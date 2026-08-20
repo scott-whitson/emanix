@@ -230,6 +230,40 @@ Emacs and `nix fmt` produce identical bytes.
 Check the mode line for `EGLOT` to confirm the server attached; `M-x
 eglot-events-buffer` shows the handshake if it did not.
 
+### Formatting
+
+`C-c e =` formats the current buffer; saving does it automatically. Nix and
+Python always format. **HTML, CSS and Jinja2 templates format only in repos
+that declare their own formatter config** — otherwise the first save of an
+unformatted file would rewrite the whole thing, and pearl-platform alone has
+114 templates.
+
+To opt a repo in:
+
+- **Jinja2 templates** — add a `[tool.djlint]` section to `pyproject.toml`, or
+  a `.djlintrc`. Then reformat the tree once, in its own commit
+  (`djlint . --reformat --profile jinja`), so later saves make small diffs.
+- **HTML and CSS** — add a `.prettierrc` (or any config filename prettier
+  recognises). A `prettier` devDependency in `package.json` does *not* count;
+  a top-level `prettier` key does.
+
+The opt-in is looked for from the file upward, so config at the top of a repo
+covers all of it. The search stops at the repo root (the directory holding
+`.git`, which is itself checked) and, for a file with no enclosing repo, one
+level below your home directory — `~` and everything above it are never
+looked at, so a stray `~/.prettierrc` cannot opt in the whole machine.
+
+Templates are recognised by living under a `templates/` directory — that is
+also what selects `web-mode` over the plain `html-ts-mode`. A template
+language other than Jinja2 sets `eminix-web-djlint-profile` in
+`.dir-locals.el`.
+
+One side effect worth knowing: every `.html` that is *not* under a
+`templates/` directory now opens in `html-ts-mode` rather than the old
+`mhtml-mode`. Tree-sitter highlighting and indentation, a different keymap,
+and no mhtml sub-modes for embedded `<script>`/`<style>` blocks — those are
+plain HTML text now rather than live JS and CSS modes.
+
 ---
 
 ## Theme

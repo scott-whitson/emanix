@@ -40,6 +40,15 @@
     basedpyright
     ruff
 
+    # Web toolchain, added 2026-08-20. djlint reformats Jinja2 templates;
+    # prettier does HTML and CSS. Both are what the Emacs config drives, so
+    # editor and CLI agree — the same arrangement as ruff above.
+    #
+    # `prettier`, NOT `nodePackages.prettier`: nodePackages was removed from
+    # nixpkgs and that attribute no longer evaluates.
+    djlint
+    prettier
+
     # NOTE: nixpkgs#pi-coding-agent may lag npm latest. When it catches up,
     # this is the canonical install path. For now, this pins to nixpkgs version.
 
