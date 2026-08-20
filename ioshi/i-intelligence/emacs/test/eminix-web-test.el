@@ -293,5 +293,69 @@ Must return nil, not signal — `and' short-circuits on the nil
     (fundamental-mode)
     (should-not (eminix-web--apheleia-skip-p))))
 
+;; --- the gate, applied ------------------------------------------------
+
+(ert-deftest eminix-web-djlint-formatter-is-defined ()
+  "The djlint formatter definition exists and reads from stdin."
+  (skip-unless (boundp 'apheleia-formatters))
+  (let ((cmd (alist-get 'djlint apheleia-formatters)))
+    (should cmd)
+    (should (member "-" cmd))
+    (should (member "--reformat" cmd))
+    (should (member "--quiet" cmd))
+    ;; The bare symbol is deliberate: apheleia evaluates non-string list
+    ;; elements at invocation, which is what makes the defcustom reachable.
+    (should (memq 'eminix-web-djlint-profile cmd))))
+
+(ert-deftest eminix-web-djlint-profile-defaults-to-jinja ()
+  (should (equal "jinja" eminix-web-djlint-profile)))
+
+(ert-deftest eminix-web-gate-closed-sets-no-formatter ()
+  "An unconfigured repo gets no formatter, so the skip function blocks the save.
+`eminix-web--maybe-enable-djlint' still sets no `apheleia-formatter' here,
+but it is `eminix-web--apheleia-skip-p' that is now the operative reason
+a save on this buffer stays inert; this assertion just confirms the
+buffer-local half of that division of labour holds up its end too."
+  (eminix-web-test--with-tree '(("app/templates/base.html" . "<div></div>\n"))
+    (with-temp-buffer
+      (setq buffer-file-name (expand-file-name "app/templates/base.html" root))
+      (eminix-web--maybe-enable-djlint)
+      (should-not (and (boundp 'apheleia-formatter) apheleia-formatter)))))
+
+(ert-deftest eminix-web-gate-open-sets-djlint ()
+  "A repo declaring djlint config gets djlint on its templates."
+  (eminix-web-test--with-tree
+      '((".djlintrc" . "profile=jinja\n")
+        ("app/templates/base.html" . "<div></div>\n"))
+    (with-temp-buffer
+      (setq buffer-file-name (expand-file-name "app/templates/base.html" root))
+      (eminix-web--maybe-enable-djlint)
+      (should (eq 'djlint apheleia-formatter)))))
+
+(ert-deftest eminix-web-gate-open-sets-prettier-css ()
+  "CSS buffers get the css parser, not the html one."
+  (eminix-web-test--with-tree
+      '((".prettierrc" . "{}\n") ("style.css" . "a{color:red}\n"))
+    (with-temp-buffer
+      (setq buffer-file-name (expand-file-name "style.css" root))
+      (css-mode)
+      (eminix-web--maybe-enable-prettier)
+      (should (eq 'prettier-css apheleia-formatter)))))
+
+(ert-deftest eminix-web-gate-open-sets-prettier-html ()
+  "Non-CSS buffers get the html parser."
+  (eminix-web-test--with-tree
+      '((".prettierrc" . "{}\n") ("page.html" . "<div></div>\n"))
+    (with-temp-buffer
+      (setq buffer-file-name (expand-file-name "page.html" root))
+      (eminix-web--maybe-enable-prettier)
+      (should (eq 'prettier-html apheleia-formatter)))))
+
+(ert-deftest eminix-web-gate-tolerates-a-buffer-with-no-file ()
+  "A hook must not signal in a buffer that has no file yet."
+  (with-temp-buffer
+    (should-not (eminix-web--maybe-enable-djlint))
+    (should-not (eminix-web--maybe-enable-prettier))))
+
 (provide 'eminix-web-test)
 ;;; eminix-web-test.el ends here

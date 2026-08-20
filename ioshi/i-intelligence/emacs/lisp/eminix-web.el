@@ -27,10 +27,23 @@
 (require 'treesit)
 (require 'seq)
 (require 'web-mode nil :no-error)
+(require 'apheleia nil :no-error)
 
 (defgroup eminix-web nil
   "Major modes and gated format-on-save for Jinja2, HTML and CSS."
   :group 'tools)
+
+(defcustom eminix-web-djlint-profile "jinja"
+  "Template language passed to djlint's --profile.
+
+Default suits Jinja2, which is every template tree here.  A tree using a
+different template language sets this in .dir-locals.el rather than
+patching the distro.
+
+Note that a CLI --profile overrides one set in a repo's own djlint config.
+That precedence is intended: the default is correct for every Jinja2 tree,
+and a tree that needs otherwise says so locally."
+  :type 'string :group 'eminix-web)
 
 (defun eminix-web-template-file-p (file)
   "Non-nil when FILE sits under a directory named `templates'.
@@ -162,12 +175,29 @@ stock `mhtml-mode' rather than nothing."
    (t (mhtml-mode))))
 
 (defun eminix-web--maybe-enable-djlint ()
-  "Placeholder; implemented in Task 5."
-  nil)
+  "Set djlint as this buffer's formatter, if its repo declares djlint config.
+
+Sets `apheleia-formatter' buffer-locally.  This is only half the gate:
+`eminix-web--apheleia-skip-p' on `apheleia-skip-functions' is what decides
+WHETHER a save formats at all (a repo with no matching config skips, no
+matter what this function does).  This function only decides WHAT WITH,
+once that gate is already open — apheleia's own stock `web-mode' entry in
+`apheleia-mode-alist' is plain prettier, which mangles Jinja2's `{% %}',
+so the choice of formatter still has to be made explicitly here."
+  (let ((dir (and buffer-file-name (file-name-directory buffer-file-name))))
+    (when (and dir (eminix-web-djlint-configured-p dir))
+      (setq-local apheleia-formatter 'djlint))))
 
 (defun eminix-web--maybe-enable-prettier ()
-  "Placeholder; implemented in Task 5."
-  nil)
+  "Set prettier as this buffer's formatter, if its repo declares prettier config.
+See `eminix-web--maybe-enable-djlint' for the division of labour between
+this and `eminix-web--apheleia-skip-p'."
+  (let ((dir (and buffer-file-name (file-name-directory buffer-file-name))))
+    (when (and dir (eminix-web-prettier-configured-p dir))
+      (setq-local apheleia-formatter
+                  (if (derived-mode-p 'css-base-mode)
+                      'prettier-css
+                    'prettier-html)))))
 
 ;; --- Format-on-save gate ------------------------------------------------
 ;;
@@ -228,6 +258,35 @@ is safe to re-run after `M-x load-file' on a live daemon."
   (add-hook 'html-ts-mode-hook #'eminix-web--maybe-enable-prettier)
   (add-hook 'mhtml-mode-hook #'eminix-web--maybe-enable-prettier)
   (add-hook 'css-base-mode-hook #'eminix-web--maybe-enable-prettier))
+
+;; djlint is the one formatter apheleia does not ship. prettier-html and
+;; prettier-css are built in and need no definition; both route through
+;; apheleia's bundled apheleia-npx script, which execs from $PATH when no
+;; package.json sits above the file — so the Nix-installed prettier runs and
+;; no node_modules is required.
+;;
+;; Three things here are load-bearing and must not be "tidied":
+;;
+;;   "-"                     djlint's read-from-stdin argument. apheleia's
+;;                           default, absent input/inplace/file, is to write
+;;                           the buffer to stdin and splice back stdout --
+;;                           the same deal the bare ("nixpkgs-fmt") entry in
+;;                           config.el relies on. Both halves must agree.
+;;   eminix-web-djlint-profile   A BARE SYMBOL, not a string. apheleia
+;;                           evaluates any list element that is not a string
+;;                           and not one of its special forms (npx, input,
+;;                           output, inplace, file, filepath, scratch), so
+;;                           this splices in the defcustom's value at
+;;                           invocation. Quoting it would hardcode the
+;;                           profile and strip the .dir-locals.el override.
+;;   "--quiet"               Suppresses the diff djlint prints by default,
+;;                           which would otherwise land on stdout and be
+;;                           spliced into the buffer as if it were content.
+(with-eval-after-load 'apheleia
+  (setf (alist-get 'djlint apheleia-formatters)
+        '("djlint" "-" "--reformat"
+          "--profile" eminix-web-djlint-profile
+          "--quiet")))
 
 (provide 'eminix-web)
 ;;; eminix-web.el ends here
