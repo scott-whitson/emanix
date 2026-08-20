@@ -1,6 +1,8 @@
 ;;; eminix-web-test.el --- ERT tests -*- lexical-binding: t; -*-
 (require 'ert)
 (require 'eminix-web)
+(require 'cl-lib)
+(require 'seq)
 
 ;; --- eminix-web-template-file-p ---------------------------------------
 
@@ -125,6 +127,68 @@ This is why package.json is parsed rather than grepped."
   "Unparseable JSON answers nil rather than signalling into a mode hook."
   (eminix-web-test--with-tree '(("package.json" . "{not json\n"))
     (should-not (eminix-web-prettier-configured-p root))))
+
+;; --- mode dispatch ----------------------------------------------------
+
+(ert-deftest eminix-web-html-mode-template-gets-web-mode ()
+  "A template gets web-mode when web-mode is available."
+  (skip-unless (fboundp 'web-mode))
+  (with-temp-buffer
+    (setq buffer-file-name "/tmp/p/pearl/ui/templates/base.html")
+    (eminix-web-html-mode)
+    (should (eq major-mode 'web-mode))))
+
+(ert-deftest eminix-web-html-mode-plain-html-gets-ts-mode ()
+  "Non-template markup gets the built-in tree-sitter mode."
+  (skip-unless (treesit-language-available-p 'html))
+  (with-temp-buffer
+    (setq buffer-file-name "/tmp/p/static/widget.component.html")
+    (eminix-web-html-mode)
+    (should (eq major-mode 'html-ts-mode))))
+
+(ert-deftest eminix-web-html-mode-never-leaves-fundamental ()
+  "Every branch activates SOME html mode, even with nothing available.
+A dispatch function that fell through would leave the buffer in
+fundamental-mode with no error to explain why."
+  (with-temp-buffer
+    (setq buffer-file-name "/tmp/p/static/x.html")
+    (cl-letf (((symbol-function 'treesit-language-available-p)
+               (lambda (&rest _) nil)))
+      (eminix-web-html-mode))
+    (should-not (eq major-mode 'fundamental-mode))))
+
+(ert-deftest eminix-web-setup-claims-html-and-is-idempotent ()
+  "setup installs the .html dispatch, and calling it twice adds one entry."
+  (let ((auto-mode-alist (copy-sequence auto-mode-alist))
+        (major-mode-remap-alist (copy-sequence major-mode-remap-alist))
+        (web-mode-engines-alist nil))
+    (eminix-web-setup)
+    (eminix-web-setup)
+    (should (eq 'eminix-web-html-mode (cdr (assoc "\\.html?\\'" auto-mode-alist))))
+    (should (= 1 (seq-count (lambda (c) (eq (cdr c) 'eminix-web-html-mode))
+                            auto-mode-alist)))))
+
+(ert-deftest eminix-web-setup-dispatch-precedes-stock-mhtml ()
+  "Our .html entry must sit BEFORE any stock entry, or mhtml-mode wins."
+  (let ((auto-mode-alist (copy-sequence auto-mode-alist))
+        (major-mode-remap-alist (copy-sequence major-mode-remap-alist))
+        (web-mode-engines-alist nil))
+    (eminix-web-setup)
+    (should (eq 'eminix-web-html-mode
+                (assoc-default "x.html" auto-mode-alist
+                                #'string-match-p nil)))))
+
+(ert-deftest eminix-web-setup-does-not-widen-apheleia-mode-alist ()
+  "The gate lives in hooks. An apheleia-mode-alist entry would format
+every buffer in every repo — the outcome this design exists to prevent."
+  (skip-unless (boundp 'apheleia-mode-alist))
+  (let ((auto-mode-alist (copy-sequence auto-mode-alist))
+        (major-mode-remap-alist (copy-sequence major-mode-remap-alist))
+        (apheleia-mode-alist (copy-sequence apheleia-mode-alist))
+        (web-mode-engines-alist nil))
+    (eminix-web-setup)
+    (dolist (m '(web-mode html-ts-mode css-ts-mode css-mode mhtml-mode))
+      (should-not (alist-get m apheleia-mode-alist)))))
 
 (provide 'eminix-web-test)
 ;;; eminix-web-test.el ends here

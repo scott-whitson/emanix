@@ -132,5 +132,57 @@ signal on a file someone is mid-edit."
               (eminix-web--package-json-declares-prettier-p d))))
        t))
 
+;; --- Major modes ------------------------------------------------------
+
+(defun eminix-web-html-mode ()
+  "Select a major mode for the `.html' file in this buffer.
+
+Installed as the cdr of an `auto-mode-alist' entry, which Emacs calls with
+no arguments.  Jinja2 templates and plain markup share the `.html'
+extension here, so the choice is made on path.
+
+Every branch activates a mode.  A fall-through would leave the buffer in
+`fundamental-mode' with nothing to explain why, so the last clause is the
+stock `mhtml-mode' rather than nothing."
+  (cond
+   ((and (eminix-web-template-file-p buffer-file-name)
+         (fboundp 'web-mode))
+    (web-mode))
+   ((and (fboundp 'html-ts-mode) (treesit-language-available-p 'html))
+    (html-ts-mode))
+   (t (mhtml-mode))))
+
+(defun eminix-web--maybe-enable-djlint ()
+  "Placeholder; implemented in Task 5."
+  nil)
+
+(defun eminix-web--maybe-enable-prettier ()
+  "Placeholder; implemented in Task 5."
+  nil)
+
+(defun eminix-web-setup ()
+  "Install the mode rules and the gated format-on-save hooks.
+Idempotent: `add-to-list' and `add-hook' both no-op on a repeat, so this
+is safe to re-run after `M-x load-file' on a live daemon."
+  ;; web-mode resolves its engine during mode initialisation, so setting
+  ;; `web-mode-engine' afterwards is too late. `web-mode-engines-alist' is
+  ;; web-mode's own mechanism: the cdr is a regexp matched against the file
+  ;; path. django is the engine name for the Jinja2 family.
+  (when (boundp 'web-mode-engines-alist)
+    (add-to-list 'web-mode-engines-alist '("django" . "/templates/")))
+  ;; Prepend, so this beats the stock `.html' -> mhtml-mode entry. That entry
+  ;; is deliberately left in place: if this file ever fails to load, .html
+  ;; still opens in a working mode.
+  (add-to-list 'auto-mode-alist '("\\.html?\\'" . eminix-web-html-mode))
+  (when (treesit-language-available-p 'css)
+    (add-to-list 'major-mode-remap-alist '(css-mode . css-ts-mode)))
+  ;; Format-on-save gate. One hook covers both CSS modes: `css-mode' and
+  ;; `css-ts-mode' both derive from `css-base-mode' (verified 2026-08-20),
+  ;; and a derived mode runs its parent's hooks.
+  (add-hook 'web-mode-hook #'eminix-web--maybe-enable-djlint)
+  (add-hook 'html-ts-mode-hook #'eminix-web--maybe-enable-prettier)
+  (add-hook 'mhtml-mode-hook #'eminix-web--maybe-enable-prettier)
+  (add-hook 'css-base-mode-hook #'eminix-web--maybe-enable-prettier))
+
 (provide 'eminix-web)
 ;;; eminix-web.el ends here

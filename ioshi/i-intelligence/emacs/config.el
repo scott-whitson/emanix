@@ -551,7 +551,7 @@ base name, hence the `file-name-nondirectory' before the prefix test."
     (message "gdocs not loadable; skipping (see the comment above)")))
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(eminix-theme eminix-weather eminix-openrouter eminix-modeline eminix-launcher eminix-pi eminix-quarterly eminix-prose))
+(dolist (feature '(eminix-theme eminix-weather eminix-openrouter eminix-modeline eminix-launcher eminix-pi eminix-quarterly eminix-prose eminix-web))
   (require feature nil :no-error))
 ;; Prose rendering — markdown and org files read as documents, not source.
 ;; C-c z toggles back to raw monospace for heavy editing. Chosen 2026-08-17;
@@ -560,6 +560,13 @@ base name, hence the `file-name-nondirectory' before the prefix test."
   (add-hook 'markdown-mode-hook #'eminix-prose-mode)
   (add-hook 'org-mode-hook #'eminix-prose-mode)
   (global-set-key (kbd "C-c z") #'eminix-prose-toggle))
+;; Web languages — Jinja2 templates, HTML and CSS. Jinja2 here is all plain
+;; .html under templates/ dirs, so eminix-web.el picks the mode on path.
+;; Format-on-save is gated on the repo declaring its own djlint/prettier
+;; config: 134 unconfigured templates would otherwise be rewritten wholesale
+;; on first save. See docs/manual/01-keybindings.md for opting a repo in.
+(when (fboundp 'eminix-web-setup)
+  (eminix-web-setup))
 ;; Quarterly tracker — C-c q opens this quarter's note, C-u C-c q forces the
 ;; work one on a machine that has both trees.
 (when (fboundp 'eminix-quarterly-open)
