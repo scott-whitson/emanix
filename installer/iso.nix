@@ -8,8 +8,9 @@
 # consuming flake (e.g. the user's dotfiles, which holds the real hosts and
 # keys) builds its own installer by importing this module and setting
 #   eminix.installer.flake    = <path to their flake repo>
-#   eminix.installer.keysDir  = <path to their keys dir>   (optional)
-# and re-exporting the resulting `config.system.build.isoImage`.
+#   eminix.installer.keysDir  = "<absolute path to their keys dir>"  (optional)
+# and re-exporting the resulting `config.system.build.isoImage`. A
+# keys-carrying build must be `nix build --impure` — see keysDir below.
 { pkgs, lib, nixpkgs, disko, config, ... }:
 
 let
@@ -17,17 +18,44 @@ let
 
   # The flake repo to stage, filtered so /etc/eminix/flake is a clean,
   # buildable tree (no history/symlink/result).
+  #
+  # `keys` is NOT filtered out: the committed `keys/<host>_host_ed25519.pub`
+  # halves are the ONLY reference fresh-eminix-install has for verifying a
+  # staged private key against the actual agenix recipient
+  # (`age.rekey.hostPubkey`). Excluding them made that check unsatisfiable on
+  # the ISO — it warned "cannot verify" and the preflight failed closed on
+  # `keys` no matter what was baked. The private halves are gitignored in the
+  # consuming flake, so a git-source `flake` path cannot leak them here.
   stagedRepo = builtins.path {
     name = "eminix-flake";
     path = cfg.flake;
     filter = p: _t:
       let b = builtins.baseNameOf p;
-      in b != ".git" && b != "result" && b != "keys" && b != ".superpowers";
+      in b != ".git" && b != "result" && b != ".superpowers";
   };
 
   # Keys are only staged when the builder provides a keysDir (gitignored
   # privates + committed pubs).
+  #
+  # `keysDir` is a STRING, not a path, and deliberately so. As a path it was
+  # coerced against the flake source — and the private halves are gitignored,
+  # so a flake-relative or `self.outPath`-derived keysDir can only ever
+  # contain the .pub files. The result was an ISO that looked key-carrying and
+  # was not. A string is resolved here by `builtins.path`, which reads the
+  # real working tree, so the privates actually land in the image. That read
+  # is forbidden under pure evaluation — a keys-carrying ISO must be built
+  # with `--impure` (bin/eminix-iso does this).
   hasKeys = cfg.keysDir != null && builtins.pathExists cfg.keysDir;
+
+  stagedKeys = builtins.path {
+    name = "eminix-keys";
+    path = cfg.keysDir;
+  };
+
+  # Private halves present in keysDir (a .pub alone is not an identity).
+  privateHalves =
+    lib.filter (n: !lib.hasSuffix ".pub" n)
+      (lib.attrNames (builtins.readDir cfg.keysDir));
 
   # disko from the flake input when exposed, else nixpkgs' package — either
   # way the installer does not `nix run` it over the network.
@@ -43,21 +71,45 @@ in
       description = "Path to the flake repo the ISO stages at /etc/eminix/flake.";
     };
     keysDir = lib.mkOption {
-      type = lib.types.nullOr lib.types.path;
+      type = lib.types.nullOr lib.types.str;
       default = null;
-      description = "Path to a keys/ dir (host_ed25519 key pairs) to stage at /etc/eminix/keys. Null stages no keys.";
+      example = "/home/scott/dotfiles/keys";
+      description = ''
+        Absolute path, as a STRING, to a keys/ dir (host_ed25519 key pairs) to
+        stage at /etc/eminix/keys. Null stages no keys.
+
+        It must point at the working tree, NOT into the flake source: the
+        private halves are gitignored, so a store-derived path stages only the
+        .pub files and yields an ISO that cannot install. Reading it requires
+        `nix build --impure`.
+      '';
     };
   };
 
   config = {
     isoImage.volumeID = "eminix"; # boot menu + mount label
 
+    # A keysDir holding only .pub files is the exact failure this module
+    # shipped with: the ISO builds, boots, and then dies at the installer's
+    # preflight on the target's console. Fail at build time instead.
+    assertions = lib.optional hasKeys {
+      assertion = privateHalves != [ ];
+      message = ''
+        eminix.installer.keysDir (${cfg.keysDir}) holds no private host key —
+        only .pub halves. The ISO would carry no identity and
+        fresh-eminix-install would fail its keys preflight on the target.
+        Stage a private half, e.g.
+          sudo cp /etc/ssh/ssh_host_ed25519_key keys/<host>_host_ed25519
+        or set eminix.installer.keysDir = null for a keyless rescue ISO.
+      '';
+    };
+
     # The flake (+ optional keys) at fixed, /mnt-safe paths. /etc lives on the
     # live overlay, so the disko step — which mounts the target root at /mnt —
     # cannot hide it (the trap that broke USB-staged repos mounted under /mnt).
     environment.etc =
       { "eminix/flake".source = stagedRepo; }
-      // lib.optionalAttrs hasKeys { "eminix/keys".source = cfg.keysDir; }
+      // lib.optionalAttrs hasKeys { "eminix/keys".source = stagedKeys; }
       // {
         "issue".text = ''
           ══ eminix installer ════════════════════════════════════════════
