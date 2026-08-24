@@ -38,8 +38,9 @@ touch either.
   the `websites` and `work-docs` folders are nested inside the already-synced
   `docs` tree.
 - **Personal projects have no transport.** The model says personal projects are
-  git-transported rather than synced, but six of them have no remote to
-  transport over, and three have no git history at all.
+  git-transported rather than synced, but five of them have no remote to
+  transport over, and three have no git history at all. (A sixth,
+  `websites.git`, also has no remote — correctly, because it *is* one.)
 
 ## Decisions
 
