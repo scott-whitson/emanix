@@ -544,6 +544,14 @@ base name, hence the `file-name-nondirectory' before the prefix test."
   (if (require 'gdocs nil :no-error)
       (progn
         (setq gdocs-auto-push-on-save t)
+        ;; Sync into the org tree, not the package's ~/org/gdocs/ default.
+        ;; That default mints a SECOND top-level org directory in $HOME, which
+        ;; breaks the four-directory home rule (docs/dotfiles/downloads/
+        ;; projects). Deleting the directory is not enough: gdocs--doc-file-path
+        ;; calls make-directory on every open, so it comes straight back.
+        ;; ~/docs/org is also Syncthing-replicated, so synced docs reach
+        ;; datacore like the rest of the org tree.
+        (setq gdocs-directory (expand-file-name "~/docs/org/gdocs/"))
         ;; Credentials live outside the checkout (mode 600) so the OAuth
         ;; client secret is never committed. Absent file = no account.
         (load (expand-file-name "gdocs-creds.el" user-emacs-directory)
