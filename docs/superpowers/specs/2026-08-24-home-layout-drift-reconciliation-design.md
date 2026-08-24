@@ -34,9 +34,8 @@ touch either.
   is a one-way rsync mirror of whistle's `~/projects` into `~/work`,
   superseded by the Syncthing `work-projects` folder. The script still ships,
   so `~/work` (847M, a strict subset of `~/projects/work`) would regenerate on
-  any run. Syncthing's `default` -> `~/Sync` folder is likewise vestigial, and
-  the `websites` and `work-docs` folders are nested inside the already-synced
-  `docs` tree.
+  any run. Syncthing's `default` -> `~/Sync` folder is likewise vestigial — an
+  empty stock "Default Folder" shared with nobody.
 - **Personal projects have no transport.** The model says personal projects are
   git-transported rather than synced, but five of them have no remote to
   transport over, and three have no git history at all. (A sixth,
@@ -110,8 +109,19 @@ currently commented out — two different things sharing a domain name.
 ### Syncthing
 
 Unchanged: `docs`, `downloads` (rafik <-> datacore), `pi-agent`,
-`work-projects`. Removed from datacore: `default` -> `~/Sync`, `websites`,
-`work-docs`. Added to whistle's `projects/.stignore`: `/clients`.
+`work-projects`, **`websites` and `work-docs`**. Removed from datacore:
+`default` -> `~/Sync` only. Added to whistle's `projects/.stignore`:
+`/clients`.
+
+**`websites` and `work-docs` must NOT be removed from datacore.** They look
+redundant because their paths sit inside `~/docs`, which rafik syncs whole —
+but they are whistle's *peer pairs*, not duplicates. Verified from whistle's
+own config: `websites` (`~/docs/org/websites`) and `work-docs`
+(`~/docs/org/work`) are each shared `whistle <-> datacore`, and whistle does
+**not** sync `~/docs` as a whole. Deleting them on datacore would sever
+whistle's only route to the work vault and the websites tree. This asymmetry —
+rafik gets the content through its nested whole-`docs` folder, whistle gets it
+through two narrow folders — is the three-node model working as designed.
 
 ## Execution
 
@@ -169,7 +179,9 @@ off than where it started.
 
 - Delete `scripts/work_sync.sh` from `datacore-config`; commit and push.
   Without this, `~/work` regenerates.
-- Remove the `default`, `websites` and `work-docs` Syncthing folders.
+- Remove **only** the `default` -> `~/Sync` Syncthing folder. Leave `websites`
+  and `work-docs` alone — see the Syncthing section; removing them breaks
+  whistle.
 - Per D5, leave `~/work`, `~/dotfiles-usb-snapshot`, the XDG cruft, the
   pre-home-manager dotfiles and the loose logs and tarballs in place. They are
   simply not migrated at cutover.
