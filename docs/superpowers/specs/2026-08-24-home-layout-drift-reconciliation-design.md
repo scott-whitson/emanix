@@ -193,13 +193,16 @@ machines the moment the directory lands under the share root.
 stale.** whistle's `~/projects/eminix` is 15 commits ahead of `origin/main`
 with a clean tree. whistle's GitHub identity (`swhitsonCD`) is read-only on
 that repo, and `/eminix` is excluded in `~/projects/.stignore`, so the
-directory is neither pushable nor synced. Those commits exist on one machine
-with no path off it. The topmost is `4e1197d fix(installer): a keys-carrying
-ISO never actually carried the keys` — the 2026-08-21 keys-baking fix. rafik's
+directory is neither directly pushable nor synced. A path off the box does
+exist — the verified bare-relay-through-datacore recipe — it has simply not
+been run, so the commits sit on one machine. The topmost is `4e1197d
+fix(installer): a keys-carrying ISO never actually carried the keys` — the
+2026-08-21 keys-baking fix. rafik's
 `eminix-installer.iso` is dated 2026-08-16 and therefore predates it, meaning
 the ISO staged for install day likely lacks the fix. This could not be
 confirmed directly because rafik went unreachable during investigation.
-**Verify against rafik and rebuild the ISO if confirmed, before install day.**
+**Relay the commits, verify against rafik, and rebuild the ISO if confirmed,
+before install day.**
 
 **R2 — Secrets in first-ever pushes.** `chstr`, `swc` and `typ` have never
 been version-controlled. Precedent: the ionapi leak required a full history
