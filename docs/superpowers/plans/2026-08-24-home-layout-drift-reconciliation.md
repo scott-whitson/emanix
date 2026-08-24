@@ -441,22 +441,52 @@ restores the real heartbeat. It is safe to run repeatedly.
 Run: `/tmp/assert-status-aware.sh`
 Expected: `status under synthetic FAIL: 'ok'` then `FAIL: comsat reported ok despite a FAIL payload`
 
-- [ ] **Step 4: Add a status check alongside the age check**
+- [ ] **Step 4: Fix the missing EnvironmentFile — no alert can currently send**
 
-Patch `comsat-health-backup.sh` so that, after the age check passes, it parses the
-payload's `status` field and treats `FAIL:` as an alert and `WARN:` as a warning.
-Keep the existing age and missing-heartbeat logic untouched — those conditions are
-correct, merely insufficient.
+**Read 2026-08-24, after this plan was first written.** `comsat-health.service`
+carries `EnvironmentFile=/etc/comsat/comsat.env`; **`comsat-health-backup.service`
+does not.** Its `TELEGRAM_BOT_TOKEN` is therefore empty, and `send_telegram()`
+takes its `[[ -z "$TELEGRAM_BOT_TOKEN" ]]` branch — logging "not set, skipping" and
+returning. No alert this monitor raises can ever be delivered. `BACKUP_FAIL` count
+in the log is `0`, so this path has never once run.
+
+```bash
+ssh rafik 'ssh comsat "sudo systemctl edit --full --force comsat-health-backup.service"'
+```
+
+Add `EnvironmentFile=/etc/comsat/comsat.env` to its `[Service]` section, matching
+`comsat-health.service`, then `sudo systemctl daemon-reload && sudo systemctl
+restart comsat-health-backup.service`. Do not print the token.
+
+- [ ] **Step 4b: Make check_backup act on the status it already parses**
+
+The defect is exact. `check_backup()` parses and *logs* the status, then ignores it:
+
+```bash
+status=$(sed -n "s/.*\"status\": \"\([^\"]*\)\".*/\1/p" "$BACKUP_JSON" | head -1)
+log "BACKUP_CHECK: age=${age_hours}h status=${status}"
+if (( age_hours > MAX_BACKUP_AGE_HOURS )); then
+    echo "stale" > "$BACKUP_STATUS"; log "BACKUP_FAIL: ..."; return 1
+fi
+echo "ok" > "$BACKUP_STATUS"   # <-- status never consulted
+return 0
+```
+
+Back it up, then insert a status check between the age check and the final `ok`:
 
 ```bash
 ssh rafik 'ssh comsat "sudo cp -a /usr/local/bin/comsat-health-backup.sh /usr/local/bin/comsat-health-backup.sh.bak-predrift"'
 ```
 
-The status field is now `;`-separated (Task 2), e.g. `OK:backrest;OK:snapshot:3h`.
-Extract it with `python3 -c 'import json,sys;print(json.load(open("/var/lib/comsat/backups/datacore.json"))["status"])'`
-rather than `grep`, so a malformed payload fails loudly instead of silently
-matching nothing. A payload that will not parse must itself alert — that is the
-third defect's lesson.
+The inserted logic must: treat a `status` containing `FAIL` as failure (write
+`fail`, log `BACKUP_FAIL`, `return 1`); treat `WARN` as failure too, since a
+warning nobody sees is the same as no warning; and treat an **empty or unparseable
+`status` as failure**, because that is precisely how defect 3 hid inside defect 2 —
+the sed class `[^"]*` cannot cross the newline in the malformed payload, so it
+matched nothing and the log printed `status=` blank for weeks. Keep the existing
+age and missing-file conditions exactly as they are: correct, merely insufficient.
+
+After Task 2, a healthy payload reads `OK:backrest;OK:snapshot:3h`.
 
 - [ ] **Step 5: Re-run the assertion**
 
