@@ -49,6 +49,7 @@ touch either.
 | D2 | Archives do **not** mirror. `~/projects/_archive` (6.5G) and `~/projects/archive/waybar` move to `/srv/data/_archive/projects/`, out of `$HOME` entirely. |
 | D3 | `chstr`, `swc` and `typ` are treated as working-tree-is-truth: `.gitignore`, `git init`, one initial commit, push, clone to both hosts. Their history is unrecoverable and is not mourned. |
 | D4 | whistle's `~/clients` moves to `~/projects/clients` and is **excluded from Syncthing**, keeping the four-directory rule without replicating 4.4G of client data to personal machines. |
+| D6 | **Datacore's backups are repaired first, as a hard gate.** No phase that moves or deletes data runs until a verified snapshot exists. Discovered mid-planning; approved 2026-08-24. |
 | D5 | Debian datacore gets **cutover prep only** — repo repair, remotes, pushes, archive relocation. Cosmetic home tidying is skipped there because the box is being replaced; the NixOS host gets a clean home from `xdg.nix`. |
 
 Both hosts authenticate to GitHub as `scott-whitson`, verified. No relay
@@ -127,6 +128,50 @@ through two narrow folders — is the three-node model working as designed.
 
 The spine: **nothing is deleted until everything is on GitHub and verified.**
 
+### Phase 0A — Repair datacore's backups (HARD GATE)
+
+**Found 2026-08-24 while planning: datacore has had no backup since
+2026-08-02** — 22 days, 370G of payload including 129G of family photos, days
+before its hardware is replaced. This plan's spine is "nothing is destroyed
+until it is safe elsewhere", which is currently false on datacore. Nothing in
+Phases 1-7 that moves or deletes data may run until this gate passes.
+
+Four independent defects, all verified:
+
+1. **Backrest has no backup plan.** `~/.config/backrest/config.json` (live —
+   `backrest.service` runs as `User=scott`) defines the B2 repo and a retention
+   policy but has **no `plans` key at all**. The daemon is up with nothing
+   scheduled. 19 snapshots exist, newest `2026-08-02 01:00:09`.
+2. **Comsat alerts on heartbeat freshness only.** Its documented conditions are
+   heartbeat older than 26h, or missing. A *fresh* heartbeat whose payload says
+   `FAIL:snapshot:527h` therefore reads as `ok` indefinitely. Verified:
+   `/var/lib/comsat/datacore.backup-status` says `ok` with an 11h-old
+   heartbeat. The monitor watches its own liveness, not the thing it monitors.
+   **This is why the outage was invisible for 22 days.**
+3. **The heartbeat JSON is malformed.** `restic-health-check.sh` writes the
+   status file with `>` then `>>`, producing two lines, which
+   `restic-heartbeat.sh` interpolates raw into a JSON string value — yielding a
+   literal newline inside `"status"`. Any downstream parser chokes, so even a
+   status-aware Comsat check could not read it as written.
+4. **The documented scope step does not exist.** `05-restic-b2.sh` was reduced
+   on 2026-08-18 to installing restic and rclone, delegating backups to
+   Backrest, and `20-home-backup-scope.sh` — which `RECOVERY.md` lists as the
+   step widening scope to `~/projects`, `~/docs` and `/srv/data` — appears in no
+   commit on any branch.
+
+**Intended selection**, from `~/docs/org/Datacore Backups.org`: paths
+`/home/scott/` and `/srv/data/`; excludes from `~/.config/restic/excludes.txt`
+(present, 29 lines); snapshot daily ~01:00 EDT; prune and check monthly on the
+1st; retention hourly 24, daily 30, monthly 12 (already in `config.json`, but
+its `forgetPolicy` schedule is `disabled: true`).
+
+**`_archive` is not excluded**, so D2's destination
+`/srv/data/_archive/projects/` lands inside the selection once backups run —
+which is what makes D2 safe rather than merely tidy.
+
+Gate: a snapshot newer than the gate's start exists in B2, `restic-status`
+reports OK, and defect 2 is fixed so the next silent failure is not silent.
+
 ### Phase 0 — Preflight, no changes
 
 - **Blocking, requires Scott:** create five empty **private** repos —
@@ -171,9 +216,10 @@ with it. `/srv/data` is a symlink to `/home/srv-data`, so source and
 destination share the `/home` filesystem and this is an atomic rename — no
 6.5G copy, no half-moved window.
 
-Then confirm `/srv/data/_archive/projects/` falls inside the Backrest/restic
-backup selection. A moved 6.5G that lands outside the backup policy is worse
-off than where it started.
+Then confirm `/srv/data/_archive/projects/` is actually captured — not merely
+"inside the selection" as this spec originally assumed, since Phase 0A found
+there was no selection at all. Verify by listing the path inside a real
+post-repair snapshot (`restic ls latest`), not by reading config.
 
 ### Phase 4 — Retire dead mechanisms, datacore
 
@@ -268,6 +314,16 @@ files on rafik. The one place in this plan needing Scott's judgment rather
 than a default.
 
 **R5 — New repos must be private.** All five.
+
+**R6 — Plaintext credentials in the backup stack.** `~/.config/backrest/config.json`
+stores the B2 account key and the restic repo password in plaintext, and
+`/usr/local/bin/restic-health-check.sh` hardcodes the same B2 credentials in
+three separate command invocations. File modes are sane (`0600` scott, and
+root-owned respectively) so this is not a live exposure, but the values are
+readable by anything running as those users and were exposed to an assistant
+context during this investigation. Treat as rotate-worthy on Scott's timeline,
+and prefer agenix for both when datacore becomes a NixOS host — see
+`reference_agenix_secret_editing`. Not a blocker for Phase 0A.
 
 ## Out of scope
 
