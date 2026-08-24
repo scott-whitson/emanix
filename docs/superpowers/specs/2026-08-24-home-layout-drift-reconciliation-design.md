@@ -45,7 +45,7 @@ touch either.
 
 | # | Decision |
 |---|---|
-| D1 | Personal projects mirror rafik <-> datacore by **git transport only**. Every one becomes a real repo with a GitHub remote and is cloned on both hosts. |
+| D1 | Personal projects mirror rafik <-> datacore by **git transport only**. Every one becomes a real repo with a GitHub remote and is cloned on both hosts. `websites.git` is exempt — see below. |
 | D2 | Archives do **not** mirror. `~/projects/_archive` (6.5G) and `~/projects/archive/waybar` move to `/srv/data/_archive/projects/`, out of `$HOME` entirely. |
 | D3 | `chstr`, `swc` and `typ` are treated as working-tree-is-truth: `.gitignore`, `git init`, one initial commit, push, clone to both hosts. Their history is unrecoverable and is not mourned. |
 | D4 | whistle's `~/clients` moves to `~/projects/clients` and is **excluded from Syncthing**, keeping the four-directory rule without replicating 4.4G of client data to personal machines. |
@@ -62,7 +62,7 @@ is stale.
 Exactly `docs`, `dotfiles`, `downloads`, `projects`. Enforced declaratively by
 `ioshi/i-intelligence/xdg.nix`.
 
-### Personal-project roster (11, identical on rafik and datacore)
+### Personal-project roster (10, identical on rafik and datacore)
 
 | Project | Current state | Action |
 |---|---|---|
@@ -71,7 +71,6 @@ Exactly `docs`, `dotfiles`, `downloads`, `projects`. Enforced declaratively by
 | `datacore-config` | real repo on datacore; on rafik a bare `bootstrap/` dir, not a repo | delete rafik's, clone the real one |
 | `elisa` | both, GitHub remote, clean | none. `main` vs `sqlite-vec` is a checkout choice, not drift |
 | `minne` | both, GitHub remote, 5 unpushed each, 20 dirty files on rafik | reconcile, push, align |
-| `websites` | datacore bare `websites.git`, `main`, 13 commits, no remote | create repo, push, clone both as `websites` |
 | `fragpaper` | datacore, 38 commits on `main`, HEAD on an empty `master`, no remote | fix HEAD, create repo, push, clone both |
 | `mardy` | datacore, 9 commits on `master`, no remote | create repo, push, clone both |
 | `chstr` | datacore, `.git` empty, 75M tree | per D3 |
@@ -81,6 +80,17 @@ Exactly `docs`, `dotfiles`, `downloads`, `projects`. Enforced declaratively by
 `ni-tests` (rafik, 12K, three loose elisa test files, not a repo) folds into
 `elisa` or is deleted. It does not join the roster.
 
+**`websites.git` is exempt from D1 and stays datacore-only.** It is the
+deliberate **bare** remote for the `~/docs/org/websites` tree, which Syncthing
+replicates; git supplies history there, not replication. `~/projects/websites`
+was intentionally eliminated in the 2026-08-14 merge and must not be
+recreated, and the repo must not be given a GitHub origin — it *is* the origin.
+Its `main` branch reading as "13 unpushed" was a misreading: a bare origin has
+no upstream to be ahead of. rafik remains the sole commit host. It is
+nevertheless a single copy of that history on a box about to be replaced, so
+**migrating `websites.git` belongs in the cutover checklist**, not in this
+plan.
+
 ### Sizes after `.gitignore`
 
 Each of `chstr`, `swc` and `typ` carries a 51M `.claude/mind.mv2` — 153M of the
@@ -88,6 +98,13 @@ Each of `chstr`, `swc` and `typ` carries a 51M `.claude/mind.mv2` — 153M of th
 `chstr` ~24M (including a vendored 21M `stockfish_13_x64_mac`) and `swc` ~67M
 (34M `static/images`, 33M `manim`). The stockfish binary and the manim/static
 assets need an explicit keep-or-ignore call before the first commit.
+
+**`swc` is live production**, not dead code: it is the FastAPI + Jinja2 +
+Tailwind app serving `scottwhitson.com` out of `/srv/swc`. Its 34M
+`static/images` is very likely served content and should be kept, not ignored.
+Treat its first commit with production care, and note that rafik's separate
+`scottwhitson.com` repo is the *weblorg* site of the same name, whose deploy is
+currently commented out — two different things sharing a domain name.
 
 ### Syncthing
 
@@ -101,9 +118,9 @@ The spine: **nothing is deleted until everything is on GitHub and verified.**
 
 ### Phase 0 — Preflight, no changes
 
-- **Blocking, requires Scott:** create six empty **private** repos —
-  `websites`, `fragpaper`, `mardy`, `chstr`, `swc`, `typ`. `gh` is authed on no
-  host (absent on datacore, not logged in on whistle), so this is web UI or a
+- **Blocking, requires Scott:** create five empty **private** repos —
+  `fragpaper`, `mardy`, `chstr`, `swc`, `typ`. `gh` is authed on no host
+  (absent on datacore, not logged in on whistle), so this is web UI or a
   token.
 - **Urgent, requires Scott, runs in parallel:** resolve whistle's stranded
   `eminix` commits (see Risks R1). No other phase depends on it, so it does
@@ -122,8 +139,7 @@ The spine: **nothing is deleted until everything is on GitHub and verified.**
    the same commits, push.
 2. `fragpaper`: repoint HEAD off the empty `master` onto `main`, add remote, push.
 3. `mardy`: add remote, push `master`.
-4. `websites.git`: add remote, push `main`.
-5. `chstr`, `swc`, `typ`: `.gitignore`, `git init`, initial commit, push.
+4. `chstr`, `swc`, `typ`: `.gitignore`, `git init`, initial commit, push.
 
 **Gate:** a script walks both hosts and asserts every personal project has a
 remote and zero unpushed commits. No later phase runs until it passes.
@@ -131,7 +147,7 @@ remote and zero unpushed commits. No later phase runs until it passes.
 ### Phase 2 — Mirror the roster
 
 - rafik: remove the non-repo `datacore-config`, clone the real one, plus
-  `websites`, `fragpaper`, `mardy`, `chstr`, `swc`, `typ` (~100M post-ignore).
+  `fragpaper`, `mardy`, `chstr`, `swc`, `typ` (~100M post-ignore).
 - datacore: clone `eminix`, `scottwhitson.com`.
 - Resolve `ni-tests`.
 
@@ -222,10 +238,12 @@ because getting it backwards is silent and immediate.
 files on rafik. The one place in this plan needing Scott's judgment rather
 than a default.
 
-**R5 — New repos must be private.** All six.
+**R5 — New repos must be private.** All five.
 
 ## Out of scope
 
 - The `~/docs` and `~/projects/work` Syncthing trees, which are not drifted.
+- The `~/docs/org/websites` tree and its bare `websites.git` remote, whose
+  layout is a settled decision. Only its cutover migration is flagged above.
 - The eminix bundled-installer project.
 - Rotating the ConnectWise keys scrubbed from ecomms history.
