@@ -189,20 +189,26 @@ machines the moment the directory lands under the share root.
 
 ## Risks
 
-**R1 — whistle's eminix commits are stranded, and the install ISO may be
-stale.** whistle's `~/projects/eminix` is 15 commits ahead of `origin/main`
-with a clean tree. whistle's GitHub identity (`swhitsonCD`) is read-only on
-that repo, and `/eminix` is excluded in `~/projects/.stignore`, so the
-directory is neither directly pushable nor synced. A path off the box does
-exist — the verified bare-relay-through-datacore recipe — it has simply not
-been run, so the commits sit on one machine. The topmost is `4e1197d
-fix(installer): a keys-carrying ISO never actually carried the keys` — the
-2026-08-21 keys-baking fix. rafik's
-`eminix-installer.iso` is dated 2026-08-16 and therefore predates it, meaning
-the ISO staged for install day likely lacks the fix. This could not be
-confirmed directly because rafik went unreachable during investigation.
-**Relay the commits, verify against rafik, and rebuild the ISO if confirmed,
-before install day.**
+**R1 — rafik is behind origin, and the staged installer ISO predates the keys
+fix.** Corrected after fetching: the 2026-08-21 keys-baking fix `4e1197d` **is**
+on `origin/main`. An earlier reading of this as fifteen stranded commits on
+whistle was an artefact of a stale remote-tracking ref. whistle's only unpushed
+commits are the two that carry this spec, and the verified
+bare-relay-through-datacore recipe covers them.
+
+What does remain: rafik's `~/projects/eminix` last committed 2026-08-19 with
+zero unpushed, so it predates `4e1197d` and **needs a pull**. And
+`rafik:~/eminix-installer.iso` is dated 2026-08-16, which predates the keys fix
+outright, while the project record says an ISO was built and verified with the
+private halves physically inside the image on 2026-08-21. Those two facts
+cannot both describe the same file, so either the verified ISO lives at another
+path or that file is not the one staged for install day. rafik went unreachable
+mid-investigation, so this is unresolved.
+
+**Consequences for this plan:** pull rafik's eminix before Phase 2 compares
+rosters, and **do not delete `eminix-installer.iso` in Phase 6 until the
+install-day ISO is positively identified** — Phase 6 already defers it past
+cutover, which is the safe ordering regardless.
 
 **R2 — Secrets in first-ever pushes.** `chstr`, `swc` and `typ` have never
 been version-controlled. Precedent: the ionapi leak required a full history
