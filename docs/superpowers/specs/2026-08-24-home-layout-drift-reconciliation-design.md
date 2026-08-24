@@ -206,26 +206,42 @@ machines the moment the directory lands under the share root.
 
 ## Risks
 
-**R1 — rafik is behind origin, and the staged installer ISO predates the keys
-fix.** Corrected after fetching: the 2026-08-21 keys-baking fix `4e1197d` **is**
-on `origin/main`. An earlier reading of this as fifteen stranded commits on
-whistle was an artefact of a stale remote-tracking ref. whistle's only unpushed
-commits are the two that carry this spec, and the verified
-bare-relay-through-datacore recipe covers them.
+**R1 — CONFIRMED: the only installer ISO in the fleet is the pre-fix,
+pubs-only build, and it will fail at the HP's console.** Verified 2026-08-24 by
+extracting `nix-store.squashfs` from `rafik:~/eminix-installer.iso` and listing
+it: the staged eminix flake's `keys/` directory contains **only**
+`datacore_host_ed25519.pub`, `rafik_host_ed25519.pub` and
+`whistle_host_ed25519.pub`. No private halves. That is precisely the failure
+`4e1197d` exists to prevent — `fresh-eminix-install datacore` dies at
+`preflight failed: keys`.
 
-What does remain: rafik's `~/projects/eminix` last committed 2026-08-19 with
-zero unpushed, so it predates `4e1197d` and **needs a pull**. And
-`rafik:~/eminix-installer.iso` is dated 2026-08-16, which predates the keys fix
-outright, while the project record says an ISO was built and verified with the
-private halves physically inside the image on 2026-08-21. Those two facts
-cannot both describe the same file, so either the verified ISO lives at another
-path or that file is not the one staged for install day. rafik went unreachable
-mid-investigation, so this is unresolved.
+Supporting facts, all verified:
 
-**Consequences for this plan:** pull rafik's eminix before Phase 2 compares
-rosters, and **do not delete `eminix-installer.iso` in Phase 6 until the
-install-day ISO is positively identified** — Phase 6 already defers it past
-cutover, which is the safe ordering regardless.
+- `4e1197d` **is** on `origin/main`. An earlier reading of it as stranded on
+  whistle was a stale remote-tracking ref, now corrected.
+- rafik's `~/projects/eminix` is at `a71050e` and does **not** contain
+  `4e1197d`. It needs a pull.
+- Exactly one eminix ISO exists anywhere on rafik, whistle or datacore:
+  `rafik:~/eminix-installer.iso`, 1438613504 bytes. Its `/nix/store`
+  counterpart is the same size and same single build; there is no second,
+  keys-carrying store path. The Aug-16 mtime is when `cp` ran, not proof of
+  build date — but the squashfs contents settle it regardless.
+- The project record's "built and verified 2026-08-21, private halves
+  physically inside the image" does not correspond to any surviving artifact.
+  A keys build requires `--impure` with `EMINIX_ISO_KEYS`; either it was never
+  retained or it was garbage-collected.
+
+**Required before install day, in order:** pull rafik's eminix to pick up
+`4e1197d`; rebuild the ISO with `--impure` and `EMINIX_ISO_KEYS` set; re-verify
+by listing the squashfs and confirming private halves are present, **not** by
+running `--check-only` on the build host (that check passes spuriously because
+`resolve_repo` finds the live checkout, which is what produced the false
+Aug-16 verification in the first place); then reflash the stick.
+
+**Consequence for this plan:** Phase 6 must not delete
+`eminix-installer.iso` — and now has a stronger reason than caution. It is a
+known-bad image whose only remaining value is as a comparison baseline for the
+rebuild. Delete it once a verified replacement exists.
 
 **R2 — Secrets in first-ever pushes.** `chstr`, `swc` and `typ` have never
 been version-controlled. Precedent: the ionapi leak required a full history
