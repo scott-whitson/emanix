@@ -584,13 +584,30 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 (when (fboundp 'eminix/launch-app)
   (global-set-key (kbd "C-c o") #'eminix/launch-app))
 
-;; Terminal in a buffer — the terminal answer on non-EWM machines (decided
-;; 2026-08-04: a real terminal app can never be a buffer outside EWM's own
-;; compositor, so vterm IS the "ghostty in a split"). C-u C-c t = new vterm.
-;; Explicit autoload: the nix-installed package's autoloads don't reliably
-;; reach the daemon session (observed 2026-08-04 — installed but M-x-less).
+;; Terminal in a buffer. The 2026-08-04 decision stands — a real terminal app
+;; can never be a buffer outside EWM's own compositor — but the buffer terminal
+;; is ghostel as of 2026-08-25, not vterm. libghostty-vt (the VT engine behind
+;; Ghostty) through a native Zig module: ~4x vterm throughput, ~30fps vs ~10,
+;; DEC 2026 synchronized output, real mouse passthrough to TUIs, and password
+;; prompts intercepted via `read-passwd' instead of every character of a sudo
+;; password landing in `view-lossage' and the recent-keys ring.
+;;
+;; This does NOT retire ghostty, which is installed on all three hosts and
+;; remains the answer for shell and build work: it is an independent window
+;; that survives an Emacs wedge, whereas a ghostel buffer rides Emacs's main
+;; thread. Buffer terminal and window terminal are different jobs.
+;;
+;; C-u C-c t = new terminal (same as it did with vterm); a numeric prefix
+;; (C-1 C-c t) switches to that numbered one. Explicit autoload for the same
+;; reason as before: the nix-installed package's autoloads don't reliably reach
+;; the daemon session (observed 2026-08-04 — installed but M-x-less).
+;;
+;; vterm stays in packages.nix and keeps its autoload as the fallback — ghostel
+;; puts a native module in the critical path, and a broken one should cost a
+;; terminal, not a working Emacs. Retire vterm only once ghostel has weeks on it.
 (autoload 'vterm "vterm" "Open a vterm terminal buffer." t)
-(global-set-key (kbd "C-c t") #'vterm)
+(autoload 'ghostel "ghostel" "Open a ghostel terminal buffer." t)
+(global-set-key (kbd "C-c t") #'ghostel)
 
 ;; Keep TUI symbols on the character grid (Claude Code, 2026-08-04).
 ;; Measured against the 9px cell of JetBrainsMono Nerd Font, Claude Code emits
@@ -605,16 +622,16 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 ;; and search still see the original char); this is purely what gets painted.
 (require 'disp-table)
 
-(defvar eminix/vterm-glyph-substitutions
+(defvar eminix/terminal-glyph-substitutions
   '((?⏴ . ?◀) (?⏵ . ?▶) (?⏸ . ?‖) (?⏹ . ?■) (?⏺ . ?●)
     (?⎿ . ?└) (?✔ . ?✓) (?✘ . ?✗) (?◻ . ?□) (?◼ . ?■))
-  "Alist of (WIDE-CHAR . CELL-WIDTH-CHAR) substitutions for vterm buffers.
+  "Alist of (WIDE-CHAR . CELL-WIDTH-CHAR) substitutions for terminal buffers.
 Each cdr is verified to render at the default face's cell width.")
 
-(defun eminix/vterm-fix-glyph-widths ()
+(defun eminix/terminal-fix-glyph-widths ()
   "Remap off-grid TUI symbols to cell-width glyphs in the current buffer."
   (let ((dt (make-display-table)))
-    (pcase-dolist (`(,from . ,to) eminix/vterm-glyph-substitutions)
+    (pcase-dolist (`(,from . ,to) eminix/terminal-glyph-substitutions)
       (aset dt from (vector (make-glyph-code to))))
     ;; Spinner frames: the dingbat (✳..✿) and braille (⠀..⣿) animations cycle
     ;; through glyphs of differing widths, so the whole line jitters each tick.
@@ -625,14 +642,14 @@ Each cdr is verified to render at the default face's cell width.")
       (aset dt (+ #x2800 i) (vector (make-glyph-code ?·))))
     (setq buffer-display-table dt)))
 
-(add-hook 'vterm-mode-hook #'eminix/vterm-fix-glyph-widths)
+(add-hook 'vterm-mode-hook #'eminix/terminal-fix-glyph-widths)
 
-;; The same table applies to ghostel. Those symbols are off-grid because of
-;; glyph advance vs the 9px cell — a FONT problem, not a vterm one — and
-;; ghostel does no width remapping of its own, so Claude Code's TUI misaligns
-;; there identically. The function keeps its vterm- name while the trial below
-;; is still a trial.
-(add-hook 'ghostel-mode-hook #'eminix/vterm-fix-glyph-widths)
+;; Both backends need it. Those symbols are off-grid because of glyph advance
+;; vs the 9px cell — a FONT problem, not a backend one — and neither vterm nor
+;; ghostel remaps widths itself, so any TUI misaligns in both identically.
+;; Hence the backend-neutral name: ghostel is the primary terminal and vterm the
+;; fallback, so naming this after either one would be wrong within a release.
+(add-hook 'ghostel-mode-hook #'eminix/terminal-fix-glyph-widths)
 
 ;; Claude Code IDE (trial, 2026-08-24) — Claude in an Emacs side window with
 ;; MCP access to xref/eglot, tree-sitter, imenu, project.el and flymake,
