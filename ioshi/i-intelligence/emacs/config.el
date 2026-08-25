@@ -18,6 +18,9 @@
   (defvar tab-bar-format)
   (defvar tab-bar-show)
   (defvar meow-cheatsheet-layout)
+  (defvar winner-dont-bind-my-keys)
+  (defvar aw-keys)
+  (defvar aw-scope)
   (declare-function ewm--focused-frame "ewm")
   (declare-function ewm--strip-frames "ewm")
   (declare-function ewm-frame-new "ewm")
@@ -28,6 +31,10 @@
   (declare-function org-roam-node-find "org-roam")
   (declare-function org-roam-node-insert "org-roam")
   (declare-function org-roam-db-autosync-mode "org-roam")
+  (declare-function winner-undo "winner")
+  (declare-function winner-redo "winner")
+  (declare-function ace-window "ace-window")
+  (declare-function ace-swap-window "ace-window")
   (declare-function embark-act "embark")
   (declare-function embark-bindings "embark"))
 
@@ -54,11 +61,46 @@
       auto-revert-verbose nil)
 (column-number-mode 1)
 
-;; Window navigation & resizing (Shift+arrows)
+;; --- Window management -------------------------------------------------
+;; Resizing (Shift+arrows).
 (global-set-key (kbd "S-<left>") #'shrink-window-horizontally)
 (global-set-key (kbd "S-<right>") #'enlarge-window-horizontally)
 (global-set-key (kbd "S-<down>") #'shrink-window)
 (global-set-key (kbd "S-<up>")    #'enlarge-window)
+
+;; Layout undo/redo. Winner binds C-c <left>/<right> itself, but org-mode
+;; shadows both with org-shift{left,right} -- so winner would silently do
+;; nothing in the buffers that matter most here. Suppress its own keys (must
+;; be set BEFORE the mode is enabled) and route undo/redo through C-c w, so
+;; the map below is the single place window commands live.
+(setq winner-dont-bind-my-keys t)
+(winner-mode 1)
+
+;; One prefix for layout work, rather than a dozen scattered C-x chords.
+;; `C-c w C-h' lists it -- no which-key needed.
+(defvar-keymap eminix/window-map
+  :doc "Window layout commands. Bound to the `C-c w' prefix."
+  "u" #'winner-undo
+  "r" #'winner-redo
+  "s" #'split-window-below
+  "v" #'split-window-right
+  "d" #'delete-window
+  "o" #'delete-other-windows
+  "=" #'balance-windows
+  "w" #'window-configuration-to-register
+  "j" #'jump-to-register)
+(global-set-key (kbd "C-c w") eminix/window-map)
+
+;; ace-window replaces other-window: identical with two windows, but overlays
+;; a home-row letter on each when there are three or more. Guarded because
+;; config.el is a live checkout -- it is read by an Emacs whose store may
+;; predate the packages.nix entry, and must stay loadable there. Until the pin
+;; bump lands, C-x o remains other-window and C-c w m is simply absent.
+(when (require 'ace-window nil :no-error)
+  (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)
+        aw-scope 'frame)
+  (global-set-key (kbd "C-x o") #'ace-window)
+  (keymap-set eminix/window-map "m" #'ace-swap-window))
 
 ;; Clock + battery + status for the EWM tab-bar panel (no status bar under EWM).
 ;; Volume/wifi/cpu/ram/gpu/clock/battery all render once in the tab-bar via

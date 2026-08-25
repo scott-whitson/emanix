@@ -23,6 +23,9 @@ let
   list = epkgs: with epkgs; [
     meow
     avy
+    ace-window # replaces other-window on C-x o: overlays an `aw-keys'
+    # letter on each window once there are three or more. Depends on avy,
+    # already listed directly above.
     vertico
     orderless
     consult
