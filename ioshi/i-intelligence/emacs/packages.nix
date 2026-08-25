@@ -60,6 +60,21 @@ let
     vterm # native module built by nix; M-x package-install can't do this
     weblorg # pure Emacs Lisp static site generator with org-roam support
 
+    # --- Claude Code IDE (trial, 2026-08-24) ---
+    # claude-code-ide itself is deliberately NOT here: it is not on MELPA and is
+    # early-development software that moves weekly, so it lives as a git
+    # checkout in ~/.config/emacs/site-lisp and config.el adds it to load-path.
+    # A `git pull' updates it with no rebuild. These four are what it needs from
+    # the store.
+    ghostel # libghostty-vt terminal, the backend claude-code-ide recommends.
+    # Native Zig module, so nix must build it for the same reason as vterm above:
+    # upstream auto-downloads a prebuilt .so on first use and cannot write to
+    # the store.
+    websocket # claude-code-ide: MCP transport
+    web-server # claude-code-ide: MCP HTTP server
+    transient # claude-code-ide's menu. Already in the closure via magit; listed
+    # anyway because claude-code-ide requires it directly.
+
     # --- Code editing ---
     # Emacs 30 already ships the hard parts: project.el, eglot (LSP client),
     # flymake, xref, python-ts-mode, html-ts-mode and css-ts-mode are all

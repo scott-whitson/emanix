@@ -627,6 +627,56 @@ Each cdr is verified to render at the default face's cell width.")
 
 (add-hook 'vterm-mode-hook #'eminix/vterm-fix-glyph-widths)
 
+;; The same table applies to ghostel. Those symbols are off-grid because of
+;; glyph advance vs the 9px cell — a FONT problem, not a vterm one — and
+;; ghostel does no width remapping of its own, so Claude Code's TUI misaligns
+;; there identically. The function keeps its vterm- name while the trial below
+;; is still a trial.
+(add-hook 'ghostel-mode-hook #'eminix/vterm-fix-glyph-widths)
+
+;; Claude Code IDE (trial, 2026-08-24) — Claude in an Emacs side window with
+;; MCP access to xref/eglot, tree-sitter, imenu, project.el and flymake,
+;; instead of the vterm → zellij → claude stack. Coexists with that stack;
+;; nothing in zellij.nix or claude.nix changed.
+;;
+;; The package is a git checkout, not a store path: it is not on MELPA and is
+;; early-development (v0.3.0), so `git pull' + restart updates it with no
+;; rebuild. packages.nix carries only its deps (websocket, web-server,
+;; transient) plus ghostel. The file-directory-p guard means a missing checkout
+;; costs one keybinding rather than breaking the config.
+;;
+;; Autoload from "claude-code-ide", NOT from the file that defines the menu:
+;; claude-code-ide-transient.el does not require claude-code-ide.el, so
+;; autoloading the menu from there yields a menu whose every action is a void
+;; function. claude-code-ide.el requires the transient file, so this direction
+;; loads everything. Same explicit-autoload reasoning as vterm above.
+;;
+;; executeCode stays OFF. It is a bare `(eval (car (read-from-string code)) t)'
+;; with no confirmation, allowlist or sandbox, it rides on the core tool list
+;; rather than the optional tools server, and this daemon holds the work vault,
+;; ecomms credentials, agenix buffers and push-capable magit.
+(let ((cci (expand-file-name "~/.config/emacs/site-lisp/claude-code-ide.el")))
+  (when (file-directory-p cci)
+    (add-to-list 'load-path cci)
+    (dolist (cmd '(claude-code-ide-menu claude-code-ide claude-code-ide-check-status))
+      (autoload cmd "claude-code-ide" "Claude Code IDE." t))
+    (global-set-key (kbd "C-c C-'") #'claude-code-ide-menu)
+    (with-eval-after-load 'claude-code-ide
+      (setq claude-code-ide-terminal-backend 'ghostel
+            claude-code-ide-enable-execute-code nil)
+      ;; The daemon runs under systemd, whose PATH has no ~/.local/bin — which
+      ;; is exactly where Claude Code's native installer puts the binary. So a
+      ;; bare "claude" resolves in an interactive shell and NOT in the daemon.
+      ;; Point at it directly when it is there; leave the default alone if the
+      ;; CLI is already on exec-path (a store-installed claude elsewhere).
+      (unless (executable-find "claude")
+        (let ((local (expand-file-name "~/.local/bin/claude")))
+          (when (file-executable-p local)
+            (setq claude-code-ide-cli-path local))))
+      ;; Registers the xref/apropos/treesit/imenu/project tools and sets
+      ;; claude-code-ide-enable-mcp-server non-nil itself.
+      (claude-code-ide-emacs-tools-setup))))
+
 ;; Frame title must ALWAYS contain "emacs": GlazeWM's ignore rule on the
 ;; work laptop matches WSLg windows by title to leave the Emacs frame
 ;; unmanaged (the default title is bare "%b" once a second frame exists,
