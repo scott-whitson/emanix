@@ -42,6 +42,12 @@
     };
 
     initContent = ''
+      # Prepend hostname in parentheses when SSH'd in, so you always
+      # know which machine you're on.
+      if [[ -n "$SSH_CLIENT" ]]; then
+        PROMPT='(%m) %{$fg_bold[green]%}%p %{$fg[cyan]%}%c %{$fg_bold[blue]%}$(git_prompt_info) %{$reset_color%}'
+      fi
+
       # Helper scripts live in the CONSUMER's checkout, not the distro's —
       # $EMINIX/bin was always a path that did not exist.
       export PATH="$EMINIX_BIN_DIR:$PATH"
