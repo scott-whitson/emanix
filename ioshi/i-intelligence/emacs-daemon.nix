@@ -13,10 +13,14 @@ in
   # module is the option's only reader: ewm.nix is a NixOS module and cannot
   # declare a Home Manager option, and it does not consult this one anyway —
   # whether the system-owned EWM Emacs gets built is decided by the workstation
-  # role's imports. So the switch genuinely lives at two tiers: role imports
-  # decide the system Emacs, this option decides the user daemon, and nothing
-  # ties them together. Keep them agreeing; a host with both builds two full
-  # emacs-pgtk derivations and starts the very daemon ewm.nix pkills to avoid.
+  # role's imports. The two tiers are nonetheless TIED, and nothing here needs
+  # hand-maintaining: ewm.nix sets this option itself, as a hard definition
+  # rather than mkDefault (447c467, "the import IS the switch"). Importing
+  # ewm.nix therefore builds the system Emacs and disables the user daemon
+  # below in one act. That is what stops a host from building two full
+  # emacs-pgtk derivations and starting the very daemon ewm.nix pkills to
+  # avoid — which is exactly what happened while the flag lived by hand in
+  # profiles/roles/workstation.nix, next to the import it had to agree with.
   options.eminix.ewm.enable = lib.mkOption {
     type = lib.types.bool;
     default = false;
