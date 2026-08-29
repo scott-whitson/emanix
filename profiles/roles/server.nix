@@ -24,28 +24,6 @@
   # pi); a bare definition would meet them with "conflicting definition
   # values" and force mkForce. Invariants belong in assertions, not in
   # definitions a consumer cannot outrank.
-  # No text-to-speech. Importing ewm.nix makes this box a graphical desktop as
-  # far as nixos/modules/services/misc/graphical-desktop.nix is concerned, and
-  # that module turns services.speechd ON — an accessibility default aimed at
-  # desktops with someone sitting at them.
-  #
-  # It costs 0.7 GiB: speech-dispatcher -> espeak-ng -> mbrola -> mbrola-voices,
-  # of which the voice data alone is 645 MiB. Measured on datacore: importing
-  # ewm.nix took the closure 6.2 -> 7.4 GiB, and turning this off brought it to
-  # 6.7 GiB. So MORE THAN HALF the apparent cost of "EWM on a server" was
-  # text-to-speech that nothing here will ever call. EWM itself is 16.5 MiB.
-  #
-  # NOT mkDefault: graphical-desktop.nix sets `mkDefault true`, so two
-  # mkDefaults tie and nix errors with "conflicting definition values". Nor
-  # mkForce, which would make this a constraint rather than a starting shape and
-  # force any dissenting host to mkForce back.
-  #
-  # mkOverride 500 sits between the two: it outranks that module's mkDefault
-  # (1000) while still losing to an ordinary definition in a host's own config
-  # (100), so a server that does want a screen reader just writes
-  # `services.speechd.enable = true;` and wins.
-  services.speechd.enable = lib.mkOverride 500 false;
-
   home-manager.users.${config.eminix.username} = {
     eminix.gui = lib.mkDefault false;
     eminix.pi.enable = lib.mkDefault false;
