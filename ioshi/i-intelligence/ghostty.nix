@@ -34,7 +34,7 @@ in
           config-file = theme.conf
 
           # --- Font ---
-          font-family = JetBrainsMono Nerd Font
+          font-family = JetBrains Mono
           font-size = 12
 
           # --- Cursor ---

@@ -39,7 +39,7 @@
   "Family used for headings."
   :type 'string :group 'eminix-prose)
 
-(defcustom eminix-prose-mono-font "JetBrainsMono Nerd Font"
+(defcustom eminix-prose-mono-font "JetBrains Mono"
   "Monospace family for code, fences and tables.
 Tables align by character count; under a proportional font they break."
   :type 'string :group 'eminix-prose)
