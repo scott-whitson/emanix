@@ -1,4 +1,4 @@
-{ config, pkgs, ewm, ... }:
+{ config, lib, pkgs, ewm, ... }:
 
 let
   emacsPkgs = import ./emacs/packages.nix { inherit pkgs; };
@@ -27,9 +27,25 @@ in
   # mkDefault — this is an invariant of importing ewm.nix, not an opinion.
   home-manager.users.${config.eminix.username}.eminix.ewm.enable = true;
 
-  # Autologin the primary user on the console — LUKS already gates the
-  # machine, and the tty1 launch hook below takes over the session to start EWM.
-  services.getty.autologinUser = config.eminix.username;
+  # Autologin is OPT-IN, and defaults OFF.
+  #
+  # It used to be unconditional here, justified by "LUKS already gates the
+  # machine". That premise is a property of the HOST, not of EWM: it holds on a
+  # laptop with an encrypted disk, and fails on an unencrypted server, where
+  # autologin means physical access alone yields a logged-in session — and from
+  # there the backup credentials and the age identities that decrypt every
+  # secret in the fleet.
+  #
+  # Importing this module must not silently decide that for a host, so the
+  # decision moves to the host. mkDefault, so opting in is one plain line:
+  #   services.getty.autologinUser = "scott";
+  #
+  # EWM still works fine without it: the tty1 launch hook below is
+  # loginShellInit gated on tty1, so it fires on ANY tty1 login, not only an
+  # automatic one. Autologin only decides whether the machine reaches EWM
+  # unattended at boot. Without it, EWM exiting returns you to a login prompt
+  # instead of relaunching — which is the behaviour a server should have.
+  services.getty.autologinUser = lib.mkDefault null;
 
   programs.ewm = {
     enable = true;
