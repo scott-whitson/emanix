@@ -21,6 +21,10 @@
 
   # No text-to-speech anywhere in eminix.
   #
+  # NB `config.` prefix: this module declares options.eminix.username, which
+  # puts it in the explicit options/config form. A bare `services.…` at the
+  # top level here fails with "unsupported attribute `services'".
+  #
   # nixos/modules/services/misc/graphical-desktop.nix enables services.speechd
   # for anything that declares itself a graphical desktop, which every EWM host
   # now does. It pulls speech-dispatcher -> espeak-ng -> mbrola ->
@@ -40,7 +44,7 @@
   # that module's 1000 while still losing to a plain definition (100) in a
   # host's config, so a machine that genuinely needs TTS writes
   # `services.speechd.enable = true;` and wins.
-  services.speechd.enable = lib.mkOverride 500 false;
+  config.services.speechd.enable = lib.mkOverride 500 false;
 
   imports = [
     ../ioshi/os-system/base.nix
