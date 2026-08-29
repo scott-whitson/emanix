@@ -24,6 +24,20 @@
   # pi); a bare definition would meet them with "conflicting definition
   # values" and force mkForce. Invariants belong in assertions, not in
   # definitions a consumer cannot outrank.
+  # No text-to-speech. Importing ewm.nix makes this box a graphical desktop as
+  # far as nixos/modules/services/misc/graphical-desktop.nix is concerned, and
+  # that module turns services.speechd ON — an accessibility default aimed at
+  # desktops with someone sitting at them.
+  #
+  # It costs 0.7 GiB: speech-dispatcher -> espeak-ng -> mbrola -> mbrola-voices,
+  # of which the voice data alone is 645 MiB. Measured on datacore: importing
+  # ewm.nix took the closure 6.2 -> 7.4 GiB, and turning this off brought it to
+  # 6.7 GiB. So MORE THAN HALF the apparent cost of "EWM on a server" was
+  # text-to-speech that nothing here will ever call. EWM itself is 16.5 MiB.
+  #
+  # mkDefault, so a server that does want a screen reader just says so.
+  services.speechd.enable = lib.mkDefault false;
+
   home-manager.users.${config.eminix.username} = {
     eminix.gui = lib.mkDefault false;
     eminix.pi.enable = lib.mkDefault false;
