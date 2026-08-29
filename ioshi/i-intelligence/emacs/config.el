@@ -43,7 +43,7 @@
 (load custom-file :no-error)
 
 ;; --- Basics ---
-(set-face-attribute 'default nil :family "JetBrainsMono Nerd Font" :height 110)
+(set-face-attribute 'default nil :family "JetBrains Mono" :height 110)
 ;; Symbol coverage for TUIs in vterm (Claude Code's ⏵ ⏸ ⏺ ✻ ✦) comes from
 ;; pkgs.noto-fonts via fontconfig fallback — see ../packages.nix. Deliberately
 ;; NOT set-fontset-font: on this pgtk/ftcrhb build those calls are inert

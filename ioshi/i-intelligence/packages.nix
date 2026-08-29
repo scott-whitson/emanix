@@ -24,8 +24,7 @@
     # Developer tools
     gh
     lazygit
-    nodejs # pi coding agent runtime
-    pi-coding-agent # declarative — replaces the old npm post-install
+    nodejs # JS runtime for the web toolchain below
     just
     nixd
     nixpkgs-fmt
@@ -37,7 +36,6 @@
     # (eglot talks to it); ruff does lint + format. Both are also what the
     # Emacs config drives, so editor and CLI agree.
     python3
-    basedpyright
     ruff
 
     # Web toolchain, added 2026-08-20. djlint reformats Jinja2 templates;
@@ -119,8 +117,15 @@
     '')
   ] ++ [
     # Fonts — every node: pgtk emacs under WSLg reads nix-profile fonts
+    #
+    # jetbrains-mono is the TYPEFACE (11.9 MiB); symbols-only is JUST the Nerd
+    # Font icon glyphs (4.7 MiB), reached by fontconfig fallback. This replaced
+    # nerd-fonts.jetbrains-mono, which is the same typeface with the icons
+    # patched into every weight and style — 222.5 MiB for the identical
+    # rendering. emacs/config.el asks for "JetBrains Mono" accordingly; asking
+    # for "JetBrainsMono Nerd Font" here would find nothing.
     jetbrains-mono
-    nerd-fonts.jetbrains-mono
+    nerd-fonts.symbols-only
     # Symbol fallback for TUIs in vterm (Claude Code's ⏵ ⏸ ⏺). No JetBrains
     # face — nor Nerd Font's symbol set — covers the media-control block
     # U+23F5/23F8/23FA, so emacs drew hex-tofu boxes. NotoSansSymbols2 (in
