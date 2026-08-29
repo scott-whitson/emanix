@@ -35,8 +35,16 @@
   # 6.7 GiB. So MORE THAN HALF the apparent cost of "EWM on a server" was
   # text-to-speech that nothing here will ever call. EWM itself is 16.5 MiB.
   #
-  # mkDefault, so a server that does want a screen reader just says so.
-  services.speechd.enable = lib.mkDefault false;
+  # NOT mkDefault: graphical-desktop.nix sets `mkDefault true`, so two
+  # mkDefaults tie and nix errors with "conflicting definition values". Nor
+  # mkForce, which would make this a constraint rather than a starting shape and
+  # force any dissenting host to mkForce back.
+  #
+  # mkOverride 500 sits between the two: it outranks that module's mkDefault
+  # (1000) while still losing to an ordinary definition in a host's own config
+  # (100), so a server that does want a screen reader just writes
+  # `services.speechd.enable = true;` and wins.
+  services.speechd.enable = lib.mkOverride 500 false;
 
   home-manager.users.${config.eminix.username} = {
     eminix.gui = lib.mkDefault false;
