@@ -128,7 +128,12 @@ in
       dosfstools
       diskoPkg
       (pkgs.writeShellScriptBin "fresh-eminix-install" (builtins.readFile ./fresh-eminix-install))
-      (pkgs.writeShellScriptBin "eminix-firstboot" (builtins.readFile ./eminix-firstboot))
+      # eminix-firstboot is deliberately NOT here. It runs on the INSTALLED
+      # system after reboot, where os-system/firstboot.nix puts it on PATH with
+      # the consumer's content — running it inside the live ISO would act on the
+      # installer environment, not the machine being built. Its body also left
+      # the distribution entirely (it was one deployment's tailnet join), so
+      # there is nothing generic left here to bake in.
     ];
 
     # WiFi — the installer profile (installation-device.nix) already enables

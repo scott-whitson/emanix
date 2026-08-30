@@ -49,6 +49,5 @@
   imports = [
     ./ioshi/os-system/base.nix
     ./ioshi/os-system/firstboot.nix
-    ./ioshi/hi-hardware/tailscale.nix
   ];
 }
