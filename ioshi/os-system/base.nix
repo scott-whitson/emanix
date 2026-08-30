@@ -18,9 +18,23 @@
     shell = pkgs.zsh;
   };
 
-  time.timeZone = "America/New_York";
-  i18n.defaultLocale = "en_US.UTF-8";
-  console.keyMap = "us";
+  # Locale, time and keymap: NEUTRAL defaults, and all three mkDefault.
+  #
+  # timeZone was "America/New_York" as a bare definition until 2026-08-30. A
+  # distribution deciding where its users live is the same class of thing as
+  # deciding their password manager — and being a bare definition rather than
+  # mkDefault, a consumer who disagreed got "conflicting definition values"
+  # rather than an override. UTC is the honest default: correct for a server
+  # anywhere, and wrong in a way that is immediately obvious to anyone who
+  # cares, rather than silently right for one person.
+  #
+  # locale and keymap keep their conventional values — unlike a timezone there
+  # IS a sensible default, and en_US.UTF-8 / us is it for this distro's author
+  # base. They are mkDefault now too, so disagreeing costs one line and not an
+  # mkForce.
+  time.timeZone = lib.mkDefault "UTC";
+  i18n.defaultLocale = lib.mkDefault "en_US.UTF-8";
+  console.keyMap = lib.mkDefault "us";
 
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
