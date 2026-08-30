@@ -1,4 +1,4 @@
-# The ONE eminix Emacs build. Owns the package set, the org pin, and the
+# The ONE emanix Emacs build. Owns the package set, the org pin, and the
 # derivation itself — mkEmacs is the only way to build it.
 #
 # Until 2026-08-18 this file exported `orgOverride` and `list` and each
@@ -55,11 +55,11 @@ let
     org
     catppuccin-theme
     markdown-mode # transition: vault is still .md until the conversion sub-project
-    # --- Prose rendering (eminix-prose.el) ---
+    # --- Prose rendering (emanix-prose.el) ---
     visual-fill-column # centered reading column; markdown/org prose buffers
     org-modern # bullets, block framing, tag/timestamp styling for org
     org-appear # reveal org emphasis markers at point (markdown's equivalent
-    # is hand-rolled in eminix-prose.el — no package provides it)
+    # is hand-rolled in emanix-prose.el — no package provides it)
     vterm # native module built by nix; M-x package-install can't do this
     weblorg # pure Emacs Lisp static site generator with org-roam support
 

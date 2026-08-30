@@ -22,11 +22,11 @@ SRC="$(cd "$(dirname "$0")/.." && pwd)/ioshi/i-intelligence/emacs"
 FAILURES=0
 
 PROBE='(message "PROBE fellback=%s fallbackloaded=%s modeline=%s launch=%s ewmgoto=%s theme=%s"
-         (if eminix/init-error "yes" "no")
+         (if emanix/init-error "yes" "no")
          (if (featurep (quote fallback)) "yes" "no")
-         (fboundp (quote eminix/modeline-mode))
-         (fboundp (quote eminix/launch-app))
-         (fboundp (quote eminix/ewm--goto))
+         (fboundp (quote emanix/modeline-mode))
+         (fboundp (quote emanix/launch-app))
+         (fboundp (quote emanix/ewm--goto))
          (if custom-enabled-themes "yes" "no"))'
 
 layout() {  # $1 = destination dir; build a deployed-shaped config tree
@@ -59,7 +59,7 @@ echo "1. healthy path — must be unchanged, and must NOT report a fallback"
 D=$(mktemp -d); layout "$D"
 R=$(probe "$D")
 check "healthy: no fallback"        "fellback=no"        "$R"
-# The probe alone (eminix/init-error, fboundp) can't tell a healthy boot from
+# The probe alone (emanix/init-error, fboundp) can't tell a healthy boot from
 # a broken guard that loads fallback.el unconditionally — every command it
 # checks for is also defined by fallback.el. This is the actual signal: on a
 # healthy boot fallback.el must not have run at all.

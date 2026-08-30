@@ -1,7 +1,7 @@
 { config, lib, ... }:
 
 {
-  config = lib.mkIf config.eminix.gui {
+  config = lib.mkIf config.emanix.gui {
     # Silences ACP-related boot warnings on AMD ("Failed to create
     # 'api.alsa.acp.device' device", "Path Mic ACP LED is not a volume or mute
     # control"). WirePlumber probes the AMD ACP platform device, which exposes a

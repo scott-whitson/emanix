@@ -1,4 +1,4 @@
-;;; eminix-web.el --- Jinja2/HTML/CSS modes and gated formatting -*- lexical-binding: t; -*-
+;;; emanix-web.el --- Jinja2/HTML/CSS modes and gated formatting -*- lexical-binding: t; -*-
 
 ;; Jinja2 in this world is 134 plain `.html' files under `templates'
 ;; directories (FastAPI `Jinja2Templates' in pearl-platform, cd-audit and
@@ -14,7 +14,7 @@
 ;; `.html' opened in `mhtml-mode' by the stock `auto-mode-alist' entry, so
 ;; the "leave it nil" mhtml behaviour was never tested against anything else.
 ;; Once this file routes `.html' to `web-mode'/`html-ts-mode' on path, that
-;; accidental protection is gone, so `eminix-web--apheleia-skip-p' on
+;; accidental protection is gone, so `emanix-web--apheleia-skip-p' on
 ;; `apheleia-skip-functions' is the actual gate: it, not
 ;; `apheleia-mode-alist', decides whether a save formats at all.  The repo
 ;; owns its formatting — exactly as ruff + pyproject.toml already decides
@@ -31,9 +31,9 @@
 ;; Loaded here, eagerly, for its SIDE EFFECT and not for any symbol.
 ;; `html-ts-mode.el' runs (add-to-list 'auto-mode-alist '("\\.html\\'" .
 ;; html-ts-mode)) at FILE LOAD time, and it is autoloaded — so without this
-;; require it first loads the moment `eminix-web-html-mode' dispatches a
+;; require it first loads the moment `emanix-web-html-mode' dispatches a
 ;; plain `.html' buffer to `html-ts-mode', and its entry lands AHEAD of the
-;; one `eminix-web-setup' prepended.  Our dispatch is then never consulted
+;; one `emanix-web-setup' prepended.  Our dispatch is then never consulted
 ;; again: on a daemon, one plain `.html' visit permanently routes every
 ;; later `.html' — templates included — to `html-ts-mode'.  That is not
 ;; merely the wrong keymap; it sends templates to the PRETTIER half of the
@@ -44,11 +44,11 @@
 ;; front for the life of the session.
 (require 'html-ts-mode nil :no-error)
 
-(defgroup eminix-web nil
+(defgroup emanix-web nil
   "Major modes and gated format-on-save for Jinja2, HTML and CSS."
   :group 'tools)
 
-(defcustom eminix-web-djlint-profile "jinja"
+(defcustom emanix-web-djlint-profile "jinja"
   "Template language passed to djlint's --profile.
 
 Default suits Jinja2, which is every template tree here.  A tree using a
@@ -58,9 +58,9 @@ patching the distro.
 Note that a CLI --profile overrides one set in a repo's own djlint config.
 That precedence is intended: the default is correct for every Jinja2 tree,
 and a tree that needs otherwise says so locally."
-  :type 'string :group 'eminix-web)
+  :type 'string :group 'emanix-web)
 
-(defun eminix-web-template-file-p (file)
+(defun emanix-web-template-file-p (file)
   "Non-nil when FILE sits under a directory named `templates'.
 
 A pure function of the path: FILE need not exist.  That is what lets it be
@@ -83,7 +83,7 @@ match.  Only the directory part is examined, so a plain file named
 ;; installing this feature reformats nothing and the decision to start
 ;; formatting a tree stays an explicit act in that tree.
 
-(defconst eminix-web--prettier-config-files
+(defconst emanix-web--prettier-config-files
   '(".prettierrc" ".prettierrc.json" ".prettierrc.yml" ".prettierrc.yaml"
     ".prettierrc.json5" ".prettierrc.js" ".prettierrc.cjs" ".prettierrc.mjs"
     ".prettierrc.toml" "prettier.config.js" "prettier.config.cjs"
@@ -93,7 +93,7 @@ Deliberately prettier's own list: the opt-in signal has to be something
 prettier would also honour from the CLI, or editor and command line could
 disagree about whether a tree is formatted at all.")
 
-(defun eminix-web--locate-upward (dir predicate)
+(defun emanix-web--locate-upward (dir predicate)
   "Return the first directory at or above DIR satisfying PREDICATE.
 
 The walk examines directories from DIR upward and stops at whichever of
@@ -136,7 +136,7 @@ tree with no project.el state involved."
               (setq dir parent)))))))
     result))
 
-(defun eminix-web--pyproject-declares-djlint-p (dir)
+(defun emanix-web--pyproject-declares-djlint-p (dir)
   "Non-nil when DIR/pyproject.toml carries a [tool.djlint] section.
 The section, not the file: every repo in play has a pyproject.toml, so the
 file's mere presence says nothing about formatting."
@@ -147,7 +147,7 @@ file's mere presence says nothing about formatting."
            (goto-char (point-min))
            (and (re-search-forward "^[ \t]*\\[tool\\.djlint\\]" nil t) t)))))
 
-(defun eminix-web--package-json-declares-prettier-p (dir)
+(defun emanix-web--package-json-declares-prettier-p (dir)
   "Non-nil when DIR/package.json carries a top-level `prettier' key.
 Parsed, not grepped: \"prettier\" also appears as a dependency name, and a
 devDependency is a build-tool choice, not a request to reformat on save.
@@ -167,35 +167,35 @@ INSIDE the `ignore-errors' rather than after it."
                     (assq 'prettier json)))
                 t)))))
 
-(defun eminix-web-djlint-configured-p (dir)
+(defun emanix-web-djlint-configured-p (dir)
   "Non-nil when DIR or an ancestor declares djlint.
-The ancestor walk is `eminix-web--locate-upward\='s: up to and including
+The ancestor walk is `emanix-web--locate-upward\='s: up to and including
 a `.git\='-bearing project root, or up to but NOT including the home
 directory, whichever comes first."
   (and dir
-       (eminix-web--locate-upward
+       (emanix-web--locate-upward
         dir
         (lambda (d)
           (or (file-exists-p (expand-file-name ".djlintrc" d))
-              (eminix-web--pyproject-declares-djlint-p d))))
+              (emanix-web--pyproject-declares-djlint-p d))))
        t))
 
-(defun eminix-web-prettier-configured-p (dir)
+(defun emanix-web-prettier-configured-p (dir)
   "Non-nil when DIR or an ancestor declares prettier.
-Same bounded ancestor walk as `eminix-web-djlint-configured-p\='."
+Same bounded ancestor walk as `emanix-web-djlint-configured-p\='."
   (and dir
-       (eminix-web--locate-upward
+       (emanix-web--locate-upward
         dir
         (lambda (d)
           (or (seq-some (lambda (name)
                           (file-exists-p (expand-file-name name d)))
-                        eminix-web--prettier-config-files)
-              (eminix-web--package-json-declares-prettier-p d))))
+                        emanix-web--prettier-config-files)
+              (emanix-web--package-json-declares-prettier-p d))))
        t))
 
 ;; --- Major modes ------------------------------------------------------
 
-(defun eminix-web-html-mode ()
+(defun emanix-web-html-mode ()
   "Select a major mode for the `.html' file in this buffer.
 
 Installed as the cdr of an `auto-mode-alist' entry, which Emacs calls with
@@ -206,14 +206,14 @@ Every branch activates a mode.  A fall-through would leave the buffer in
 `fundamental-mode' with nothing to explain why, so the last clause is the
 stock `mhtml-mode' rather than nothing."
   (cond
-   ((and (eminix-web-template-file-p buffer-file-name)
+   ((and (emanix-web-template-file-p buffer-file-name)
          (fboundp 'web-mode))
     (web-mode))
    ((and (fboundp 'html-ts-mode) (treesit-language-available-p 'html))
     (html-ts-mode))
    (t (mhtml-mode))))
 
-(defun eminix-web--set-djlint-formatter ()
+(defun emanix-web--set-djlint-formatter ()
   "Set djlint as this buffer's formatter.  Unconditional, by design.
 
 Sets `apheleia-formatter' buffer-locally, and asks NOTHING about the
@@ -222,7 +222,7 @@ questions, and this one only answers WHAT WITH: apheleia's own stock
 `web-mode' entry in `apheleia-mode-alist' is plain prettier, which mangles
 Jinja2's `{% %}', so a template that is going to be formatted at all must
 be formatted with djlint.  WHETHER it is formatted at all is
-`eminix-web--apheleia-skip-p' on `apheleia-skip-functions', and that is
+`emanix-web--apheleia-skip-p' on `apheleia-skip-functions', and that is
 the sole decider.
 
 Asking the config question here too was a bug, not redundancy.  This runs
@@ -238,10 +238,10 @@ path safe: in an unconfigured repo the skip function still blocks the
 save, so a buffer-local naming djlint costs nothing."
   (setq-local apheleia-formatter 'djlint))
 
-(defun eminix-web--set-prettier-formatter ()
+(defun emanix-web--set-prettier-formatter ()
   "Set the right prettier parser as this buffer's formatter.
-Unconditional for the same reason as `eminix-web--set-djlint-formatter';
-see there for the division of labour with `eminix-web--apheleia-skip-p'."
+Unconditional for the same reason as `emanix-web--set-djlint-formatter';
+see there for the division of labour with `emanix-web--apheleia-skip-p'."
   (setq-local apheleia-formatter
               (if (derived-mode-p 'css-base-mode)
                   'prettier-css
@@ -264,7 +264,7 @@ see there for the division of labour with `eminix-web--apheleia-skip-p'."
 ;; with a nil formatter the moment config appeared under it — and apheleia
 ;; would then fall through to prettier on a Jinja2 template.
 
-(defun eminix-web--apheleia-skip-p ()
+(defun emanix-web--apheleia-skip-p ()
   "Non-nil when apheleia should skip formatting the current buffer.
 
 Skips only when BOTH hold: the buffer is in a mode this file dispatches
@@ -278,10 +278,10 @@ answers nil rather than erroring, since `and' short-circuits before
        (derived-mode-p 'web-mode 'html-ts-mode 'mhtml-mode 'css-base-mode)
        (let ((dir (file-name-directory buffer-file-name)))
          (if (derived-mode-p 'web-mode)
-             (not (eminix-web-djlint-configured-p dir))
-           (not (eminix-web-prettier-configured-p dir))))))
+             (not (emanix-web-djlint-configured-p dir))
+           (not (emanix-web-prettier-configured-p dir))))))
 
-(defun eminix-web-setup ()
+(defun emanix-web-setup ()
   "Install the mode rules and the gated format-on-save hooks.
 Idempotent: `add-to-list' and `add-hook' both no-op on a repeat, so this
 is safe to re-run after `M-x load-file' on a live daemon."
@@ -298,22 +298,22 @@ is safe to re-run after `M-x load-file' on a live daemon."
   ;; would arrive LATER and land in front of this one). Both are
   ;; deliberately left in place: if this file ever fails to load, .html
   ;; still opens in a working mode.
-  (add-to-list 'auto-mode-alist '("\\.html?\\'" . eminix-web-html-mode))
+  (add-to-list 'auto-mode-alist '("\\.html?\\'" . emanix-web-html-mode))
   (when (treesit-language-available-p 'css)
     (add-to-list 'major-mode-remap-alist '(css-mode . css-ts-mode)))
-  ;; The actual gate — see the comment above `eminix-web--apheleia-skip-p'.
+  ;; The actual gate — see the comment above `emanix-web--apheleia-skip-p'.
   ;; Soft-required: apheleia is expected everywhere in this distro
   ;; (config.el requires it unconditionally), but a unit test loading only
   ;; this file, or some future Emacs without it, must not error here.
   (when (boundp 'apheleia-skip-functions)
-    (add-hook 'apheleia-skip-functions #'eminix-web--apheleia-skip-p))
+    (add-hook 'apheleia-skip-functions #'emanix-web--apheleia-skip-p))
   ;; One hook covers both CSS modes: `css-mode' and `css-ts-mode' both
   ;; derive from `css-base-mode' (verified 2026-08-20), and a derived mode
   ;; runs its parent's hooks.
-  (add-hook 'web-mode-hook #'eminix-web--set-djlint-formatter)
-  (add-hook 'html-ts-mode-hook #'eminix-web--set-prettier-formatter)
-  (add-hook 'mhtml-mode-hook #'eminix-web--set-prettier-formatter)
-  (add-hook 'css-base-mode-hook #'eminix-web--set-prettier-formatter))
+  (add-hook 'web-mode-hook #'emanix-web--set-djlint-formatter)
+  (add-hook 'html-ts-mode-hook #'emanix-web--set-prettier-formatter)
+  (add-hook 'mhtml-mode-hook #'emanix-web--set-prettier-formatter)
+  (add-hook 'css-base-mode-hook #'emanix-web--set-prettier-formatter))
 
 ;; djlint is the one formatter apheleia does not ship. prettier-html and
 ;; prettier-css are built in and need no definition; both route through
@@ -328,7 +328,7 @@ is safe to re-run after `M-x load-file' on a live daemon."
 ;;                           the buffer to stdin and splice back stdout --
 ;;                           the same deal the bare ("nixpkgs-fmt") entry in
 ;;                           config.el relies on. Both halves must agree.
-;;   eminix-web-djlint-profile   A BARE SYMBOL, not a string. apheleia
+;;   emanix-web-djlint-profile   A BARE SYMBOL, not a string. apheleia
 ;;                           evaluates any list element that is not a string
 ;;                           and not one of its special forms (npx, input,
 ;;                           output, inplace, file, filepath, scratch), so
@@ -341,8 +341,8 @@ is safe to re-run after `M-x load-file' on a live daemon."
 (with-eval-after-load 'apheleia
   (setf (alist-get 'djlint apheleia-formatters)
         '("djlint" "-" "--reformat"
-          "--profile" eminix-web-djlint-profile
+          "--profile" emanix-web-djlint-profile
           "--quiet")))
 
-(provide 'eminix-web)
-;;; eminix-web.el ends here
+(provide 'emanix-web)
+;;; emanix-web.el ends here

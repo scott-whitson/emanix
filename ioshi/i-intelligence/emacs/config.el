@@ -78,7 +78,7 @@
 
 ;; One prefix for layout work, rather than a dozen scattered C-x chords.
 ;; `C-c w C-h' lists it -- no which-key needed.
-(defvar-keymap eminix/window-map
+(defvar-keymap emanix/window-map
   :doc "Window layout commands. Bound to the `C-c w' prefix."
   "u" #'winner-undo
   "r" #'winner-redo
@@ -89,7 +89,7 @@
   "=" #'balance-windows
   "w" #'window-configuration-to-register
   "j" #'jump-to-register)
-(global-set-key (kbd "C-c w") eminix/window-map)
+(global-set-key (kbd "C-c w") emanix/window-map)
 
 ;; ace-window replaces other-window: identical with two windows, but overlays
 ;; a home-row letter on each when there are three or more. Guarded because
@@ -100,11 +100,11 @@
   (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)
         aw-scope 'frame)
   (global-set-key (kbd "C-x o") #'ace-window)
-  (keymap-set eminix/window-map "m" #'ace-swap-window))
+  (keymap-set emanix/window-map "m" #'ace-swap-window))
 
 ;; Clock + battery + status for the EWM tab-bar panel (no status bar under EWM).
 ;; Volume/wifi/cpu/ram/gpu/clock/battery all render once in the tab-bar via
-;; eminix/tab-bar-status, not the mode-line.
+;; emanix/tab-bar-status, not the mode-line.
 (setq-default display-time-format "%a %b %e %I:%M %p"
               display-time-default-load-average nil)
 (display-time-mode 1)
@@ -119,7 +119,7 @@
 ;; at startup). Two constraints on editing it: every line must stay commented,
 ;; because *scratch* is lisp-interaction-mode and a bare banner breaks
 ;; `eval-buffer'; and every backslash must be doubled, because this is a string
-;; literal. Regenerate with: nix run nixpkgs#figlet -- -f slant Eminix
+;; literal. Regenerate with: nix run nixpkgs#figlet -- -f slant Emanix
 ;; The command list below is a scratchpad, not a menu — churn it freely.
 (setq initial-scratch-message "\
 ;;     ______          _       _
@@ -131,20 +131,20 @@
 ;;  C-j = eval + print inline     C-x C-e = eval, echo area
 ;;  M-: = eval from minibuffer    C-x * q = quick calc
 
-(eminix-quarterly-open)
-(eminix/calendar-sync)
+(emanix-quarterly-open)
+(emanix/calendar-sync)
 (org-agenda nil \"w\")
-(magit-status (getenv \"EMINIX\"))
-(eminix/weather)
-(eminix/openrouter-cost)
-(call-interactively #'eminix/launch-app)
+(magit-status (getenv \"EMANIX\"))
+(emanix/weather)
+(emanix/openrouter-cost)
+(call-interactively #'emanix/launch-app)
 ")
 
 ;; --- Buffer hygiene: kill buffers by named group ---
 ;;
 ;; Long-lived daemons accumulate buffers faster than you close them, and the
 ;; worst offender is any command that opens files to scan them — the org
-;; agenda opens one buffer per agenda file. `eminix/org-agenda-release-buffers'
+;; agenda opens one buffer per agenda file. `emanix/org-agenda-release-buffers'
 ;; handles the case where you quit the agenda properly, but nothing cleans up
 ;; if you follow a TODO with RET and never go back.
 ;;
@@ -157,10 +157,10 @@
 ;; save and a buffer with a live process still asks. No group, "*" included,
 ;; can silently lose work.
 
-(defvar eminix/buffer-protect-names '("*scratch*" "*Messages*")
-  "Buffer names `eminix/kill-buffer-group' will never kill.")
+(defvar emanix/buffer-protect-names '("*scratch*" "*Messages*")
+  "Buffer names `emanix/kill-buffer-group' will never kill.")
 
-(defun eminix/buffer-protected-p (buf)
+(defun emanix/buffer-protected-p (buf)
   "Non-nil if BUF must survive a group kill.
 Buffers whose name begins with a space are protected wholesale. By Emacs
 convention those are internal — the minibuffers, ` *server*', encoding
@@ -175,14 +175,14 @@ ever disturbs the window manager on rafik, add its buffers here."
   (or (eq buf (current-buffer))
       (minibufferp buf)
       (string-prefix-p " " (buffer-name buf))
-      (member (buffer-name buf) eminix/buffer-protect-names)))
+      (member (buffer-name buf) emanix/buffer-protect-names)))
 
-(defun eminix/buffer-under-p (buf dir)
+(defun emanix/buffer-under-p (buf dir)
   "Non-nil if BUF visits a file under DIR."
   (when-let* ((f (buffer-file-name buf)))
     (string-prefix-p (expand-file-name dir) (file-truename f))))
 
-(defvar eminix/buffer-group-alist
+(defvar emanix/buffer-group-alist
   (list
    ;; The precise one: only what the last agenda run had to open.
    (cons "agenda" (lambda (buf) (memq buf org-agenda-new-buffers)))
@@ -191,23 +191,23 @@ ever disturbs the window manager on rafik, add its buffers here."
    (cons "files"  (lambda (buf) (buffer-file-name buf)))
    ;; The wildcard: everything not protected.
    (cons "*"      (lambda (_buf) t)))
-  "Alist of (NAME . PREDICATE) for `eminix/kill-buffer-group'.
+  "Alist of (NAME . PREDICATE) for `emanix/kill-buffer-group'.
 PREDICATE is called with a buffer and returns non-nil to kill it.
-Protected buffers (see `eminix/buffer-protected-p') are filtered out before
+Protected buffers (see `emanix/buffer-protected-p') are filtered out before
 any predicate runs, so no group can reach them.  Consumers add their own
 path-specific groups from the personal layer.")
 
-(defun eminix/kill-buffer-group (name)
-  "Kill every buffer matching the group NAME in `eminix/buffer-group-alist'."
+(defun emanix/kill-buffer-group (name)
+  "Kill every buffer matching the group NAME in `emanix/buffer-group-alist'."
   (interactive
    (list (completing-read "Kill buffer group: "
-                          (mapcar #'car eminix/buffer-group-alist)
+                          (mapcar #'car emanix/buffer-group-alist)
                           nil t)))
-  (let ((pred (cdr (assoc name eminix/buffer-group-alist)))
+  (let ((pred (cdr (assoc name emanix/buffer-group-alist)))
         (killed 0))
     (unless pred (user-error "No such buffer group: %s" name))
     (dolist (buf (buffer-list))
-      (when (and (not (eminix/buffer-protected-p buf))
+      (when (and (not (emanix/buffer-protected-p buf))
                  (funcall pred buf)
                  (kill-buffer buf))
         (setq killed (1+ killed))))
@@ -217,7 +217,7 @@ path-specific groups from the personal layer.")
     (message "Killed %d buffer%s in group %S" killed (if (= killed 1) "" "s") name)))
 
 ;; `C-c k' is meow-dispatch; `C-c K' is the super-kill.
-(global-set-key (kbd "C-c K") #'eminix/kill-buffer-group)
+(global-set-key (kbd "C-c K") #'emanix/kill-buffer-group)
 
 ;; --- Minibuffer completion: vertico + orderless + consult + marginalia + embark ---
 (require 'vertico)
@@ -334,13 +334,13 @@ path-specific groups from the personal layer.")
 
 ;; Line movement (global bindings, works with Meow selections)
 ;; System commands
-(defun eminix-reboot ()
+(defun emanix-reboot ()
   "Reboot the system."
   (interactive)
   (when (yes-or-no-p "Reboot now? ")
     (start-process "reboot" nil "sudo" "reboot")))
 
-(defun eminix-shutdown ()
+(defun emanix-shutdown ()
   "Shut down the system."
   (interactive)
   (when (yes-or-no-p "Shut down now? ")
@@ -464,13 +464,13 @@ path-specific groups from the personal layer.")
 ;; `org-agenda--quit' is private, so we attach to the two public commands
 ;; instead and stay off org's internals. On the `x' path org has already
 ;; released and nulled the list, making the advice a harmless no-op.
-(defun eminix/org-agenda-release-buffers (&rest _)
+(defun emanix/org-agenda-release-buffers (&rest _)
   "Release only the org buffers the agenda itself opened.
 Buffers visited by hand are untouched."
   (org-release-buffers org-agenda-new-buffers)
   (setq org-agenda-new-buffers nil))
-(advice-add 'org-agenda-quit :after #'eminix/org-agenda-release-buffers)
-(advice-add 'org-agenda-Quit :after #'eminix/org-agenda-release-buffers)
+(advice-add 'org-agenda-quit :after #'emanix/org-agenda-release-buffers)
+(advice-add 'org-agenda-Quit :after #'emanix/org-agenda-release-buffers)
 
 ;; org-babel: executable src blocks in notes (the "living ops journal"
 ;; workflow, adopted 2026-08-05). Shell blocks are off by default — enable.
@@ -492,7 +492,7 @@ Buffers visited by hand are untouched."
 ;; Recomputed before every agenda build rather than once at startup: this
 ;; daemon runs for weeks and the list would go stale the first time org-roam
 ;; captured a new note.
-(defun eminix/org-agenda-file-list ()
+(defun emanix/org-agenda-file-list ()
   "Every .org file under `org-directory', recursively.
 Dot-directories are skipped — .stfolder (Syncthing) and .claude (tooling
 state) hold no tasks.  The PREDICATE argument of
@@ -504,13 +504,13 @@ base name, hence the `file-name-nondirectory' before the prefix test."
    (lambda (dir)
      (not (string-prefix-p "." (file-name-nondirectory dir))))))
 
-(defun eminix/org-refresh-agenda-files (&rest _)
+(defun emanix/org-refresh-agenda-files (&rest _)
   "Recompute `org-agenda-files' from the current state of the vault."
-  (setq org-agenda-files (eminix/org-agenda-file-list)))
+  (setq org-agenda-files (emanix/org-agenda-file-list)))
 
-(eminix/org-refresh-agenda-files)
-(advice-add 'org-agenda    :before #'eminix/org-refresh-agenda-files)
-(advice-add 'org-todo-list :before #'eminix/org-refresh-agenda-files)
+(emanix/org-refresh-agenda-files)
+(advice-add 'org-agenda    :before #'emanix/org-refresh-agenda-files)
+(advice-add 'org-todo-list :before #'emanix/org-refresh-agenda-files)
 (setq org-agenda-include-diary nil)           ; we use org files, not diary
 (setq org-deadline-warning-days 14)            ; default lead time
 (setq org-agenda-skip-deadline-if-done t)
@@ -545,14 +545,14 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 ;; The Google Calendar sync will be handled by a small Python tool.
 ;; Emacs should stay focused on editing Dates.org and launching the tool.
 
-(defun eminix/calendar-sync ()
+(defun emanix/calendar-sync ()
   "Launch the Python calendar sync tool."
   (interactive)
   (start-process-shell-command
    "calendar-sync" nil
-   (expand-file-name "calendar-sync" (or (getenv "EMINIX_BIN_DIR") "")) "sync"))
+   (expand-file-name "calendar-sync" (or (getenv "EMANIX_BIN_DIR") "")) "sync"))
 
-(global-set-key (kbd "C-c c") #'eminix/calendar-sync)
+(global-set-key (kbd "C-c c") #'emanix/calendar-sync)
 
 ;; --- Google Docs sync (org ↔ Google Docs) ---
 ;; Bidirectional sync between org files and Google Docs.
@@ -576,8 +576,8 @@ base name, hence the `file-name-nondirectory' before the prefix test."
   ;;
   ;; 2. A bare (require 'gdocs) SIGNALS when it fails, and nothing above
   ;;    catches it, so the failure aborted every remaining form in init.el.
-  ;;    After a reboot that meant no top bar (eminix/modeline-mode), no s-d
-  ;;    (eminix/launcher) and no EWM window commands (eminix/ewm--goto and
+  ;;    After a reboot that meant no top bar (emanix/modeline-mode), no s-d
+  ;;    (emanix/launcher) and no EWM window commands (emanix/ewm--goto and
   ;;    friends) -- all defined below this point. Never let an optional
   ;;    package take the desktop down: require it with :no-error and only
   ;;    configure it if it actually loaded.
@@ -603,30 +603,30 @@ base name, hence the `file-name-nondirectory' before the prefix test."
     (message "gdocs not loadable; skipping (see the comment above)")))
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(eminix-theme eminix-weather eminix-openrouter eminix-modeline eminix-launcher eminix-pi eminix-quarterly eminix-prose eminix-web))
+(dolist (feature '(emanix-theme emanix-weather emanix-openrouter emanix-modeline emanix-launcher emanix-pi emanix-quarterly emanix-prose emanix-web))
   (require feature nil :no-error))
 ;; Prose rendering — markdown and org files read as documents, not source.
 ;; C-c z toggles back to raw monospace for heavy editing. Chosen 2026-08-17;
 ;; C-c a/b/c/d/e/f/i/m/n/o/q/t were already taken.
-(when (fboundp 'eminix-prose-mode)
-  (add-hook 'markdown-mode-hook #'eminix-prose-mode)
-  (add-hook 'org-mode-hook #'eminix-prose-mode)
-  (global-set-key (kbd "C-c z") #'eminix-prose-toggle))
+(when (fboundp 'emanix-prose-mode)
+  (add-hook 'markdown-mode-hook #'emanix-prose-mode)
+  (add-hook 'org-mode-hook #'emanix-prose-mode)
+  (global-set-key (kbd "C-c z") #'emanix-prose-toggle))
 ;; Web languages — Jinja2 templates, HTML and CSS. Jinja2 here is all plain
-;; .html under templates/ dirs, so eminix-web.el picks the mode on path.
+;; .html under templates/ dirs, so emanix-web.el picks the mode on path.
 ;; Format-on-save is gated on the repo declaring its own djlint/prettier
 ;; config: 134 unconfigured templates would otherwise be rewritten wholesale
 ;; on first save. See docs/manual/01-keybindings.md for opting a repo in.
-(when (fboundp 'eminix-web-setup)
-  (eminix-web-setup))
+(when (fboundp 'emanix-web-setup)
+  (emanix-web-setup))
 ;; Quarterly tracker — C-c q opens this quarter's note, C-u C-c q forces the
 ;; work one on a machine that has both trees.
-(when (fboundp 'eminix-quarterly-open)
-  (global-set-key (kbd "C-c q") #'eminix-quarterly-open))
+(when (fboundp 'emanix-quarterly-open)
+  (global-set-key (kbd "C-c q") #'emanix-quarterly-open))
 ;; App launcher — the EWM s-d experience on every machine (C-c o works
-;; under EWM too; s-d remains on eminix).
-(when (fboundp 'eminix/launch-app)
-  (global-set-key (kbd "C-c o") #'eminix/launch-app))
+;; under EWM too; s-d remains on emanix).
+(when (fboundp 'emanix/launch-app)
+  (global-set-key (kbd "C-c o") #'emanix/launch-app))
 
 ;; Terminal in a buffer. The 2026-08-04 decision stands — a real terminal app
 ;; can never be a buffer outside EWM's own compositor — but the buffer terminal
@@ -666,16 +666,16 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 ;; and search still see the original char); this is purely what gets painted.
 (require 'disp-table)
 
-(defvar eminix/terminal-glyph-substitutions
+(defvar emanix/terminal-glyph-substitutions
   '((?⏴ . ?◀) (?⏵ . ?▶) (?⏸ . ?‖) (?⏹ . ?■) (?⏺ . ?●)
     (?⎿ . ?└) (?✔ . ?✓) (?✘ . ?✗) (?◻ . ?□) (?◼ . ?■))
   "Alist of (WIDE-CHAR . CELL-WIDTH-CHAR) substitutions for terminal buffers.
 Each cdr is verified to render at the default face's cell width.")
 
-(defun eminix/terminal-fix-glyph-widths ()
+(defun emanix/terminal-fix-glyph-widths ()
   "Remap off-grid TUI symbols to cell-width glyphs in the current buffer."
   (let ((dt (make-display-table)))
-    (pcase-dolist (`(,from . ,to) eminix/terminal-glyph-substitutions)
+    (pcase-dolist (`(,from . ,to) emanix/terminal-glyph-substitutions)
       (aset dt from (vector (make-glyph-code to))))
     ;; Spinner frames: the dingbat (✳..✿) and braille (⠀..⣿) animations cycle
     ;; through glyphs of differing widths, so the whole line jitters each tick.
@@ -686,14 +686,14 @@ Each cdr is verified to render at the default face's cell width.")
       (aset dt (+ #x2800 i) (vector (make-glyph-code ?·))))
     (setq buffer-display-table dt)))
 
-(add-hook 'vterm-mode-hook #'eminix/terminal-fix-glyph-widths)
+(add-hook 'vterm-mode-hook #'emanix/terminal-fix-glyph-widths)
 
 ;; Both backends need it. Those symbols are off-grid because of glyph advance
 ;; vs the 9px cell — a FONT problem, not a backend one — and neither vterm nor
 ;; ghostel remaps widths itself, so any TUI misaligns in both identically.
 ;; Hence the backend-neutral name: ghostel is the primary terminal and vterm the
 ;; fallback, so naming this after either one would be wrong within a release.
-(add-hook 'ghostel-mode-hook #'eminix/terminal-fix-glyph-widths)
+(add-hook 'ghostel-mode-hook #'emanix/terminal-fix-glyph-widths)
 
 ;; Claude Code IDE (trial, 2026-08-24) — Claude in an Emacs side window with
 ;; MCP access to xref/eglot, tree-sitter, imenu, project.el and flymake,
@@ -743,50 +743,50 @@ Each cdr is verified to render at the default face's cell width.")
 ;; unmanaged (the default title is bare "%b" once a second frame exists,
 ;; which would silently re-enroll Emacs into tiling). Harmless elsewhere.
 (setq frame-title-format '("%b — emacs@" system-name))
-(when (fboundp 'eminix/theme-init)
-  (eminix/theme-init))
-(when (fboundp 'eminix/modeline-mode)
-  (eminix/modeline-mode 1))
+(when (fboundp 'emanix/theme-init)
+  (emanix/theme-init))
+(when (fboundp 'emanix/modeline-mode)
+  (emanix/modeline-mode 1))
 
 ;; Slots are generic: no app or name is tied to a number. Apps launch into
 ;; whatever slot you're on (e.g. `s-w' → Firefox), and you name slots yourself
 ;; with `s-r'.
 
-;; Window-management commands, extracted 2026-08-10 to lisp/eminix-ewm-slots.el
+;; Window-management commands, extracted 2026-08-10 to lisp/emanix-ewm-slots.el
 ;; so fallback.el can require them too. See that file's header for why it must
 ;; not require `ewm'.
-(require 'eminix-ewm-slots nil :no-error)
+(require 'emanix-ewm-slots nil :no-error)
 
 ;; Frame-global panel: system stats + clock + battery, rendered ONCE at the top
 ;; of the (full-screen, under EWM) frame — the actual bar.
-(when (fboundp 'eminix/tab-bar-status)
-  ;; Left: EWM slot list (eminix/ewm-tab-bar-slots, no-op off EWM).
+(when (fboundp 'emanix/tab-bar-status)
+  ;; Left: EWM slot list (emanix/ewm-tab-bar-slots, no-op off EWM).
   ;; Right: system stats + clock + battery.
-  (setq tab-bar-format '(eminix/ewm-tab-bar-slots
+  (setq tab-bar-format '(emanix/ewm-tab-bar-slots
                          tab-bar-format-align-right
-                         eminix/tab-bar-status))
+                         emanix/tab-bar-status))
   (setq tab-bar-show t)   ; always show the panel, even with a single/zero tab
   (tab-bar-mode 1))
 
-;; elisa — local, config-aware eminix assistant (Emacs/Linux/NixOS RAG via a
+;; elisa — local, config-aware emanix assistant (Emacs/Linux/NixOS RAG via a
 ;; sqlite-vec ELISA fork + ellama + local Ollama). Binds the C-c i map.
-(require 'eminix-elisa nil :no-error)
+(require 'emanix-elisa nil :no-error)
 
 ;; EWM-only session glue (swayidle/swaylock + touchpad) — no-op elsewhere.
 ;; EWM is loaded via `emacs --eval (require 'ewm)' which runs AFTER this init
 ;; file, so `(featurep 'ewm)' is still nil here: a plain `when' guard skips
 ;; the require and input/session glue never loads (symptom: tap-to-click and
-;; swayidle silently absent, (fboundp 'eminix/ewm-start-swayidle) => nil).
+;; swayidle silently absent, (fboundp 'emanix/ewm-start-swayidle) => nil).
 ;; Defer to the moment the ewm feature actually arrives; on non-EWM hosts it
 ;; never loads, so this stays a no-op there.
 (with-eval-after-load 'ewm
-  (require 'eminix-ewm nil :no-error)
+  (require 'emanix-ewm nil :no-error)
   ;; Restart the compositor session. Global rather than in `ewm-mode-map': it
   ;; only needs to fire while emacs has focus, and it is deliberately a C-c
   ;; chord so a stray super key cannot end the session. Bound inside this
   ;; block so non-EWM hosts (whistle) never get a key that would kill an
   ;; emacs which is not a compositor.
-  (global-set-key (kbd "C-c R") #'eminix/ewm-restart)
+  (global-set-key (kbd "C-c R") #'emanix/ewm-restart)
   (when (boundp 'ewm-mode-map)
     ;; Super+number restores the old workspace-switch rhythm, but in EWM frame
     ;; slots. Slots create on demand: super-3 opens/switches to slot 3.
@@ -795,18 +795,18 @@ Each cdr is verified to render at the default face's cell width.")
         (define-key ewm-mode-map (kbd (format "s-%d" slot))
           (lambda ()
             (interactive)
-            (eminix/ewm-select-slot slot)))))
+            (emanix/ewm-select-slot slot)))))
     (define-key ewm-mode-map (kbd "s-0")
       (lambda ()
         (interactive)
-        (eminix/ewm-select-slot 10)))
+        (emanix/ewm-select-slot 10)))
     ;; Rename the current frame/slot in the top bar.
-    (define-key ewm-mode-map (kbd "s-r") #'eminix/ewm-rename-workspace)
+    (define-key ewm-mode-map (kbd "s-r") #'emanix/ewm-rename-workspace)
     ;; Close the current slot (manual lifecycle; no auto-close under EWM).
     ;; s-q mirrors Hyprland's `$mod, Q, killactive' muscle memory.
-    (define-key ewm-mode-map (kbd "s-q") #'eminix/ewm-close-slot)
+    (define-key ewm-mode-map (kbd "s-q") #'emanix/ewm-close-slot)
     ;; Launch Firefox into the current slot (was s-w under Hyprland).
-    (define-key ewm-mode-map (kbd "s-w") #'eminix/ewm-launch-firefox)
+    (define-key ewm-mode-map (kbd "s-w") #'emanix/ewm-launch-firefox)
     ;; Super+Enter: open Ghostty terminal (muscle memory from Hyprland).
     (define-key ewm-mode-map (kbd "s-<return>")
       (lambda ()
@@ -821,8 +821,8 @@ Each cdr is verified to render at the default face's cell width.")
     ;; the C-c i prefix can't reach Emacs from a focused Wayland surface (the
     ;; follow-up key goes to the surface). C-c i still gives the full command
     ;; set when a native Emacs frame is focused.
-    (when (fboundp 'eminix/elisa-ask)
-      (define-key ewm-mode-map (kbd "s-i") #'eminix/elisa-ask))
+    (when (fboundp 'emanix/elisa-ask)
+      (define-key ewm-mode-map (kbd "s-i") #'emanix/elisa-ask))
     (when (fboundp 'ewm--send-intercept-keys)
       (ewm--send-intercept-keys))))
 
@@ -833,4 +833,4 @@ Each cdr is verified to render at the default face's cell width.")
 ;; signal here must not trip init.el's fallback (total desktop loss).
 (condition-case err
     (load (locate-user-emacs-file "personal.el") :no-error :nomessage)
-  (error (message "eminix: personal.el failed (%S)" err)))
+  (error (message "emanix: personal.el failed (%S)" err)))

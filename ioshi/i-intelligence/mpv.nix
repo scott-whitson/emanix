@@ -2,9 +2,9 @@
 
 {
   # GUI-only: programs.mpv.enable unconditionally pulls in the mpv package,
-  # which would otherwise defeat packages.nix's `lib.optional config.eminix.gui
+  # which would otherwise defeat packages.nix's `lib.optional config.emanix.gui
   # mpv` gate on headless hosts.
-  config = lib.mkIf config.eminix.gui {
+  config = lib.mkIf config.emanix.gui {
     programs.mpv = {
       enable = true;
       config = {

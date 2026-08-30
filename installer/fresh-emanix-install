@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# fresh-eminix-install — one-shot NixOS installer for an eminix host.
+# fresh-emanix-install — one-shot NixOS installer for an emanix host.
 #
-# Usage (in the eminix installer ISO, or any NixOS live ISO):
-#   sudo fresh-eminix-install [host] [--disk /dev/X] [--check-only]
+# Usage (in the emanix installer ISO, or any NixOS live ISO):
+#   sudo fresh-emanix-install [host] [--disk /dev/X] [--check-only]
 #
-# The host is required. The repo is located automatically (EMINIX_REPO, the
-# script's parent, /etc/eminix/flake on the ISO, or common mounts); the
+# The host is required. The repo is located automatically (EMANIX_REPO, the
+# script's parent, /etc/emanix/flake on the ISO, or common mounts); the
 # host key comes from the baked ISO keys, a staged <host>-keys/ dir beside the
 # repo, or a prompt; the target disk is auto-detected (largest non-removable
 # device with no mounted partitions) unless --disk is given. --check-only
 # prints the preflight checklist and exits without touching anything.
 #
 # Automates: preflight -> disko -> inject host key -> nixos-install
-# -> set password -> reboot. Full context: docs/ioshi/eminix-install.md.
-# Spec: docs/superpowers/specs/2026-08-15-eminix-installer-iso-design.md
+# -> set password -> reboot. Full context: docs/ioshi/emanix-install.md.
+# Spec: docs/superpowers/specs/2026-08-15-emanix-installer-iso-design.md
 set -euo pipefail
 
 say()  { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
@@ -43,12 +43,12 @@ while [ "$i" -lt "${#args[@]}" ]; do
   esac
   i=$((i + 1))
 done
-[ -n "$FLAKE_HOST" ] || die "usage: fresh-eminix-install <host> [--disk /dev/X] [--check-only]"
+[ -n "$FLAKE_HOST" ] || die "usage: fresh-emanix-install <host> [--disk /dev/X] [--check-only]"
 
 # --- Locate the repo ----------------------------------------------------------
 resolve_repo() {
-  if [ -n "${EMINIX_REPO:-}" ] && [ -f "$EMINIX_REPO/flake.nix" ]; then
-    REPO="$EMINIX_REPO"
+  if [ -n "${EMANIX_REPO:-}" ] && [ -f "$EMANIX_REPO/flake.nix" ]; then
+    REPO="$EMANIX_REPO"
     return
   fi
   SELF="$(realpath "${BASH_SOURCE[0]}")"
@@ -56,22 +56,22 @@ resolve_repo() {
     REPO="$(dirname "$(dirname "$SELF")")"
     return
   fi
-  for cand in /etc/eminix/flake /mnt/flake /run/media/*/*/flake /media/*/flake; do
+  for cand in /etc/emanix/flake /mnt/flake /run/media/*/*/flake /media/*/flake; do
     # shellcheck disable=SC2086 # globs are the point of the bounded scan
     [ -f "$cand/flake.nix" ] && { REPO="$cand"; return; }
   done
-  die "could not locate the eminix flake. Tried: \$EMINIX_REPO, the script's
-parent, /etc/eminix/flake, /mnt/flake, /run/media/*/*/flake,
-/media/*/flake. Set EMINIX_REPO to the repo path and re-run."
+  die "could not locate the emanix flake. Tried: \$EMANIX_REPO, the script's
+parent, /etc/emanix/flake, /mnt/flake, /run/media/*/*/flake,
+/media/*/flake. Set EMANIX_REPO to the repo path and re-run."
 }
 
 # --- Locate the host key (baked ISO -> staged dir -> prompt) ------------------
 # Sets KEY_DIR, or leaves it empty (check-only reports; real mode dies later).
 resolve_keys() {
   KEY_DIR=""
-  if [ -f "/etc/eminix/keys/${FLAKE_HOST}_host_ed25519" ] &&
-    [ -f "/etc/eminix/keys/${FLAKE_HOST}_host_ed25519.pub" ]; then
-    KEY_DIR=/etc/eminix/keys
+  if [ -f "/etc/emanix/keys/${FLAKE_HOST}_host_ed25519" ] &&
+    [ -f "/etc/emanix/keys/${FLAKE_HOST}_host_ed25519.pub" ]; then
+    KEY_DIR=/etc/emanix/keys
     return
   fi
   if [ -f "$(dirname "$REPO")/${FLAKE_HOST}-keys/${FLAKE_HOST}_host_ed25519" ]; then
@@ -165,7 +165,7 @@ if ping -c1 -W4 cache.nixos.org >/dev/null 2>&1; then CHECK_NET=y; fi
 [ -n "$DISK" ] && [ -b "$DISK" ] && CHECK_DISK=y
 
 print_checklist() {
-  printf '\n\033[1;36meminix installer preflight — %s\033[0m\n' "$FLAKE_HOST"
+  printf '\n\033[1;36memanix installer preflight — %s\033[0m\n' "$FLAKE_HOST"
   printf '  repo        %s %s\n' "$([ "$CHECK_REPO" = y ] && echo ✓ || echo ✗)" "$REPO"
   if [ "$CHECK_KEYS" = y ]; then
     printf '  keys        %s %s/%s_host_ed25519\n' ✓ "$KEY_DIR" "$FLAKE_HOST"
@@ -245,6 +245,6 @@ say "Set a password for $USERNAME"
 nixos-enter --root /mnt -c "passwd $USERNAME"
 
 say "$FLAKE_HOST installed."
-echo "After reboot (remove the USB), log in and run:  eminix-firstboot"
+echo "After reboot (remove the USB), log in and run:  emanix-firstboot"
 read -rp "Reboot now? [y/N] " r
 [ "$r" = y ] && reboot

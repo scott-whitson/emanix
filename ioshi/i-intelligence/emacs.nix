@@ -5,7 +5,7 @@ let
   # be edited without a home-manager switch. The Emacs BUILD is system-owned
   # (ioshi/i-intelligence/ewm.nix, from emacs/packages.nix) — this module only
   # delivers config.
-  emacsDir = "${config.eminix.src.path}/ioshi/i-intelligence/emacs";
+  emacsDir = "${config.emanix.src.path}/ioshi/i-intelligence/emacs";
 in
 {
   # liveElisp: symlink into the checkout for live editing; otherwise copy the
@@ -13,15 +13,15 @@ in
   # without a checkout still get a working config.
   xdg.configFile = {
     "emacs/early-init.el".source =
-      if config.eminix.src.liveElisp
+      if config.emanix.src.liveElisp
       then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/early-init.el"
       else ./emacs/early-init.el;
     "emacs/init.el".source =
-      if config.eminix.src.liveElisp
+      if config.emanix.src.liveElisp
       then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/init.el"
       else ./emacs/init.el;
     "emacs/lisp".source =
-      if config.eminix.src.liveElisp
+      if config.emanix.src.liveElisp
       then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/lisp"
       else ./emacs/lisp;
 
@@ -33,11 +33,11 @@ in
     # config.el/fallback.el together, so it cannot see the gap a bare `git pull'
     # opens between this liveElisp symlink and these two xdg.configFile entries.
     "emacs/fallback.el".source =
-      if config.eminix.src.liveElisp
+      if config.emanix.src.liveElisp
       then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/fallback.el"
       else ./emacs/fallback.el;
     "emacs/config.el".source =
-      if config.eminix.src.liveElisp
+      if config.emanix.src.liveElisp
       then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/config.el"
       else ./emacs/config.el;
   };

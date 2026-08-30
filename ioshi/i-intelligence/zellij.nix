@@ -1,7 +1,7 @@
 { config, lib, ... }:
 
 let
-  zellijDir = "${config.eminix.src.path}/ioshi/i-intelligence/zellij";
+  zellijDir = "${config.emanix.src.path}/ioshi/i-intelligence/zellij";
 
   # zellij's KDL parser performs NO expansion. Verified against 0.44.3:
   # "$HOME/x", "~/x" and a relative "x" are all taken literally, and a
@@ -16,10 +16,10 @@ let
   renderKdl = f: substHome (builtins.readFile f);
 in
 {
-  options.eminix.zellij.enable = lib.mkEnableOption
+  options.emanix.zellij.enable = lib.mkEnableOption
     "zellij with the zellaude bar, deployed live from ioshi/i-intelligence/zellij";
 
-  config = lib.mkIf config.eminix.zellij.enable {
+  config = lib.mkIf config.emanix.zellij.enable {
     # Package only — no `settings`: the kdl files in
     # ioshi/i-intelligence/zellij are the single source of truth, and
     # zellaude writes to its own settings json (a store copy would be
@@ -72,13 +72,13 @@ in
     # zellij's own assets/themes/ansi.kdl; the light one exchanges the
     # greyscale ends (0<->15, 7<->8).
     #
-    # BOTH are named `eminix`: zellij selects a theme by NAME, so switching
+    # BOTH are named `emanix`: zellij selects a theme by NAME, so switching
     # swaps which file is visible in theme_dir rather than editing config.kdl.
     home = {
       file = {
-        ".local/share/eminix/zellij-themes/available/eminix-dark.kdl".text = ''
+        ".local/share/emanix/zellij-themes/available/emanix-dark.kdl".text = ''
           themes {
-            eminix {
+            emanix {
               text_unselected {
                 base 15
                 background 0
@@ -199,9 +199,9 @@ in
           }
         '';
 
-        ".local/share/eminix/zellij-themes/available/eminix-light.kdl".text = ''
+        ".local/share/emanix/zellij-themes/available/emanix-light.kdl".text = ''
           themes {
-            eminix {
+            emanix {
               text_unselected {
                 base 0
                 background 15
@@ -329,11 +329,11 @@ in
       # Seed the active symlink if absent, same pattern as ghostty's theme.conf.
       activation.seedZellijTheme =
         lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-          active="$HOME/.local/share/eminix/zellij-themes/active"
+          active="$HOME/.local/share/emanix/zellij-themes/active"
           run mkdir -p "$active"
           if [ ! -e "$active/theme.kdl" ]; then
             run ln -sfn \
-              "$HOME/.local/share/eminix/zellij-themes/available/eminix-dark.kdl" \
+              "$HOME/.local/share/emanix/zellij-themes/available/emanix-dark.kdl" \
               "$active/theme.kdl"
           fi
         '';

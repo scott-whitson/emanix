@@ -1,33 +1,33 @@
-# installer/iso.nix — the eminix installer ISO.
-# A minimal NixOS live system (NOT an eminix host — never through mkHost) that
+# installer/iso.nix — the emanix installer ISO.
+# A minimal NixOS live system (NOT an emanix host — never through mkHost) that
 # carries a flake + optional host keys so a bare-metal install is:
 # boot -> one command.
 #
 # The distribution is generic: it carries no user keys or secrets. By default
-# it stages the eminix distro flake with NO keys (debug/rescue ISO). A
+# it stages the emanix distro flake with NO keys (debug/rescue ISO). A
 # consuming flake (e.g. the user's dotfiles, which holds the real hosts and
 # keys) builds its own installer by importing this module and setting
-#   eminix.installer.flake    = <path to their flake repo>
-#   eminix.installer.keysDir  = "<absolute path to their keys dir>"  (optional)
+#   emanix.installer.flake    = <path to their flake repo>
+#   emanix.installer.keysDir  = "<absolute path to their keys dir>"  (optional)
 # and re-exporting the resulting `config.system.build.isoImage`. A
 # keys-carrying build must be `nix build --impure` — see keysDir below.
 { pkgs, lib, nixpkgs, disko, config, ... }:
 
 let
-  cfg = config.eminix.installer;
+  cfg = config.emanix.installer;
 
-  # The flake repo to stage, filtered so /etc/eminix/flake is a clean,
+  # The flake repo to stage, filtered so /etc/emanix/flake is a clean,
   # buildable tree (no history/symlink/result).
   #
   # `keys` is NOT filtered out: the committed `keys/<host>_host_ed25519.pub`
-  # halves are the ONLY reference fresh-eminix-install has for verifying a
+  # halves are the ONLY reference fresh-emanix-install has for verifying a
   # staged private key against the actual agenix recipient
   # (`age.rekey.hostPubkey`). Excluding them made that check unsatisfiable on
   # the ISO — it warned "cannot verify" and the preflight failed closed on
   # `keys` no matter what was baked. The private halves are gitignored in the
   # consuming flake, so a git-source `flake` path cannot leak them here.
   stagedRepo = builtins.path {
-    name = "eminix-flake";
+    name = "emanix-flake";
     path = cfg.flake;
     filter = p: _t:
       let b = builtins.baseNameOf p;
@@ -44,11 +44,11 @@ let
   # was not. A string is resolved here by `builtins.path`, which reads the
   # real working tree, so the privates actually land in the image. That read
   # is forbidden under pure evaluation — a keys-carrying ISO must be built
-  # with `--impure` (bin/eminix-iso does this).
+  # with `--impure` (bin/emanix-iso does this).
   hasKeys = cfg.keysDir != null && builtins.pathExists cfg.keysDir;
 
   stagedKeys = builtins.path {
-    name = "eminix-keys";
+    name = "emanix-keys";
     path = cfg.keysDir;
   };
 
@@ -64,11 +64,11 @@ in
 {
   imports = [ "${nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix" ];
 
-  options.eminix.installer = {
+  options.emanix.installer = {
     flake = lib.mkOption {
       type = lib.types.path;
       default = ../.;
-      description = "Path to the flake repo the ISO stages at /etc/eminix/flake.";
+      description = "Path to the flake repo the ISO stages at /etc/emanix/flake.";
     };
     keysDir = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
@@ -76,7 +76,7 @@ in
       example = "/home/scott/dotfiles/keys";
       description = ''
         Absolute path, as a STRING, to a keys/ dir (host_ed25519 key pairs) to
-        stage at /etc/eminix/keys. Null stages no keys.
+        stage at /etc/emanix/keys. Null stages no keys.
 
         It must point at the working tree, NOT into the flake source: the
         private halves are gitignored, so a store-derived path stages only the
@@ -87,7 +87,7 @@ in
   };
 
   config = {
-    isoImage.volumeID = "eminix"; # boot menu + mount label
+    isoImage.volumeID = "emanix"; # boot menu + mount label
 
     # A keysDir holding only .pub files is the exact failure this module
     # shipped with: the ISO builds, boots, and then dies at the installer's
@@ -95,12 +95,12 @@ in
     assertions = lib.optional hasKeys {
       assertion = privateHalves != [ ];
       message = ''
-        eminix.installer.keysDir (${cfg.keysDir}) holds no private host key —
+        emanix.installer.keysDir (${cfg.keysDir}) holds no private host key —
         only .pub halves. The ISO would carry no identity and
-        fresh-eminix-install would fail its keys preflight on the target.
+        fresh-emanix-install would fail its keys preflight on the target.
         Stage a private half, e.g.
           sudo cp /etc/ssh/ssh_host_ed25519_key keys/<host>_host_ed25519
-        or set eminix.installer.keysDir = null for a keyless rescue ISO.
+        or set emanix.installer.keysDir = null for a keyless rescue ISO.
       '';
     };
 
@@ -108,15 +108,15 @@ in
     # live overlay, so the disko step — which mounts the target root at /mnt —
     # cannot hide it (the trap that broke USB-staged repos mounted under /mnt).
     environment.etc =
-      { "eminix/flake".source = stagedRepo; }
-      // lib.optionalAttrs hasKeys { "eminix/keys".source = stagedKeys; }
+      { "emanix/flake".source = stagedRepo; }
+      // lib.optionalAttrs hasKeys { "emanix/keys".source = stagedKeys; }
       // {
         "issue".text = ''
-          ══ eminix installer ════════════════════════════════════════════
-            flake : /etc/eminix/flake
-            keys  : /etc/eminix/keys (only when a customized ISO carried them)
-            install a host:  sudo fresh-eminix-install <host> [--disk /dev/X]
-            check only:      sudo fresh-eminix-install <host> --check-only
+          ══ emanix installer ════════════════════════════════════════════
+            flake : /etc/emanix/flake
+            keys  : /etc/emanix/keys (only when a customized ISO carried them)
+            install a host:  sudo fresh-emanix-install <host> [--disk /dev/X]
+            check only:      sudo fresh-emanix-install <host> --check-only
             remote access:   boot with live.nixos.passwd=<pw> on the kernel
                              cmdline, then ssh nixos@<ip>
           ═════════════════════════════════════════════════════════════════
@@ -127,8 +127,8 @@ in
       exfatprogs # mounting arbitrary USB sticks
       dosfstools
       diskoPkg
-      (pkgs.writeShellScriptBin "fresh-eminix-install" (builtins.readFile ./fresh-eminix-install))
-      # eminix-firstboot is deliberately NOT here. It runs on the INSTALLED
+      (pkgs.writeShellScriptBin "fresh-emanix-install" (builtins.readFile ./fresh-emanix-install))
+      # emanix-firstboot is deliberately NOT here. It runs on the INSTALLED
       # system after reboot, where os-system/firstboot.nix puts it on PATH with
       # the consumer's content — running it inside the live ISO would act on the
       # installer environment, not the machine being built. Its body also left

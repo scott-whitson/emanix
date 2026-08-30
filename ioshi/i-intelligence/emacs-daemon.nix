@@ -3,7 +3,7 @@
 let
   # This host's Emacs is not the system-owned EWM build (ewm.nix); instead we
   # install the non-EWM pgtk Emacs user-side and run it as a systemd user
-  # daemon (services.emacs below). Same package set as the eminix system
+  # daemon (services.emacs below). Same package set as the emanix system
   # build, minus the EWM package — non-EWM machines have no compositor role.
   emacsPkgs = import ./emacs/packages.nix { inherit pkgs; };
   standaloneEmacs = emacsPkgs.mkEmacs { };
@@ -21,7 +21,7 @@ in
   # emacs-pgtk derivations and starting the very daemon ewm.nix pkills to
   # avoid — which is exactly what happened while the flag lived by hand in
   # the consumer's host config, next to the import it had to agree with.
-  options.eminix.ewm.enable = lib.mkOption {
+  options.emanix.ewm.enable = lib.mkOption {
     type = lib.types.bool;
     default = false;
     description = ''
@@ -31,7 +31,7 @@ in
     '';
   };
 
-  config = lib.mkIf (!config.eminix.ewm.enable) {
+  config = lib.mkIf (!config.emanix.ewm.enable) {
     # On EWM machines the Emacs build is system-owned (ewm.nix). Non-EWM
     # machines install it user-side and run the daemon as a systemd user
     # service.
@@ -46,7 +46,7 @@ in
       startWithUserSession = true;
     };
 
-    # elisa's sqlite-vec extension path — set by ewm.nix on eminix. Chat is
+    # elisa's sqlite-vec extension path — set by ewm.nix on emanix. Chat is
     # non-functional until the node has an Ollama (deferred per the spec),
     # but requiring elisa must not error.
     home.sessionVariables.ELISA_VEC0_PATH = emacsPkgs.elisaVecPath;

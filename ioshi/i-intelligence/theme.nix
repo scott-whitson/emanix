@@ -1,12 +1,12 @@
 { config, lib, pkgs, ... }:
 
 let
-  # The palette set is the real constraint on eminix.theme, so the option's
+  # The palette set is the real constraint on emanix.theme, so the option's
   # type is derived from it rather than restating it in prose.
   inherit (import ../../lib/themes.nix { inherit pkgs; }) palettes;
 in
 {
-  options.eminix = {
+  options.emanix = {
     theme = lib.mkOption {
       # enum, not str: an unknown name used to build cleanly and then break at
       # RUNTIME — ghostty.nix seeds theme.conf by interpolating this value into
@@ -27,20 +27,20 @@ in
       type = lib.types.enum [ "workstation" "server" "wsl" ];
       default = "workstation";
       description = ''
-        What shape of eminix box this is. Set by lib/mkHost.nix from its
+        What shape of emanix box this is. Set by lib/mkHost.nix from its
         `role` argument.
 
-        It SELECTS NOTHING. profiles/roles/ was deleted on 2026-08-30 — eminix
+        It SELECTS NOTHING. profiles/roles/ was deleted on 2026-08-30 — emanix
         ships one shape and the consuming flake composes the rest — so this is
         purely a label the distro records and the consumer interprets. zsh.nix
-        exports it as EMINIX_ROLE, and a consumer can branch on it (the author's
+        exports it as EMANIX_ROLE, and a consumer can branch on it (the author's
         dotfiles gate the pi agent, Claude settings and syncthing on it).
 
         The enum is kept deliberately: with nothing dispatching on the value, a
         typo in a consumer's branch would otherwise fail silently as "not that
         role" rather than as an error.
 
-        Replaced eminix.dotfiles.profile on 2026-08-08, which encoded the same
+        Replaced emanix.dotfiles.profile on 2026-08-08, which encoded the same
         fact in a second vocabulary ("desktop" for what this calls
         "workstation").
       '';
@@ -49,15 +49,15 @@ in
     src = {
       path = lib.mkOption {
         type = lib.types.str;
-        default = "${config.home.homeDirectory}/projects/eminix";
-        description = "Path to the eminix source checkout (used for live-editable config).";
+        default = "${config.home.homeDirectory}/projects/emanix";
+        description = "Path to the emanix source checkout (used for live-editable config).";
       };
       dotfilesPath = lib.mkOption {
         type = lib.types.str;
         default = "${config.home.homeDirectory}/dotfiles";
         example = "/home/alice/projects/dotfiles";
         description = ''
-          Path to the CONSUMER's checkout — the flake that imports eminix and
+          Path to the CONSUMER's checkout — the flake that imports emanix and
           supplies the personal layer. Distinct from src.path, which is the
           distro's own checkout.
 
@@ -84,17 +84,17 @@ in
         # Same reasoning as themesDir. The helper scripts (dot-theme-set,
         # calendar-sync, the firefox and pi wrappers) live in the consumer's
         # checkout; the distro ships no bin/.
-        default = "${config.eminix.src.dotfilesPath}/bin";
+        default = "${config.emanix.src.dotfilesPath}/bin";
         description = "Path to the helper-script directory put on PATH and resolved from elisp.";
       };
       liveElisp = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Symlink emacs elisp out-of-store from the eminix checkout for live editing. Disable on hosts with no checkout; elisp is then copied into the store (edits need a rebuild).";
+        description = "Symlink emacs elisp out-of-store from the emanix checkout for live editing. Disable on hosts with no checkout; elisp is then copied into the store (edits need a rebuild).";
       };
     };
   };
 
-  # Theme options are consumed by other modules via `config.eminix.theme`.
+  # Theme options are consumed by other modules via `config.emanix.theme`.
   # The theme library functions are passed via `dotfilesLib.theme` (set in flake.nix).
 }

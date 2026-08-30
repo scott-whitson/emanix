@@ -1,10 +1,10 @@
 { config, lib, ... }:
 
 {
-  options.eminix.git = {
+  options.emanix.git = {
     userName = lib.mkOption {
       type = lib.types.str;
-      default = "eminix user";
+      default = "emanix user";
       description = "Git user.name. Set per-host by the consuming flake.";
     };
     userEmail = lib.mkOption {
@@ -22,8 +22,8 @@
       includes = [{ path = "~/.gitconfig.local"; }];
       settings = {
         user = {
-          name = config.eminix.git.userName;
-          email = config.eminix.git.userEmail;
+          name = config.emanix.git.userName;
+          email = config.emanix.git.userEmail;
         };
         core = { autocrlf = "input"; };
         init = { defaultBranch = "main"; };

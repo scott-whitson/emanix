@@ -15,7 +15,7 @@
 # `btop` renderer in lib/themes.nix strips this authoring header up to and
 # including the marker line before emitting output, and prepends its own
 # standard provenance header instead.
-@@EMINIX-TEMPLATE-HEADER-END@@
+@@EMANIX-TEMPLATE-HEADER-END@@
 # Main background, empty for terminal default, need to be empty if you want transparent background
 theme[main_bg]="@base@"
 

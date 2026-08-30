@@ -13,7 +13,7 @@ let
 
   mkThemeDir = name: palette:
     let t = themeLib.mkTheme name palette; in
-    pkgs.runCommand "eminix-theme-${name}" { } ''
+    pkgs.runCommand "emanix-theme-${name}" { } ''
       mkdir -p $out
       cp ${pkgs.writeText "colors.toml" t.colorsToml}   $out/colors.toml
       cp ${pkgs.writeText "gtk.conf" t.gtk}             $out/gtk.conf
@@ -25,7 +25,7 @@ let
       # rather than reimplemented in Nix. gen-pi-theme.py takes the "name"
       # field from its INPUT file's parent directory, not the output path, so
       # colors.toml is fed to it from a directory literally named "${name}"
-      # (the store's own eminix-theme-${name} dir has a hash prefix that would
+      # (the store's own emanix-theme-${name} dir has a hash prefix that would
       # otherwise leak into pi-agent-theme.json's "name").
       mkdir -p ${name}
       cp $out/colors.toml ${name}/colors.toml
@@ -33,7 +33,7 @@ let
         ${name}/colors.toml $out/pi-agent-theme.json
     '';
 in
-pkgs.runCommand "eminix-themes" { } (''
+pkgs.runCommand "emanix-themes" { } (''
   mkdir -p $out
 '' + lib.concatStringsSep "\n"
   (lib.mapAttrsToList (n: p: "cp -r ${mkThemeDir n p} $out/${n}") themeLib.palettes))

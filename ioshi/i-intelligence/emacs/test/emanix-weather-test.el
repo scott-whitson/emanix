@@ -1,8 +1,8 @@
-;;; eminix-weather-test.el --- ERT tests -*- lexical-binding: t; -*-
+;;; emanix-weather-test.el --- ERT tests -*- lexical-binding: t; -*-
 (require 'ert)
-(require 'eminix-weather)
+(require 'emanix-weather)
 
-(ert-deftest eminix-weather-format-periods ()
+(ert-deftest emanix-weather-format-periods ()
   "Formats NWS hourly periods: local time, temp, precip %, short forecast."
   (let* ((json "{\"periods\":[
 {\"startTime\":\"2026-07-07T15:00:00-04:00\",\"temperature\":78,
@@ -13,7 +13,7 @@
                              (json-parse-string json :object-type 'alist
                                                  :array-type 'list
                                                  :null-object nil)))
-         (out (eminix-weather--format-periods periods t))) ; zone t = UTC
+         (out (emanix-weather--format-periods periods t))) ; zone t = UTC
     ;; 15:00-04:00 is 19:00 UTC
     (should (string-match-p "Tue 7PM" out))
     (should (string-match-p "78°" out))
@@ -23,9 +23,9 @@
     (should (string-match-p "0%" out))
     (should (= 2 (length (split-string out "\n"))))))
 
-(ert-deftest eminix-weather-format-periods-caps-at-8 ()
+(ert-deftest emanix-weather-format-periods-caps-at-8 ()
   (let* ((period '((startTime . "2026-07-07T15:00:00-04:00") (temperature . 70)
                    (probabilityOfPrecipitation . ((value . 0)))
                    (shortForecast . "Clear")))
-         (out (eminix-weather--format-periods (make-list 12 period) t)))
+         (out (emanix-weather--format-periods (make-list 12 period) t)))
     (should (= 8 (length (split-string out "\n"))))))

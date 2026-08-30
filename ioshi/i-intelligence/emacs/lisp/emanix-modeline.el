@@ -1,4 +1,4 @@
-;;; eminix-modeline.el --- system status for the EWM tab-bar panel -*- lexical-binding: t; -*-
+;;; emanix-modeline.el --- system status for the EWM tab-bar panel -*- lexical-binding: t; -*-
 
 (require 'subr-x)
 
@@ -8,34 +8,34 @@
 ;; wpctl — cheap enough at the update interval.
 ;;
 ;; The status is rendered in the frame-global TAB-BAR (see
-;; `eminix/tab-bar-status', wired into `tab-bar-format' in init.el), not the
+;; `emanix/tab-bar-status', wired into `tab-bar-format' in init.el), not the
 ;; per-window mode-line — so it shows once, not once per buffer/split.
 
-(defgroup eminix/modeline nil
+(defgroup emanix/modeline nil
   "System status segments for the modeline."
   :group 'mode-line)
 
-(defcustom eminix/modeline-interval 3
+(defcustom emanix/modeline-interval 3
   "Seconds between status refreshes."
   :type 'integer)
 
-(defcustom eminix/modeline-threshold 25
+(defcustom emanix/modeline-threshold 25
   "Minimum percent before cpu/ram/gpu segments are shown."
   :type 'integer)
 
-(defcustom eminix/modeline-battery-hide-capacity 99
+(defcustom emanix/modeline-battery-hide-capacity 99
   "Hide the battery segment at or above this capacity when not charging."
   :type 'integer)
 
-(defvar eminix/modeline-status ""
+(defvar emanix/modeline-status ""
   "Cached status string displayed via `global-mode-string'.")
-(put 'eminix/modeline-status 'risky-local-variable t)
+(put 'emanix/modeline-status 'risky-local-variable t)
 
-(defvar eminix/modeline--timer nil)
-(defvar eminix/modeline--prev-cpu nil
+(defvar emanix/modeline--timer nil)
+(defvar emanix/modeline--prev-cpu nil
   "Cons of (idle . total) jiffies from the previous sample.")
 
-(defun eminix/modeline--cpu ()
+(defun emanix/modeline--cpu ()
   "CPU busy percent since the last sample (0 on the first)."
   (let* ((fields (with-temp-buffer
                    (insert-file-contents "/proc/stat")
@@ -45,14 +45,14 @@
          ;; idle = idle + iowait
          (idle (+ (nth 3 fields) (nth 4 fields)))
          (total (apply #'+ fields))
-         (prev eminix/modeline--prev-cpu))
-    (setq eminix/modeline--prev-cpu (cons idle total))
+         (prev emanix/modeline--prev-cpu))
+    (setq emanix/modeline--prev-cpu (cons idle total))
     (if (and prev (> (- total (cdr prev)) 0))
         (round (* 100 (- 1.0 (/ (float (- idle (car prev)))
                                 (- total (cdr prev))))))
       0)))
 
-(defun eminix/modeline--ram ()
+(defun emanix/modeline--ram ()
   "RAM used percent, by MemAvailable."
   (with-temp-buffer
     (insert-file-contents "/proc/meminfo")
@@ -63,20 +63,20 @@
       (when (and total avail (> total 0))
         (round (* 100 (- 1.0 (/ (float avail) total))))))))
 
-(defun eminix/modeline--gpu ()
+(defun emanix/modeline--gpu ()
   "GPU busy percent from amdgpu sysfs, or nil."
   (when-let* ((f (car (file-expand-wildcards
                        "/sys/class/drm/card*/device/gpu_busy_percent"))))
     (string-trim (with-temp-buffer (insert-file-contents f) (buffer-string)))) )
 
-(defun eminix/modeline--clock ()
+(defun emanix/modeline--clock ()
   "Day, weekday, and 12-hour time; a trailing period marks PM.
 The period is the PM indicator, so it appears only in the afternoon
 \(24-hour hour >= 12: noon is PM, midnight is AM)."
   (concat (format-time-string "%e %a %I:%M")
           (if (>= (string-to-number (format-time-string "%H")) 12) "." "")))
 
-(defun eminix/modeline--battery-icon (capacity)
+(defun emanix/modeline--battery-icon (capacity)
   "Return a battery icon for CAPACITY."
   (cond
    ((>= capacity 96) "󰁹")
@@ -91,7 +91,7 @@ The period is the PM indicator, so it appears only in the afternoon
    ((>= capacity 6)  "󰁺")
    (t                "󰂎")))
 
-(defun eminix/modeline--battery ()
+(defun emanix/modeline--battery ()
   "Battery status, or nil when the machine is full and idle."
   (when-let* ((bat (car (file-expand-wildcards "/sys/class/power_supply/BAT*"))))
     (let* ((status (string-trim (with-temp-buffer
@@ -102,40 +102,40 @@ The period is the PM indicator, so it appears only in the afternoon
                                      (insert-file-contents (expand-file-name "capacity" bat))
                                      (buffer-string))))))
       (when (or (member status '("Charging" "Discharging"))
-                (< capacity eminix/modeline-battery-hide-capacity))
+                (< capacity emanix/modeline-battery-hide-capacity))
         (format "%s %s%%"
                 (if (string= status "Charging")
                     "󰂄"
-                  (eminix/modeline--battery-icon capacity))
+                  (emanix/modeline--battery-icon capacity))
                 capacity)))))
 
-(defvar eminix/modeline--volume nil
+(defvar emanix/modeline--volume nil
   "Cached volume string from the last wpctl poll.")
 
-(defun eminix/modeline--poll-volume ()
-  "Refresh `eminix/modeline--volume' asynchronously.
+(defun emanix/modeline--poll-volume ()
+  "Refresh `emanix/modeline--volume' asynchronously.
 Never blocks: in EWM this emacs IS the compositor, and a wedged
 pipewire behind a synchronous call would hiccup the whole desktop.
 The displayed value lags one update interval."
   (when (and (executable-find "wpctl")
-             (not (get-process "eminix-modeline-wpctl")))
+             (not (get-process "emanix-modeline-wpctl")))
     (make-process
-     :name "eminix-modeline-wpctl"
+     :name "emanix-modeline-wpctl"
      :command '("wpctl" "get-volume" "@DEFAULT_AUDIO_SINK@")
      :noquery t
      :filter (lambda (_proc out)
-               (setq eminix/modeline--volume
+               (setq emanix/modeline--volume
                      (when (string-match "Volume: \\([0-9.]+\\)\\(.*\\[MUTED\\]\\)?" out)
                        (if (match-string 2 out)
                            "mute"
                          (number-to-string
                           (round (* 100 (string-to-number
                                          (match-string 1 out))))))))
-               (eminix/modeline--render)))))
+               (emanix/modeline--render)))))
 
-(defun eminix/modeline--volume-segment ()
+(defun emanix/modeline--volume-segment ()
   "Return the rendered volume segment, if any."
-  (when-let* ((v eminix/modeline--volume))
+  (when-let* ((v emanix/modeline--volume))
     (if (string= v "mute")
         "󰖁"
       (let* ((pct (string-to-number v))
@@ -144,33 +144,33 @@ The displayed value lags one update interval."
                          (t "󰕾"))))
         (format "%s %s%%" icon pct)))))
 
-(defun eminix/modeline--render ()
+(defun emanix/modeline--render ()
   "Compose and redraw the current EWM status bar."
-  (setq eminix/modeline-status
+  (setq emanix/modeline-status
         (mapconcat
          #'identity
          (delq nil
-               (list (eminix/modeline--volume-segment)
-                     (when-let* ((w (eminix/modeline--wifi))) w)
-                     (let ((cpu (eminix/modeline--cpu)))
-                       (when (> cpu eminix/modeline-threshold)
+               (list (emanix/modeline--volume-segment)
+                     (when-let* ((w (emanix/modeline--wifi))) w)
+                     (let ((cpu (emanix/modeline--cpu)))
+                       (when (> cpu emanix/modeline-threshold)
                          (format "cpu %d%%" cpu)))
-                     (when-let* ((r (eminix/modeline--ram)))
-                       (when (> r eminix/modeline-threshold)
+                     (when-let* ((r (emanix/modeline--ram)))
+                       (when (> r emanix/modeline-threshold)
                          (format "ram %d%%" r)))
-                     (when-let* ((g (eminix/modeline--gpu)))
+                     (when-let* ((g (emanix/modeline--gpu)))
                        (let ((gpu (string-to-number g)))
-                         (when (> gpu eminix/modeline-threshold)
+                         (when (> gpu emanix/modeline-threshold)
                            (format "gpu %s%%" g))))
-                     (eminix/modeline--clock)
-                     (eminix/modeline--battery)))
+                     (emanix/modeline--clock)
+                     (emanix/modeline--battery)))
          "   "))
   (force-mode-line-update t)
   (when (fboundp 'tab-bar--update-tab-bar-lines)
     (tab-bar--update-tab-bar-lines))
   (redraw-display))
 
-(defun eminix/modeline--wifi ()
+(defun emanix/modeline--wifi ()
   "Wireless status, or nil when connected or absent."
   (when-let* ((dev (seq-find
                     (lambda (d) (file-exists-p (format "/sys/class/net/%s/wireless" d)))
@@ -190,34 +190,34 @@ The displayed value lags one update interval."
                       "up"))))
       (unless connected-p "wifi✗"))))
 
-(defun eminix/modeline--update ()
-  (eminix/modeline--poll-volume)
-  (eminix/modeline--render))
+(defun emanix/modeline--update ()
+  (emanix/modeline--poll-volume)
+  (emanix/modeline--render))
 
-(defun eminix/tab-bar-status ()
+(defun emanix/tab-bar-status ()
   "Right-aligned tab-bar item: system stats + clock + battery.
 Frame-global — rendered once, unlike the per-window mode-line.
 Add to `tab-bar-format' (see init.el)."
   `((global menu-item
-            ,(if (equal eminix/modeline-status "")
+            ,(if (equal emanix/modeline-status "")
                  " "
-               (concat eminix/modeline-status "  "))
+               (concat emanix/modeline-status "  "))
             ignore)))
 
 ;;;###autoload
-(define-minor-mode eminix/modeline-mode
-  "Poll volume/wifi/cpu/ram/gpu into `eminix/modeline-status'.
-The value is displayed by `eminix/tab-bar-status' in the tab-bar, not
+(define-minor-mode emanix/modeline-mode
+  "Poll volume/wifi/cpu/ram/gpu into `emanix/modeline-status'.
+The value is displayed by `emanix/tab-bar-status' in the tab-bar, not
 the mode-line; this mode only drives the refresh timer."
   :global t
-  (if eminix/modeline-mode
+  (if emanix/modeline-mode
       (progn
-        (setq eminix/modeline--prev-cpu nil)
-        (setq eminix/modeline--timer
-              (run-at-time 0 eminix/modeline-interval #'eminix/modeline--update)))
-    (when eminix/modeline--timer
-      (cancel-timer eminix/modeline--timer)
-      (setq eminix/modeline--timer nil))))
+        (setq emanix/modeline--prev-cpu nil)
+        (setq emanix/modeline--timer
+              (run-at-time 0 emanix/modeline-interval #'emanix/modeline--update)))
+    (when emanix/modeline--timer
+      (cancel-timer emanix/modeline--timer)
+      (setq emanix/modeline--timer nil))))
 
-(provide 'eminix-modeline)
-;;; eminix-modeline.el ends here
+(provide 'emanix-modeline)
+;;; emanix-modeline.el ends here

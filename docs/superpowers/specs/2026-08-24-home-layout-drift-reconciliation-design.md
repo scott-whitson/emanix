@@ -67,7 +67,7 @@ Exactly `docs`, `dotfiles`, `downloads`, `projects`. Enforced declaratively by
 
 | Project | Current state | Action |
 |---|---|---|
-| `eminix` | rafik only, GitHub remote | clone to datacore |
+| `emanix` | rafik only, GitHub remote | clone to datacore |
 | `scottwhitson.com` | rafik only, GitHub remote | clone to datacore |
 | `datacore-config` | real repo on datacore; on rafik a bare `bootstrap/` dir, not a repo | delete rafik's, clone the real one |
 | `elisa` | both, GitHub remote, clean | none. `main` vs `sqlite-vec` is a checkout choice, not drift |
@@ -179,7 +179,7 @@ reports OK, and defect 2 is fixed so the next silent failure is not silent.
   (absent on datacore, not logged in on whistle), so this is web UI or a
   token.
 - **Urgent, requires Scott, runs in parallel:** resolve whistle's stranded
-  `eminix` commits (see Risks R1). No other phase depends on it, so it does
+  `emanix` commits (see Risks R1). No other phase depends on it, so it does
   not gate this plan — but the imminent datacore install does, which is why it
   belongs in preflight rather than at the end.
 - Secret-scan `chstr`, `swc`, `typ`. A filename sweep found no `.env`, key,
@@ -204,7 +204,7 @@ remote and zero unpushed commits. No later phase runs until it passes.
 
 - rafik: remove the non-repo `datacore-config`, clone the real one, plus
   `fragpaper`, `mardy`, `chstr`, `swc`, `typ` (~100M post-ignore).
-- datacore: clone `eminix`, `scottwhitson.com`.
+- datacore: clone `emanix`, `scottwhitson.com`.
 - Resolve `ni-tests`.
 
 **Gate:** `ls ~/projects` minus `work` is identical on both hosts.
@@ -236,7 +236,7 @@ post-repair snapshot (`restic ls latest`), not by reading config.
 
 Order is load-bearing:
 
-1. Add `/clients` to `projects/.stignore` **in the eminix repo**.
+1. Add `/clients` to `projects/.stignore` **in the emanix repo**.
 2. Push, rebuild whistle, verify the store symlink updated and Syncthing
    reloaded the ignore pattern.
 3. Only then `mv ~/clients ~/projects/clients`.
@@ -251,7 +251,7 @@ machines the moment the directory lands under the share root.
 - `~/org/gdocs/Whitsgrove-Shared-Living-Document.org` -> `~/docs/org/`, then
   `rmdir ~/org`. It is an org file; the synced org tree is where it belongs.
 - Delete `~/tmp` and `~/ventoy-setup` (24M, refetchable).
-- **Keep `eminix-installer.iso` until after datacore install day.** It is
+- **Keep `emanix-installer.iso` until after datacore install day.** It is
   flake-rebuildable and deleting it before the cutover it exists to serve
   would be self-defeating. Delete it after.
 
@@ -266,38 +266,38 @@ machines the moment the directory lands under the share root.
 
 **R1 — CONFIRMED: the only installer ISO in the fleet is the pre-fix,
 pubs-only build, and it will fail at the HP's console.** Verified 2026-08-24 by
-extracting `nix-store.squashfs` from `rafik:~/eminix-installer.iso` and listing
-it: the staged eminix flake's `keys/` directory contains **only**
+extracting `nix-store.squashfs` from `rafik:~/emanix-installer.iso` and listing
+it: the staged emanix flake's `keys/` directory contains **only**
 `datacore_host_ed25519.pub`, `rafik_host_ed25519.pub` and
 `whistle_host_ed25519.pub`. No private halves. That is precisely the failure
-`4e1197d` exists to prevent — `fresh-eminix-install datacore` dies at
+`4e1197d` exists to prevent — `fresh-emanix-install datacore` dies at
 `preflight failed: keys`.
 
 Supporting facts, all verified:
 
 - `4e1197d` **is** on `origin/main`. An earlier reading of it as stranded on
   whistle was a stale remote-tracking ref, now corrected.
-- rafik's `~/projects/eminix` is at `a71050e` and does **not** contain
+- rafik's `~/projects/emanix` is at `a71050e` and does **not** contain
   `4e1197d`. It needs a pull.
-- Exactly one eminix ISO exists anywhere on rafik, whistle or datacore:
-  `rafik:~/eminix-installer.iso`, 1438613504 bytes. Its `/nix/store`
+- Exactly one emanix ISO exists anywhere on rafik, whistle or datacore:
+  `rafik:~/emanix-installer.iso`, 1438613504 bytes. Its `/nix/store`
   counterpart is the same size and same single build; there is no second,
   keys-carrying store path. The Aug-16 mtime is when `cp` ran, not proof of
   build date — but the squashfs contents settle it regardless.
 - The project record's "built and verified 2026-08-21, private halves
   physically inside the image" does not correspond to any surviving artifact.
-  A keys build requires `--impure` with `EMINIX_ISO_KEYS`; either it was never
+  A keys build requires `--impure` with `EMANIX_ISO_KEYS`; either it was never
   retained or it was garbage-collected.
 
-**Required before install day, in order:** pull rafik's eminix to pick up
-`4e1197d`; rebuild the ISO with `--impure` and `EMINIX_ISO_KEYS` set; re-verify
+**Required before install day, in order:** pull rafik's emanix to pick up
+`4e1197d`; rebuild the ISO with `--impure` and `EMANIX_ISO_KEYS` set; re-verify
 by listing the squashfs and confirming private halves are present, **not** by
 running `--check-only` on the build host (that check passes spuriously because
 `resolve_repo` finds the live checkout, which is what produced the false
 Aug-16 verification in the first place); then reflash the stick.
 
 **Consequence for this plan:** Phase 6 must not delete
-`eminix-installer.iso` — and now has a stronger reason than caution. It is a
+`emanix-installer.iso` — and now has a stronger reason than caution. It is a
 known-bad image whose only remaining value is as a comparison baseline for the
 rebuild. Delete it once a verified replacement exists.
 
@@ -330,5 +330,5 @@ and prefer agenix for both when datacore becomes a NixOS host — see
 - The `~/docs` and `~/projects/work` Syncthing trees, which are not drifted.
 - The `~/docs/org/websites` tree and its bare `websites.git` remote, whose
   layout is a settled decision. Only its cutover migration is flagged above.
-- The eminix bundled-installer project.
+- The emanix bundled-installer project.
 - Rotating the ConnectWise keys scrubbed from ecomms history.

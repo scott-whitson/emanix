@@ -1,4 +1,4 @@
-# mkHost — compose an eminix nixosSystem from a role, a user, and optional
+# mkHost — compose an emanix nixosSystem from a role, a user, and optional
 # hardware + personal modules. The flake applies the first argument set (its
 # inputs + shared modules); each host calls the result with
 # { hostName, role, username, hardware ? null, extraModules ? [] }.
@@ -14,18 +14,18 @@
 # flake (e.g. dotfiles).
 { nixpkgs, home-manager, ewm, agenix, nixos-wsl, nixpkgsModule, mkHmModule, sharedSpecialArgs, system }:
 { hostName, role, username, hardware ? null, extraModules ? [ ], homeModules ? [ ] }:
-# `role` no longer selects a profile — the roles are gone. eminix ships ONE
+# `role` no longer selects a profile — the roles are gone. emanix ships ONE
 # shape; what a host IS (headless, laptop, WSL) is the consumer's to compose from
 # extraModules. `role` survives purely as METADATA: it is set on
-# home-manager.users.<u>.eminix.role below, exported as EMINIX_ROLE by zsh.nix,
+# home-manager.users.<u>.emanix.role below, exported as EMANIX_ROLE by zsh.nix,
 # and branched on by consumers (dotfiles gates pi, claude and syncthing on it).
 # A label the distro records and the consumer interprets — not a dispatch.
 let
-  # eminix.username is a NixOS-level option (declared in eminix.nix),
+  # emanix.username is a NixOS-level option (declared in emanix.nix),
   # read by os-system/base.nix and i-intelligence/ewm.nix
   # to address home-manager.users.<username>. Set it from the mkHost argument.
   #
-  # eminix.role is an HM-level option (declared in i-intelligence/theme.nix),
+  # emanix.role is an HM-level option (declared in i-intelligence/theme.nix),
   # read by HM modules (e.g. zsh.nix). It is set inside the user's HM config.
   #
   # NOT mkDefault, unlike the HM wiring block. Those
@@ -34,9 +34,9 @@ let
   # other than the profile mkHost actually imported yields an incoherent host,
   # with the HM modules branching on one role while the NixOS tier composed
   # another. Role output is an opinion; mkHost input is an invariant.
-  eminixCoreModule = {
-    eminix.username = username;
-    home-manager.users.${username}.eminix.role = role;
+  emanixCoreModule = {
+    emanix.username = username;
+    home-manager.users.${username}.emanix.role = role;
   };
 
   # homeModules — the seam for configuring the user mkHost already owns.
@@ -51,11 +51,11 @@ nixpkgs.lib.nixosSystem {
   inherit system;
   specialArgs = sharedSpecialArgs // { inherit ewm nixos-wsl; };
   modules = [
-    ../eminix.nix
+    ../emanix.nix
     # mkDefault: NixOS-WSL needs to force this empty (setting the hostname at
     # activation breaks WSL's systemd user-session bootstrap, NixOS-WSL#888).
     { networking.hostName = nixpkgs.lib.mkDefault hostName; }
-    eminixCoreModule
+    emanixCoreModule
     homeModule
     nixpkgsModule
     agenix.nixosModules.default

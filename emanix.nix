@@ -1,27 +1,27 @@
 { lib, ... }:
 
 {
-  # The eminix distribution — common core.
-  # What is true of EVERY eminix box, regardless of shape.
+  # The emanix distribution — common core.
+  # What is true of EVERY emanix box, regardless of shape.
   #
   # i-intelligence modules (theme, emacs, zsh, ...) are HOME MANAGER modules;
   # they are delivered to the user via lib/mkHost.nix's mkHmModule
   # (home-manager.users.${username}.imports = [ ./ioshi/i-intelligence ]).
 
-  options.eminix.username = lib.mkOption {
+  options.emanix.username = lib.mkOption {
     type = lib.types.str;
-    # NO default, deliberately. It defaulted to "eminix-user" until 2026-08-18,
-    # which meant importing nixosModules.eminix outside mkHost silently created
-    # a real account named eminix-user in wheel and docker with no password set.
+    # NO default, deliberately. It defaulted to "emanix-user" until 2026-08-18,
+    # which meant importing nixosModules.emanix outside mkHost silently created
+    # a real account named emanix-user in wheel and docker with no password set.
     # For a distribution that hardcodes no username, failing loudly with
     # "option used but not defined" is the correct behaviour. mkHost always
     # supplies it.
     description = "Primary user account. Set by lib/mkHost.nix from the `username` argument.";
   };
 
-  # No text-to-speech anywhere in eminix.
+  # No text-to-speech anywhere in emanix.
   #
-  # NB `config.` prefix: this module declares options.eminix.username, which
+  # NB `config.` prefix: this module declares options.emanix.username, which
   # puts it in the explicit options/config form. A bare `services.…` at the
   # top level here fails with "unsupported attribute `services'".
   #
@@ -34,7 +34,7 @@
   # was text-to-speech nothing in this distribution ever calls. EWM itself is
   # 16.5 MiB.
   #
-  # Stated here rather than per-role because it is true of every eminix box:
+  # Stated here rather than per-role because it is true of every emanix box:
   # the distribution does not ship a screen reader. The nixpkgs default for the
   # option is already false; this only counteracts that module.
   #

@@ -1,6 +1,6 @@
 # Chapter 01 — Keybindings
 
-eminix runs **EWM** — Emacs *is* the Wayland compositor. There is no separate
+Emanix runs **EWM** — Emacs *is* the Wayland compositor. There is no separate
 window manager or status bar: windowing, workspaces, and the top bar all live in
 Emacs. `Super` (a.k.a. `s-`, the Windows key) is the compositor modifier; `C-c` /
 `C-x` are Emacs prefixes. Text editing is **modal (Meow)**.
@@ -75,8 +75,8 @@ lost. If the relaunch dies within 15s the login hook touches `/tmp/.ewm-flap`
 and the next login drops to a plain shell; remove it and log out to re-arm.
 
 The top bar — clock, battery, volume/wifi/cpu/ram/gpu, and the slot list — is
-rendered in the Emacs tab-bar (`eminix-modeline.el`, `eminix-ewm.el`), not a
-separate bar. Compositor bindings live in EWM's `ewm-mode-map`; the eminix
+rendered in the Emacs tab-bar (`emanix-modeline.el`, `emanix-ewm.el`), not a
+separate bar. Compositor bindings live in EWM's `ewm-mode-map`; the Emanix
 additions are in the `with-eval-after-load 'ewm` block of `config.el`.
 
 ---
@@ -109,13 +109,13 @@ processes after init.
 `⚠ CONFIG FAILED` item at the far left. For the reason:
 
 ```bash
-emacsclient -e 'eminix/init-error'
+emacsclient -e 'emanix/init-error'
 ```
 
 `nil` is a healthy boot. Anything else is the error that aborted `config.el`.
 
-**What the fallback restores:** the top bar (`eminix/modeline-mode`), the
-launcher (`C-c o`), the `eminix/ewm-*` slot commands and a theme. Not completion,
+**What the fallback restores:** the top bar (`emanix/modeline-mode`), the
+launcher (`C-c o`), the `emanix/ewm-*` slot commands and a theme. Not completion,
 meow, magit, org or apheleia — recoverable by fixing `config.el`, and not the
 desktop.
 
@@ -171,7 +171,7 @@ Work when a native Emacs buffer is focused.
 | `C-x g` | `magit-status` |
 | `C-c n f` / `n i` / `n c` | org-roam find / insert / capture |
 | `C-c a` | org-agenda |
-| `C-c p` | Pi: open Pi in Ghostty (`$EMINIX/bin/pi` fallback if PATH is missing it) |
+| `C-c p` | Pi: open Pi in Ghostty (`$EMANIX/bin/pi` fallback if PATH is missing it) |
 | `C-c C-c` | Confirm / finish (Org, Pi, etc.) |
 
 Fuller personal reference is in the vault notes *Emacs Shortcuts*, *Emacs Command
@@ -179,7 +179,7 @@ Map*, and *Meow* (`~/docs/org`, the default org-roam root).
 
 ### Prose rendering for markdown and org
 
-`.md` and `.org` files open in `eminix-prose-mode`: IBM Plex Sans body text,
+`.md` and `.org` files open in `emanix-prose-mode`: IBM Plex Sans body text,
 serif headings, hidden markup that reappears on the line at point, a centered
 90-column reading width, and monospace code blocks and tables.
 
@@ -191,7 +191,7 @@ Code blocks and tables stay monospace — tables align by character count, so a
 proportional font would break them. The code-block background is read from the
 active theme's `surface0`, so it follows a theme switch with no extra config.
 
-Implementation is `ioshi/i-intelligence/emacs/lisp/eminix-prose.el`.
+Implementation is `ioshi/i-intelligence/emacs/lisp/emanix-prose.el`.
 
 ---
 
@@ -255,7 +255,7 @@ looked at, so a stray `~/.prettierrc` cannot opt in the whole machine.
 
 Templates are recognised by living under a `templates/` directory — that is
 also what selects `web-mode` over the plain `html-ts-mode`. A template
-language other than Jinja2 sets `eminix-web-djlint-profile` in
+language other than Jinja2 sets `emanix-web-djlint-profile` in
 `.dir-locals.el`.
 
 One side effect worth knowing: every `.html` that is *not* under a

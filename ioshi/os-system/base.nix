@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 {
-  # os layer — settings shared by every eminix host.
+  # os layer — settings shared by every emanix host.
   programs.zsh.enable = true;
 
   # Docker on every role, base.nix included, because base.nix already puts the
@@ -12,7 +12,7 @@
   # bootloader, and NixOS-WSL manages its own networking.
   virtualisation.docker.enable = lib.mkDefault true;
 
-  users.users.${config.eminix.username} = {
+  users.users.${config.emanix.username} = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" "docker" "video" ];
     shell = pkgs.zsh;

@@ -2,9 +2,9 @@
 
 {
   # User-level packages installed via Home Manager.
-  # NB: element ORDER below is derivation-load-bearing for eminix — the gui
+  # NB: element ORDER below is derivation-load-bearing for emanix — the gui
   # splices sit exactly where those packages originally were. Reordering (or
-  # merging the gui blocks) changes the eminix system drv and forces a
+  # merging the gui blocks) changes the emanix system drv and forces a
   # rebuild; re-check the toplevel drvPath if you restructure.
   # System-level packages (Hyprland, Docker, etc.) stay under apt for Phase 1
   # and move to the NixOS layer in Phase 2.
@@ -54,7 +54,7 @@
     imagemagick
 
     # Media (GUI): NOT listed here. mpv.nix's `programs.mpv.enable`, gated on
-    # the same config.eminix.gui, already supplies it — nixpkgs's top-level
+    # the same config.emanix.gui, already supplies it — nixpkgs's top-level
     # `pkgs.mpv` is itself a wrapper with pname "mpv-with-scripts" (even with
     # an empty scripts list), so adding it here too collided with mpv.nix's
     # wrapped derivation in this same buildEnv (two different
@@ -66,7 +66,7 @@
     mosh
     nmap
     iperf3
-  ] ++ lib.optionals config.eminix.gui [
+  ] ++ lib.optionals config.emanix.gui [
     # Wayland tools
     grim
     slurp
@@ -111,7 +111,7 @@
     # this package) is the only thing in nixpkgs checked that has them.
     # Picked up by fontconfig fallback; set-fontset-font is inert here.
     noto-fonts
-    # Prose faces for eminix-prose-mode (markdown/org rendered as documents).
+    # Prose faces for emanix-prose-mode (markdown/org rendered as documents).
     # Plex Sans for body, Plex Serif for headings — a designed companion to
     # a monospace, so it sits next to JetBrainsMono code blocks without
     # clashing.
@@ -127,5 +127,5 @@
   # ghostty for non-gui hosts that opt in (non-GUI hosts (WSLg)). gui hosts already
   # get it from the gui block above — appended HERE so their list is
   # byte-identical (order is derivation-load-bearing, see Task-1 gate).
-  ++ lib.optional (config.eminix.ghostty.enable && !config.eminix.gui) pkgs.ghostty;
+  ++ lib.optional (config.emanix.ghostty.enable && !config.emanix.gui) pkgs.ghostty;
 }

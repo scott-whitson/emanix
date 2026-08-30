@@ -1,10 +1,10 @@
 { lib, pkgs, config, ... }:
 let
-  cfg = config.eminix.firstboot;
+  cfg = config.emanix.firstboot;
 in
 {
   # A one-time post-install helper on PATH, by convention named
-  # `eminix-firstboot`. The distribution owns the CONVENTION and the build-time
+  # `emanix-firstboot`. The distribution owns the CONVENTION and the build-time
   # check; it owns none of the content.
   #
   # It used to ship a script whose entire body was "join a tailnet against a
@@ -16,16 +16,16 @@ in
   # writeShellApplication shellchecks at build time, so a consumer's broken
   # first-boot script fails the build rather than the first boot — which is the
   # one moment nobody is watching a screen they can debug from.
-  options.eminix.firstboot = {
+  options.emanix.firstboot = {
     text = lib.mkOption {
       type = lib.types.lines;
       default = ''
-        printf '\n==> eminix first-boot\n'
+        printf '\n==> emanix first-boot\n'
         printf 'No first-boot steps are configured.\n'
-        printf 'Set eminix.firstboot.text in your consuming flake.\n'
+        printf 'Set emanix.firstboot.text in your consuming flake.\n'
       '';
       description = ''
-        Body of the `eminix-firstboot` command. The default is a stub that says
+        Body of the `emanix-firstboot` command. The default is a stub that says
         so: a distribution cannot know what your first boot needs — a tailnet to
         join, a config repo to clone, secrets to place — and guessing produces a
         script that is wrong for everyone but its author.
@@ -46,7 +46,7 @@ in
 
   config.environment.systemPackages = [
     (pkgs.writeShellApplication {
-      name = "eminix-firstboot";
+      name = "emanix-firstboot";
       inherit (cfg) runtimeInputs text;
     })
   ];

@@ -25,14 +25,14 @@ Every task's requirements implicitly include this section.
 - **Home top level, all hosts: exactly `docs`, `dotfiles`, `downloads`, `projects`.** Nothing else is created at `$HOME`.
 - **Nothing is deleted, moved or overwritten until the data is verified safe elsewhere.** This is the plan's spine. Where a task deletes, its verification step must already have passed.
 - **Phase 0A (Tasks 1-5) is a hard gate.** No task from Task 6 onward that moves or deletes data may run until Task 5 passes.
-- **Push to GitHub only via the rafik relay.** whistle authenticates as `swhitsonCD`, which is read-only on `scott-whitson/eminix`. Never use whistle's identity for these repos. Recipe in Task 0.
+- **Push to GitHub only via the rafik relay.** whistle authenticates as `swhitsonCD`, which is read-only on `scott-whitson/emanix`. Never use whistle's identity for these repos. Recipe in Task 0.
 - **After any relay push, `git fetch origin` before reading `git status`.** The push leaves whistle for the relay, never for `origin`, so `status -sb` reports a false `ahead N` until fetched.
 - **All new GitHub repos are private.**
 - **Do NOT remove the `websites` or `work-docs` Syncthing folders from datacore.** They are whistle's peer pairs and its only route to the work vault. Only `default` → `~/Sync` is vestigial.
-- **Do NOT delete `rafik:~/eminix-installer.iso`.** It is a known-bad pubs-only image, retained as the baseline for the rebuild (spec R1).
+- **Do NOT delete `rafik:~/emanix-installer.iso`.** It is a known-bad pubs-only image, retained as the baseline for the rebuild (spec R1).
 - **`.stignore` first, `mv` second** in Task 22/23. Reversed, 4.4G of client data replicates to both personal hosts immediately.
 - **Never reproduce the B2 account key or restic repo password** in any file, commit message, or log. Reference `RESTIC_PASSWORD_FILE=/etc/restic/password` and the existing config instead (spec R6).
-- **Hosts:** `rafik` (NixOS/eminix, T14, personal), `datacore` (Debian 13, server, being replaced), `whistle` (NixOS WSL, work laptop). In datacore's Syncthing config rafik's device is still named `eminix`.
+- **Hosts:** `rafik` (NixOS/emanix, T14, personal), `datacore` (Debian 13, server, being replaced), `whistle` (NixOS WSL, work laptop). In datacore's Syncthing config rafik's device is still named `emanix`.
 
 ---
 
@@ -41,13 +41,13 @@ Every task's requirements implicitly include this section.
 Not a task to execute. The four commands every push in this plan uses.
 
 ```bash
-ssh rafik 'rm -rf /tmp/eminix-relay.git && git clone --bare -q git@github.com:scott-whitson/<repo>.git /tmp/eminix-relay.git'
-git push ssh://scott@rafik/tmp/eminix-relay.git main:main
-ssh rafik 'cd /tmp/eminix-relay.git && git push origin main'
-ssh rafik 'rm -rf /tmp/eminix-relay.git'
+ssh rafik 'rm -rf /tmp/emanix-relay.git && git clone --bare -q git@github.com:scott-whitson/<repo>.git /tmp/emanix-relay.git'
+git push ssh://scott@rafik/tmp/emanix-relay.git main:main
+ssh rafik 'cd /tmp/emanix-relay.git && git push origin main'
+ssh rafik 'rm -rf /tmp/emanix-relay.git'
 ```
 
-Use a temp **bare** clone, never rafik's own `~/projects/eminix` — that checkout is
+Use a temp **bare** clone, never rafik's own `~/projects/emanix` — that checkout is
 on `main` and usually has an uncommitted file, so a push at its current branch
 would be refused or would disturb a live daily driver.
 
@@ -1026,7 +1026,7 @@ to the relevant task. From here on the plan begins moving and deleting things.
 ## Task 15: Bring rafik's roster up to date
 
 **Files:**
-- Modify: `rafik:~/projects/eminix` (pull)
+- Modify: `rafik:~/projects/emanix` (pull)
 - Delete: `rafik:~/projects/datacore-config` (a non-repo `bootstrap/` directory)
 - Create: `rafik:~/projects/{datacore-config,fragpaper,mardy,chstr,swc,typ}`
 
@@ -1034,19 +1034,19 @@ to the relevant task. From here on the plan begins moving and deleting things.
 - Consumes: Task 14's gate.
 - Produces: rafik holding 10 of the 10 roster projects. Task 18 asserts parity.
 
-- [ ] **Step 1: Pull eminix — it is behind by the installer keys fix**
+- [ ] **Step 1: Pull emanix — it is behind by the installer keys fix**
 
 rafik sits at `a71050e` and does not contain `4e1197d` (spec R1). Its working tree
 usually has an uncommitted file, so check before pulling.
 
 ```bash
-ssh rafik 'cd ~/projects/eminix && git status --porcelain; git fetch -q origin && git status -sb | head -2'
+ssh rafik 'cd ~/projects/emanix && git status --porcelain; git fetch -q origin && git status -sb | head -2'
 ```
 
 If a file is modified, report it to Scott and ask whether to stash. Then:
 
 ```bash
-ssh rafik 'cd ~/projects/eminix && git pull --ff-only origin main 2>&1 | tail -3; git log --oneline -1'
+ssh rafik 'cd ~/projects/emanix && git pull --ff-only origin main 2>&1 | tail -3; git log --oneline -1'
 ```
 Expected: fast-forward, and `git log --all --oneline | grep "carried the keys"` now
 finds `4e1197d`.
@@ -1091,7 +1091,7 @@ after ignores; it has 179G free.
 ## Task 16: Bring datacore's roster up to date
 
 **Files:**
-- Create: `datacore:~/projects/{eminix,scottwhitson.com}`
+- Create: `datacore:~/projects/{emanix,scottwhitson.com}`
 
 **Interfaces:**
 - Consumes: Task 14's gate.
@@ -1100,7 +1100,7 @@ after ignores; it has 179G free.
 - [ ] **Step 1: Clone the two rafik-only projects**
 
 ```bash
-ssh datacore 'cd ~/projects && for r in eminix scottwhitson.com; do
+ssh datacore 'cd ~/projects && for r in emanix scottwhitson.com; do
   [ -e "$r" ] && { echo "$r exists, skipping"; continue; }
   git clone -q git@github.com:scott-whitson/$r.git && echo "cloned $r"
 done'
@@ -1109,12 +1109,12 @@ done'
 - [ ] **Step 2: Verify**
 
 ```bash
-ssh datacore 'for r in eminix scottwhitson.com; do printf "%-18s " $r; git -C ~/projects/$r log --oneline -1; done'
+ssh datacore 'for r in emanix scottwhitson.com; do printf "%-18s " $r; git -C ~/projects/$r log --oneline -1; done'
 ```
-Expected: `eminix` at the current `origin/main` (which now includes this plan and
+Expected: `emanix` at the current `origin/main` (which now includes this plan and
 spec), `scottwhitson.com` at its head.
 
-Note: datacore now has an eminix clone of its own. The relay recipe in Task 0 still
+Note: datacore now has an emanix clone of its own. The relay recipe in Task 0 still
 creates and deletes a temporary bare clone in `/tmp` and does **not** use this one.
 
 ---
@@ -1204,7 +1204,7 @@ chmod +x /tmp/assert-roster-parity.sh
 
 Run: `/tmp/assert-roster-parity.sh`
 Expected: both hosts report 10 projects, `PASS: rosters identical`. The 10 are
-`chstr datacore-config elisa eminix fragpaper mardy minne scottwhitson.com swc typ`.
+`chstr datacore-config elisa emanix fragpaper mardy minne scottwhitson.com swc typ`.
 
 - [ ] **Step 3: Reconcile any difference before proceeding**
 
@@ -1389,24 +1389,24 @@ skipped, so leaving it is correct. Do not delete it.
 
 ---
 
-## Task 22: Exclude clients from sync, in the eminix repo
+## Task 22: Exclude clients from sync, in the emanix repo
 
 **Files:**
-- Modify: `whistle:~/projects/eminix/ioshi/i-intelligence/syncthing.nix` (or wherever `projects/.stignore` is generated)
+- Modify: `whistle:~/projects/emanix/ioshi/i-intelligence/syncthing.nix` (or wherever `projects/.stignore` is generated)
 
 **Interfaces:**
 - Consumes: nothing.
 - Produces: `/clients` in whistle's `~/projects/.stignore`. Task 23 depends on this being live *before* the move.
 
 **Order is load-bearing.** `~/projects/.stignore` is a home-manager symlink into the
-nix store, so it cannot be edited in place — the change goes in the eminix repo,
+nix store, so it cannot be edited in place — the change goes in the emanix repo,
 gets rebuilt, and only then does Task 23 move the directory. Reversed, Syncthing
 replicates 4.4G of client data to rafik and datacore the moment it lands.
 
 - [ ] **Step 1: Find where the .stignore content is defined**
 
 ```bash
-cd ~/projects/eminix && grep -rn "stignore" --include="*.nix" . | head; echo "--- current live file ---"; cat ~/projects/.stignore
+cd ~/projects/emanix && grep -rn "stignore" --include="*.nix" . | head; echo "--- current live file ---"; cat ~/projects/.stignore
 ```
 
 - [ ] **Step 2: Write the failing assertion**
@@ -1426,7 +1426,7 @@ Expected: `FAIL: /clients not in ~/projects/.stignore`
 
 - [ ] **Step 3: Add the entry with a comment explaining why**
 
-Alongside the existing `/eminix` exclusion, which has the same rationale:
+Alongside the existing `/emanix` exclusion, which has the same rationale:
 
 ```
 // Work client data — 4.4G, whistle-only by policy. It lives under ~/projects
@@ -1438,11 +1438,11 @@ Alongside the existing `/eminix` exclusion, which has the same rationale:
 - [ ] **Step 4: Commit and relay-push**
 
 ```bash
-cd ~/projects/eminix && git add -A && git commit -q -m "syncthing: exclude /clients from the work-projects share
+cd ~/projects/emanix && git add -A && git commit -q -m "syncthing: exclude /clients from the work-projects share
 
 ~/clients moves under ~/projects to satisfy the four-directory home rule. It is
 4.4G of work client data and must not replicate to rafik or datacore, so it is
-ignored the same way /eminix is. The retired work_sync.sh excluded clients/ for
+ignored the same way /emanix is. The retired work_sync.sh excluded clients/ for
 the same reason."
 ```
 Then push via the Task 0 relay, and `git fetch origin` before reading status.
@@ -1560,7 +1560,7 @@ Expected exactly: `docs`, `dotfiles`, `downloads`, `projects`
 **Files:**
 - Move: `rafik:~/org/gdocs/Whitsgrove-Shared-Living-Document.org` → `rafik:~/docs/org/`
 - Delete: `rafik:~/org`, `rafik:~/tmp`, `rafik:~/ventoy-setup`
-- **Keep:** `rafik:~/eminix-installer.iso`
+- **Keep:** `rafik:~/emanix-installer.iso`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -1602,7 +1602,7 @@ ssh rafik 'du -sh ~/tmp ~/ventoy-setup; rm -rf ~/tmp ~/ventoy-setup && echo remo
 - [ ] **Step 5: Do NOT delete the ISO — verify it is still there**
 
 ```bash
-ssh rafik 'ls -la ~/eminix-installer.iso'
+ssh rafik 'ls -la ~/emanix-installer.iso'
 ```
 Expected: present. Per spec R1 it is a known-bad pubs-only image retained as the
 rebuild baseline. Delete it only once a verified keys-carrying replacement exists.
@@ -1612,7 +1612,7 @@ rebuild baseline. Delete it only once a verified keys-carrying replacement exist
 ```bash
 ssh rafik 'ls -A ~ | grep -vE "^\." | sort'
 ```
-Expected: `docs`, `dotfiles`, `downloads`, `eminix-installer.iso`, `projects` — the
+Expected: `docs`, `dotfiles`, `downloads`, `emanix-installer.iso`, `projects` — the
 four directories plus the deliberately retained ISO.
 
 ---
@@ -1620,7 +1620,7 @@ four directories plus the deliberately retained ISO.
 ## Task 26: Codify — drift check and the NixOS import
 
 **Files:**
-- Create: `whistle:~/projects/eminix/bin/home-drift-check.sh`
+- Create: `whistle:~/projects/emanix/bin/home-drift-check.sh`
 
 **Interfaces:**
 - Consumes: all prior tasks.
@@ -1629,7 +1629,7 @@ four directories plus the deliberately retained ISO.
 - [ ] **Step 1: Write the check**
 
 ```bash
-cat > ~/projects/eminix/bin/home-drift-check.sh <<'EOF'
+cat > ~/projects/emanix/bin/home-drift-check.sh <<'EOF'
 #!/usr/bin/env bash
 # home-drift-check — assert the three-node home model holds.
 # 1. every host's $HOME has only docs/dotfiles/downloads/projects
@@ -1637,8 +1637,8 @@ cat > ~/projects/eminix/bin/home-drift-check.sh <<'EOF'
 # Exceptions are listed explicitly so that adding one is a visible decision.
 set -uo pipefail
 ALLOWED='docs dotfiles downloads projects'
-# rafik keeps eminix-installer.iso until a verified replacement exists (spec R1).
-declare -A EXTRA=( [rafik]='eminix-installer.iso' [datacore]='' [whistle]='' )
+# rafik keeps emanix-installer.iso until a verified replacement exists (spec R1).
+declare -A EXTRA=( [rafik]='emanix-installer.iso' [datacore]='' [whistle]='' )
 fail=0
 for h in rafik datacore whistle; do
   echo "== $h =="
@@ -1654,7 +1654,7 @@ if diff -u <(list rafik) <(list datacore); then echo "  identical"; else echo " 
 [ "$fail" -eq 0 ] && { echo; echo "PASS"; exit 0; }
 echo; echo "FAIL"; exit 1
 EOF
-chmod +x ~/projects/eminix/bin/home-drift-check.sh
+chmod +x ~/projects/emanix/bin/home-drift-check.sh
 ```
 
 Note this excludes `_archive` and `archive` from parity because Task 19 removed
@@ -1663,14 +1663,14 @@ stray project, which it will.
 
 - [ ] **Step 2: Run it**
 
-Run: `~/projects/eminix/bin/home-drift-check.sh`
+Run: `~/projects/emanix/bin/home-drift-check.sh`
 Expected: `clean` for all three hosts, `identical` rosters, `PASS`. whistle's
 `~/projects/clients` is inside `projects` so it does not appear as a stray.
 
 - [ ] **Step 3: Confirm the NixOS datacore inherits the four-directory rule**
 
 ```bash
-cd ~/projects/eminix && grep -rn "i-intelligence" --include="*.nix" hosts/ profiles/ lib/ 2>/dev/null | grep -i datacore
+cd ~/projects/emanix && grep -rn "i-intelligence" --include="*.nix" hosts/ profiles/ lib/ 2>/dev/null | grep -i datacore
 grep -rn "xdg.nix\|i-intelligence" --include="*.nix" . | grep -v "^./ioshi/i-intelligence" | head
 ```
 
@@ -1682,7 +1682,7 @@ cruft — add the import and note it for the cutover.
 - [ ] **Step 4: Commit and relay-push**
 
 ```bash
-cd ~/projects/eminix && git add bin/home-drift-check.sh && git commit -q -m "bin: home-drift-check — assert the three-node home model holds
+cd ~/projects/emanix && git add bin/home-drift-check.sh && git commit -q -m "bin: home-drift-check — assert the three-node home model holds
 
 Checks that every host's \$HOME holds only docs/dotfiles/downloads/projects, and
 that rafik and datacore hold the same personal projects. Exceptions are listed

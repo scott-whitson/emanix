@@ -2,7 +2,7 @@
 
 let
   emacsPkgs = import ./emacs/packages.nix { inherit pkgs; };
-  # The EWM variant of the eminix Emacs: the shared build (emacs/packages.nix,
+  # The EWM variant of the emanix Emacs: the shared build (emacs/packages.nix,
   # which owns the package set and the org pin) plus EWM's own package. The
   # non-EWM variant is emacs-daemon.nix, which calls the same builder with no
   # extras — so "sole build" is not this file's claim to make; the two differ
@@ -25,7 +25,7 @@ in
   # lived until 2026-08-18, alongside the role's imports of this file) so the
   # two cannot disagree: the import IS the switch. A hard definition, not
   # mkDefault — this is an invariant of importing ewm.nix, not an opinion.
-  home-manager.users.${config.eminix.username}.eminix.ewm.enable = true;
+  home-manager.users.${config.emanix.username}.emanix.ewm.enable = true;
 
   # Autologin is OPT-IN, and defaults OFF.
   #
@@ -51,12 +51,12 @@ in
     enable = true;
     emacsPackage = theEmacs;
 
-    # Point EWM at our Emacs config in the eminix checkout.
+    # Point EWM at our Emacs config in the emanix checkout.
     # ~/.config/emacs is populated by home-manager in both liveElisp modes
     # (symlinks to the checkout, or store copies) — never point at the repo
     # directly; it does not exist on every host.
     extraEmacsArgs =
-      "--init-directory ${config.users.users.${config.eminix.username}.home}/.config/emacs";
+      "--init-directory ${config.users.users.${config.emanix.username}.home}/.config/emacs";
   };
 
   # XDG portal backend: EWM's own packaged portals.conf sets
@@ -116,7 +116,7 @@ in
 
     sessionVariables = {
       # elisa reads this to load the sqlite-vec (vec0) extension into ELISA's DB;
-      # keeps the /nix/store path in Nix so the liveElisp eminix-elisa.el stays
+      # keeps the /nix/store path in Nix so the liveElisp emanix-elisa.el stays
       # store-path-free. Present in the login shell → inherited by the EWM daemon.
       ELISA_VEC0_PATH = emacsPkgs.elisaVecPath;
 
@@ -133,7 +133,7 @@ in
       brightnessctl
       # Screen lock (ext-session-lock): swayidle fires swaylock on logind's
       # before-sleep (lid close → suspend) and on loginctl lock-session.
-      # swayidle is started from emacs (lisp/eminix-ewm.el) so it inherits
+      # swayidle is started from emacs (lisp/emanix-ewm.el) so it inherits
       # WAYLAND_DISPLAY and dies with the session. Config: swaylock.nix (HM).
       swaylock
       swayidle

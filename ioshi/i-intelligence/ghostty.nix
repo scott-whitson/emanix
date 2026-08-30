@@ -5,14 +5,14 @@ let
   inherit (themeLib) palettes ghostty;
 in
 {
-  options.eminix.ghostty.enable = lib.mkOption {
+  options.emanix.ghostty.enable = lib.mkOption {
     type = lib.types.bool;
-    default = config.eminix.gui;
-    defaultText = "config.eminix.gui";
+    default = config.emanix.gui;
+    defaultText = "config.emanix.gui";
     description = "Install ghostty + its managed config. Defaults to the gui flag; non-GUI hosts (WSLg) set it true.";
   };
 
-  config = lib.mkIf config.eminix.ghostty.enable {
+  config = lib.mkIf config.emanix.ghostty.enable {
     # Every palette is pre-rendered here; the runtime switcher picks one.
     # theme.conf is deliberately NOT declared as home.file: bin/dot-theme-set
     # owns that path, and two owners means Home Manager renames the runtime
@@ -74,7 +74,7 @@ in
       lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         target="$HOME/.config/ghostty/theme.conf"
         if [ ! -e "$target" ]; then
-          run ln -sfn "$HOME/.config/ghostty/themes/${config.eminix.theme}.conf" "$target"
+          run ln -sfn "$HOME/.config/ghostty/themes/${config.emanix.theme}.conf" "$target"
         fi
       '';
   };

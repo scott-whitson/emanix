@@ -1,5 +1,5 @@
 {
-  description = "eminix — a NixOS distribution (Emacs + Linux + NixOS)";
+  description = "emanix — a NixOS distribution (Emacs + Linux + NixOS)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -43,8 +43,8 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
 
-      eminixLib = import ./lib;
-      sharedSpecialArgs = { inherit eminixLib; };
+      emanixLib = import ./lib;
+      sharedSpecialArgs = { inherit emanixLib; };
 
       # Applied to all NixOS systems; Home Manager inherits it via
       # useGlobalPkgs.
@@ -56,7 +56,7 @@
         };
       };
 
-      # Home Manager wiring: import the eminix HM modules for the given user.
+      # Home Manager wiring: import the emanix HM modules for the given user.
       # The consuming flake adds personal home config via extraModules.
       # mkDefault throughout, for the same reason as the role profiles: these
       # are the distribution's opinions about how to wire Home Manager, not
@@ -82,7 +82,7 @@
         };
       };
 
-      # Compose an eminix host: core + role + user + hardware + personal extras.
+      # Compose an emanix host: core + role + user + hardware + personal extras.
       mkHost = import ./lib/mkHost.nix {
         inherit nixpkgs home-manager ewm agenix nixos-wsl nixpkgsModule sharedSpecialArgs system;
         inherit mkHmModule;
@@ -92,9 +92,9 @@
     {
       # NixOS modules exported for consuming flakes (dotfiles, other hosts).
       nixosModules = {
-        default = import ./eminix.nix;
-        eminix = import ./eminix.nix;
-        # No `roles` output any more. eminix is ONE shape; a consumer composes
+        default = import ./emanix.nix;
+        emanix = import ./emanix.nix;
+        # No `roles` output any more. emanix is ONE shape; a consumer composes
         # the rest. What is offered instead is the compositor as a named
         # module, so a host that wants a graphical session imports it
         # explicitly rather than inheriting it from a role it did not choose.
@@ -108,7 +108,7 @@
       # A generic installer ISO — stages the distro flake, no keys. The
       # distro ships a DEBUG/rescue ISO; real installs are built by consuming
       # flakes (dotfiles) via nixosModules.installer with
-      # eminix.installer.{flake,keysDir} set.
+      # emanix.installer.{flake,keysDir} set.
       nixosConfigurations.installer = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit nixpkgs disko; };
@@ -145,7 +145,7 @@
       checks.${system} =
         let
           evalRole = role:
-            pkgs.runCommand "eminix-eval-${role}" { } ''
+            pkgs.runCommand "emanix-eval-${role}" { } ''
               echo ${
                 builtins.unsafeDiscardStringContext
                   (mkHost {
@@ -165,8 +165,8 @@
           # so it costs nothing to run on every `nix flake check`. The script
           # reads palettes as JSON on stdin, so the palettes are serialized at
           # build time and piped in.
-          palettesJson = pkgs.writeText "eminix-palettes.json"
-            (builtins.toJSON (eminixLib.theme { inherit pkgs; }).palettes);
+          palettesJson = pkgs.writeText "emanix-palettes.json"
+            (builtins.toJSON (emanixLib.theme { inherit pkgs; }).palettes);
         in
         {
           role-workstation = evalRole "workstation";
@@ -174,7 +174,7 @@
           # Also exercises the homeModules seam, so it cannot silently break.
           role-wsl = evalRole "wsl";
 
-          palette-contrast = pkgs.runCommand "eminix-palette-contrast" { } ''
+          palette-contrast = pkgs.runCommand "emanix-palette-contrast" { } ''
             ${pkgs.python3}/bin/python3 ${./tests/contrast-check.py} < ${palettesJson} > $out
           '';
         };
