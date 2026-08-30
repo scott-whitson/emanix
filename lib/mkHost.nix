@@ -14,21 +14,21 @@
 # flake (e.g. dotfiles).
 { nixpkgs, home-manager, ewm, agenix, nixos-wsl, nixpkgsModule, mkHmModule, sharedSpecialArgs, system }:
 { hostName, role, username, hardware ? null, extraModules ? [ ], homeModules ? [ ] }:
-# `role` no longer selects a profile — profiles/roles/ is gone. eminix ships ONE
+# `role` no longer selects a profile — the roles are gone. eminix ships ONE
 # shape; what a host IS (headless, laptop, WSL) is the consumer's to compose from
 # extraModules. `role` survives purely as METADATA: it is set on
 # home-manager.users.<u>.eminix.role below, exported as EMINIX_ROLE by zsh.nix,
 # and branched on by consumers (dotfiles gates pi, claude and syncthing on it).
 # A label the distro records and the consumer interprets — not a dispatch.
 let
-  # eminix.username is a NixOS-level option (declared in profiles/eminix.nix),
-  # read by os-system/base.nix, i-intelligence/ewm.nix, and the role profiles
+  # eminix.username is a NixOS-level option (declared in eminix.nix),
+  # read by os-system/base.nix and i-intelligence/ewm.nix
   # to address home-manager.users.<username>. Set it from the mkHost argument.
   #
   # eminix.role is an HM-level option (declared in i-intelligence/theme.nix),
   # read by HM modules (e.g. zsh.nix). It is set inside the user's HM config.
   #
-  # NOT mkDefault, unlike the role profiles and the HM wiring block. Those
+  # NOT mkDefault, unlike the HM wiring block. Those
   # carry the distribution's OPINIONS, which a consumer may outrank. These two
   # are the ARGUMENTS mkHost was called with: overriding `role` to something
   # other than the profile mkHost actually imported yields an incoherent host,
@@ -51,7 +51,7 @@ nixpkgs.lib.nixosSystem {
   inherit system;
   specialArgs = sharedSpecialArgs // { inherit ewm nixos-wsl; };
   modules = [
-    ../profiles/eminix.nix
+    ../eminix.nix
     # mkDefault: NixOS-WSL needs to force this empty (setting the hostname at
     # activation breaks WSL's systemd user-session bootstrap, NixOS-WSL#888).
     { networking.hostName = nixpkgs.lib.mkDefault hostName; }

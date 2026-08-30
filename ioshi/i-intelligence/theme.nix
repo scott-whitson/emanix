@@ -27,13 +27,22 @@ in
       type = lib.types.enum [ "workstation" "server" "wsl" ];
       default = "workstation";
       description = ''
-        What shape of eminix box this is. Set by lib/mkHost.nix from the same
-        `role` argument that selects profiles/roles/<role>.nix, so the option and
-        the imported profile cannot drift apart.
+        What shape of eminix box this is. Set by lib/mkHost.nix from its
+        `role` argument.
+
+        It SELECTS NOTHING. profiles/roles/ was deleted on 2026-08-30 — eminix
+        ships one shape and the consuming flake composes the rest — so this is
+        purely a label the distro records and the consumer interprets. zsh.nix
+        exports it as EMINIX_ROLE, and a consumer can branch on it (the author's
+        dotfiles gate the pi agent, Claude settings and syncthing on it).
+
+        The enum is kept deliberately: with nothing dispatching on the value, a
+        typo in a consumer's branch would otherwise fail silently as "not that
+        role" rather than as an error.
 
         Replaced eminix.dotfiles.profile on 2026-08-08, which encoded the same
-        fact in a second vocabulary ("desktop" for what the role calls
-        "workstation") and was set by hand in each role profile.
+        fact in a second vocabulary ("desktop" for what this calls
+        "workstation").
       '';
     };
 

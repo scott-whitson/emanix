@@ -4,13 +4,13 @@
 opinionated NixOS distribution where *Emacs is the desktop*. It is organized
 around **ioshi**, a three-concern architecture:
 
-- **i — intelligence interface** (`ioshi/i-intelligence/`): Emacs, EWM, the pi
-  agent, theming, and the user workspace. Mostly Home Manager modules, but see
-  the note below — `ewm.nix` and `ollama.nix` are NixOS modules.
+- **i — intelligence interface** (`ioshi/i-intelligence/`): Emacs, EWM,
+  theming, and the user workspace. Mostly Home Manager modules, but see the
+  note below — `ewm.nix` is a NixOS module.
 - **os — operating system** (`ioshi/os-system/`): the NixOS substrate
-  (base, desktop, server).
-- **hi — hardware / internet** (`ioshi/hi-hardware/`): hardware abstraction and
-  the shared network layer (Tailscale).
+  (base, firstboot).
+- **hi — hardware / internet** (`ioshi/hi-hardware/`): the shared network layer
+  (Tailscale).
 
 The three concerns are **descriptive, not enforced**. They say what a piece of
 config *is about*, not which module system delivers it — so `i-intelligence/`
@@ -29,13 +29,32 @@ personal dotfiles repo) that imports eminix and calls `lib.mkHost`.
 ## Layout
 
 ```
+eminix.nix                                     # the distribution — one profile, imported by mkHost
 ioshi/{i-intelligence,os-system,hi-hardware}   # the three concerns
-profiles/eminix.nix                            # the distribution's common core (os + net)
-profiles/roles/{workstation,server,wsl}.nix    # per-shape config layered on top
 lib/{mkHost.nix,themes.nix}                    # host composer + theme lib
 installer/                                     # installer ISO + scripts
 checks/                                        # fixtures for the flake's eval checks
 ```
+
+### There are no roles
+
+There used to be `profiles/roles/{workstation,server,wsl}.nix`, selected by
+`mkHost`'s `role` argument. They were deleted on 2026-08-30.
+
+By the end they differed in almost nothing: which `os-system` file they imported
+and whether they set `eminix.gui`. What they carried was not distribution policy
+but **host shape** — whether a machine has speakers, a touchpad, a printer, a
+bootloader. A distribution should know *how* to enable those; it should not
+decide *which* machines want them, because it cannot know. That decision now sits
+with the consuming flake, which does.
+
+So eminix ships **one shape**. A consumer composes the rest through
+`extraModules`, and imports `nixosModules.ewm` if it wants the compositor —
+explicitly, rather than inheriting it from a role it did not choose.
+
+`role` survives as an *argument to `mkHost`* and as metadata on
+`eminix.role`. It selects nothing; it is a label the distro records
+(`zsh.nix` exports `EMINIX_ROLE`) and the consumer interprets.
 
 ## Using it from a consuming flake
 

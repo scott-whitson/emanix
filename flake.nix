@@ -92,8 +92,8 @@
     {
       # NixOS modules exported for consuming flakes (dotfiles, other hosts).
       nixosModules = {
-        default = import ./profiles/eminix.nix;
-        eminix = import ./profiles/eminix.nix;
+        default = import ./eminix.nix;
+        eminix = import ./eminix.nix;
         # No `roles` output any more. eminix is ONE shape; a consumer composes
         # the rest. What is offered instead is the compositor as a named
         # module, so a host that wants a graphical session imports it

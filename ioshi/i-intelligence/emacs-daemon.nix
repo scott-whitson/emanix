@@ -20,7 +20,7 @@ in
   # below in one act. That is what stops a host from building two full
   # emacs-pgtk derivations and starting the very daemon ewm.nix pkills to
   # avoid — which is exactly what happened while the flag lived by hand in
-  # profiles/roles/workstation.nix, next to the import it had to agree with.
+  # the consumer's host config, next to the import it had to agree with.
   options.eminix.ewm.enable = lib.mkOption {
     type = lib.types.bool;
     default = false;

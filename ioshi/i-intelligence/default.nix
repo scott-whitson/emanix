@@ -3,7 +3,7 @@
 # ioshi's three concerns are descriptive (see README): i-intelligence says what
 # a thing is about, not which module system delivers it. So this directory holds
 # 20 modules and this list imports 18. The two it deliberately omits are NixOS
-# modules, imported at system level by profiles/roles/workstation.nix instead:
+# modules, imported at system level by the consuming flake instead:
 #
 #   ewm.nix      the EWM compositor service, the system-owned Emacs build
 #

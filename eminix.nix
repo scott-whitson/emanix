@@ -47,8 +47,8 @@
   config.services.speechd.enable = lib.mkOverride 500 false;
 
   imports = [
-    ../ioshi/os-system/base.nix
-    ../ioshi/os-system/firstboot.nix
-    ../ioshi/hi-hardware/net/tailscale.nix
+    ./ioshi/os-system/base.nix
+    ./ioshi/os-system/firstboot.nix
+    ./ioshi/hi-hardware/tailscale.nix
   ];
 }

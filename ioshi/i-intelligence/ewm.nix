@@ -21,7 +21,7 @@ in
   # Emacs and start a user daemon — that would build two full emacs-pgtk
   # derivations and start the very daemon the tty1 launch hook below pkills.
   #
-  # Set here rather than by hand in profiles/roles/workstation.nix (where it
+  # Set here rather than by hand in a consumer's host config (where it
   # lived until 2026-08-18, alongside the role's imports of this file) so the
   # two cannot disagree: the import IS the switch. A hard definition, not
   # mkDefault — this is an invariant of importing ewm.nix, not an opinion.
