@@ -26,6 +26,5 @@
   # definitions a consumer cannot outrank.
   home-manager.users.${config.eminix.username} = {
     eminix.gui = lib.mkDefault false;
-    eminix.pi.enable = lib.mkDefault false;
   };
 }

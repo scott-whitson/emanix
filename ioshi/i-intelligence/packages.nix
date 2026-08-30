@@ -52,7 +52,6 @@
     # Media (CLI)
     ffmpeg
     imagemagick
-    gphoto2 # pull photos off USB cameras (Canon R50); paired with programs.gphoto2 NixOS module
 
     # Media (GUI): NOT listed here. mpv.nix's `programs.mpv.enable`, gated on
     # the same config.eminix.gui, already supplies it — nixpkgs's top-level
@@ -90,10 +89,7 @@
     # GUI apps. NOT firefox: firefox.nix's programs.firefox installs it (with the
     # catppuccin theming), and listing it here too put two identical firefox
     # entries in home.packages. Same shape as the mpv/mpv-with-scripts overlap.
-    bitwarden-desktop
 
-    # Photo editor (RAW dev) — GUI. Import keyed to the gphoto2 stack below.
-    darktable
 
     # Steam wrapper — starts XWayland on :0 if needed, then runs the real steam.
     # This is separate from the steam-run wrapper (used by ibgateway) so
