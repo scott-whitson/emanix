@@ -94,11 +94,11 @@
       nixosModules = {
         default = import ./profiles/eminix.nix;
         eminix = import ./profiles/eminix.nix;
-        roles = {
-          workstation = import ./profiles/roles/workstation.nix;
-          server = import ./profiles/roles/server.nix;
-          wsl = import ./profiles/roles/wsl.nix;
-        };
+        # No `roles` output any more. eminix is ONE shape; a consumer composes
+        # the rest. What is offered instead is the compositor as a named
+        # module, so a host that wants a graphical session imports it
+        # explicitly rather than inheriting it from a role it did not choose.
+        ewm = import ./ioshi/i-intelligence/ewm.nix;
         installer = import ./installer/iso.nix;
       };
 
