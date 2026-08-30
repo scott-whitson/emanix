@@ -26,7 +26,6 @@
     lazygit
     nodejs # JS runtime for the web toolchain below
     just
-    nixd
     nixpkgs-fmt
     deadnix
     statix

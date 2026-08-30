@@ -386,18 +386,20 @@ path-specific groups from the personal layer.")
 
 ;; LSP. eglot attaches per-buffer and routes everything through native Emacs
 ;; machinery — completions reach corfu, errors reach flymake, jumps reach xref.
-;; nixd and basedpyright are eglot's own defaults for these modes; they are
-;; listed explicitly so the config states its own contract rather than
-;; inheriting whatever a future eglot ships.
-(with-eval-after-load 'eglot
-  (add-to-list 'eglot-server-programs '(nix-ts-mode . ("nixd")))
-  (add-to-list 'eglot-server-programs
-               '((python-mode python-ts-mode) . ("basedpyright-langserver" "--stdio")))
-  ;; Formatting is apheleia's job (below). Letting the server also format on
-  ;; save would race it and, for Nix, disagree with nixpkgs-fmt.
-  (setq-default eglot-workspace-configuration
-                '(:basedpyright (:analysis (:diagnosticMode "workspace")))))
-
+;;
+;; The distribution deliberately names NO language servers. Which server you
+;; run is a per-user editor preference, the same argument that moved nixd,
+;; basedpyright and pi-coding-agent out of packages.nix — and a distro that
+;; wires eglot to a binary it does not install leaves any consumer without
+;; that binary staring at a failed connection. eglot's own defaults still
+;; apply, and the consumer extension point (~/.config/emacs/personal.el,
+;; loaded last) is where to state a contract:
+;;
+;;   (with-eval-after-load 'eglot
+;;     (add-to-list 'eglot-server-programs '(nix-ts-mode . ("nixd"))))
+;;
+;; eglot-ensure stays: attaching a server WHEN one exists is editor behaviour
+;; the distro does own. With no server installed it is simply inert.
 (dolist (hook '(nix-ts-mode-hook python-ts-mode-hook))
   (add-hook hook #'eglot-ensure))
 
