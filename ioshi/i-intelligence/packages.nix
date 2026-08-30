@@ -94,22 +94,6 @@
     # Steam wrapper — starts XWayland on :0 if needed, then runs the real steam.
     # This is separate from the steam-run wrapper (used by ibgateway) so
     # XWayland only starts when you actually launch Steam.
-    (pkgs.writeShellScriptBin "steam" ''
-      if [ ! -S /tmp/.X11-unix/X0 ]; then
-        _xw_wd=""
-        for _sock in "$XDG_RUNTIME_DIR"/wayland-*; do
-          [ -S "$_sock" ] && _xw_wd="''${_sock##*/}" && break
-        done
-        if [ -n "$_xw_wd" ]; then
-          env WAYLAND_DISPLAY="$_xw_wd" Xwayland :0 &
-          for _ in $(seq 1 10); do
-            [ -S /tmp/.X11-unix/X0 ] && break
-            sleep 0.3
-          done
-        fi
-      fi
-      exec /run/current-system/sw/bin/steam "$@"
-    '')
   ] ++ [
     # Fonts — every node: pgtk emacs under WSLg reads nix-profile fonts
     #

@@ -14,7 +14,6 @@
   # flake.nix's nixpkgsModule so it applies to the whole system + HM.
 
   # Steam
-  programs.steam.enable = true;
 
 
   # Network

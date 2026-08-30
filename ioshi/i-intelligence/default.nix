@@ -6,7 +6,6 @@
 # modules, imported at system level by profiles/roles/workstation.nix instead:
 #
 #   ewm.nix      the EWM compositor service, the system-owned Emacs build
-#   ollama.nix   local model serving
 #
 # Adding a module here? If it configures the user's environment through Home
 # Manager, add it to the list below. If it needs the NixOS tier, add it to a

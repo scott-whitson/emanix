@@ -5,7 +5,6 @@
   imports = [
     ../../ioshi/os-system/desktop.nix
     ../../ioshi/i-intelligence/ewm.nix
-    ../../ioshi/i-intelligence/ollama.nix
   ];
 
   # mkDefault throughout: a role is the STARTING SHAPE for a host, not a
