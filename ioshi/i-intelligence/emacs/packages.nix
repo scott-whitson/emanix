@@ -55,8 +55,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "scott-whitson";
         repo = "arc";
-        rev = "efe9b13cb53c4eb2be07b6490137d4dca777c81a";
-        hash = "sha256-9260LuLXAIBkh6PX2gBAl/bd/swDtdBXpAyGeDA75wk=";
+        rev = "ce723259c6c26150223ef287466a503477456706";
+        hash = "sha256-70Kdo+Kz3dx83Wc8QcPk/q12mddgrHLDpk2v4ZSl058=";
       };
       # arc.el's own Package-Requires, exactly: llm, async, plz, transient.
       # NOT ellama — arc renders its own answer buffer and dropped that
