@@ -49,7 +49,7 @@ Slots are generic — no app is tied to a number. Names are session-local; set t
 | --- | --- |
 | `s-d` | App launcher (`ewm-launch-app`) |
 | `s-w` | Firefox |
-| `s-i` | Ask **elisa** — the local config-aware assistant; works from any slot |
+| `s-i` | Ask **arc** — the local config-aware oracle; works from any slot |
 
 ### Session & clipboard
 
@@ -158,7 +158,12 @@ Work when a native Emacs buffer is focused.
 
 | Binding | Action |
 | --- | --- |
-| `C-c i i` | Ask elisa (full set: `i` ask / `r` reindex / `m` toggle model / `n` ask notes). `s-i` is the global shortcut for ask. |
+| `C-c i i` | Ask **arc** across the whole corpus. `s-i` does the same from any slot. |
+| `C-c i n` | Ask arc against the org-roam vault only |
+| `C-c i o` | Ask arc against the NixOS + Home-Manager options only |
+| `C-c i m` | Toggle arc's chat model (`qwen2.5-coder:3b` ⇄ `qwen2.5:7b`) |
+| `C-c i R` | Reindex every collection (async; progress via `message`) |
+| `C-c i c` | Cancel a running reindex |
 | `C-c q` | Open the current-quarter tracker note |
 | `C-c z` | Toggle prose rendering (markdown/org rendered vs. raw source) |
 | `M-g i` | Jump to a heading in this buffer (`consult-imenu`) |
@@ -300,5 +305,13 @@ map. Plugins `zellaude` and `zellij-forgot` are wired in under `plugins/`.
 
 ## AI tooling
 
-`pi` from the shell; skills under `~/.pi/agent/skills/`. In Emacs, **elisa** (the
-local RAG assistant) is `s-i` (ask from anywhere) or `C-c i` (full command set).
+`pi` from the shell; skills under `~/.pi/agent/skills/`. In Emacs, **arc** (the
+local, offline RAG oracle) is `s-i` (ask from anywhere) or `C-c i` (full command
+set). Answers land in the `*arc*` buffer, which has its own keys: `RET` jumps to
+the citation at point, `f` asks a follow-up grounded in the answer at point, `r`
+re-asks the last question, `s` re-asks it at a different scope, `w` files the
+answer into `~/docs/org/arc.org`, `q` buries the buffer.
+
+arc answers only from what it retrieved. When nothing in the scope matches it
+says so and names the scope it searched, rather than guessing from the model's
+own memory — a config oracle that invents a NixOS option is worse than none.
