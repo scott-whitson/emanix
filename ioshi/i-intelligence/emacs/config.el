@@ -122,11 +122,11 @@
 ;; literal. Regenerate with: nix run nixpkgs#figlet -- -f slant Emanix
 ;; The command list below is a scratchpad, not a menu — churn it freely.
 (setq initial-scratch-message "\
-;;     ______          _       _
-;;    / ____/___ ___  (_)___  (_)  __
-;;   / __/ / __ `__ \\/ / __ \\/ / |/_/
-;;  / /___/ / / / / / / / / / />  <
-;; /_____/_/ /_/ /_/_/_/ /_/_/_/|_|
+;;     ______                      _
+;;    / ____/___ ___  ____ _____  (_)  __
+;;   / __/ / __ `__ \\/ __ `/ __ \\/ / |/_/
+;;  / /___/ / / / / / /_/ / / / / />  <
+;; /_____/_/ /_/ /_/\\__,_/_/ /_/_/_/|_|
 ;;
 ;;  C-j = eval + print inline     C-x C-e = eval, echo area
 ;;  M-: = eval from minibuffer    C-x * q = quick calc
