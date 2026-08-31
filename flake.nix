@@ -174,6 +174,10 @@
           # Also exercises the homeModules seam, so it cannot silently break.
           role-wsl = evalRole "wsl";
 
+          # The arc glue's paths, checked on every flake check rather than
+          # whenever someone remembers to look. See checks/arc-glue.nix.
+          arc-glue = import ./checks/arc-glue.nix { inherit pkgs; };
+
           palette-contrast = pkgs.runCommand "emanix-palette-contrast" { } ''
             ${pkgs.python3}/bin/python3 ${./tests/contrast-check.py} < ${palettesJson} > $out
           '';
