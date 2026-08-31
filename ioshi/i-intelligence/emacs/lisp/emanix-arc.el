@@ -30,6 +30,14 @@
 ;; start does not block on it.
 
 (require 'arc nil :no-error)
+;; arc-eval.el carries an autoload cookie but no arc module requires it, so
+;; `M-x arc-eval' would be void until something loaded the file. It is the
+;; retrieval measurement harness -- small, and the whole point is that it is
+;; there when a retrieval change needs justifying rather than guessing.
+;; `arc-eval-set-file' already defaults to ~/docs/org/arc-eval.eld, which is
+;; where this machine's question set lives, deliberately outside the public
+;; arc repo.
+(require 'arc-eval nil :no-error)
 
 (defgroup emanix-arc nil
   "arc, the emanix distribution assistant."
