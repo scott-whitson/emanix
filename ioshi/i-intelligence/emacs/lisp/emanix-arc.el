@@ -38,6 +38,13 @@
 ;; where this machine's question set lives, deliberately outside the public
 ;; arc repo.
 (require 'arc-eval nil :no-error)
+;; Keep the mutable half of the corpus current: re-index a saved file arc
+;; already knows, and sweep for drift on an idle timer. The sweep is the half
+;; that matters here -- this machine's dotfiles and vault change from git
+;; pulls and Syncthing as much as from editing, and neither fires
+;; `after-save-hook'. Derived collections (options, manuals) are deliberately
+;; never auto-rebuilt; see arc-watch.el's commentary.
+(require 'arc-watch nil :no-error)
 
 (defgroup emanix-arc nil
   "arc, the emanix distribution assistant."
@@ -144,6 +151,9 @@ alone rather than wrapped."
 ;; c cancel a running reindex.
 (when (featurep 'arc)
   (keymap-set global-map "C-c i" arc-command-map))
+
+(when (featurep 'arc-watch)
+  (arc-watch-mode 1))
 
 (provide 'emanix-arc)
 ;;; emanix-arc.el ends here
