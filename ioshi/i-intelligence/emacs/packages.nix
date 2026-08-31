@@ -35,21 +35,36 @@ let
     corfu
     dirvish
     magit
-    ellama
     llm
-    (elisa.overrideAttrs (_: {
-      # elisa is the distro's bundled assistant; the canonical source is the
-      # author's public GitHub repo (same person as this flake — intentional,
-      # not a leak: the repo is public).
+    # arc — the distro's bundled companion, replacing the ELISA fork that used
+    # to sit here. Its canonical source is the author's public GitHub repo
+    # (same person as this flake — intentional, not a leak: the repo is
+    # public).
+    #
+    # Pinned by rev with a real hash, deliberately: there is no local-checkout
+    # override. An earlier draft read ARC_DEV_SRC through `builtins.getEnv',
+    # which flakes evaluate to "" unless the caller also passes `--impure' —
+    # and then fell through to the pin with NO error, silently building the
+    # pinned rev instead of the working tree someone had just edited. That is
+    # the same silent config-vs-reality divergence that let the old assistant
+    # index nothing for six weeks. To iterate on arc: commit, push, bump the
+    # rev and hash here, rebuild. Slower, and it cannot lie to you.
+    (trivialBuild {
+      pname = "arc";
+      version = "0.1.0";
       src = pkgs.fetchFromGitHub {
         owner = "scott-whitson";
-        repo = "elisa";
-        rev = "61dab4eaa592132e17bf0c06562ddc450aeb5fb4";
-        hash = "sha256-9dPYVT084JW1Q3BmLR5lA3lwxxb3Vi/s1DpkqxTdGGc=";
+        repo = "arc";
+        rev = "aa5f6fd1461c061176d96f05ff79b9b590cdbeca";
+        hash = "sha256-KRXJlq4h00gvUp2E83QNVQAfE9/t8LuFLd8wdi8t5GA=";
       };
-    }))
-    async # ELISA dep (Package-Requires); needed to load elisa.el for port testing
-    plz # ELISA/llm HTTP dep
+      # arc.el's own Package-Requires, exactly: llm, async, plz, transient.
+      # NOT ellama — arc renders its own answer buffer and dropped that
+      # dependency, which is why ellama is no longer in this list at all.
+      packageRequires = with epkgs; [ llm async plz transient ];
+    })
+    async # arc dep (Package-Requires); also loadable standalone for testing
+    plz # arc/llm HTTP dep
     s # string manipulation library (gdocs dependency)
     org-roam
     org
@@ -112,8 +127,15 @@ in
     ((pkgs.emacsPackagesFor pkgs.emacs-pgtk).overrideScope orgOverride).emacsWithPackages
       (epkgs: list epkgs ++ extraPackages);
 
-  # elisa's sqlite-vec extension. Exported because elisa is in `list` above,
-  # so this file owns the dependency; the two consumers set it on different
-  # tiers (system vs home sessionVariables) but must agree on the value.
-  elisaVecPath = "${pkgs.sqlite-vec}/lib/vec0.so";
+  # arc's sqlite-vec extension. Exported because arc is in `list` above, so
+  # this file owns the dependency; the two consumers set it on different tiers
+  # (system vs home sessionVariables) but must agree on the value.
+  #
+  # The basename must stay exactly `vec0.so'. Emacs checks it against a
+  # hardcoded allow-list before SQLite sees the file, and SQLite then derives
+  # the entry point from it — a renamed copy fails through one gate loudly and
+  # the other in total silence. arc checks `sqlite-load-extension's return
+  # value and errors at database-open time rather than much later at first
+  # query, but do not rename this.
+  arcVecPath = "${pkgs.sqlite-vec}/lib/vec0.so";
 }

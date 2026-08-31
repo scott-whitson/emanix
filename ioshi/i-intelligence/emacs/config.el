@@ -790,9 +790,11 @@ Each cdr is verified to render at the default face's cell width.")
   (setq tab-bar-show t)   ; always show the panel, even with a single/zero tab
   (tab-bar-mode 1))
 
-;; elisa — local, config-aware emanix assistant (Emacs/Linux/NixOS RAG via a
-;; sqlite-vec ELISA fork + ellama + local Ollama). Binds the C-c i map.
-(require 'emanix-elisa nil :no-error)
+;; arc — local, offline, config-aware emanix oracle (Emacs/Elisp/Linux/NixOS/
+;; org-roam RAG over this machine's own config, via sqlite-vec + a local
+;; Ollama). Binds the C-c i map: i ask, n vault only, o options only, m toggle
+;; chat model, R reindex, c cancel a reindex.
+(require 'emanix-arc nil :no-error)
 
 ;; EWM-only session glue (swayidle/swaylock + touchpad) — no-op elsewhere.
 ;; EWM is loaded via `emacs --eval (require 'ewm)' which runs AFTER this init
@@ -839,12 +841,12 @@ Each cdr is verified to render at the default face's cell width.")
       (lambda ()
         (interactive)
         (start-process "ghostty-pi" nil "ghostty" "-e" "pi")))
-    ;; Summon elisa (ask) from ANY slot. It must be a single intercepted key:
+    ;; Summon arc (ask) from ANY slot. It must be a single intercepted key:
     ;; the C-c i prefix can't reach Emacs from a focused Wayland surface (the
     ;; follow-up key goes to the surface). C-c i still gives the full command
     ;; set when a native Emacs frame is focused.
-    (when (fboundp 'emanix/elisa-ask)
-      (define-key ewm-mode-map (kbd "s-i") #'emanix/elisa-ask))
+    (when (fboundp 'emanix/arc-ask)
+      (define-key ewm-mode-map (kbd "s-i") #'emanix/arc-ask))
     (when (fboundp 'ewm--send-intercept-keys)
       (ewm--send-intercept-keys))))
 

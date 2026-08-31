@@ -115,10 +115,12 @@ in
     '';
 
     sessionVariables = {
-      # elisa reads this to load the sqlite-vec (vec0) extension into ELISA's DB;
-      # keeps the /nix/store path in Nix so the liveElisp emanix-elisa.el stays
+      # arc reads this to load the sqlite-vec (vec0) extension into its DB;
+      # keeps the /nix/store path in Nix so the liveElisp emanix-arc.el stays
       # store-path-free. Present in the login shell → inherited by the EWM daemon.
-      ELISA_VEC0_PATH = emacsPkgs.elisaVecPath;
+      # arc errors at database-open time if it is unset or points nowhere, which
+      # is the loud failure this variable exists to make possible.
+      ARC_VEC0_PATH = emacsPkgs.arcVecPath;
 
       # XWayland display — X11 apps (Steam, etc.) use this to find XWayland.
       # XWayland is started from the loginShellInit below, after the compositor

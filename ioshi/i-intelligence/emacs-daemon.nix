@@ -46,9 +46,10 @@ in
       startWithUserSession = true;
     };
 
-    # elisa's sqlite-vec extension path — set by ewm.nix on emanix. Chat is
-    # non-functional until the node has an Ollama (deferred per the spec),
-    # but requiring elisa must not error.
-    home.sessionVariables.ELISA_VEC0_PATH = emacsPkgs.elisaVecPath;
+    # arc's sqlite-vec extension path — set by ewm.nix on emanix workstations,
+    # and here for the non-EWM daemon hosts. Answering is non-functional until
+    # the node has an Ollama (deferred per the spec), but loading arc must not
+    # error, and arc signals at database-open time if this points nowhere.
+    home.sessionVariables.ARC_VEC0_PATH = emacsPkgs.arcVecPath;
   };
 }
