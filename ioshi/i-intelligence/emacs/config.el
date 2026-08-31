@@ -44,10 +44,32 @@
 
 ;; --- Basics ---
 (set-face-attribute 'default nil :family "JetBrains Mono" :height 110)
-;; Symbol coverage for TUIs in vterm (Claude Code's ⏵ ⏸ ⏺ ✻ ✦) comes from
-;; pkgs.noto-fonts via fontconfig fallback — see ../packages.nix. Deliberately
-;; NOT set-fontset-font: on this pgtk/ftcrhb build those calls are inert
-;; (verified — forcing a range to another family changes nothing).
+
+;; Symbol coverage, in two halves, because the two halves fail differently.
+;;
+;; TUI symbols (Claude Code's ⏵ ⏸ ⏺ ✻ ✦) are ordinary Unicode and fontconfig
+;; fallback finds them in pkgs.noto-fonts on its own — verified: U+23F5
+;; resolves to Noto Sans Symbols 2 with nothing configured here.
+;;
+;; ICON glyphs do NOT fall back. The top bar draws battery, volume and network
+;; from Nerd Font's Material Design set at U+F0000-U+FFFFD, and Emacs's
+;; fontconfig fallback does not reach the Private Use Areas: with the ranges
+;; below removed, U+F0079 resolves to NO font at all while U+23F5 resolves
+;; fine. So the PUA ranges must be wired explicitly.
+;;
+;; This corrects a claim that used to sit here — that set-fontset-font is
+;; inert on this pgtk/ftcrhb build. It is not. That was measured against the
+;; media-control block, where fallback already supplied a font, so forcing
+;; another family changed nothing *visible*. The genuine finding about those
+;; characters is about ADVANCE WIDTH, not coverage: no font draws them at the
+;; 9px cell, which no amount of font selection fixes. That is still true, and
+;; is why the display table further down exists.
+;;
+;; Mono variant deliberately: the proportional "Symbols Nerd Font" breaks the
+;; character grid in a monospace top bar.
+(dolist (range '((#xE000 . #xF8FF)      ; PUA — Powerline, Devicons, Octicons
+                 (#xF0000 . #xFFFFD)))  ; Supplementary PUA-A — Material Design
+  (set-fontset-font t range "Symbols Nerd Font Mono" nil 'prepend))
 (setq make-backup-files nil
       auto-save-default nil
       create-lockfiles nil
