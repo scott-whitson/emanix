@@ -638,7 +638,7 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 ;; .html under templates/ dirs, so emanix-web.el picks the mode on path.
 ;; Format-on-save is gated on the repo declaring its own djlint/prettier
 ;; config: 134 unconfigured templates would otherwise be rewritten wholesale
-;; on first save. See docs/manual/01-keybindings.md for opting a repo in.
+;; on first save. See https://emanix.net/docs/keybindings.html for opting a repo in.
 (when (fboundp 'emanix-web-setup)
   (emanix-web-setup))
 ;; Quarterly tracker — C-c q opens this quarter's note, C-u C-c q forces the

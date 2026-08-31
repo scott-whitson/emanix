@@ -1,8 +1,14 @@
 # Emanix — a NixOS distribution
 
 **Emanix** (em·a·nix — **Em**acs + **Nix**OS) is an opinionated NixOS
-distribution where *Emacs is the desktop*. It is organized around **ioshi**, a
-three-concern architecture:
+distribution where *Emacs is the desktop*.
+
+**Documentation: [emanix.net](https://emanix.net)** — philosophy, architecture,
+the full keybinding and theming manual, installation, and every `emanix.*`
+option. This README covers what you need to consume the flake; the site covers
+everything else, and is the only place the manual lives.
+
+It is organized around **ioshi**, a three-concern architecture:
 
 - **i — intelligence interface** (`ioshi/i-intelligence/`): Emacs, EWM,
   theming, and the user workspace. Mostly Home Manager modules, but see the
@@ -20,6 +26,9 @@ legitimately holds both Home Manager and NixOS modules (EWM is an intelligence
 concern that happens to need a system-level compositor service). Nothing checks
 the boundary and nothing is meant to; if you are deciding where a file goes, ask
 what it is about, not how it is wired.
+
+The claim it makes is narrow and testable: **any Emanix machine can be rebuilt
+from the configuration alone. If it is not in the flake, it does not exist.**
 
 This repository is the *distribution*. It is generic: it does not hard-code any
 user's username, SSH keys, email, secrets, or hostnames. Personal configuration

@@ -56,7 +56,8 @@ in
 
     # Themes live OUTSIDE the checkout. ~/.config/zellij is an out-of-store
     # symlink into the repo, so a theme file written there at switch time would
-    # dirty the working tree — the Helix drift caveat in docs/manual/02-theming.md.
+    # dirty the working tree — the Helix drift caveat at
+    # https://emanix.net/docs/theming.html
     #
     # Colours are ANSI indices 0-15, so they resolve against whatever terminal
     # renders the session. Under ssh between hosts the rendering

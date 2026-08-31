@@ -8,7 +8,7 @@ let
   # palettes so the runtime switcher can pick one), Firefox renders exactly
   # this one palette and the switcher never touches it. Running
   # `dot-theme-set` does not change Firefox at all, on restart or ever;
-  # only editing emanix.theme and rebuilding does. See docs/manual/02-theming.md.
+  # only editing emanix.theme and rebuilding does. See https://emanix.net/docs/theming.html
   activePalette = palettes.${config.emanix.theme} or palettes.catppuccin-mocha;
 in
 {
