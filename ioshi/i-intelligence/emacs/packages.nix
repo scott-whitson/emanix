@@ -1,5 +1,18 @@
-# The ONE emanix Emacs build. Owns the package set, the org pin, and the
-# derivation itself — mkEmacs is the only way to build it.
+# The ONE emanix Emacs build. Owns the package set and the derivation itself —
+# mkEmacs is the only way to build it.
+#
+# It used to also own an org ELPA pin, working around an emacs-overlay snapshot
+# that resolved org with a stale hash. That override said "until inputs are
+# regenerated upstream" and then outlived the condition: the 2026-09-01 overlay
+# resolves org 9.8.10 correctly, while the override still forced 9.8.7's
+# tarball URL — which GNU ELPA had rotated away, since it serves only each
+# package's current version. The workaround became the outage. Every host
+# failed to build with a 404 buried under a long dependency cascade, and it
+# would have hit a fresh install even sooner.
+#
+# Lesson worth keeping: a pin that hardcodes an ELPA URL has an expiry date
+# nobody writes down. If org ever needs pinning again, pin it to something
+# content-addressed that upstream does not delete.
 #
 # Until 2026-08-18 this file exported `orgOverride` and `list` and each
 # consumer assembled its own emacsWithPackages from them, so ewm.nix and
@@ -9,17 +22,6 @@
 # what differs and nothing else.
 { pkgs, ... }:
 let
-  # org ELPA pin — the current emacs-overlay snapshot resolves org with a
-  # stale hash; override the source until inputs are regenerated upstream.
-  orgOverride = _eself: esuper: {
-    org = esuper.org.overrideAttrs (_old: {
-      src = pkgs.fetchurl {
-        url = "https://elpa.gnu.org/packages/org-9.8.7.tar";
-        sha256 = "sha256-bYBtYtZkvZYG1qhPWBTBcWoH0xW+NW4m4m5ime5w+vg=";
-      };
-    });
-  };
-
   list = epkgs: with epkgs; [
     meow
     avy
@@ -124,7 +126,7 @@ in
   # ewm.nix appends EWM's own package, which this file cannot know about, so
   # the seam takes a value rather than naming a variant.
   mkEmacs = { extraPackages ? [ ] }:
-    ((pkgs.emacsPackagesFor pkgs.emacs-pgtk).overrideScope orgOverride).emacsWithPackages
+    (pkgs.emacsPackagesFor pkgs.emacs-pgtk).emacsWithPackages
       (epkgs: list epkgs ++ extraPackages);
 
   # arc's sqlite-vec extension. Exported because arc is in `list` above, so
