@@ -89,11 +89,6 @@
     # GUI apps. NOT firefox: firefox.nix's programs.firefox installs it (with the
     # catppuccin theming), and listing it here too put two identical firefox
     # entries in home.packages. Same shape as the mpv/mpv-with-scripts overlap.
-
-
-    # Steam wrapper — starts XWayland on :0 if needed, then runs the real steam.
-    # This is separate from the steam-run wrapper (used by ibgateway) so
-    # XWayland only starts when you actually launch Steam.
   ] ++ [
     # Fonts — every node: pgtk emacs under WSLg reads nix-profile fonts
     #
