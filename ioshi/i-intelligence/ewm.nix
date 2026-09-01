@@ -1,16 +1,50 @@
 { config, lib, pkgs, ewm, ... }:
 
 let
+  # EWM builds on Smithay, whose libdisplay-info-sys 0.3.0 declares
+  # `libdisplay-info < 0.4.0` in its system-deps metadata. nixpkgs moved
+  # libdisplay-info 0.3.0 -> 0.4.0 on 2026-07-25 and added the
+  # libdisplay-info_0_3 compatibility attribute the day after, for exactly this
+  # case. Without it ewm-core dies at build time with pkg-config reporting the
+  # library as "not found" — it IS found, at /lib/pkgconfig/libdisplay-info.pc;
+  # what fails is the upper version bound, which `system-deps` reports as
+  # absence. Reading the truncated build log rather than the full one sends you
+  # looking for a missing file that is right there.
+  #
+  # Scoped to the compositor's own build, NOT a global overlay: mesa, wlroots
+  # and gamescope all want 0.4.0, so an overlay would rebuild the graphics
+  # stack against the older library. The closure carries both, which is
+  # unremarkable — distinct sonames, a few hundred KiB.
+  pkgsEwm = pkgs.extend (_final: prev: {
+    libdisplay-info = prev.libdisplay-info_0_3;
+  });
+
+  # Built here rather than taken from programs.ewm.ewmPackage's default: that
+  # default is a `pkgs.callPackage` against the module's own pkgs, and
+  # default.nix takes the library via `inherit (pkgs)`, so there is no
+  # per-package seam to override — the scoped pkgs has to go in at the call.
+  #
+  # emacsPackage is passed explicitly as emacs-pgtk, which is exactly what
+  # service.nix's default resolves to (`cfg.emacsPackage.emacs or ...`, and
+  # theEmacs.emacs IS emacs-pgtk) — so this changes nothing about which Emacs
+  # builds the elisp, while breaking the loop that would otherwise exist
+  # between theEmacs and the option it feeds.
+  ewmPkg = import "${ewm}/nix/default.nix" {
+    pkgs = pkgsEwm;
+    withScreencastSupport = config.programs.ewm.screencast.enable;
+    emacsPackage = pkgs.emacs-pgtk;
+  };
+
   emacsPkgs = import ./emacs/packages.nix { inherit pkgs; };
   # The EWM variant of the emanix Emacs: the shared build (emacs/packages.nix,
-  # which owns the package set and the org pin) plus EWM's own package. The
-  # non-EWM variant is emacs-daemon.nix, which calls the same builder with no
-  # extras — so "sole build" is not this file's claim to make; the two differ
-  # only by what is passed here. Home Manager delivers config only (emacs.nix).
-  # Exposed on the system PATH below so emacsclient is available
-  # (EDITOR/VISUAL point at it via zsh.nix).
+  # which owns the package set) plus EWM's own package. The non-EWM variant is
+  # emacs-daemon.nix, which calls the same builder with no extras — so "sole
+  # build" is not this file's claim to make; the two differ only by what is
+  # passed here. Home Manager delivers config only (emacs.nix). Exposed on the
+  # system PATH below so emacsclient is available (EDITOR/VISUAL point at it
+  # via zsh.nix).
   theEmacs = emacsPkgs.mkEmacs {
-    extraPackages = [ config.programs.ewm.ewmPackage ];
+    extraPackages = [ ewmPkg ];
   };
 in
 {
@@ -50,6 +84,12 @@ in
   programs.ewm = {
     enable = true;
     emacsPackage = theEmacs;
+
+    # Set explicitly so nothing reaches the module's own default, which would
+    # build ewm-core against the unscoped libdisplay-info. Today the default is
+    # only ever an option default and laziness keeps it unbuilt, but that is a
+    # property of service.nix's current internals, not a guarantee.
+    ewmPackage = ewmPkg;
 
     # Point EWM at our Emacs config in the emanix checkout.
     # ~/.config/emacs is populated by home-manager in both liveElisp modes
