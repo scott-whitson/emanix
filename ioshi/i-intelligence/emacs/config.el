@@ -690,7 +690,19 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 
 (defvar emanix/terminal-glyph-substitutions
   '((?⏴ . ?◀) (?⏵ . ?▶) (?⏸ . ?‖) (?⏹ . ?■) (?⏺ . ?●)
-    (?⎿ . ?└) (?✔ . ?✓) (?✘ . ?✗) (?◻ . ?□) (?◼ . ?■))
+    (?⎿ . ?└) (?✔ . ?✓) (?✘ . ?✗) (?◻ . ?□) (?◼ . ?■)
+    ;; Two strays found by measurement 2026-09-01, both outside the ranges
+    ;; below. ✢ is spinner frame 2 in BOTH of Claude Code's frame sets (it
+    ;; picks a different set when TERM=xterm-ghostty, which ghostel sets) and
+    ;; sits at U+2722 — just under the #x2733 range start, so it was the one
+    ;; frame still drawn from DejaVu Sans at a 13px advance against the 9px
+    ;; cell. Cycling through it shoved the line 4px sideways every tick.
+    ;; ※ is the only glyph measured that exceeds the 21px default LINE
+    ;; HEIGHT (22px, Noto Serif) — a vertical grow/shrink, not a width
+    ;; problem, and the one thing reduced-motion cannot fix.
+    ;; Not fixed by widening the range: U+2700-#x273F also contains ✓ and ✗,
+    ;; which carry meaning and must not collapse to an asterisk.
+    (?✢ . ?*) (?※ . ?*))
   "Alist of (WIDE-CHAR . CELL-WIDTH-CHAR) substitutions for terminal buffers.
 Each cdr is verified to render at the default face's cell width.")
 
