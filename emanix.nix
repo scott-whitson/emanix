@@ -49,5 +49,6 @@
   imports = [
     ./ioshi/os-system/base.nix
     ./ioshi/os-system/firstboot.nix
+    ./ioshi/os-system/init.nix
   ];
 }
