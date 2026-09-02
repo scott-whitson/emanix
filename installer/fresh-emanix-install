@@ -43,7 +43,25 @@ while [ "$i" -lt "${#args[@]}" ]; do
   esac
   i=$((i + 1))
 done
-[ -n "$FLAKE_HOST" ] || die "usage: fresh-emanix-install <host> [--disk /dev/X] [--check-only]"
+# A missing host is no longer an error: it means "install a machine this flake
+# has never heard of", which is the only mode a stranger can use. The host
+# argument is still how the existing fleet installs, and that path is
+# untouched below.
+MODE=prestaged
+validate_hostname() {
+  # RFC 1123: lowercase alphanumeric and hyphen, no leading/trailing hyphen,
+  # 1-63 chars. Rejected here rather than by nixos-install, which fails much
+  # later and less clearly.
+  printf '%s' "$1" | grep -qE '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
+}
+
+known_hosts() {
+  # Ask the flake rather than keeping a list here; a list is a thing that
+  # drifts. Failure to evaluate means an unusable repo, so it is fatal.
+  nix eval --raw "$REPO#nixosConfigurations" \
+    --apply 'cfgs: builtins.concatStringsSep " " (builtins.attrNames cfgs)' \
+    2>/dev/null
+}
 
 # --- Locate the repo ----------------------------------------------------------
 resolve_repo() {
@@ -101,6 +119,27 @@ resolve_disk() {
 
 # --- Preflight ----------------------------------------------------------------
 resolve_repo
+
+# known_hosts() is a single failing command under set -e: a bare
+# `KNOWN="$(known_hosts)"` would let a nix-eval failure kill the script right
+# here, before the die below ever runs. `|| true` keeps that failure a normal
+# value (empty $KNOWN) so the intended error message is the one that fires.
+KNOWN="$(known_hosts)" || true
+[ -n "$KNOWN" ] || die "could not enumerate hosts in $REPO — is it a valid flake?"
+
+if [ -z "$FLAKE_HOST" ]; then
+  MODE=interactive
+elif ! printf '%s\n' $KNOWN | grep -qx "$FLAKE_HOST"; then
+  MODE=interactive
+fi
+
+if [ "$MODE" = interactive ]; then
+  if [ -n "$FLAKE_HOST" ] && ! validate_hostname "$FLAKE_HOST"; then
+    die "hostname '$FLAKE_HOST' is not a valid hostname (RFC 1123: lowercase
+letters, digits and hyphens, not starting or ending with a hyphen, 1-63 chars)."
+  fi
+fi
+
 resolve_keys
 resolve_disk
 
