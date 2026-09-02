@@ -67,9 +67,32 @@
 ;;
 ;; Mono variant deliberately: the proportional "Symbols Nerd Font" breaks the
 ;; character grid in a monospace top bar.
-(dolist (range '((#xE000 . #xF8FF)      ; PUA — Powerline, Devicons, Octicons
-                 (#xF0000 . #xFFFFD)))  ; Supplementary PUA-A — Material Design
-  (set-fontset-font t range "Symbols Nerd Font Mono" nil 'prepend))
+;; Applied from the frame hooks, not once at load, because this is a DAEMON.
+;; At startup there is no frame; when one is created the default face's family
+;; set above is realized into a fresh fontset that does NOT carry these
+;; prepends, so a rule applied at load time reaches nothing.
+;;
+;; Measured on rafik 2026-09-02, after a rebuild and reboot: U+F0079 gave
+;; `internal-char-font' => NO FONT and `fontset-font' => (nil . gb18030*-*),
+;; while re-evaluating the IDENTICAL `set-fontset-font' calls in that same live
+;; session resolved it to "Symbols Nerd Font Mono" immediately. The rule was
+;; never wrong; its timing was. Symptom: the top bar's battery and volume
+;; glyphs render as empty boxes after every restart.
+;;
+;; Idempotent, so every call after the first is a no-op.
+(defun emanix/apply-symbol-fontset (&optional _frame)
+  "Wire the Private Use Areas to Symbols Nerd Font Mono.
+Accepts and ignores FRAME so this can sit on `after-make-frame-functions'."
+  (dolist (range '((#xE000 . #xF8FF)      ; PUA — Powerline, Devicons, Octicons
+                   (#xF0000 . #xFFFFD)))  ; Supplementary PUA-A — Material Design
+    (set-fontset-font t range "Symbols Nerd Font Mono" nil 'prepend)))
+
+(emanix/apply-symbol-fontset)
+;; Both hooks on purpose: `after-make-frame-functions' covers a frame the
+;; compositor makes, `server-after-make-frame-hook' covers an emacsclient
+;; frame, and they do not both fire on every build.
+(add-hook 'after-make-frame-functions #'emanix/apply-symbol-fontset)
+(add-hook 'server-after-make-frame-hook #'emanix/apply-symbol-fontset)
 (setq make-backup-files nil
       auto-save-default nil
       create-lockfiles nil

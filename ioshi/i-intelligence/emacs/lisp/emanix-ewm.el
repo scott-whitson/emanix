@@ -21,14 +21,28 @@
 Idempotent; safe to call from init on every start."
   (when (and (executable-find "swayidle")
              (not (process-live-p emanix/ewm--swayidle)))
-    (setq emanix/ewm--swayidle
-          (make-process :name "swayidle"
-                        :command '("swayidle" "-w"
-                                   "before-sleep" "swaylock -f"
-                                   "lock" "swaylock -f")
-                        :noquery t))))
+    (with-demoted-errors "emanix swayidle: %S"
+      (setq emanix/ewm--swayidle
+            (make-process :name "swayidle"
+                          :command '("swayidle" "-w"
+                                     "before-sleep" "swaylock -f"
+                                     "lock" "swaylock -f")
+                          :noquery t)))))
 
+;; Retry ladder, exactly as the touchpad and output appliers below use, and for
+;; the same reason: at load time the compositor is not up yet. `swayidle -w'
+;; connects to WAYLAND_DISPLAY and EXITS when it cannot — "Unable to connect to
+;; the compositor" — so the single load-time call started a process that died
+;; at once, leaving NO lock on lid-close and none on `loginctl lock-session'.
+;;
+;; Measured on rafik 2026-09-02, after a rebuild and reboot: swayidle absent
+;; from the process table entirely, while starting it by hand against the live
+;; compositor worked first time (status=run). The `process-live-p' guard makes
+;; every later rung a no-op once one has taken, and a rung that fires before
+;; the compositor is simply another no-op.
 (emanix/ewm-start-swayidle)
+(dolist (secs '("2 sec" "4 sec" "6 sec" "10 sec" "15 sec"))
+  (run-at-time secs nil #'emanix/ewm-start-swayidle))
 
 ;; Input devices — libinput defaults tap-to-click OFF; setopt (not setq) runs
 ;; the compositor's input refresh. Touchpad only: keyboard xkb options
