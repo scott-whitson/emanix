@@ -79,6 +79,15 @@ pkgs.runCommand "emanix-welcome-keys" { } ''
   #    A trailing comment on a real binding (checked: none of config.el's,
   #    fallback.el's, or emanix-arc.el's C-* bindings has one today) would
   #    still match, since only a line *starting* as a comment is excluded.
+  #
+  #    KNOWN RESIDUAL GAP, left deliberately rather than papered over: a real
+  #    code line whose OWN trailing comment happens to contain a complete
+  #    binding shape -- e.g. `(setq x t) ;; (global-set-key (kbd "C-c t") ...)`
+  #    -- still matches, because the grep pattern has no notion of where a
+  #    line's code ends and its trailing comment begins. Nothing in this tree
+  #    does this today. Narrowing further would need parsing, not grep; if
+  #    this ever needs closing, that is the point at which it stops being
+  #    cheap.
   keys=$(grep -oE 'C-[a-z] [a-z?]' "$welcome" | sort -u)
 
   # An empty extraction is a guard that has stopped seeing its subject, not a

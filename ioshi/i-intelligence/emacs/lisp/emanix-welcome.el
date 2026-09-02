@@ -24,8 +24,13 @@
         (expand-file-name "flake" (or (getenv "HOME") "~"))
         "/etc/nixos")
   "Directories to search, in order, for this machine's config repo.
-The first one containing a `flake.nix' wins.  Nil entries are ignored, so an
-unset environment variable costs nothing."
+The first one holding both a `flake.nix' and a `.git' wins -- \"config repo\"
+means what \"repo\" means.  /etc/nixos is in this list unconditionally because
+`emanix-init's whole job is to turn it into a git repo elsewhere; while it is
+still un-git-inited (always true on a fresh interactive install, which always
+populates /etc/nixos/flake.nix) it correctly reads as not-yours-yet, and a
+hand-`git init'ed /etc/nixos is still detected.  Nil entries are ignored, so
+an unset environment variable costs nothing."
   :type '(repeat (choice string (const nil))))
 
 (defun emanix-welcome--dismissed-file ()
@@ -37,12 +42,18 @@ unset environment variable costs nothing."
     (expand-file-name "emanix/welcome-dismissed" base)))
 
 (defun emanix-welcome--config-repo (&optional candidates)
-  "Return the first directory in CANDIDATES holding a `flake.nix', or nil.
-CANDIDATES defaults to `emanix-welcome-repo-candidates'."
+  "Return the first directory in CANDIDATES that is a config repo, or nil.
+A candidate counts only when it holds BOTH a `flake.nix' and a `.git' --
+requiring only `flake.nix' let /etc/nixos (which an interactive install
+always populates with one) read as a config repo before `emanix-init' ever
+ran, hiding the buffer's own \"create a config repo\" hint on exactly the
+machines it exists for.  CANDIDATES defaults to
+`emanix-welcome-repo-candidates'."
   (seq-find (lambda (dir)
               (and dir
                    (file-directory-p dir)
-                   (file-exists-p (expand-file-name "flake.nix" dir))))
+                   (file-exists-p (expand-file-name "flake.nix" dir))
+                   (file-directory-p (expand-file-name ".git" dir))))
             (delq nil (or candidates emanix-welcome-repo-candidates))))
 
 (defvar-keymap emanix-welcome-mode-map

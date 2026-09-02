@@ -37,6 +37,11 @@
       # distro). Read from elisp too, so it must be a session variable and
       # not merely a PATH entry.
       EMANIX_BIN_DIR = config.emanix.src.binDir;
+      # The consumer's own checkout (e.g. ~/dotfiles) — emanix-welcome.el
+      # reads this to find the config repo. Unexported until now, so
+      # rafik/whistle/datacore all fell through to /etc/nixos (or nothing),
+      # and the welcome buffer wrongly reported "no config repo yet".
+      EMANIX_DOTFILES = config.emanix.src.dotfilesPath;
       # Interactive convenience only — nothing in the repo reads it.
       EMANIX_ROLE = config.emanix.role;
     };
@@ -120,12 +125,14 @@
     '';
   };
 
-  # The same three paths, exported to the SYSTEMD USER MANAGER as well as the
+  # The same four paths, exported to the SYSTEMD USER MANAGER as well as the
   # shell. A systemd user service does not start from a login shell, so
   # programs.zsh.sessionVariables above never reaches one — and the Emacs
   # daemon is exactly such a service. Without this, elisp that resolves
   # $EMANIX_BIN_DIR (the calendar-sync binding, the pi fallback, the EWM
-  # firefox slot) gets an empty string and expands to a bare relative path.
+  # firefox slot) gets an empty string and expands to a bare relative path —
+  # and emanix-welcome.el's $EMANIX_DOTFILES read (see the matching entry
+  # above) would go the same way for a daemon-only session.
   #
   # emanix-pi.el's fallback documents the daemon as its reason for existing,
   # so the daemon is the case that must work, not the one that may be missed.
@@ -139,5 +146,6 @@
     EMANIX = config.emanix.src.path;
     EMANIX_THEMES_DIR = config.emanix.src.themesDir;
     EMANIX_BIN_DIR = config.emanix.src.binDir;
+    EMANIX_DOTFILES = config.emanix.src.dotfilesPath;
   };
 }
