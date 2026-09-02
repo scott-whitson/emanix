@@ -7,8 +7,8 @@
 # declares `emanix` as a github input, which the build sandbox cannot fetch.
 # The modules are evaluated against THIS tree instead, which is the thing that
 # actually drifts.
-# NOTE (deviations from the task-1 brief, both required to make this
-# evaluate — see task-1-report.md):
+# NOTE (deviations required to make this evaluate, from what a naive
+# transcription of templates/default/flake.nix's module list would do):
 #
 # 1. mkHost's own module list never includes disko.nixosModules.disko — the
 #    distro's role checks never set disko.devices, so they never needed it.
@@ -46,6 +46,14 @@ pkgs.runCommand "emanix-template-host" { } ''
           disko.nixosModules.disko
           (import ../templates/default/disko.nix { host = fixture; })
           (import ../templates/default/configuration.nix)
+          # The template's OWN flake.nix includes this too (as
+          # emanix.nixosModules.ewm) -- omitting it here would mean this
+          # check exercises a smaller module set than the template actually
+          # ships, and never evaluates the compositor a real generated host
+          # gets. `ewm` (the flake input) reaches this module via mkHost's
+          # own specialArgs, same as every other consumer of
+          # emanix.nixosModules.ewm.
+          (import ../ioshi/i-intelligence/ewm.nix)
         ];
         homeModules = [{ }];
       }).config.system.build.toplevel.drvPath
