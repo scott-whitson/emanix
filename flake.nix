@@ -190,6 +190,10 @@
           # The template a stranger's machine is built from, evaluated on every
           # flake check. See checks/template-host.nix.
           template-host = import ./checks/template-host.nix { inherit pkgs mkHost disko; };
+
+          # The welcome buffer's claims, checked against the bindings that
+          # back them. See checks/welcome-keys.nix.
+          welcome-keys = import ./checks/welcome-keys.nix { inherit pkgs; };
         };
 
       # Builder dev shell.
