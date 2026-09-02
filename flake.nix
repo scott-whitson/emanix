@@ -102,6 +102,11 @@
         installer = import ./installer/iso.nix;
       };
 
+      templates.default = {
+        path = ./templates/default;
+        description = "An emanix host: one host.nix, a parameterized disk layout, and the distribution";
+      };
+
       # The host composer, parameterized: { hostName, role, username, hardware, extraModules }
       lib = { inherit mkHost; };
 
@@ -181,6 +186,10 @@
           palette-contrast = pkgs.runCommand "emanix-palette-contrast" { } ''
             ${pkgs.python3}/bin/python3 ${./tests/contrast-check.py} < ${palettesJson} > $out
           '';
+
+          # The template a stranger's machine is built from, evaluated on every
+          # flake check. See checks/template-host.nix.
+          template-host = import ./checks/template-host.nix { inherit pkgs mkHost disko; };
         };
 
       # Builder dev shell.
