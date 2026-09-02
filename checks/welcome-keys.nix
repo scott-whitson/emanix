@@ -41,6 +41,13 @@ pkgs.runCommand "emanix-welcome-keys" { } ''
   #    have been checked. This pattern matches any `C-<letter> <char>' pair
   #    regardless of quoting or prefix letter.
   #
+  #    Reach of this pattern: it only extracts a single lowercase prefix key
+  #    ([a-z]) followed by exactly one lowercase-or-`?' second token. A future
+  #    row using a digit, an uppercase letter, or a chord like `C-c C-i' will
+  #    NOT be extracted at all, and this guard will not see it. Widen the
+  #    pattern (and re-run the fail/pass drill below) before trusting it on
+  #    such a row.
+  #
   #    `C-c i' is genuinely bound, but only in emanix-arc.el (guarded behind
   #    `(featurep 'arc)'), not in config.el or fallback.el -- so arc.el is
   #    checked too, alongside the two files the brief named.
@@ -52,15 +59,40 @@ pkgs.runCommand "emanix-welcome-keys" { } ''
   #    `i' or `j' matches almost anywhere), so that form of the loop passes
   #    no matter what the buffer advertises -- verified: it let a deliberately
   #    wrong "C-c j" through. Reading keys line-by-line keeps each one whole.
+  #
+  #    Membership itself was also too weak: `grep -qF "$key"' matches the key
+  #    string anywhere in the file, including comment prose that mentions a
+  #    key without binding it (e.g. config.el's own "C-u C-c t = new
+  #    terminal" and "C-c z toggles back to raw monospace" remarks). Deleting
+  #    the real `(global-set-key (kbd "C-c t") ...)' line left such a comment
+  #    behind and the check kept passing -- verified. A key now has to appear
+  #    inside an actual binding call, not merely somewhere in the file.
+  keys=$(grep -oE 'C-[a-z] [a-z?]' "$welcome" | sort -u)
+
+  # An empty extraction is a guard that has stopped seeing its subject, not a
+  # clean bill of health -- if the buffer's render format ever changes so
+  # this pattern matches nothing, the loop below must not be allowed to pass
+  # by iterating zero times.
+  if [ -z "$keys" ]; then
+    echo "emanix-welcome.el: no C-* keys were extracted from the buffer text; the extraction pattern no longer matches this file's format" >&2
+    exit 1
+  fi
+
   fails=0
   while IFS= read -r key; do
     [ -n "$key" ] || continue
-    if ! grep -qF "$key" "$config" && ! grep -qF "$key" "$fallback" \
-       && ! grep -qF "$key" "$arc"; then
-      echo "emanix-welcome.el advertises '$key' but nothing in config.el, fallback.el, or emanix-arc.el binds it" >&2
+    bound=0
+    for src in "$config" "$fallback" "$arc"; do
+      if grep -qE '(global-set-key|keymap-global-set|keymap-set|define-key|bind-key)[^"]*"'"$key"'"' "$src"; then
+        bound=1
+        break
+      fi
+    done
+    if [ "$bound" -eq 0 ]; then
+      echo "emanix-welcome.el advertises '$key' but no binding form in config.el, fallback.el, or emanix-arc.el sets it" >&2
       fails=1
     fi
-  done < <(grep -oE 'C-[a-z] [a-z?]' "$welcome" | sort -u)
+  done <<< "$keys"
   [ "$fails" -eq 0 ] || exit 1
 
   # 4. The buffer must still name the site. It is the only manual there is, and
