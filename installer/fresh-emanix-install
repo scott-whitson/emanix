@@ -417,14 +417,26 @@ read -rp "Type 'yes' to wipe $DISK and install $FLAKE_HOST: " ok
 # disko, once for nixos-install -- would let each call resolve its own
 # independent lock: disko could partition against one nixpkgs/emanix/disko
 # revision and nixos-install then build against a DIFFERENT one resolved
-# minutes later. Generating once and copying the resulting, now-locked tree
-# forward (after disko's mount, below) is what keeps both steps pinned to
-# identical inputs.
+# minutes later. Generating once and locking it explicitly, below, before
+# disko ever runs, is what keeps both steps pinned to identical inputs.
 FLAKE_REF="$REPO#$FLAKE_HOST"
 GEN_STAGE="/tmp/emanix-generated"
 if [ "$MODE" = interactive ]; then
   FLAKE_REF="$GEN_STAGE#$FLAKE_HOST"
   write_generated_flake "$GEN_STAGE"
+
+  # Fix (review round 2, finding 1): locked explicitly and up front, rather
+  # than assumed as a side effect of disko's own evaluation. `nix flake lock`
+  # resolves INPUTS only -- it does not evaluate outputs -- so the missing
+  # hardware-configuration.nix (still just the '{ }' stub at this point)
+  # does not obstruct it. This also means an unreachable input or a broken
+  # template surfaces here, before the disk is touched, rather than as a
+  # build failure partway through disko or nixos-install.
+  say "Locking the generated flake's inputs"
+  nix flake lock "$GEN_STAGE" ||
+    die "could not lock $GEN_STAGE (nix flake lock failed) -- an unreachable
+input or a broken templates/default. Fix this before anything touches the
+disk."
 fi
 
 say "Partitioning + formatting with disko"
@@ -446,17 +458,22 @@ if [ "$MODE" = interactive ]; then
   rm -f /mnt/etc/ssh/ssh_host_ed25519_key /mnt/etc/ssh/ssh_host_ed25519_key.pub
   ssh-keygen -q -t ed25519 -N "" -C "$FLAKE_HOST" -f /mnt/etc/ssh/ssh_host_ed25519_key
 
-  # Copy the ALREADY-EVALUATED tree forward rather than regenerating it: the
-  # disko run above just resolved templates/default's unpinned inputs into
-  # $GEN_STAGE/flake.lock, and carrying that lock file forward is what keeps
-  # nixos-install building against the exact revisions disko just
-  # partitioned against, instead of re-resolving (and possibly drifting).
+  # Copy the ALREADY-LOCKED tree forward rather than regenerating it: `nix
+  # flake lock` above produced $GEN_STAGE/flake.lock, and carrying that file
+  # forward is what keeps nixos-install building against the exact revisions
+  # disko just partitioned against, instead of re-resolving (and possibly
+  # drifting).
   install -d -m 755 /mnt/etc/nixos
   cp -r "$GEN_STAGE/." /mnt/etc/nixos/
+  # Fix (review round 2, finding 1): this no longer hopes disko produced a
+  # lock as a side effect -- it confirms the copy carried the one `nix flake
+  # lock` deliberately made above. Failing here would mean the copy itself
+  # went wrong, not that locking was skipped.
   [ -s /mnt/etc/nixos/flake.lock ] ||
-    die "disko's evaluation of $GEN_STAGE did not produce a flake.lock --
-refusing to install unpinned. Something upstream of write_generated_flake
-changed; do not proceed without finding out why."
+    die "the copy from $GEN_STAGE to /mnt/etc/nixos did not carry a
+flake.lock, even though nix flake lock succeeded against $GEN_STAGE above --
+refusing to install unpinned. Something is wrong with the copy step; do not
+proceed without finding out why."
   FLAKE_REF="/mnt/etc/nixos#$FLAKE_HOST"
 
   # Only now generate hardware-configuration.nix -- overwriting the stub --
