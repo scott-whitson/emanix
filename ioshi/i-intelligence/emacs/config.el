@@ -808,6 +808,14 @@ Each cdr is verified to render at the default face's cell width.")
 ;; chat model, R reindex, c cancel a reindex.
 (require 'emanix-arc nil :no-error)
 
+;; Orientation buffer, shown once per machine. `nil :no-error' like its
+;; neighbours: a fault here must not cost the desktop.
+(require 'emanix-welcome nil :no-error)
+(when (fboundp 'emanix-welcome-maybe-show)
+  (add-hook 'emacs-startup-hook #'emanix-welcome-maybe-show))
+(when (fboundp 'emanix-welcome)
+  (global-set-key (kbd "C-c ?") #'emanix-welcome))
+
 ;; EWM-only session glue (swayidle/swaylock + touchpad) — no-op elsewhere.
 ;; EWM is loaded via `emacs --eval (require 'ewm)' which runs AFTER this init
 ;; file, so `(featurep 'ewm)' is still nil here: a plain `when' guard skips
