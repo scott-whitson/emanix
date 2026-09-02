@@ -23,8 +23,18 @@ check() { # description, expected-exit, actual-exit
 #    --check-only still exits non-zero when its preflight is unsatisfiable
 #    off-target (no UEFI, no staged key). What matters is that it reports a
 #    PREFLIGHT failure, not an unknown-host one.
-out="$("$SCRIPT" checkhost --check-only 2>&1)"; rc=$?
-check "known-host --check-only reaches the preflight" 1 "$rc"
+#
+#    Fixture choice: this MUST be a name that actually appears in
+#    `nixosConfigurations` (i.e. `nix eval .#nixosConfigurations --apply
+#    builtins.attrNames`), or the assertion silently tests the interactive
+#    branch instead of the pre-staged one it claims to guard. `installer` is
+#    the one real nixosConfigurations output in this repo, so it is used
+#    here. Do NOT use `checkhost` — that string is only a `hostName` value
+#    passed to `mkHost` inside checks/'s `evalRole`; it is not a flake
+#    output and will never appear in `known_hosts()`. --check-only never
+#    touches a disk, so naming a non-installable config costs nothing.
+out="$("$SCRIPT" installer --check-only 2>&1)"; rc=$?
+check "known-host (installer) --check-only reaches the preflight, i.e. takes the pre-staged path" 1 "$rc"
 if grep -q "check-only: missing:" <<<"$out"; then
   printf '  ok   known-host prints the preflight checklist\n'
 else
