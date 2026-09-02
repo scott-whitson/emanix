@@ -67,6 +67,18 @@ pkgs.runCommand "emanix-welcome-keys" { } ''
   #    the real `(global-set-key (kbd "C-c t") ...)' line left such a comment
   #    behind and the check kept passing -- verified. A key now has to appear
   #    inside an actual binding call, not merely somewhere in the file.
+  #
+  #    That binding-form pattern alone still let a *commented-out* binding
+  #    satisfy the check, e.g. `;; (global-set-key (kbd "C-c t") #'ghostel)':
+  #    the pattern has no start-of-line anchor, so the function name and the
+  #    quoted key merely have to co-occur on a line with no intervening `"',
+  #    which a `;;'-prefixed copy of a real line still does -- verified.
+  #    Commenting a binding out is the likeliest way one of these actually
+  #    disappears, more likely than deleting the line outright, so lines
+  #    whose first non-blank character is `;' are dropped before matching.
+  #    A trailing comment on a real binding (checked: none of config.el's,
+  #    fallback.el's, or emanix-arc.el's C-* bindings has one today) would
+  #    still match, since only a line *starting* as a comment is excluded.
   keys=$(grep -oE 'C-[a-z] [a-z?]' "$welcome" | sort -u)
 
   # An empty extraction is a guard that has stopped seeing its subject, not a
@@ -83,13 +95,14 @@ pkgs.runCommand "emanix-welcome-keys" { } ''
     [ -n "$key" ] || continue
     bound=0
     for src in "$config" "$fallback" "$arc"; do
-      if grep -qE '(global-set-key|keymap-global-set|keymap-set|define-key|bind-key)[^"]*"'"$key"'"' "$src"; then
+      if grep -vE '^[[:space:]]*;' "$src" \
+         | grep -qE '(global-set-key|keymap-global-set|keymap-set|define-key|bind-key)[^"]*"'"$key"'"'; then
         bound=1
         break
       fi
     done
     if [ "$bound" -eq 0 ]; then
-      echo "emanix-welcome.el advertises '$key' but no binding form in config.el, fallback.el, or emanix-arc.el sets it" >&2
+      echo "emanix-welcome.el advertises '$key' but no live binding form in config.el, fallback.el, or emanix-arc.el sets it" >&2
       fails=1
     fi
   done <<< "$keys"
