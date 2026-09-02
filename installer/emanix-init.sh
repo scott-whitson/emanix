@@ -44,7 +44,13 @@ EOF
 # The machine already has a host key -- the installer generated it. Publishing
 # the public half here is what lets secrets be encrypted TO this machine later.
 if [ -f /etc/ssh/ssh_host_ed25519_key.pub ]; then
-  host="$(nix eval --raw --file "$DEST/host.nix" hostName 2>/dev/null || echo host)"
+  # A silent `|| echo host` fallback here would mis-name the key file as
+  # host_host_ed25519.pub whenever `nix eval` fails, instead of saying so --
+  # and a mis-named recipient file is exactly the kind of thing that only
+  # surfaces much later, as agenix failing to decrypt. Die and say why.
+  host="$(nix eval --raw --file "$DEST/host.nix" hostName 2>/dev/null)" ||
+    die "could not read hostName from $DEST/host.nix (nix eval failed) --
+refusing to guess a name for the key file."
   cp /etc/ssh/ssh_host_ed25519_key.pub "$DEST/keys/${host}_host_ed25519.pub"
   say "Recorded this host's public key as keys/${host}_host_ed25519.pub"
 fi

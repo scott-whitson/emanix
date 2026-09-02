@@ -122,6 +122,22 @@ resolve_disk() {
 # needs the host to exist in one. So this writes the minimum to boot, from
 # templates/default, and emanix-init later adopts it into a real repo.
 interactive_prompts() {
+  # emanix.installer.flake can legitimately be a CONSUMING flake (the fleet's
+  # own, staged for the pre-staged path) with no templates/ directory at
+  # all -- interactive mode only ever needed one because write_generated_flake
+  # later does a bare `cp -r "$REPO/templates/default/."`. Checked here,
+  # before any prompt, so a repo with no template dies before the user
+  # answers a single question -- not after they have already typed 'yes' to
+  # wipe a disk and this same gap surfaces as a raw `cp` error with the disk
+  # already destroyed.
+  [ -d "$REPO/templates/default" ] ||
+    die "this installer's flake ($REPO) carries no templates/default -- it
+looks like a consuming flake staged for known hosts only, not one that can
+generate a new one. Interactive mode (no host argument, or a hostname this
+flake has never heard of) needs a flake with a templates/default, such as
+emanix's own. Re-run with a known host name instead, or point EMANIX_REPO at
+a flake that ships templates/default."
+
   if [ -z "$FLAKE_HOST" ]; then
     while :; do
       read -rp "Hostname for this machine: " FLAKE_HOST
@@ -283,6 +299,21 @@ CHECK_NET=n
 CHECK_DISK=n
 SB_STATUS="off"
 
+# Interactive mode installs a host this flake has never heard of: its key is
+# generated fresh during the (destructive) install below, not staged, so
+# there is nothing to verify against a recipient. This has to be set HERE,
+# before the --check-only branch below runs its own $FAILED aggregation --
+# setting it only after that branch returns (as the interactive_prompts
+# block further down used to) left CHECK_KEYS=n from the defaults above in
+# effect for --check-only, which always reported "missing: keys" even
+# though nothing was truly missing. That made --check-only -- the one
+# non-destructive command a stranger has, and the one the ISO's own
+# /etc/issue advertises -- always fail on exactly the installs it exists to
+# preview.
+if [ "$MODE" = interactive ]; then
+  CHECK_KEYS=y
+fi
+
 [ -f "$REPO/flake.nix" ] && CHECK_REPO=y
 
 # Host key fingerprint. Source of truth pre-Part-II: the agenix recipient in
@@ -337,7 +368,12 @@ if ping -c1 -W4 cache.nixos.org >/dev/null 2>&1; then CHECK_NET=y; fi
 [ -n "$DISK" ] && [ -b "$DISK" ] && CHECK_DISK=y
 
 print_checklist() {
-  printf '\n\033[1;36memanix installer preflight — %s\033[0m\n' "$FLAKE_HOST"
+  # FLAKE_HOST is still empty here when --check-only was run with no
+  # argument at all (interactive_prompts, which asks for one, only runs in
+  # the destructive path below) -- print something meaningful instead of a
+  # blank where the hostname belongs.
+  printf '\n\033[1;36memanix installer preflight — %s\033[0m\n' \
+    "${FLAKE_HOST:-a new host (hostname not chosen yet)}"
   printf '  repo        %s %s\n' "$([ "$CHECK_REPO" = y ] && echo ✓ || echo ✗)" "$REPO"
   if [ "$MODE" = interactive ] && [ "$CHECK_KEYS" = y ]; then
     printf '  keys        %s generated fresh during install (new host, no secrets to decrypt)\n' ✓
@@ -370,11 +406,10 @@ fi
 
 if [ "$MODE" = interactive ]; then
   interactive_prompts
-  # A new host has no secrets to decrypt (its key is generated fresh below,
-  # not staged) and interactive_prompts already established network
-  # connectivity itself (or died trying) -- neither gates an interactive
-  # install the way it gates the pre-staged path.
-  CHECK_KEYS=y
+  # CHECK_KEYS=y was already set above (before the --check-only branch).
+  # interactive_prompts already established network connectivity itself (or
+  # died trying), which does not gate an interactive install the way it
+  # gates the pre-staged path.
   CHECK_NET=y
   FAILED=""
   [ "$CHECK_REPO" = y ] || FAILED="$FAILED repo"
@@ -479,7 +514,20 @@ proceed without finding out why."
   # Only now generate hardware-configuration.nix -- overwriting the stub --
   # since /mnt is finally the real target, not the live ISO's own overlay.
   # A local file changing after the lock above is fine; it is not an input.
-  nixos-generate-config --show-hardware-config --root /mnt \
+  #
+  # --no-filesystems: without it, nixos-generate-config emits `fileSystems`
+  # AND `swapDevices` entries for the disks it finds already mounted at
+  # /mnt -- i.e. the ones disko just partitioned and mounted moments ago --
+  # at normal priority. disko.nix (via templates/default/disko.nix) already
+  # defines both from the SAME mounts, so nixos-install then fails with
+  # "The option `fileSystems."/".device' has conflicting definition
+  # values", after the disk has already been wiped. One flag suppresses
+  # both kinds of entry (nixos-generate-config's own --help: "Omit file
+  # systems (in particular the ones for / and /boot) and swap devices from
+  # the hardware configuration"), so no separate swapDevices handling is
+  # needed even though the template's disko.nix can add a swap partition --
+  # --no-filesystems already covers it.
+  nixos-generate-config --show-hardware-config --no-filesystems --root /mnt \
     > /mnt/etc/nixos/hardware-configuration.nix
 else
   say "Injecting the $FLAKE_HOST host key (so agenix decrypts on first boot)"
