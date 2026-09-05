@@ -357,5 +357,107 @@ else
   fails=$((fails + 1))
 fi
 
+# --- copy_staged_flake must stage a CHECKOUT, not a symlink ------------------
+# Every assertion about copy_staged_flake above is a grep, and every one of
+# them stayed green while the function was completely broken, because nothing
+# ever executed it. On the ISO $REPO is /etc/emanix/flake, and NixOS renders a
+# directory-source /etc entry as a SYMLINK to /etc/static/emanix/flake (the
+# same shape as /etc/dbus-1). `[ -d ]` follows it and passes, `cp -a` implies
+# -d and does not, so ~/dotfiles became a symlink to a path that does not exist
+# on the installed system -- dangling, and "existing" enough that every later
+# guard skipped it. So: RUN the function.
+#
+# Extracted by brace depth rather than `sed -n '/^name()/,/^}/p'`: that range
+# never closes on a one-liner and keeps consuming to the next brace at column
+# 0 (it already over-captures validate_username above). Written to a real file
+# rather than sourced from a process substitution, so BASH_SOURCE[0] inside the
+# function resolves to something realpath can follow.
+extract_fn() { # name, file
+  awk -v fn="$1" '
+    !d && index($0, fn "() {") == 1 { d = 1; print; next }
+    d {
+      print
+      t = $0; o = gsub(/[{]/, "", t)
+      t = $0; c = gsub(/[}]/, "", t)
+      d += o - c
+      if (d <= 0) exit
+    }
+  ' "$2"
+}
+
+csf_dir="$(mktemp -d)"
+# The store-mode fixture below is deliberately unwritable; make it removable
+# again or the tmpdir leaks.
+trap 'rm -rf "$stubdir"; chmod -R u+w "$csf_dir" 2>/dev/null; rm -rf "$csf_dir"' EXIT
+
+extract_fn copy_staged_flake "$SCRIPT" > "$csf_dir/csf.sh"
+if [ "$(grep -c . "$csf_dir/csf.sh")" -ge 10 ] && [ "$(tail -1 "$csf_dir/csf.sh")" = "}" ]; then
+  echo "ok   copy_staged_flake extracts cleanly (brace-balanced, not over-captured)"
+else
+  echo "FAIL could not extract copy_staged_flake out of $SCRIPT"
+  fails=$((fails + 1))
+fi
+
+# nixos-enter does not exist off-target, and the chown it runs is not what is
+# under test here.
+printf '#!/bin/sh\nexit 0\n' > "$stubdir/nixos-enter"
+chmod +x "$stubdir/nixos-enter"
+
+# The staged tree exactly as the ISO presents it: a nix-store-mode directory
+# (dr-xr-xr-x / -r--r--r--) reached through a symlink.
+mkdir -p "$csf_dir/store/emanix-flake/hosts"
+echo '{ }'   > "$csf_dir/store/emanix-flake/flake.nix"
+echo 'marker' > "$csf_dir/store/emanix-flake/hosts/README"
+chmod -R a-w "$csf_dir/store/emanix-flake"
+ln -s store/emanix-flake "$csf_dir/etc-emanix-flake"
+
+mkdir -p "$csf_dir/target/home/testuser"
+chmod 700 "$csf_dir/target/home/testuser"
+(
+  # shellcheck disable=SC1090  # the "source" IS the thing under test
+  . "$csf_dir/csf.sh"
+  say()  { :; }
+  warn() { printf 'WARN %s\n' "$*"; }
+  REPO="$csf_dir/etc-emanix-flake"
+  EMANIX_TARGET_ROOT="$csf_dir/target"
+  copy_staged_flake testuser
+) > "$csf_dir/out.log" 2>&1
+
+csf_dest="$csf_dir/target/home/testuser/dotfiles"
+if [ -L "$csf_dest" ]; then
+  printf '  FAIL copy_staged_flake staged a SYMLINK (-> %s), not a checkout\n' \
+    "$(readlink "$csf_dest")"
+  fails=$((fails + 1))
+elif [ -d "$csf_dest" ] && [ -f "$csf_dest/flake.nix" ] &&
+     [ "$(cat "$csf_dest/hosts/README" 2>/dev/null)" = marker ]; then
+  printf '  ok   copy_staged_flake dereferences a symlinked $REPO into a real checkout\n'
+else
+  printf '  FAIL copy_staged_flake produced no readable checkout at %s:\n%s\n' \
+    "$csf_dest" "$(cat "$csf_dir/out.log")"
+  fails=$((fails + 1))
+fi
+
+# A store tree copies as r-xr-xr-x / r--r--r--, and `cp -a src/.` puts the
+# SOURCE directory's mode on the destination too -- so install -d's 755 does
+# not survive. Without the chmod the account cannot edit its own dotfiles or
+# `git pull`. write_generated_flake already does this after its own store
+# copy; this function used not to.
+if [ -w "$csf_dest" ] && [ -w "$csf_dest/flake.nix" ]; then
+  printf '  ok   the staged checkout is writable by its owner\n'
+else
+  printf '  FAIL the staged checkout is read-only -- store modes survived the copy\n'
+  fails=$((fails + 1))
+fi
+
+# ...and the account's HOME must not be re-chmodded as a side effect of
+# creating a directory inside it.
+if [ "$(stat -c '%a' "$csf_dir/target/home/testuser")" = 700 ]; then
+  printf '  ok   staging does not widen the account home directory\n'
+else
+  printf '  FAIL staging changed the home directory mode to %s\n' \
+    "$(stat -c '%a' "$csf_dir/target/home/testuser")"
+  fails=$((fails + 1))
+fi
+
 [ "$fails" -eq 0 ] && { echo "installer-modes: all good."; exit 0; }
 echo "installer-modes: $fails failure(s)."; exit 1

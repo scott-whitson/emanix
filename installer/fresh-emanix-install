@@ -373,7 +373,10 @@ installing anything with it."
 # history comes with it if the staged copy has any, and if it does not, the
 # user replaces it with a real clone once they have keys.
 copy_staged_flake() {
-  local dest="/mnt/home/$1/dotfiles"
+  # ${EMANIX_TARGET_ROOT:-/mnt} rather than a bare /mnt so this function can be
+  # sourced out and exercised against a fixture. Nothing in the installer sets
+  # it; the default IS the production path.
+  local dest="${EMANIX_TARGET_ROOT:-/mnt}/home/$1/dotfiles"
   [ -d "$REPO" ] || return 0
 
   # resolve_repo's "script's parent" fallback can point $REPO at the emanix
@@ -397,15 +400,35 @@ copy_staged_flake() {
   # the dangling case too.
   { [ -e "$dest" ] || [ -L "$dest" ]; } &&
     { warn "$dest already exists — leaving it alone."; return 0; }
-  say "Copying the flake into ${dest#/mnt}"
-  # No install -d on dirname "$dest" here: that is /mnt/home/$1, the account's
-  # HOME DIRECTORY, which nixos-install already created. install -d re-chmods
-  # an existing directory to -m's mode regardless of what NixOS gave it, so
-  # that line would silently widen the new account's home to 755 as a side
-  # effect of what reads like a harmless no-op. If the home is somehow
-  # missing, cp -a below fails loudly instead -- which is what should happen,
-  # rather than this function inventing a home directory of its own.
-  cp -a "$REPO" "$dest"
+  say "Copying the flake into ${dest#"${EMANIX_TARGET_ROOT:-/mnt}"}"
+  # install -d names $dest ITSELF -- the new directory -- never dirname
+  # "$dest", which is /mnt/home/$1, the account's HOME DIRECTORY that
+  # nixos-install already created. install -d re-chmods an existing directory
+  # to -m's mode regardless of what NixOS gave it, so a line naming the parent
+  # would silently widen the new account's home to 755 as a side effect of
+  # what reads like a harmless no-op.
+  #
+  # `cp -aL "$REPO/."`, NOT `cp -a "$REPO"`. On the ISO $REPO is
+  # /etc/emanix/flake, and NixOS renders a directory-source /etc entry as a
+  # SYMLINK (/etc/emanix/flake -> /etc/static/emanix/flake), exactly like
+  # /etc/dbus-1. `[ -d "$REPO" ]` follows it and passes; `cp -a` implies -d and
+  # never dereferences, so it would reproduce the SYMLINK at $dest -- pointing
+  # at /etc/static/emanix/flake, a path that does not exist on the INSTALLED
+  # system. The result is a dangling ~/dotfiles: EMANIX_BIN_DIR still broken,
+  # liveElisp's ~/.config/emacs still dangling, and -- worst of it -- ~/dotfiles
+  # now "exists", so both the guard above and the deferred emanix-firstboot
+  # clone skip it forever. `chown -R` over a dangling symlink even exits 0, so
+  # the warning below would never fire either: silent, total failure of the
+  # one thing this function exists to do.
+  #
+  # chmod -R u+w for the same reason write_generated_flake does it after its
+  # own copy: a staged tree comes from the nix store, which is dr-xr-xr-x /
+  # -r--r--r--, so the user could not edit their own dotfiles or `git pull`.
+  # It is not optional here -- cp -aL puts the SOURCE directory's mode on
+  # $dest as well, so install -d's 755 does not survive the copy.
+  install -d -m 755 "$dest"
+  cp -aL "$REPO/." "$dest/"
+  chmod -R u+w "$dest"
   # The account does not exist on THIS system, only in the chroot, so chown by
   # name inside it (nixos-install already created the account there).
   # Non-fatal -- the machine IS installed at this point, and aborting the
@@ -413,8 +436,8 @@ copy_staged_flake() {
   # fix -- but it must not fail SILENTLY: an operator who never sees this
   # would be left with a checkout owned by root and no dotfiles they can
   # write, no reboot warning of why.
-  if ! nixos-enter --root /mnt -c "chown -R '$1':users '/home/$1/dotfiles'"; then
-    warn "could not chown ${dest#/mnt} to $1:users -- it is left owned by
+  if ! nixos-enter --root "${EMANIX_TARGET_ROOT:-/mnt}" -c "chown -R '$1':users '/home/$1/dotfiles'"; then
+    warn "could not chown ${dest#"${EMANIX_TARGET_ROOT:-/mnt}"} to $1:users -- it is left owned by
 root, and $1 cannot write their own dotfiles checkout until this is fixed.
 Log in and run: sudo chown -R $1:users ~/dotfiles"
   fi
