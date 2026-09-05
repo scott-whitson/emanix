@@ -576,7 +576,7 @@ does-it-contain test."
 In `flake.nix`, after the `nixos-wsl` input, add:
 
 ```nix
-    # The machine database — 421 per-model modules. Carried by the
+    # The machine database — over 400 per-model modules. Carried by the
     # DISTRIBUTION rather than by each consumer: which tuning a ThinkPad needs
     # is not a personal fact, and a consumer that has to add this input itself
     # cannot use the template's `hardwareModule` field at all.
