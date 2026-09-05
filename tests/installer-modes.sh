@@ -413,6 +413,7 @@ ln -s store/emanix-flake "$csf_dir/etc-emanix-flake"
 
 mkdir -p "$csf_dir/target/home/testuser"
 chmod 700 "$csf_dir/target/home/testuser"
+# shellcheck disable=SC1091,SC2034,SC2329  # all four are read by the sourced function
 (
   # shellcheck disable=SC1090  # the "source" IS the thing under test
   . "$csf_dir/csf.sh"
@@ -458,6 +459,49 @@ else
     "$(stat -c '%a' "$csf_dir/target/home/testuser")"
   fails=$((fails + 1))
 fi
+
+# ...and the distro-itself guard must fire for the case that actually SHIPS.
+# The guard used to compare $REPO against the tree this script was run out of,
+# which only ever catches a maintainer running from a clone -- on an ISO the
+# script is in /nix/store/.../bin and that comparison can never match. Yet
+# installer/iso.nix defaults emanix.installer.flake to `../.`, the distro
+# itself, and interactive mode requires a flake carrying templates/default,
+# which only the distro has. The stock-ISO interactive install is therefore
+# exactly where $REPO IS the distro. Detection is by CONTENT for that reason,
+# and this asserts the shipped shape, not the maintainer one.
+mkdir -p "$csf_dir/distro/templates/default" "$csf_dir/distro/lib" \
+         "$csf_dir/distro/installer" "$csf_dir/target2/home/testuser"
+echo '{ }' > "$csf_dir/distro/flake.nix"
+echo '{ }' > "$csf_dir/distro/templates/default/flake.nix"
+echo '{ }' > "$csf_dir/distro/lib/disk.nix"
+echo '#!/usr/bin/env bash' > "$csf_dir/distro/installer/fresh-emanix-install"
+# shellcheck disable=SC1091,SC2034,SC2329  # all four are read by the sourced function
+(
+  # shellcheck disable=SC1090  # the "source" IS the thing under test
+  . "$csf_dir/csf.sh"
+  say()  { :; }
+  warn() { printf 'WARN %s\n' "$*"; }
+  REPO="$csf_dir/distro"
+  EMANIX_TARGET_ROOT="$csf_dir/target2"
+  copy_staged_flake testuser
+) > "$csf_dir/out2.log" 2>&1
+
+if [ -e "$csf_dir/target2/home/testuser/dotfiles" ] ||
+   [ -L "$csf_dir/target2/home/testuser/dotfiles" ]; then
+  printf '  FAIL a distro-shaped $REPO was staged into ~/dotfiles anyway\n'
+  fails=$((fails + 1))
+elif grep -qi 'distro itself' "$csf_dir/out2.log"; then
+  printf '  ok   a distro-shaped $REPO is detected by content and skipped, with a reason\n'
+else
+  printf '  FAIL distro-shaped $REPO was skipped without saying why:\n%s\n' \
+    "$(cat "$csf_dir/out2.log")"
+  fails=$((fails + 1))
+fi
+
+# The converse: a CONSUMING flake (no templates/default) must still be staged.
+# That is asserted by the symlink fixture above, whose tree carries no
+# templates/ at all and does get copied -- if the content check ever widened
+# into "any flake", that assertion goes red rather than this one.
 
 [ "$fails" -eq 0 ] && { echo "installer-modes: all good."; exit 0; }
 echo "installer-modes: $fails failure(s)."; exit 1

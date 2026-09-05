@@ -379,16 +379,34 @@ copy_staged_flake() {
   local dest="${EMANIX_TARGET_ROOT:-/mnt}/home/$1/dotfiles"
   [ -d "$REPO" ] || return 0
 
-  # resolve_repo's "script's parent" fallback can point $REPO at the emanix
-  # distro's OWN checkout (a maintainer running this script straight out of a
-  # clone, with no ISO staging at all) rather than at a consuming flake. That
-  # repo builds the installer, it does not consume it, and it has no
+  # $REPO can be the emanix distro's OWN tree rather than a consuming flake.
+  # That repo BUILDS the installer, it does not consume it, and it holds no
   # dotfiles for any user -- copying it into $dest would silently plant the
-  # distro's own source tree where a personal config belongs. Detect that
-  # case the same way resolve_repo derived it, and skip.
-  local self_repo
-  self_repo="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
-  if [ "$(realpath "$REPO" 2>/dev/null)" = "$(realpath "$self_repo" 2>/dev/null)" ]; then
+  # distro's source tree where a personal config belongs.
+  #
+  # Detected by CONTENT first, because provenance misses the case that
+  # actually ships. The realpath comparison below only fires for a maintainer
+  # running this script straight out of a clone: on an ISO the script lives in
+  # /nix/store/.../bin, so $self_repo is a store path that can never equal
+  # $REPO. But installer/iso.nix declares emanix.installer.flake with a
+  # default of `../.` -- the distro itself -- and interactive mode REQUIRES a
+  # flake carrying templates/default, which in practice only the distro has.
+  # So the stock-ISO interactive install, the only mode a stranger can use, is
+  # precisely where $REPO IS the distro, and it walked straight past a
+  # provenance check.
+  #
+  # templates/default alone is not enough (a consuming flake could ship
+  # templates of its own), so it must be paired with a file only the tree that
+  # BUILDS this installer has. The realpath check is kept as well: it costs
+  # nothing and still catches a distro clone whose layout has drifted.
+  local self_repo repo_rp self_rp
+  self_repo="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}" 2>/dev/null)")")"
+  repo_rp="$(realpath "$REPO" 2>/dev/null || true)"
+  self_rp="$(realpath "$self_repo" 2>/dev/null || true)"
+  if { [ -d "$REPO/templates/default" ] &&
+       { [ -f "$REPO/lib/disk.nix" ] ||
+         [ -f "$REPO/installer/fresh-emanix-install" ]; }; } ||
+     { [ -n "$repo_rp" ] && [ "$repo_rp" = "$self_rp" ]; }; then
     warn "$REPO is the emanix distro itself, not a consuming flake -- nothing to stage into $dest."
     return 0
   fi
