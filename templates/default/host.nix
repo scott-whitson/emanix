@@ -9,4 +9,18 @@
   luks = false;
   filesystem = "btrfs";
   swapSize = "0";
+
+  # Graphics driver to force-load in the initrd. The installer asks and sets
+  # this; null is correct for a headless or virtualised host. A graphical host
+  # with the wrong value here boots to a black screen, because a compositor
+  # started from tty1 loses the DRM-master race — see emanix's
+  # ioshi/hi-hardware/gpu.nix.
+  gpu = null;
+
+  # OPTIONAL. The name of a nixos-hardware module for this exact machine, e.g.
+  # "lenovo-thinkpad-t14-amd-gen5". Leave null unless you know yours: emanix
+  # does not guess, because nixos-hardware's names are not a convention and
+  # guessing wrong before a disk is wiped is worse than not guessing. Browse
+  # https://github.com/NixOS/nixos-hardware for the list.
+  hardwareModule = null;
 }

@@ -31,6 +31,8 @@ let
     luks = false;
     filesystem = "btrfs";
     swapSize = "0";
+    gpu = "amd";
+    hardwareModule = null;
   };
 in
 pkgs.runCommand "emanix-template-host" { } ''
@@ -44,7 +46,10 @@ pkgs.runCommand "emanix-template-host" { } ''
         hardware = { boot.loader.grub.enable = false; };
         extraModules = [
           disko.nixosModules.disko
-          (import ../templates/default/disko.nix { host = fixture; })
+          (import ../lib/disk.nix {
+            inherit (fixture) device luks filesystem swapSize;
+          })
+          { emanix.hardware.gpu = fixture.gpu; }
           (import ../templates/default/configuration.nix)
           # The template's OWN flake.nix includes this too (as
           # emanix.nixosModules.ewm) -- omitting it here would mean this

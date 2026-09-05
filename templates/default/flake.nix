@@ -26,10 +26,17 @@
         hardware = ./hardware-configuration.nix;
         extraModules = [
           disko.nixosModules.disko
-          (import ./disko.nix { inherit host; })
+          (emanix.lib.mkDisk {
+            inherit (host) device luks filesystem swapSize;
+          })
+          { emanix.hardware.gpu = host.gpu; }
           ./configuration.nix
           emanix.nixosModules.ewm
-        ];
+        ]
+        # Optional per-model tuning, only when host.nix names a module. The
+        # input comes from emanix so this file needs no input of its own.
+        ++ nixpkgs.lib.optional (host.hardwareModule != null)
+          emanix.inputs.nixos-hardware.nixosModules.${host.hardwareModule};
       };
     };
 }
