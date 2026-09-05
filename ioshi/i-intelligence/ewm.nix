@@ -128,7 +128,7 @@ in
     loginShellInit = ''
       if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
         if [ -e "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap" ]; then
-          echo "EWM flapped — normal shell (rm \"''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap\" and log out to re-arm)"
+          echo "EWM flapped ($(cat "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap" 2>/dev/null)) — normal shell (rm \"''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap\" and log out to re-arm)"
         else
           # One EWM per boot-session: a stale daemon holds DRM master and
           # starves every new launch. NB: the nix wrapper truncates comm to
@@ -150,14 +150,29 @@ in
           # instead of hanging the login. Once seen, import session env vars
           # into systemd so user services (xdg-desktop-portal, etc.) inherit
           # DISPLAY/WAYLAND_DISPLAY.
+          _ewm_started=0
           for _ in $(seq 1 30); do
-            pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1 && break
+            pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1 && { _ewm_started=1; break; }
             sleep 1
           done
           systemctl --user import-environment WAYLAND_DISPLAY DISPLAY 2>/dev/null || true
-          while pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1; do sleep 3; done
-          if [ $(( $(date +%s) - _t0 )) -lt 15 ]; then
-            touch "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap"   # died fast — next login gets a shell
+          if [ "$_ewm_started" = 0 ]; then
+            # The daemon never showed up inside the 30s poll above -- that IS
+            # the failure this marker exists to record. Elapsed time is the
+            # wrong signal here (the poll's own worst-case duration already
+            # exceeds the 15s threshold below), so write the marker
+            # unconditionally instead of trying to infer this case from a
+            # stopwatch. Distinct wording so tty1 tells this apart from a
+            # daemon that came up and died quickly.
+            echo "daemon never started (30s poll timed out)" > "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap"
+          else
+            # Daemon appeared at least once — the elapsed-time check is still
+            # the right instrument for "came up and died quickly", so keep it
+            # exactly as it was.
+            while pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1; do sleep 3; done
+            if [ $(( $(date +%s) - _t0 )) -lt 15 ]; then
+              echo "daemon started then died within 15s" > "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap"   # died fast — next login gets a shell
+            fi
           fi
           exit 0                   # end session; autologin relaunches
         fi
