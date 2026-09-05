@@ -71,5 +71,39 @@ else
   fails=$((fails + 1))
 fi
 
+# --- Graphics prompt ----------------------------------------------------------
+# The GPU answer reaches a Nix string literal in a heredoc, exactly like
+# SWAPSIZE, and exactly like SWAPSIZE it is validated at the prompt. An
+# unvalidated value here produces a host.nix that does not parse, on a code
+# path that has already committed to wiping a disk.
+if grep -q 'validate_gpu' "$SCRIPT"; then
+  echo "ok   installer validates the graphics answer"
+else
+  echo "FAIL installer has no validate_gpu"
+  fails=$((fails + 1))
+fi
+
+# null is a Nix keyword, not a string: `gpu = "null";` would typecheck as a
+# string and fail the enum at eval, long after the disk is gone. The script
+# writes `gpu = ${gpu_nix};`, so assert on how gpu_nix is BUILT -- grepping for
+# a literal `gpu = null;` would search for a string the script never contains
+# and fail unconditionally.
+if grep -q 'gpu_nix="null"' "$SCRIPT"; then
+  echo "ok   installer writes bare null, not the string \"null\""
+else
+  echo "FAIL installer does not emit a bare null for gpu"
+  fails=$((fails + 1))
+fi
+
+# lspci only picks the DEFAULT. If the script can reach a disk-wiping path
+# without the user having seen the question, the distinction between asking
+# and guessing has been lost.
+if grep -q 'read -rp "Graphics' "$SCRIPT"; then
+  echo "ok   graphics is asked, not merely detected"
+else
+  echo "FAIL graphics is not presented as a question"
+  fails=$((fails + 1))
+fi
+
 [ "$fails" -eq 0 ] && { echo "installer-modes: all good."; exit 0; }
 echo "installer-modes: $fails failure(s)."; exit 1
