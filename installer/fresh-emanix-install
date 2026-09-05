@@ -465,7 +465,7 @@ copy_staged_flake() {
   # would silently widen the new account's home to 755 as a side effect of
   # what reads like a harmless no-op.
   #
-  # `cp -aL "$REPO/."`, NOT `cp -a "$REPO"`. On the ISO $REPO is
+  # `cp -a "$REPO/."`, NOT `cp -a "$REPO"`. On the ISO $REPO is
   # /etc/emanix/flake, and NixOS renders a directory-source /etc entry as a
   # SYMLINK (/etc/emanix/flake -> /etc/static/emanix/flake), exactly like
   # /etc/dbus-1. `[ -d "$REPO" ]` follows it and passes; `cp -a` implies -d and
@@ -478,13 +478,21 @@ copy_staged_flake() {
   # the warning below would never fire either: silent, total failure of the
   # one thing this function exists to do.
   #
+  # The trailing `/.` is what forces that top-level dereference. -L is
+  # deliberately NOT used: it would also follow every symlink INSIDE the staged
+  # tree and abort the whole copy on any dangling one -- an unfiltered working
+  # tree (EMANIX_REPO, a USB mount) carries a gitignored `result` whose store
+  # path does not exist here, and the abort lands AFTER nixos-install has
+  # succeeded, leaving a partial root-owned ~/dotfiles that "exists" and is
+  # therefore skipped forever. That is F1's own signature all over again.
+  #
   # chmod -R u+w for the same reason write_generated_flake does it after its
   # own copy: a staged tree comes from the nix store, which is dr-xr-xr-x /
   # -r--r--r--, so the user could not edit their own dotfiles or `git pull`.
-  # It is not optional here -- cp -aL puts the SOURCE directory's mode on
+  # It is not optional here -- cp -a puts the SOURCE directory's mode on
   # $dest as well, so install -d's 755 does not survive the copy.
   install -d -m 755 "$dest"
-  cp -aL "$REPO/." "$dest/"
+  cp -a "$REPO/." "$dest/"
   chmod -R u+w "$dest"
   # The account does not exist on THIS system, only in the chroot, so chown by
   # name inside it (nixos-install already created the account there).
