@@ -147,9 +147,10 @@ in
           # sleep there reads a healthy (but slow) start as a flap, writes the
           # marker, and leaves the desktop shell-only until someone finds and
           # deletes it by hand. Bounded so a genuine crash-loop still times out
-          # instead of hanging the login. Once seen, import session env vars
-          # into systemd so user services (xdg-desktop-portal, etc.) inherit
-          # DISPLAY/WAYLAND_DISPLAY.
+          # instead of hanging the login. Import session env vars into systemd
+          # unconditionally (whether or not the daemon ever appeared — a no-op
+          # ignored by `|| true` if it didn't) so user services
+          # (xdg-desktop-portal, etc.) inherit DISPLAY/WAYLAND_DISPLAY.
           _ewm_started=0
           for _ in $(seq 1 30); do
             pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1 && { _ewm_started=1; break; }

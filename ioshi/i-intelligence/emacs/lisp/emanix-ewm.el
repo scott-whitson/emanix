@@ -138,9 +138,12 @@ The trade-off, stated plainly: live processes (vterm shells, running agents)
 are terminated without a prompt.  Anything unsaved that is NOT a file buffer
 is lost.  That is the intended bargain for a deliberate restart.
 
-Recovery: if the relaunch dies within 15s the login hook touches
-/tmp/.ewm-flap and the next login drops to a plain shell instead of looping.
-Remove that file and log out to re-arm."
+Recovery: the login hook writes a marker to
+$XDG_RUNTIME_DIR/ewm-flap (falling back to /run/user/$(id -u)) when either
+the daemon never starts within its poll window, or it starts but dies
+within 15s.  Either way the next login drops to a plain shell instead of
+looping.  The marker's contents say which of the two happened — read it
+with `cat', then remove the file and log out to re-arm."
   (interactive)
   (when (yes-or-no-p "Restart EWM — save file buffers and end the session? ")
     (save-some-buffers t)
