@@ -16,6 +16,25 @@
 # Spec: docs/superpowers/specs/2026-08-15-emanix-installer-iso-design.md
 set -euo pipefail
 
+# Same figlet `slant' art as the scratch buffer's banner
+# (ioshi/i-intelligence/emacs/config.el) so the installer and the desktop
+# introduce themselves with one face. Pasted, not shelled out: figlet is not on
+# the ISO and this must not depend on it. Regenerate with:
+#   nix run nixpkgs#figlet -- -f slant Emanix
+# Quoted heredoc, so the backslashes and backticks in the art stay literal.
+banner() {
+  printf '\033[1;36m'
+  cat <<'FIGLET'
+    ______                      _
+   / ____/___ ___  ____ _____  (_)  __
+  / __/ / __ `__ \/ __ `/ __ \/ / |/_/
+ / /___/ / / / / / /_/ / / / / />  <
+/_____/_/ /_/ /_/\__,_/_/ /_/_/_/|_|
+FIGLET
+  printf '\033[0m'
+  printf '  Emacs is the desktop.  https://emanix.net\n'
+}
+
 say()  { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
 # Numbered variant for the stages of an install. A long compile at stage 5 of 7
 # reads as progress; the same compile with no denominator reads as a hang.
@@ -528,6 +547,7 @@ Log in and run: sudo chown -R $1:users ~/dotfiles"
 }
 
 # --- Preflight ----------------------------------------------------------------
+banner
 resolve_repo
 
 # known_hosts() is a single failing command under set -e: a bare
