@@ -71,6 +71,34 @@ else
   fails=$((fails + 1))
 fi
 
+# --- Fresh-host bootstrap ----------------------------------------------------
+# liveElisp defaults true, so ~/.config/emacs symlinks into a checkout. Nothing
+# created that checkout, so a fresh host booted to a dangling Emacs config and
+# an absent bin/ on PATH. The ISO already stages the consuming flake -- copying
+# it needs no network, key or credential.
+if grep -q '^copy_staged_flake() {' "$SCRIPT"; then
+  echo "ok   installer defines copy_staged_flake to stage a consumer checkout"
+else
+  echo "FAIL installer does not define copy_staged_flake"
+  fails=$((fails + 1))
+fi
+# Match the CALL site, not the definition: a call is the name followed by a
+# space and a quoted argument; the definition line is `copy_staged_flake() {`
+# -- name immediately followed by `(`, no space, no argument.
+if grep -qE 'copy_staged_flake "' "$SCRIPT"; then
+  echo "ok   copy_staged_flake is called, not merely defined"
+else
+  echo "FAIL copy_staged_flake is defined but never called"
+  fails=$((fails + 1))
+fi
+# grep -qx treats the hostname as a regex: 'rafi.' matches 'rafik'.
+if grep -q 'grep -qxF' "$SCRIPT"; then
+  echo "ok   host matching is fixed-string"
+else
+  echo "FAIL host matching uses a regex, not a fixed string"
+  fails=$((fails + 1))
+fi
+
 # --- Graphics prompt ----------------------------------------------------------
 # These were three greps, in a file whose other tests execute the script. A
 # grep for `validate_gpu` matches the function DEFINITION, so deleting the CALL

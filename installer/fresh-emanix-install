@@ -360,6 +360,45 @@ has drifted from what this installer expects; fix the template before
 installing anything with it."
 }
 
+# Put the flake this machine was installed FROM into the new user's home.
+#
+# liveElisp (emanix.src.liveElisp, default true) makes ~/.config/emacs a set of
+# out-of-store symlinks into a checkout, and EMANIX_BIN_DIR puts the consumer's
+# bin/ on PATH. Nothing else creates either, so before this a freshly installed
+# host booted to a dangling Emacs config and a PATH entry pointing at nothing.
+#
+# The ISO already stages the consuming repo at /etc/emanix/flake -- it is what
+# this install was built from -- so this needs no network, no SSH key and no
+# credential on a machine that has none yet. It is a copy, not a clone: git
+# history comes with it if the staged copy has any, and if it does not, the
+# user replaces it with a real clone once they have keys.
+copy_staged_flake() {
+  local dest="/mnt/home/$1/dotfiles"
+  [ -d "$REPO" ] || return 0
+
+  # resolve_repo's "script's parent" fallback can point $REPO at the emanix
+  # distro's OWN checkout (a maintainer running this script straight out of a
+  # clone, with no ISO staging at all) rather than at a consuming flake. That
+  # repo builds the installer, it does not consume it, and it has no
+  # dotfiles for any user -- copying it into $dest would silently plant the
+  # distro's own source tree where a personal config belongs. Detect that
+  # case the same way resolve_repo derived it, and skip.
+  local self_repo
+  self_repo="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
+  if [ "$(realpath "$REPO" 2>/dev/null)" = "$(realpath "$self_repo" 2>/dev/null)" ]; then
+    warn "$REPO is the emanix distro itself, not a consuming flake -- nothing to stage into $dest."
+    return 0
+  fi
+
+  [ -e "$dest" ] && { warn "$dest already exists — leaving it alone."; return 0; }
+  say "Copying the flake into ${dest#/mnt}"
+  install -d -m 755 "$(dirname "$dest")"
+  cp -a "$REPO" "$dest"
+  # The account does not exist on THIS system, only in the chroot, so chown by
+  # the numeric ids nixos-install just created rather than by name.
+  nixos-enter --root /mnt -c "chown -R '$1':users '/home/$1/dotfiles'" || true
+}
+
 # --- Preflight ----------------------------------------------------------------
 resolve_repo
 
@@ -370,9 +409,13 @@ resolve_repo
 KNOWN="$(known_hosts)" || true
 [ -n "$KNOWN" ] || die "could not enumerate hosts in $REPO — is it a valid flake?"
 
+# $KNOWN is a space-separated list from known_hosts(); read it into an array
+# so testing membership below needs no unquoted (word-splitting) expansion.
+read -ra KNOWN_ARR <<<"$KNOWN"
+
 if [ -z "$FLAKE_HOST" ]; then
   MODE=interactive
-elif ! printf '%s\n' $KNOWN | grep -qx "$FLAKE_HOST"; then
+elif ! printf '%s\n' "${KNOWN_ARR[@]}" | grep -qxF "$FLAKE_HOST"; then
   MODE=interactive
 fi
 
@@ -702,6 +745,7 @@ say "Set a password for $USERNAME"
 nixos-enter --root /mnt -c "passwd '$USERNAME'"
 
 say "$FLAKE_HOST installed."
+copy_staged_flake "$USERNAME"
 # Anything that still touches the mounted target (e.g. copying a directory
 # into the installed system) belongs ABOVE this line -- once INSTALL_OK is set,
 # a failure past this point no longer unmounts /mnt for a retry.
