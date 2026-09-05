@@ -518,8 +518,9 @@ proceed without finding out why."
   # --no-filesystems: without it, nixos-generate-config emits `fileSystems`
   # AND `swapDevices` entries for the disks it finds already mounted at
   # /mnt -- i.e. the ones disko just partitioned and mounted moments ago --
-  # at normal priority. disko.nix (via templates/default/disko.nix) already
-  # defines both from the SAME mounts, so nixos-install then fails with
+  # at normal priority. disko.nix (via emanix.lib.mkDisk, emanix's
+  # lib/disk.nix) already defines both from the SAME mounts, so
+  # nixos-install then fails with
   # "The option `fileSystems."/".device' has conflicting definition
   # values", after the disk has already been wiped. One flag suppresses
   # both kinds of entry (nixos-generate-config's own --help: "Omit file

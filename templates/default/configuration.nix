@@ -33,8 +33,9 @@
   # decision and not the distribution's.
   # services.getty.autologinUser = "youruser";
 
-  # disko lays out an EF00 ESP at /boot (templates/default/disko.nix) and the
-  # installer warns when Secure Boot is on that systemd-boot is unsigned — so
+  # disko lays out an EF00 ESP at /boot (via emanix.lib.mkDisk, emanix's
+  # lib/disk.nix) and the installer warns when Secure Boot is on that
+  # systemd-boot is unsigned — so
   # systemd-boot, not grub, is the loader a generated host actually gets.
   # Neither emanix nor the template set a bootloader anywhere else; without
   # this a generated host fails NixOS's own assertion ("You must set the
