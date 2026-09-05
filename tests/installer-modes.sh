@@ -520,5 +520,78 @@ fi
 # templates/ at all and does get copied -- if the content check ever widened
 # into "any flake", that assertion goes red rather than this one.
 
+# --- passwd must be RETRIED, not run once ------------------------------------
+# The empty-username guard asserted above closes the path INTO passwd. This
+# closes its outcome: the account is created under --no-root-password, so root
+# is locked, and a passwd that fails (mismatched confirmations, Ctrl-D, a
+# chroot problem) used to abort the whole run under set -e and leave a machine
+# whose only account has no password -- the same end state, through a different
+# door. Behavioural, not a grep: the block is extracted and driven against a
+# stub nixos-enter that fails a controlled number of times.
+sed -n '/^say "Set a password/,/^done$/p' "$SCRIPT" > "$csf_dir/passwd-block.sh"
+pw_extracted=0
+if grep -q 'passwd_tries' "$csf_dir/passwd-block.sh" &&
+   [ "$(tail -1 "$csf_dir/passwd-block.sh")" = "done" ]; then
+  pw_extracted=1
+  echo "ok   the passwd block extracts cleanly and is a loop"
+else
+  echo "FAIL passwd is still a single un-retried command (or could not be extracted)"
+  fails=$((fails + 1))
+fi
+
+# GATED on a clean extraction, and not merely for tidiness: if the block ever
+# stops ending in `done`, the sed range above runs to EOF and drags in the tail
+# of the installer -- including its `reboot`. The harness stubs reboot as well,
+# but a range that did not close is not something to execute at all.
+pw_harness="$csf_dir/passwd-harness.sh"
+{
+  echo 'set -euo pipefail'
+  echo 'say()  { :; }'
+  echo 'warn() { printf "WARN %s\n" "$*"; }'
+  echo 'die()  { printf "DIE %s\n" "$*"; exit 1; }'
+  echo 'USERNAME=testuser; FLAKE_HOST=testbox; n=0'
+  # Shadows the real nixos-enter: fails until the n-th call.
+  echo 'nixos-enter() { n=$((n + 1)); [ "$n" -ge "$SUCCEED_ON" ]; }'
+  echo 'reboot() { printf "REFUSED-REBOOT\n"; exit 90; }'
+  cat "$csf_dir/passwd-block.sh"
+  echo 'printf "SURVIVED attempts=%s\n" "$n"'
+} > "$pw_harness"
+
+pw_out=""; pw_rc=0
+[ "$pw_extracted" = 1 ] && { pw_out="$(SUCCEED_ON=1 bash "$pw_harness" 2>&1)"; pw_rc=$?; }
+if [ "$pw_extracted" = 1 ] && [ "$pw_rc" = 0 ] && grep -q 'SURVIVED attempts=1' <<<"$pw_out" &&
+   ! grep -q WARN <<<"$pw_out"; then
+  echo "  ok   passwd succeeding first time neither warns nor re-prompts"
+else
+  printf '  FAIL passwd first-time success misbehaves (rc %s):\n%s\n' "$pw_rc" "$pw_out"
+  fails=$((fails + 1))
+fi
+
+pw_out=""; pw_rc=0
+[ "$pw_extracted" = 1 ] && { pw_out="$(SUCCEED_ON=2 bash "$pw_harness" 2>&1)"; pw_rc=$?; }
+if [ "$pw_extracted" = 1 ] && [ "$pw_rc" = 0 ] && grep -q 'SURVIVED attempts=2' <<<"$pw_out"; then
+  echo "  ok   a failed passwd re-prompts instead of aborting an installed machine"
+else
+  printf '  FAIL a failed passwd still aborts the install (rc %s):\n%s\n' "$pw_rc" "$pw_out"
+  fails=$((fails + 1))
+fi
+
+# ...and it must be BOUNDED, with recovery instructions rather than the generic
+# trap message: an unattended console that keeps failing has to stop and say
+# something the operator can act on.
+pw_out=""; pw_rc=0
+[ "$pw_extracted" = 1 ] && { pw_out="$(SUCCEED_ON=99 bash "$pw_harness" 2>&1)"; pw_rc=$?; }
+if [ "$pw_extracted" = 1 ] && [ "$pw_rc" = 1 ] && grep -q 'SURVIVED' <<<"$pw_out"; then
+  echo "  FAIL passwd retries are unbounded"
+  fails=$((fails + 1))
+elif [ "$pw_extracted" = 1 ] && [ "$pw_rc" = 1 ] && grep -q 'IS INSTALLED' <<<"$pw_out" &&
+     grep -q 'nixos-enter --root /mnt -c' <<<"$pw_out"; then
+  echo "  ok   passwd gives up bounded, and names the machine installed plus the repair command"
+else
+  printf '  FAIL exhausted passwd retries gave no actionable recovery (rc %s):\n%s\n' \
+    "$pw_rc" "$pw_out"
+  fails=$((fails + 1))
+fi
+
 [ "$fails" -eq 0 ] && { echo "installer-modes: all good."; exit 0; }
 echo "installer-modes: $fails failure(s)."; exit 1

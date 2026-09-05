@@ -846,8 +846,33 @@ validate_username "$USERNAME" ||
 An empty or malformed name here would set ROOT's password in the chroot while
 the real account stays passwordless."
 
+# Retried, not run once. The empty-username guard above closed the path INTO
+# passwd; this closes its OUTCOME. The account was created under
+# --no-root-password, so root is locked -- if passwd itself fails (mismatched
+# confirmations, Ctrl-D, a chroot problem) set -e aborts and the machine boots
+# with a passwordless account and no root login. That is the same end state the
+# guard above exists to prevent, reached through a different door. Every other
+# user-input step in this file re-prompts; this one did not.
+#
+# Bounded at 3: an unattended console that keeps failing must eventually stop
+# and say something actionable rather than loop forever, and the generic trap
+# message is not actionable for this.
 say "Set a password for $USERNAME"
-nixos-enter --root /mnt -c "passwd '$USERNAME'"
+passwd_tries=0
+until nixos-enter --root /mnt -c "passwd '$USERNAME'"; do
+  passwd_tries=$((passwd_tries + 1))
+  if [ "$passwd_tries" -ge 3 ]; then
+    die "could not set a password for $USERNAME after $passwd_tries attempts.
+$FLAKE_HOST IS INSTALLED — do NOT re-run this installer, it would repartition a
+working machine. But the account has NO password and root is locked (the system
+was installed with --no-root-password), so nothing can log in yet.
+/mnt is about to be unmounted. To fix this without reinstalling: mount the
+target again from this ISO (disko --mode mount against this host's flake, or
+mount the root filesystem by hand), then run
+  nixos-enter --root /mnt -c \"passwd '$USERNAME'\""
+  fi
+  warn "passwd failed — attempt $passwd_tries of 3. Trying again."
+done
 
 say "$FLAKE_HOST installed."
 copy_staged_flake "$USERNAME"
