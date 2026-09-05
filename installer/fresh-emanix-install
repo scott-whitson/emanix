@@ -20,6 +20,26 @@ say()  { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mWARNING:\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
+# Leave the disk retryable. disko mounts /mnt and opens LUKS as `cryptroot`
+# before nixos-install runs; if that build fails, an untrapped exit leaves both
+# in place -- and the NEXT run cannot recover, because resolve_disk skips any
+# device with mounted partitions, so the target becomes invisible and the run
+# dies at "preflight failed: disk". The first failure makes the second attempt
+# impossible, which is the worst property an installer can have.
+#
+# Suppressed on success: some flows reboot from a mounted /mnt, and a trap that
+# fires on the happy path is its own bug.
+INSTALL_OK=0
+cleanup_target() {
+  [ "$INSTALL_OK" -eq 1 ] && return 0
+  # Nothing mounted means nothing to do -- a preflight abort must stay silent.
+  mountpoint -q /mnt 2>/dev/null || return 0
+  warn "install did not complete — unmounting /mnt so a retry can see the disk."
+  umount -R /mnt 2>/dev/null || true
+  cryptsetup close cryptroot 2>/dev/null || true
+}
+trap cleanup_target EXIT
+
 # --- Args: [host] [--disk /dev/X | positional] [--check-only] ----------------
 FLAKE_HOST=""
 DISK=""
@@ -682,6 +702,10 @@ say "Set a password for $USERNAME"
 nixos-enter --root /mnt -c "passwd '$USERNAME'"
 
 say "$FLAKE_HOST installed."
+# Anything that still touches the mounted target (e.g. copying a directory
+# into the installed system) belongs ABOVE this line -- once INSTALL_OK is set,
+# a failure past this point no longer unmounts /mnt for a retry.
+INSTALL_OK=1
 echo "After reboot (remove the USB), log in and run:  emanix-firstboot"
 [ "$MODE" = interactive ] &&
   echo "Then run emanix-init to turn /etc/nixos into a git repo you own."

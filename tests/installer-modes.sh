@@ -301,5 +301,33 @@ else
   fails=$((fails + 1))
 fi
 
+# --- Failure cleanup ---------------------------------------------------------
+# Without this, a failed nixos-install leaves /mnt mounted and cryptroot open,
+# and resolve_disk then SKIPS the target (it skips devices with mounted
+# partitions) -- so the retry dies at "preflight failed: disk". The first run's
+# failure makes the second impossible.
+if grep -q "^trap .* EXIT" "$SCRIPT"; then
+  echo "ok   installer has an EXIT trap"
+else
+  echo "FAIL installer has no EXIT trap"
+  fails=$((fails + 1))
+fi
+for needle in 'umount' 'cryptsetup close'; do
+  if grep -q "$needle" "$SCRIPT"; then
+    echo "ok   cleanup performs: $needle"
+  else
+    echo "FAIL cleanup does not perform: $needle"
+    fails=$((fails + 1))
+  fi
+done
+# It must NOT unmount on success -- the caller reboots from a mounted /mnt in
+# some flows, and a trap that fires on the happy path is its own bug.
+if grep -q 'INSTALL_OK' "$SCRIPT"; then
+  echo "ok   cleanup is suppressed on success"
+else
+  echo "FAIL cleanup has no success guard"
+  fails=$((fails + 1))
+fi
+
 [ "$fails" -eq 0 ] && { echo "installer-modes: all good."; exit 0; }
 echo "installer-modes: $fails failure(s)."; exit 1
