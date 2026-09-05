@@ -76,18 +76,18 @@ input and its `follows` entry. emanix does not re-wrap the 421 modules under a
 namespace of its own — that would be a second name for each machine, free to
 drift from upstream's.
 
-**3. A DMI probe, installer-side.** A NixOS evaluation cannot read the target's
-`/sys`, so this runs during install and writes its answer into the generated
-config.
-
-**4. `lib/disk.nix`** — `templates/default/disko.nix` promoted, gaining
+**3. `lib/disk.nix`** — `templates/default/disko.nix` promoted, gaining
 `extraSubvolumes`. Exported as `lib.mkDisk`.
 
-## The probe is not load-bearing
+## Why there is no hardware auto-detection
 
-Measured, not assumed. `nixos-hardware` at `dc3f0cf` exports 421 modules and
-contains no DMI machinery anywhere (no reference to `sys_vendor`,
-`product_family` or `dmi/id`). Its naming is not a convention:
+Hardware discovery is `nixos-generate-config`, exactly as it is generic-kernel-
+plus-udev for Debian. emanix adds no detection layer of its own. This was
+measured before it was decided.
+
+`nixos-hardware` at `dc3f0cf` exports 421 modules and contains no DMI machinery
+anywhere — no reference to `sys_vendor`, `product_family` or `dmi/id`. Its
+naming is not a convention:
 
 | Machine | Module name | Pattern |
 | --- | --- | --- |
@@ -97,50 +97,27 @@ contains no DMI machinery anywhere (no reference to `sys_vendor`,
 | X1 Carbon Gen 9 | *(absent under that name)* | — |
 
 rafik's own DMI cannot name rafik's module: `product_family` is
-`ThinkPad T14 Gen 5`, with no "amd" anywhere in DMI, while both `-amd-gen5`
-and `-intel-gen6` variants exist upstream. CPU vendor must be read separately
-from `/proc/cpuinfo`.
+`ThinkPad T14 Gen 5`, with no "amd" anywhere in DMI, while both `-amd-gen5` and
+`-intel-gen6` variants exist upstream.
 
-A prototype generating candidate names from `sys_vendor` + `product_family` +
+A prototype generating candidates from `sys_vendor` + `product_family` +
 `product_name` + CPU vendor, tested for membership against the real 421 names,
-resolved **2 of 6** realistic machines (rafik and a Dell XPS 13 9310). No
-normalization derives `framework-13-7040-amd` from
-`Laptop 13 (AMD Ryzen 7040Series)`.
+resolved **2 of 6** realistic machines. No normalization derives
+`framework-13-7040-amd` from `Laptop 13 (AMD Ryzen 7040Series)`. A detector that
+is wrong more often than it is right, on a step that precedes wiping a disk, is
+worse than no detector: it invites a user to accept a guess they cannot check.
 
-Therefore: `nixos-generate-config` is what makes install-anywhere work, exactly
-as generic-kernel-plus-udev is for Debian. The probe is a bonus that fires when
-it fires, an empty result is a normal outcome rather than a failure, and the
-manual override is co-equal with it rather than an escape hatch. The installer
-shows its guess and invites correction, the way Debian shows the disk it picked.
+**One detection survives, and it is a different kind.** `emanix.hardware.gpu`
+cannot come from `nixos-generate-config`, which writes
+`boot.initrd.availableKernelModules` (modules permitted in the initrd) and never
+`boot.initrd.kernelModules` (modules forced to load). The EWM race needs the
+forced form. So the installer asks:
 
-## Install flow
+    Graphics [amd/intel/none] (amd):
 
-**New machine (interactive).** Existing prompts unchanged; one new step between
-the disk questions and disko:
-
-    ==> Hardware
-      This machine:  LENOVO / ThinkPad T14 Gen 5 / AMD
-      Matched:       lenovo-thinkpad-t14-amd-gen5
-      [Enter] accept   [type a name] override   [none] skip
-      Graphics:      amd   (from lspci)
-
-Both answers land in `host.nix`, which remains the one file describing the
-machine:
-
-    {
-      hostName = "…"; device = "…"; luks = true;
-      filesystem = "btrfs"; swapSize = "0";
-      hardwareModule = "lenovo-thinkpad-t14-amd-gen5";  # or null
-      gpu = "amd";                                       # or "intel", or null
-    }
-
-**Known host (prestaged).** Unchanged. The host declares everything; nothing is
-probed.
-
-rafik's reinstall takes the prestaged path, so it exercises `mkDisk` and
-`gpu.nix` and **not** the probe. To keep the probe from shipping as an untested
-path, it is also a standalone command, `emanix-detect-hardware`, that changes
-nothing and can be run on rafik, datacore and whistle the day it is written.
+defaulting from the PCI vendor ID in `lspci` — `0x1002` AMD, `0x8086` Intel.
+That is a two-value lookup, not model-name archaeology, and the user confirms it
+either way. Asking is not guessing.
 
 ## How a host states its hardware, in each repo
 
@@ -200,18 +177,15 @@ file as a live hazard). So when datacore's turn comes the disk half is free and
 only the hardware half moves the closure. Deferring datacore is a choice, not a
 limitation.
 
-**Gate 2 — probe fixture test** in `tests/`. A table of DMI triples mapped to
-expected module names, *including the known misses*, so that
-`framework-13-7040-amd` remaining unmatched is a recorded fact rather than a
-regression someone later "fixes" by guessing.
-
-**Gate 3 — `nix flake check`.** Extend `checks/template-host.nix` to compose a
+**Gate 2 — `nix flake check`.** Extend `checks/template-host.nix` to compose a
 host through `mkDisk` and force its toplevel.
 
-**Gate 4 — the reinstall.** The acceptance test.
+**Gate 3 — the reinstall.** The acceptance test.
 
 ## Out of scope
 
+- DMI-based auto-detection of a `nixos-hardware` module. Measured at 2/6 and
+  cut; see "Why there is no hardware auto-detection".
 - NVIDIA graphics.
 - Moving datacore or whistle.
 - `os-system/desktop.nix` and `server.nix`, which stay personal.
