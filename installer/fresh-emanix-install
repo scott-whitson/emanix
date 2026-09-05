@@ -724,6 +724,21 @@ fi
 # Interactive (new host): the device disko will use is baked from this same
 # $DISK by write_generated_flake below, so naming $DISK here is still naming
 # the disk disko will erase.
+# Show the operator their own answers before anything is destroyed. The
+# preflight above proves the MACHINE is ready; this proves we understood the
+# PERSON. Six answers were typed into a scrolling console and the next thing on
+# screen is an irreversible confirmation -- without this, the only way to check
+# a typo is to remember what you typed.
+if [ "$MODE" = interactive ]; then
+  printf '\n\033[1;36mabout to build\033[0m\n'
+  printf '  hostname    %s\n' "$FLAKE_HOST"
+  printf '  username    %s\n' "$USERNAME"
+  printf '  encryption  %s\n' "$([ "$LUKS" = true ] && echo LUKS || echo none)"
+  printf '  filesystem  %s\n' "$FSTYPE"
+  printf '  swap        %s\n' "$([ "$SWAPSIZE" = 0 ] && echo none || echo "$SWAPSIZE")"
+  printf '  graphics    %s\n' "$GPU"
+fi
+
 say "Target disk"
 lsblk -d -o NAME,SIZE,MODEL,TRAN "$DISK" || die "$DISK not present."
 printf '\033[1;31m>>> This ERASES %s completely. <<<\033[0m\n' "$DISK"
@@ -919,8 +934,30 @@ copy_staged_flake "$USERNAME"
 # into the installed system) belongs ABOVE this line -- once INSTALL_OK is set,
 # a failure past this point no longer unmounts /mnt for a retry.
 INSTALL_OK=1
-echo "After reboot (remove the USB), log in and run:  emanix-firstboot"
-[ "$MODE" = interactive ] &&
-  echo "Then run emanix-init to turn /etc/nixos into a git repo you own."
+# What to say here depends entirely on which mode ran, and getting it wrong
+# sends someone to a dead end on their very first action.
+#
+# A generated host has NO emanix.firstboot.text -- templates/default does not
+# set it -- so it inherits the distribution's stub, which prints "No first-boot
+# steps are configured. Set emanix.firstboot.text in your consuming flake."
+# Telling a new user to run that as their first command is the worst moment in
+# the flow: an instruction that does nothing, naming a concept they have never
+# met. firstboot is the CONSUMER's seam -- meaningful for a fleet whose flake
+# fills it in, meaningless for a host this installer just invented.
+if [ "$MODE" = interactive ]; then
+  cat <<'ENDNOTE'
+
+  Remove the USB and reboot. You will land in Emacs -- it is the desktop here,
+  not an app running inside one.
+
+    s-<return>   a terminal             s-d     launch an application
+    s-1 ... s-9  switch frame slots     C-c ?   reopen the welcome buffer
+
+  A welcome buffer explains the rest and offers to turn /etc/nixos into a git
+  repo you own. Everything else is at https://emanix.net
+ENDNOTE
+else
+  echo "After reboot (remove the USB), log in and run:  emanix-firstboot"
+fi
 read -rp "Reboot now? [y/N] " r
 [ "$r" = y ] && reboot
