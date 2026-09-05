@@ -42,5 +42,34 @@ in
 
   config = lib.mkIf (cfg.gpu != null) {
     boot.initrd.kernelModules = [ moduleFor.${cfg.gpu} ];
+
+    # gpu.nix and firmware.nix are COUPLED, and nothing else says so.
+    #
+    # Forcing amdgpu (or i915) into the initrd only helps if the driver's
+    # firmware blobs are in the initrd with it, and the thing that puts them
+    # there is `hardware.firmware`, which
+    # hardware.enableRedistributableFirmware populates. firmware.nix's comment
+    # explicitly invites a host to set that option false — a host that takes
+    # the invitation while keeping a gpu value gets the exact black screen this
+    # module exists to prevent.
+    #
+    # It has to be an assertion because the build will not complain otherwise:
+    # boot.initrd.allowMissingModules defaults to TRUE, so a driver whose
+    # firmware is absent is a line in a build log, not an error. The machine
+    # builds, boots, probes, fails, and shows nothing.
+    assertions = [{
+      assertion = config.hardware.enableRedistributableFirmware;
+      message = ''
+        emanix.hardware.gpu is set to "${cfg.gpu}", which forces
+        ${moduleFor.${cfg.gpu}} into the initrd, but
+        hardware.enableRedistributableFirmware is false — so the driver's
+        firmware blobs are not there and the probe will fail to a black
+        screen (boot.initrd.allowMissingModules hides this at build time).
+
+        Either leave hardware.enableRedistributableFirmware at emanix's
+        default of true (see ioshi/hi-hardware/firmware.nix), or set
+        emanix.hardware.gpu = null if this host has no display to bring up.
+      '';
+    }];
   };
 }

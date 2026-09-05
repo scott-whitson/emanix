@@ -205,8 +205,14 @@ a flake that ships templates/default."
 # Fix (review round 1, finding 3): same reasoning as validate_hostname --
 # reject here, at the prompt, rather than let a bad value reach the heredoc
 # that writes host.nix.
+# "0" is the no-swap sentinel and is the ONLY spelling of it that mkDisk
+# understands. `[0-9]+` would accept "0G", which is not zero swap: mkDisk takes
+# the swap branch and emits `size = "0G"` -- a zero-length partition, and disko
+# destroys before it formats, so the failure lands with the disk already wiped.
+# Hence [1-9][0-9]*: a positive number of M or G, or the literal "0".
+# lib/disk.nix asserts the same shape, for callers that never see this prompt.
 validate_swapsize() {
-  printf '%s' "$1" | grep -qE '^(0|[0-9]+[MG])$'
+  printf '%s' "$1" | grep -qE '^(0|[1-9][0-9]*[MG])$'
 }
 
 # Same reasoning as validate_swapsize: reject at the prompt rather than let a
@@ -219,14 +225,33 @@ validate_gpu() {
 # is a two-value lookup and it only picks the DEFAULT answer — the user is
 # still asked. emanix does not auto-detect hardware; see the spec's "Why there
 # is no hardware auto-detection".
+#
+# Both vendors matching is not a tie to be broken, it is a machine we cannot
+# answer for. The realistic both-matched box is an Intel iGPU driving the
+# panel next to a discrete AMD card, where the compositor comes up on i915 --
+# so an ordered case that fell through to `amd` was wrong in exactly the
+# configuration that consulted it. Default to `none` and say why: asked, never
+# guessed. (Intel + NVIDIA is unaffected; 10de matches neither arm.)
+#
+# The notice goes to STDERR on purpose. This function's stdout IS the default
+# answer -- it is read through a command substitution -- so a line printed on
+# stdout would become part of the value.
 detect_gpu_default() {
-  local vga
+  local vga has_amd=0 has_intel=0
   vga="$(lspci -nn 2>/dev/null | grep -iE 'vga|3d controller' || true)"
-  case "$vga" in
-    *1002:*) echo amd ;;
-    *8086:*) echo intel ;;
-    *) echo none ;;
-  esac
+  case "$vga" in *1002:*) has_amd=1 ;; esac
+  case "$vga" in *8086:*) has_intel=1 ;; esac
+
+  if [ "$has_amd" = 1 ] && [ "$has_intel" = 1 ]; then
+    printf 'Two GPU vendors were found (AMD and Intel). Which one drives the display is not something lspci can tell us, and guessing wrong here is a black screen -- please choose.\n' >&2
+    echo none
+  elif [ "$has_amd" = 1 ]; then
+    echo amd
+  elif [ "$has_intel" = 1 ]; then
+    echo intel
+  else
+    echo none
+  fi
 }
 
 write_generated_flake() {
