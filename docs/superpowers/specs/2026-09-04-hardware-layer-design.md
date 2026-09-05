@@ -72,7 +72,7 @@ project, not a line.
 
 **2. `nixos-hardware` as an emanix input**, reachable by consumers as
 `emanix.inputs.nixos-hardware.nixosModules.<name>`. dotfiles drops its own
-input and its `follows` entry. emanix does not re-wrap the 421 modules under a
+input and its `follows` entry. emanix does not re-wrap these modules under a
 namespace of its own — that would be a second name for each machine, free to
 drift from upstream's.
 
@@ -85,7 +85,7 @@ Hardware discovery is `nixos-generate-config`, exactly as it is generic-kernel-
 plus-udev for Debian. emanix adds no detection layer of its own. This was
 measured before it was decided.
 
-`nixos-hardware` at `dc3f0cf` exports 421 modules and contains no DMI machinery
+`nixos-hardware` at `dc3f0cf` exports over 400 modules and contains no DMI machinery
 anywhere — no reference to `sys_vendor`, `product_family` or `dmi/id`. Its
 naming is not a convention:
 
@@ -101,7 +101,7 @@ rafik's own DMI cannot name rafik's module: `product_family` is
 `-intel-gen6` variants exist upstream.
 
 A prototype generating candidates from `sys_vendor` + `product_family` +
-`product_name` + CPU vendor, tested for membership against the real 421 names,
+`product_name` + CPU vendor, tested for membership against the real module names,
 resolved **2 of 6** realistic machines. No normalization derives
 `framework-13-7040-amd` from `Laptop 13 (AMD Ryzen 7040Series)`. A detector that
 is wrong more often than it is right, on a step that precedes wiping a disk, is
