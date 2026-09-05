@@ -107,8 +107,14 @@
         description = "An emanix host: one host.nix, a parameterized disk layout, and the distribution";
       };
 
-      # The host composer, parameterized: { hostName, role, username, hardware, extraModules }
-      lib = { inherit mkHost; };
+      # The host composer and the disk layout, both parameterized.
+      # mkHost:  { hostName, role, username, hardware, extraModules, homeModules }
+      # mkDisk:  { device, luks, filesystem, swapSize, extraSubvolumes }
+      #
+      # mkDisk is the distro's opinion about disk SHAPE; the consumer still
+      # supplies the device and the options, so "disko configurations are
+      # defined by consumers" holds — they just stop retyping the layout.
+      lib = { inherit mkHost; mkDisk = import ./lib/disk.nix; };
 
       # A generic installer ISO — stages the distro flake, no keys. The
       # distro ships a DEBUG/rescue ISO; real installs are built by consuming
