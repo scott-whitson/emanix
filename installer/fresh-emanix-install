@@ -500,15 +500,53 @@ if [ "$SB_STATUS" = "ENABLED" ]; then
   [ "$a" = y ] || die "aborted — disable Secure Boot first."
 fi
 
-# Cross-check the disko layout's declared device against the auto-detected one
-# (the layout is authoritative; a mismatch is a VM/override or a wrong pick).
-declared="$(grep -oE 'device = "[^"]+"' "$REPO/ioshi/hi-hardware/disko/$FLAKE_HOST.nix" 2>/dev/null | head -1 | cut -d'"' -f2 || true)"
-if [ -n "$declared" ] && [ "$declared" != "$DISK" ]; then
-  warn "disko layout for $FLAKE_HOST declares $declared but the target is $DISK."
-  read -rp "Continue? [y/N] " a
-  [ "$a" = y ] || die "aborted."
+# Cross-check the device disko will ACTUALLY erase against the one the prompt
+# is about to name. These are not the same thing by construction: disko is
+# invoked with --flake, never with $DISK, so it partitions whatever
+# disko.devices.disk.main.device evaluates to. $DISK only drives the preflight
+# display and the confirmation text.
+#
+# Ask the FLAKE, not a file. This grepped a per-host disko layout file under
+# $REPO/ioshi/hi-hardware/disko/ (named after $FLAKE_HOST) until 2026-09-05,
+# when a consuming repo moved its layout inline and the grep silently started
+# returning nothing -- `|| true` swallowed it, $declared went empty, and the
+# mismatch branch became unreachable. A consumer's file layout is not this
+# script's business; the evaluated config is.
+#
+# Only for MODE=prestaged: a prestaged host's disko layout already exists in
+# $REPO, hardcoded, independent of whatever $DISK the preflight just picked --
+# that is exactly the gap this check closes. An interactive (new) host has no
+# nixosConfigurations entry in $REPO at all (that is known_hosts()'s
+# definition of "unknown"), so there is nothing yet to ask; write_generated_flake
+# below bakes `device = "${DISK}";` from this same $DISK into the host.nix it
+# writes, so for a generated host the device disko will use IS $DISK, by
+# construction, not by cross-check.
+if [ "$MODE" = prestaged ]; then
+  declared="$(nix eval --raw \
+    "$REPO#nixosConfigurations.$FLAKE_HOST.config.disko.devices.disk.main.device" \
+    2>/dev/null || true)"
+
+  if [ -z "$declared" ]; then
+    die "could not read the disko device for $FLAKE_HOST from $REPO.
+Refusing to continue: without it the confirmation below would name a disk this
+script cannot prove disko will use. If this host genuinely has no disko layout,
+it cannot be installed by this script."
+  fi
+
+  if [ "$declared" != "$DISK" ]; then
+    die "TARGET MISMATCH — refusing to continue.
+  disko will erase : $declared   (from $FLAKE_HOST's flake config)
+  preflight picked : $DISK
+Re-run with --disk $declared if that is the disk you mean, or fix the layout.
+This is fatal rather than a prompt: the next step destroys a disk, and a
+warning here is one the operator has been trained to accept."
+  fi
 fi
 
+# Prestaged: $DISK and $declared are proven equal by the cross-check above.
+# Interactive (new host): the device disko will use is baked from this same
+# $DISK by write_generated_flake below, so naming $DISK here is still naming
+# the disk disko will erase.
 say "Target disk"
 lsblk -d -o NAME,SIZE,MODEL,TRAN "$DISK" || die "$DISK not present."
 printf '\033[1;31m>>> This ERASES %s completely. <<<\033[0m\n' "$DISK"

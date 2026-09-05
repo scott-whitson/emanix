@@ -221,5 +221,35 @@ for fn in validate_gpu validate_swapsize; do
   fi
 done
 
+# --- Target-disk cross-check -------------------------------------------------
+# The prompt says "This ERASES $DISK", but disko is invoked with --flake and
+# never with $DISK: it erases whatever disko.devices.disk.main.device says. The
+# cross-check that reconciles the two MUST read the flake, not a file path that
+# a consuming repo is free to move (it already did, on 2026-09-05, which is how
+# this was found).
+if grep -q 'ioshi/hi-hardware/disko/\$FLAKE_HOST\.nix' "$SCRIPT"; then
+  echo "FAIL cross-check still greps a hardcoded consumer file path"
+  fails=$((fails + 1))
+else
+  echo "ok   cross-check does not depend on a consumer's file layout"
+fi
+
+# It must ask the FLAKE for the device disko will use.
+if grep -q 'config\.disko\.devices\.disk\.main\.device' "$SCRIPT"; then
+  echo "ok   cross-check resolves the device from the flake"
+else
+  echo "FAIL cross-check does not resolve the device from the flake"
+  fails=$((fails + 1))
+fi
+
+# A mismatch must be FATAL. A warn+continue on the step before a wipe is a
+# prompt the user has been trained to accept.
+if awk '/declared.*!=.*DISK|DISK.*!=.*declared/,/fi/' "$SCRIPT" | grep -q '\bdie\b'; then
+  echo "ok   a device mismatch is fatal"
+else
+  echo "FAIL a device mismatch does not call die"
+  fails=$((fails + 1))
+fi
+
 [ "$fails" -eq 0 ] && { echo "installer-modes: all good."; exit 0; }
 echo "installer-modes: $fails failure(s)."; exit 1
