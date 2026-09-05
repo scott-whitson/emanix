@@ -390,13 +390,34 @@ copy_staged_flake() {
     return 0
   fi
 
-  [ -e "$dest" ] && { warn "$dest already exists — leaving it alone."; return 0; }
+  # -e alone follows symlinks, so a DANGLING symlink at $dest reads as absent
+  # and slips past this guard -- cp -a then refuses to write through it (good,
+  # nothing gets clobbered) but as an uncaught error under set -e, aborting
+  # the whole install instead of the graceful skip intended here. -L catches
+  # the dangling case too.
+  { [ -e "$dest" ] || [ -L "$dest" ]; } &&
+    { warn "$dest already exists — leaving it alone."; return 0; }
   say "Copying the flake into ${dest#/mnt}"
-  install -d -m 755 "$(dirname "$dest")"
+  # No install -d on dirname "$dest" here: that is /mnt/home/$1, the account's
+  # HOME DIRECTORY, which nixos-install already created. install -d re-chmods
+  # an existing directory to -m's mode regardless of what NixOS gave it, so
+  # that line would silently widen the new account's home to 755 as a side
+  # effect of what reads like a harmless no-op. If the home is somehow
+  # missing, cp -a below fails loudly instead -- which is what should happen,
+  # rather than this function inventing a home directory of its own.
   cp -a "$REPO" "$dest"
   # The account does not exist on THIS system, only in the chroot, so chown by
-  # the numeric ids nixos-install just created rather than by name.
-  nixos-enter --root /mnt -c "chown -R '$1':users '/home/$1/dotfiles'" || true
+  # name inside it (nixos-install already created the account there).
+  # Non-fatal -- the machine IS installed at this point, and aborting the
+  # whole run over a chown is worse than leaving a paths issue for the user to
+  # fix -- but it must not fail SILENTLY: an operator who never sees this
+  # would be left with a checkout owned by root and no dotfiles they can
+  # write, no reboot warning of why.
+  if ! nixos-enter --root /mnt -c "chown -R '$1':users '/home/$1/dotfiles'"; then
+    warn "could not chown ${dest#/mnt} to $1:users -- it is left owned by
+root, and $1 cannot write their own dotfiles checkout until this is fixed.
+Log in and run: sudo chown -R $1:users ~/dotfiles"
+  fi
 }
 
 # --- Preflight ----------------------------------------------------------------
