@@ -762,12 +762,23 @@ input or a broken templates/default. Fix this before anything touches the
 disk."
 fi
 
+# --yes-wipe-all-disks: this script has ALREADY taken an explicit typed
+# confirmation naming this exact disk (above), and cross-checked the device
+# disko will actually use against the flake. disko's own dialogue asks the same
+# question a second time, which is not extra safety -- the operator has already
+# answered it -- and it hard-blocks any unattended or scripted install, which
+# is how the VM test on 2026-09-05 first hit it.
+#
+# The fallback branch passes it too. That branch fetches disko from `latest`
+# rather than the pinned input, so it is the one place this flag could in
+# principle disappear from under us; the failure would be a clean "unknown
+# option" exit BEFORE anything is written, not a half-wiped disk.
 say "Partitioning + formatting with disko"
 if command -v disko >/dev/null 2>&1; then
-  disko --mode destroy,format,mount --flake "$FLAKE_REF"
+  disko --mode destroy,format,mount --yes-wipe-all-disks --flake "$FLAKE_REF"
 else
   nix run github:nix-community/disko/latest -- \
-    --mode destroy,format,mount --flake "$FLAKE_REF"
+    --mode destroy,format,mount --yes-wipe-all-disks --flake "$FLAKE_REF"
 fi
 
 if [ "$MODE" = interactive ]; then
