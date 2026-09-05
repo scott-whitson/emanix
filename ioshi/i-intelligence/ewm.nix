@@ -127,8 +127,8 @@ in
     # EWM exit/crash ends the login; getty + autologin restart it.
     loginShellInit = ''
       if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-        if [ -e /tmp/.ewm-flap ]; then
-          echo "EWM flapped — normal shell (rm /tmp/.ewm-flap and log out to re-arm)"
+        if [ -e "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap" ]; then
+          echo "EWM flapped — normal shell (rm \"''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap\" and log out to re-arm)"
         else
           # One EWM per boot-session: a stale daemon holds DRM master and
           # starves every new launch. NB: the nix wrapper truncates comm to
@@ -140,14 +140,24 @@ in
           # reliably — ewm-input-config's :xkb-options loads too late (after the
           # keymap is already built) to take effect.
           env LIBSEAT_BACKEND=logind XKB_DEFAULT_OPTIONS=ctrl:nocaps /run/current-system/sw/bin/ewm-launch
-          # pgtk emacs DETACHES from the wrapper on daemon start. Import
-          # session env vars into systemd so user services (xdg-desktop-portal,
-          # etc.) inherit DISPLAY/WAYLAND_DISPLAY.
-          sleep 2
+          # pgtk emacs DETACHES from the wrapper on daemon start. Wait for the
+          # daemon rather than assuming a fixed sleep is enough. The first boot
+          # after an install is the slowest boot the machine will ever do --
+          # compiling nothing but populating every cache cold -- and a fixed
+          # sleep there reads a healthy (but slow) start as a flap, writes the
+          # marker, and leaves the desktop shell-only until someone finds and
+          # deletes it by hand. Bounded so a genuine crash-loop still times out
+          # instead of hanging the login. Once seen, import session env vars
+          # into systemd so user services (xdg-desktop-portal, etc.) inherit
+          # DISPLAY/WAYLAND_DISPLAY.
+          for _ in $(seq 1 30); do
+            pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1 && break
+            sleep 1
+          done
           systemctl --user import-environment WAYLAND_DISPLAY DISPLAY 2>/dev/null || true
           while pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1; do sleep 3; done
           if [ $(( $(date +%s) - _t0 )) -lt 15 ]; then
-            touch /tmp/.ewm-flap   # died fast — next login gets a shell
+            touch "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap"   # died fast — next login gets a shell
           fi
           exit 0                   # end session; autologin relaunches
         fi
