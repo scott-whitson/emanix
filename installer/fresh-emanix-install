@@ -55,6 +55,11 @@ validate_hostname() {
   printf '%s' "$1" | grep -qE '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
 }
 
+# Same character class as a hostname, and the same reason: this value reaches a
+# `bash -c` string in the chroot. Named separately from validate_hostname so
+# the call sites read correctly.
+validate_username() { validate_hostname "$1"; }
+
 known_hosts() {
   # Ask the flake rather than keeping a list here; a list is a thing that
   # drifts. Failure to evaluate means an unusable repo, so it is fatal.
@@ -654,16 +659,27 @@ nixos-install --flake "$FLAKE_REF" --no-root-password
 if [ "$MODE" = prestaged ]; then
   # The username is defined by the consuming flake's host config. Probe the
   # mounted home dir (the only user that exists at this point), else prompt.
-  # Interactive mode already has USERNAME from interactive_prompts -- it is
-  # what write_generated_flake baked into the flake, so re-deriving it here
-  # would risk disagreeing with the account that was actually created.
-  USERNAME="$(nixos-enter --root /mnt -c 'ls /home | head -1' 2>/dev/null)"
-  if [ -z "$USERNAME" ]; then
-    read -rp "Username: " USERNAME
-  fi
+  # Interactive mode already has USERNAME from interactive_prompts.
+  #
+  # `|| true`: this is a bare command substitution under `set -e`, and a
+  # nixos-enter failure here would otherwise kill the installer AFTER a
+  # successful nixos-install -- the most expensive possible moment.
+  USERNAME="$(nixos-enter --root /mnt -c 'ls /home | head -1' 2>/dev/null || true)"
+  while ! validate_username "${USERNAME:-}"; do
+    warn "could not determine the account name from /mnt/home."
+    read -rp "Username for this machine's account: " USERNAME
+  done
 fi
+
+# Belt and braces: interactive mode set USERNAME long before the disk was
+# touched, so a bug upstream would surface here rather than as a bare `passwd`.
+validate_username "$USERNAME" ||
+  die "internal error: refusing to run passwd with username '$USERNAME'.
+An empty or malformed name here would set ROOT's password in the chroot while
+the real account stays passwordless."
+
 say "Set a password for $USERNAME"
-nixos-enter --root /mnt -c "passwd $USERNAME"
+nixos-enter --root /mnt -c "passwd '$USERNAME'"
 
 say "$FLAKE_HOST installed."
 echo "After reboot (remove the USB), log in and run:  emanix-firstboot"

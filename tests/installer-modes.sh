@@ -251,5 +251,55 @@ else
   fails=$((fails + 1))
 fi
 
+# --- Username / passwd safety -----------------------------------------------
+# An empty USERNAME makes `passwd $USERNAME` run `passwd` bare in the chroot,
+# which sets ROOT's password while the real account stays passwordless -- and
+# the installer prints success. Assert the guard exists and is reached.
+if grep -q 'validate_username' "$SCRIPT"; then
+  echo "ok   installer validates the username"
+else
+  echo "FAIL installer has no validate_username"
+  fails=$((fails + 1))
+fi
+if [ "$(grep -c 'validate_username' "$SCRIPT")" -ge 2 ]; then
+  echo "ok   validate_username is called, not merely defined"
+else
+  echo "FAIL validate_username is defined but never called"
+  fails=$((fails + 1))
+fi
+# The chroot command must quote the username.
+if grep -q 'passwd \$USERNAME' "$SCRIPT"; then
+  echo "FAIL username is unquoted in the passwd chroot command"
+  fails=$((fails + 1))
+else
+  echo "ok   username is quoted into the passwd command"
+fi
+
+# The validator itself must reject the dangerous inputs and accept a real one.
+# Sourced directly out of the script rather than re-implemented here, so this
+# test tracks the actual behaviour, not a description of it.
+if (
+  # shellcheck disable=SC1090  # the "source" IS the thing under test
+  source <(sed -n '/^validate_hostname()/,/^}/p' "$SCRIPT")
+  # shellcheck disable=SC1090
+  source <(sed -n '/^validate_username()/,/^}/p' "$SCRIPT")
+  bad=0
+  for u in "" " " "root; rm -rf /"; do
+    if validate_username "$u"; then
+      echo "FAIL validate_username accepted dangerous input '$u'"
+      bad=1
+    fi
+  done
+  if ! validate_username "testuser"; then
+    echo "FAIL validate_username rejected a legitimate username 'testuser'"
+    bad=1
+  fi
+  exit "$bad"
+); then
+  echo "ok   validate_username rejects empty/blank/hostile input and accepts a real name"
+else
+  fails=$((fails + 1))
+fi
+
 [ "$fails" -eq 0 ] && { echo "installer-modes: all good."; exit 0; }
 echo "installer-modes: $fails failure(s)."; exit 1
