@@ -17,6 +17,17 @@
 set -euo pipefail
 
 say()  { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
+# Numbered variant for the stages of an install. A long compile at stage 5 of 7
+# reads as progress; the same compile with no denominator reads as a hang.
+# Mode-dependent on purpose. interactive runs: lock, partition, host key,
+# install, passwd. prestaged runs: partition, inject key, install, passwd.
+# copy_staged_flake is deliberately NOT counted -- it warns and returns 0 when
+# $REPO is the distro itself, which is exactly the interactive-from-emanix-ISO
+# case, so it is not a stage that reliably happens. A denominator that
+# overcounts is worse than none: it ends at 5/6 and reads as an aborted run.
+STEP_TOTAL=0
+STEP_N=0
+step() { STEP_N=$((STEP_N + 1)); printf '\n\033[1;36m==> [%d/%d]\033[0m %s\n' "$STEP_N" "$STEP_TOTAL" "$*"; }
 warn() { printf '\033[1;33mWARNING:\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
@@ -228,8 +239,16 @@ a flake that ships templates/default."
     echo "  already online."
   else
     warn "no route to cache.nixos.org."
-    echo "  WiFi: run 'nmtui' (or 'iwctl station wlan0 connect <ssid>') in another"
-    echo "  console, then return here."
+    # Offer to launch it rather than describing where to go. "another console"
+    # assumes a second tty, which a serial console, a VM, or a laptop mid-install
+    # may not have -- and this is the one step that cannot be skipped, because
+    # everything after it downloads.
+    if command -v nmtui >/dev/null 2>&1; then
+      read -rp "Open the network manager (nmtui) now? [Y/n] " a
+      case "$a" in [Nn]*) : ;; *) nmtui || true ;; esac
+    else
+      echo "  Connect with: iwctl station wlan0 connect <ssid>"
+    fi
     read -rp "Press Enter once the network is up: " _
     ping -c1 -W4 cache.nixos.org >/dev/null 2>&1 ||
       die "still no route to cache.nixos.org — the install downloads packages."
@@ -745,6 +764,8 @@ printf '\033[1;31m>>> This ERASES %s completely. <<<\033[0m\n' "$DISK"
 read -rp "Type 'yes' to wipe $DISK and install $FLAKE_HOST: " ok
 [ "$ok" = yes ] || die "aborted."
 
+if [ "$MODE" = interactive ]; then STEP_TOTAL=5; else STEP_TOTAL=4; fi
+
 # For a pre-staged host $REPO already knows it. For a generated one nothing
 # does yet -- write_generated_flake writes it ONCE, to a stable /tmp path
 # outside /mnt (the live ISO's /tmp is tmpfs and is not shadowed by disko's
@@ -770,7 +791,7 @@ if [ "$MODE" = interactive ]; then
   # does not obstruct it. This also means an unreachable input or a broken
   # template surfaces here, before the disk is touched, rather than as a
   # build failure partway through disko or nixos-install.
-  say "Locking the generated flake's inputs"
+  step "Locking the generated flake's inputs"
   nix flake lock "$GEN_STAGE" ||
     die "could not lock $GEN_STAGE (nix flake lock failed) -- an unreachable
 input or a broken templates/default. Fix this before anything touches the
@@ -788,7 +809,13 @@ fi
 # rather than the pinned input, so it is the one place this flag could in
 # principle disappear from under us; the failure would be a clean "unknown
 # option" exit BEFORE anything is written, not a half-wiped disk.
-say "Partitioning + formatting with disko"
+step "Partitioning + formatting with disko"
+# disko runs with shell tracing on, so the next screenful is `+ device=...`,
+# `+ mount ...` and similar. To anyone who has not seen it, that looks like a
+# fault rather than progress. Not silenced: the trace is the only diagnostic
+# there is when a layout fails partway through destroying a disk.
+echo "    disko traces every command it runs, so this prints a wall of '+ ...'"
+echo "    lines. That is normal output, not errors."
 if command -v disko >/dev/null 2>&1; then
   disko --mode destroy,format,mount --yes-wipe-all-disks --flake "$FLAKE_REF"
 else
@@ -797,7 +824,7 @@ else
 fi
 
 if [ "$MODE" = interactive ]; then
-  say "Generating a fresh host key (a new host has no secrets to decrypt)"
+  step "Generating a fresh host key (a new host has no secrets to decrypt)"
   install -d -m 755 /mnt/etc/ssh
   # Fix (review round 1, finding 4): ssh-keygen prompts to overwrite an
   # existing target file even with -N "" -- fatal on an unattended install,
@@ -845,7 +872,7 @@ proceed without finding out why."
   nixos-generate-config --show-hardware-config --no-filesystems --root /mnt \
     > /mnt/etc/nixos/hardware-configuration.nix
 else
-  say "Injecting the $FLAKE_HOST host key (so agenix decrypts on first boot)"
+  step "Injecting the $FLAKE_HOST host key (so agenix decrypts on first boot)"
   install -d -m 755 /mnt/etc/ssh
   install -m 600 "$HOST_KEY"     /mnt/etc/ssh/ssh_host_ed25519_key
   install -m 644 "$HOST_KEY.pub" /mnt/etc/ssh/ssh_host_ed25519_key.pub
@@ -868,7 +895,7 @@ fi
 # datum so far is a 4-core VM that had not finished at 15 minutes, and that is
 # not a number worth quoting at someone. A binary cache would remove this step
 # entirely; 81 MiB fits any free tier.
-say "Installing $FLAKE_HOST"
+step "Installing $FLAKE_HOST"
 printf '    Emacs and the EWM compositor are COMPILED here, not downloaded --\n'
 printf '    they are not in cache.nixos.org. On few cores this is the longest\n'
 printf '    step of the install by a wide margin. Nothing is wrong.\n'
@@ -911,7 +938,7 @@ the real account stays passwordless."
 # Bounded at 3: an unattended console that keeps failing must eventually stop
 # and say something actionable rather than loop forever, and the generic trap
 # message is not actionable for this.
-say "Set a password for $USERNAME"
+step "Set a password for $USERNAME"
 passwd_tries=0
 until nixos-enter --root /mnt -c "passwd '$USERNAME'"; do
   passwd_tries=$((passwd_tries + 1))
@@ -959,5 +986,7 @@ ENDNOTE
 else
   echo "After reboot (remove the USB), log in and run:  emanix-firstboot"
 fi
-read -rp "Reboot now? [y/N] " r
-[ "$r" = y ] && reboot
+# [Y/n]: after a successful install rebooting is what essentially everyone
+# wants next, and defaulting to No reads as though something is still wrong.
+read -rp "Reboot now? [Y/n] " r
+case "$r" in [Nn]*) : ;; *) reboot ;; esac

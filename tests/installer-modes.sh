@@ -435,6 +435,7 @@ chmod 700 "$csf_dir/target/home/testuser"
   # shellcheck disable=SC1090  # the "source" IS the thing under test
   . "$csf_dir/csf.sh"
   say()  { :; }
+  step() { :; }
   warn() { printf 'WARN %s\n' "$*"; }
   REPO="$csf_dir/etc-emanix-flake"
   EMANIX_TARGET_ROOT="$csf_dir/target"
@@ -497,6 +498,7 @@ echo '#!/usr/bin/env bash' > "$csf_dir/distro/installer/fresh-emanix-install"
   # shellcheck disable=SC1090  # the "source" IS the thing under test
   . "$csf_dir/csf.sh"
   say()  { :; }
+  step() { :; }
   warn() { printf 'WARN %s\n' "$*"; }
   REPO="$csf_dir/distro"
   EMANIX_TARGET_ROOT="$csf_dir/target2"
@@ -528,7 +530,11 @@ fi
 # whose only account has no password -- the same end state, through a different
 # door. Behavioural, not a grep: the block is extracted and driven against a
 # stub nixos-enter that fails a controlled number of times.
-sed -n '/^say "Set a password/,/^done$/p' "$SCRIPT" > "$csf_dir/passwd-block.sh"
+# Anchor accepts `say` OR `step`: the stage announcers are interchangeable and
+# renaming one broke this extraction silently once (2026-09-05) -- the block
+# came out empty and every assertion below it "passed" vacuously until the
+# brace/`done` check caught it.
+sed -n '/^\(say\|step\) "Set a password/,/^done$/p' "$SCRIPT" > "$csf_dir/passwd-block.sh"
 pw_extracted=0
 if grep -q 'passwd_tries' "$csf_dir/passwd-block.sh" &&
    [ "$(tail -1 "$csf_dir/passwd-block.sh")" = "done" ]; then
@@ -547,6 +553,11 @@ pw_harness="$csf_dir/passwd-harness.sh"
 {
   echo 'set -euo pipefail'
   echo 'say()  { :; }'
+  # `step` is the numbered variant of `say`; an extracted block may use either.
+  # Stub both, or the harness dies "step: command not found" and every
+  # assertion below reads as a defect in the code under test. That happened on
+  # 2026-09-05 when the passwd stage was renamed say -> step.
+  echo 'step() { :; }'
   echo 'warn() { printf "WARN %s\n" "$*"; }'
   echo 'die()  { printf "DIE %s\n" "$*"; exit 1; }'
   echo 'USERNAME=testuser; FLAKE_HOST=testbox; n=0'
