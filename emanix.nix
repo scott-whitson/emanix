@@ -50,5 +50,13 @@
     ./ioshi/os-system/base.nix
     ./ioshi/os-system/firstboot.nix
     ./ioshi/os-system/init.nix
+    # hi-hardware — the machine-facing tier. Imported by EVERY host, not only
+    # graphical ones: gpu.nix declares an option that defaults to null and
+    # contributes nothing until set, so a headless or WSL host carries the
+    # declaration and none of the effect. Gating the import on a role would
+    # mean `emanix.hardware.gpu` did not exist on hosts that merely have not
+    # set it, which is a worse error message than a no-op.
+    ./ioshi/hi-hardware/gpu.nix
+    ./ioshi/hi-hardware/firmware.nix
   ];
 }

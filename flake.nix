@@ -197,6 +197,10 @@
           # flake check. See checks/template-host.nix.
           template-host = import ./checks/template-host.nix { inherit pkgs mkHost disko; };
 
+          # emanix.hardware.gpu's effect on the initrd, checked per value.
+          # See checks/hardware-gpu.nix.
+          hardware-gpu = import ./checks/hardware-gpu.nix { inherit pkgs mkHost; };
+
           # The welcome buffer's claims, checked against the bindings that
           # back them. See checks/welcome-keys.nix.
           welcome-keys = import ./checks/welcome-keys.nix { inherit pkgs; };
