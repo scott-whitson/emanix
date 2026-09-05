@@ -26,6 +26,20 @@
       url = "github:nix-community/NixOS-WSL";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # The machine database — 421 per-model modules. Carried by the
+    # DISTRIBUTION rather than by each consumer: which tuning a ThinkPad needs
+    # is not a personal fact, and a consumer that has to add this input itself
+    # cannot use the template's `hardwareModule` field at all.
+    #
+    # Deliberately NOT auto-selected. nixos-hardware ships no DMI machinery and
+    # its names are not a convention (lenovo-thinkpad-t14-amd-gen5 vs
+    # framework-13-7040-amd vs hp-laptop-15s-fq1xxx); a prototype matcher
+    # resolved 2 of 6 realistic machines. Hardware discovery is
+    # nixos-generate-config. See the spec's "Why there is no hardware
+    # auto-detection".
+    nixos-hardware = {
+      url = "github:NixOS/nixos-hardware";
+    };
   };
 
   outputs =
