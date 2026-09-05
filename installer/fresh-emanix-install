@@ -30,13 +30,52 @@ die()  { printf '\n\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 # Suppressed on success: some flows reboot from a mounted /mnt, and a trap that
 # fires on the happy path is its own bug.
 INSTALL_OK=0
+# Set the moment nixos-install returns, and never unset. INSTALL_OK marks "this
+# run finished"; SYSTEM_INSTALLED marks "there is now a working machine on the
+# table". Between the two, several steps still run with the trap armed --
+# passwd, copy_staged_flake, their chown -- and any of them can exit non-zero
+# under set -e. Those failures DO still want /mnt unmounted, but telling the
+# operator to re-run the installer would repartition a perfectly good machine
+# over a mistyped password confirmation.
+SYSTEM_INSTALLED=0
 cleanup_target() {
   [ "$INSTALL_OK" -eq 1 ] && return 0
   # Nothing mounted means nothing to do -- a preflight abort must stay silent.
   mountpoint -q /mnt 2>/dev/null || return 0
-  warn "install did not complete — unmounting /mnt so a retry can see the disk."
+  if [ "$SYSTEM_INSTALLED" -eq 1 ]; then
+    warn "${FLAKE_HOST:-this machine} IS INSTALLED — nixos-install succeeded and
+only a step after it failed. Do NOT re-run this installer: it would repartition
+a working machine. Unmounting /mnt, then reboot into the installed system and
+finish the remaining step by hand (the error above says which)."
+  else
+    warn "install did not complete — unmounting /mnt so a retry can see the disk."
+  fi
+  # swapoff BEFORE the unmount, or the retry is still blind. lib/disk.nix emits
+  # a real swap PARTITION whenever swapSize != "0", and disko's mount step runs
+  # swapon on it -- so after a failed nixos-install the target still has an
+  # active swap. resolve_disk skips any device whose `lsblk -no MOUNTPOINTS`
+  # produces output, and lsblk prints "[SWAP]" for exactly that. The disk stays
+  # invisible and the retry dies at "preflight failed: disk", which is the one
+  # failure this trap exists to prevent -- while the trap's own message claims
+  # it was prevented.
+  #
+  # -a rather than the specific device: the trap cannot know which partition
+  # disko chose (or whether the layout used a swapfile inside /mnt, which would
+  # also block the umount below), and the live ISO losing its own swap during
+  # an abort costs nothing.
+  swapoff -a 2>/dev/null || true
   umount -R /mnt 2>/dev/null || true
   cryptsetup close cryptroot 2>/dev/null || true
+  # "so a retry can see the disk" is a promise, not an observation: umount -R
+  # can fail on a busy mount and its failure is swallowed above. Check, rather
+  # than let the operator hit "preflight failed: disk" on the retry with
+  # nothing in the first run's output to explain it.
+  if mountpoint -q /mnt 2>/dev/null; then
+    warn "/mnt is STILL mounted — the unmount did not succeed, something is
+holding it open. A retry will NOT see the target disk until that is cleared:
+run 'umount -R /mnt' by hand (fuser -m /mnt finds the holder), or reboot the
+ISO."
+  fi
 }
 trap cleanup_target EXIT
 
@@ -780,6 +819,10 @@ fi
 
 say "Installing $FLAKE_HOST — builds the system closure, a few minutes"
 nixos-install --flake "$FLAKE_REF" --no-root-password
+# From here on the machine is INSTALLED. Every remaining step is a finishing
+# touch on a system that already exists, so cleanup_target must stop telling
+# the operator to re-run an installer that would wipe it. See its comment.
+SYSTEM_INSTALLED=1
 
 if [ "$MODE" = prestaged ]; then
   # The username is defined by the consuming flake's host config. Probe the

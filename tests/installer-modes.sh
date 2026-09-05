@@ -340,7 +340,13 @@ else
   echo "FAIL installer has no EXIT trap"
   fails=$((fails + 1))
 fi
-for needle in 'umount' 'cryptsetup close'; do
+#
+# swapoff is in the list because disko's mount step runs swapon whenever
+# lib/disk.nix emits a swap partition (swapSize != "0"), and resolve_disk skips
+# any device whose `lsblk -no MOUNTPOINTS` prints something -- lsblk prints
+# "[SWAP]". Unmounting without it leaves the retry just as blind, while the
+# trap's message claims otherwise.
+for needle in 'umount' 'cryptsetup close' 'swapoff -a'; do
   if grep -q "$needle" "$SCRIPT"; then
     echo "ok   cleanup performs: $needle"
   else
@@ -348,6 +354,17 @@ for needle in 'umount' 'cryptsetup close'; do
     fails=$((fails + 1))
   fi
 done
+# INSTALL_OK is set only at the very end, so passwd and the flake copy run with
+# the trap armed AFTER nixos-install already succeeded. Their failure must not
+# tell the operator to re-run an installer that would repartition a working
+# machine -- cleanup_target has to branch on a second flag.
+if grep -q 'SYSTEM_INSTALLED=1' "$SCRIPT" &&
+   grep -q 'SYSTEM_INSTALLED" -eq 1' "$SCRIPT"; then
+  echo "ok   cleanup's message distinguishes an installed system from a failed install"
+else
+  echo "FAIL a post-nixos-install failure still advises re-running the installer"
+  fails=$((fails + 1))
+fi
 # It must NOT unmount on success -- the caller reboots from a mounted /mnt in
 # some flows, and a trap that fires on the happy path is its own bug.
 if grep -q 'INSTALL_OK' "$SCRIPT"; then
