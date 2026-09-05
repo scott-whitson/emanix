@@ -464,9 +464,12 @@ in
 # Redistributable firmware, on by default.
 #
 # Without it, wifi does not come up on a large fraction of real laptops — the
-# author's own two included, where nixos-hardware notably does NOT set it
-# (verified: dropping it left the option false). A distribution whose installer
-# completes and then cannot reach a network has not installed anything.
+# author's own two included. On those two machines the nixos-hardware module in
+# use does not set it either (verified: dropping this line left the option
+# false) -- a measurement of those machines, not a general claim about
+# upstream, where a dozen or so modules do set it. A distribution whose
+# installer completes and then cannot reach a network has not installed
+# anything.
 #
 # Debian settled this same question the same way when it moved non-free
 # firmware into the default installer media.
@@ -589,11 +592,22 @@ In `flake.nix`, after the `nixos-wsl` input, add:
     # auto-detection".
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 ```
 
-Note there is **no** `inputs.nixpkgs.follows` line: `nixos-hardware` declares no
-`nixpkgs` input to follow. Adding one is an error, not a tidy-up.
+Note the `inputs.nixpkgs.follows` line, matching the other six inputs.
+`nixos-hardware` **does** declare a `nixpkgs` input -- upstream `flake.nix:4`
+is `inputs.nixpkgs.url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz"`
+-- so omitting the follows line does not avoid an error, it adds a second,
+staler nixpkgs node to `flake.lock` (measured: ~8 months behind this flake's
+own nixpkgs). Following it drops that duplicate. Nothing else moves: the
+modules we consume are plain NixOS modules evaluated against the HOST's
+`pkgs`, and nixos-hardware's own nixpkgs feeds only its devShells and checks.
+
+An earlier draft of this plan asserted the opposite ("declares no `nixpkgs`
+input to follow; adding one is an error"). That was wrong, and it shipped a
+stale duplicate node into the lock before it was caught.
 
 - [ ] **Step 2: Lock it and verify it resolves**
 
@@ -628,8 +642,8 @@ Carried by the distribution rather than by each consumer: which tuning a
 ThinkPad needs is not a personal fact, and a consumer that must add the input
 itself cannot use the template's hardwareModule field at all.
 
-Not followed to nixpkgs -- nixos-hardware declares no nixpkgs input. Not
-auto-selected either: it ships no DMI machinery, its names are not a
+Followed to nixpkgs like every other input, so the lock carries one nixpkgs
+node rather than a second, staler one. Not auto-selected, though: it ships no DMI machinery, its names are not a
 convention, and a prototype matcher resolved 2 of 6 realistic machines."
 ```
 

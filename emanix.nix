@@ -51,11 +51,39 @@
     ./ioshi/os-system/firstboot.nix
     ./ioshi/os-system/init.nix
     # hi-hardware — the machine-facing tier. Imported by EVERY host, not only
-    # graphical ones: gpu.nix declares an option that defaults to null and
-    # contributes nothing until set, so a headless or WSL host carries the
-    # declaration and none of the effect. Gating the import on a role would
-    # mean `emanix.hardware.gpu` did not exist on hosts that merely have not
-    # set it, which is a worse error message than a no-op.
+    # graphical ones. The two modules are imported together but they are NOT
+    # both free, and the earlier version of this comment implied they were.
+    #
+    # gpu.nix is genuinely inert until set: it declares an option defaulting to
+    # null, and its config block is behind mkIf, so a headless or WSL host
+    # carries the declaration and none of the effect. Gating THAT import on a
+    # role would mean `emanix.hardware.gpu` did not exist on hosts that merely
+    # have not set it, which is a worse error message than a no-op.
+    #
+    # firmware.nix is a different thing and is imported here anyway.
+    # `hardware.enableRedistributableFirmware = mkDefault true` contributes
+    # UNCONDITIONALLY — it pulls linux-firmware, roughly 791 MiB of closure,
+    # onto every emanix host: the headless server that has no wifi to bring up
+    # and the WSL guest that has no hardware at all, as much as the laptop the
+    # default exists for. That is real, and it is paid by machines that cannot
+    # use it.
+    #
+    # It is still the right default. A distribution whose installer completes
+    # onto a laptop that then cannot see its wifi has not installed anything,
+    # and the operator has no network with which to fix it — the cost of being
+    # wrong is asymmetric, and it is asymmetric in the direction of shipping
+    # the firmware. Debian reached the same conclusion for the same reason.
+    #
+    # The alternative — gating the import on "is this a WSL/headless host" —
+    # was rejected outright: that puts a host SHAPE into the distribution,
+    # which is precisely what this design does not do. emanix is ONE shape.
+    #
+    # What makes the cost acceptable is that it is one line to decline.
+    # mkDefault, not a plain definition, so a host writes
+    # `hardware.enableRedistributableFirmware = false;` and wins with no
+    # mkForce. Before doing that on a graphical host, read the assertion in
+    # gpu.nix: declining the firmware while emanix.hardware.gpu is set is the
+    # black-screen combination, and the assertion is what stops it building.
     ./ioshi/hi-hardware/gpu.nix
     ./ioshi/hi-hardware/firmware.nix
   ];
