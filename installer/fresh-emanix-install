@@ -836,7 +836,27 @@ else
   install -m 644 "$HOST_KEY.pub" /mnt/etc/ssh/ssh_host_ed25519_key.pub
 fi
 
-say "Installing $FLAKE_HOST — builds the system closure, a few minutes"
+# "a few minutes" was wishful. The target is an empty disk, so nothing of this
+# system's closure is present and nixos-install cannot simply copy it — that is
+# true of EVERY install here, pre-staged or interactive.
+#
+# Measured on rafik 2026-09-05: of the 346 store paths the Emacs/EWM half of a
+# desktop host needs, 295 (1.82 GiB) come from cache.nixos.org but 51 must be
+# COMPILED locally. That is ewm-core -- Rust, via Smithay -- and ~50 elisp
+# packages. The elisp is uncacheable for a structural reason worth knowing:
+# every package is rebuilt against emanix's own emacs-pgtk from emacs-overlay,
+# so even wholly ordinary ones (emacs-xref, emacs-project, emacs-eldoc) exist
+# in the public cache only as builds against a DIFFERENT Emacs.
+#
+# The output is small -- ~81 MiB -- so the cost is CPU time, not bandwidth, and
+# it scales with core count. No time estimate is printed on purpose: the only
+# datum so far is a 4-core VM that had not finished at 15 minutes, and that is
+# not a number worth quoting at someone. A binary cache would remove this step
+# entirely; 81 MiB fits any free tier.
+say "Installing $FLAKE_HOST"
+printf '    Emacs and the EWM compositor are COMPILED here, not downloaded --\n'
+printf '    they are not in cache.nixos.org. On few cores this is the longest\n'
+printf '    step of the install by a wide margin. Nothing is wrong.\n'
 nixos-install --flake "$FLAKE_REF" --no-root-password
 # From here on the machine is INSTALLED. Every remaining step is a finishing
 # touch on a system that already exists, so cleanup_target must stop telling
