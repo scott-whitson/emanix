@@ -39,6 +39,13 @@
     # auto-detection".
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware";
+      # Followed, like the other six. nixos-hardware DOES declare a nixpkgs
+      # input (upstream flake.nix pins the nixos-unstable channel tarball), so
+      # leaving this off did not "avoid an error" -- it added a second, staler
+      # nixpkgs node to flake.lock for no one's benefit. Its own nixpkgs feeds
+      # only its devShells and checks: the modules we consume are plain NixOS
+      # modules, evaluated against the HOST's pkgs.
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
@@ -51,6 +58,10 @@
     , disko
     , agenix
     , nixos-wsl
+      # Not used by the distro's own module list -- consumers reach it as
+      # `emanix.inputs.nixos-hardware`. Named here so checks/template-host.nix
+      # can force the template's optional hardwareModule path.
+    , nixos-hardware
     , ...
     }:
     let
@@ -128,6 +139,15 @@
       # mkDisk is the distro's opinion about disk SHAPE; the consumer still
       # supplies the device and the options, so "disko configurations are
       # defined by consumers" holds — they just stop retyping the layout.
+      #
+      # mkDisk RETURNS A MODULE, it does not import disko. Its result defines
+      # `disko.devices.*`, and nothing in mkHost's own module list declares
+      # those options — so a caller must put `disko.nixosModules.disko` in
+      # extraModules ALONGSIDE the mkDisk result, or evaluation fails with an
+      # undefined-option error naming disko.devices rather than mkDisk.
+      # templates/default/flake.nix does this; so does checks/template-host.nix.
+      # Consumers supply the disko input themselves — the distro does not
+      # re-export it.
       lib = { inherit mkHost; mkDisk = import ./lib/disk.nix; };
 
       # A generic installer ISO — stages the distro flake, no keys. The
@@ -199,6 +219,12 @@
           # Also exercises the homeModules seam, so it cannot silently break.
           role-wsl = evalRole "wsl";
 
+          # The disk layout, diffed against its committed fixtures and
+          # structurally asserted, on every flake check rather than whenever
+          # someone remembers to run tests/disk-layout.sh. See
+          # checks/disk-layout.nix.
+          disk-layout = import ./checks/disk-layout.nix { inherit pkgs; };
+
           # The arc glue's paths, checked on every flake check rather than
           # whenever someone remembers to look. See checks/arc-glue.nix.
           arc-glue = import ./checks/arc-glue.nix { inherit pkgs; };
@@ -209,7 +235,9 @@
 
           # The template a stranger's machine is built from, evaluated on every
           # flake check. See checks/template-host.nix.
-          template-host = import ./checks/template-host.nix { inherit pkgs mkHost disko; };
+          template-host = import ./checks/template-host.nix {
+            inherit pkgs mkHost disko nixos-hardware;
+          };
 
           # emanix.hardware.gpu's effect on the initrd, checked per value.
           # See checks/hardware-gpu.nix.
