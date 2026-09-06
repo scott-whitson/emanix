@@ -60,7 +60,8 @@ machines it exists for.  CANDIDATES defaults to
   :doc "Keymap for `emanix-welcome-mode'."
   "q" #'quit-window
   "n" #'emanix-welcome-never-again
-  "i" #'emanix-welcome-init)
+  "i" #'emanix-welcome-init
+  "g" #'emanix-guides)
 
 (define-derived-mode emanix-welcome-mode special-mode "Emanix-Welcome"
   "Major mode for the emanix orientation buffer.")
@@ -102,6 +103,7 @@ machines it exists for.  CANDIDATES defaults to
           (insert "  ⚠ This machine has no config repo yet.\n")
           (insert "    Press [i] to create one you can edit and keep.\n"))
         (insert "  Manual         https://emanix.net\n\n")
+        (insert "  [g] where to learn — Emacs, Elisp, EWM, NixOS\n\n")
         (insert "  [q] close   [n] never show again")
         (insert (if repo "" "   [i] create a config repo"))
         (insert "\n"))
@@ -115,6 +117,82 @@ machines it exists for.  CANDIDATES defaults to
   (interactive)
   (unless (file-exists-p (emanix-welcome--dismissed-file))
     (emanix-welcome)))
+
+
+;;; --- Guides -----------------------------------------------------------------
+
+;; Where to learn, in one place, so the answer is never "search the web and
+;; hope". Every info entry here was verified present in this Emacs build before
+;; being listed (2026-09-05): emacs, eintr, elisp, org, efaq, cl and transient
+;; all resolve. `magit' is deliberately absent — its manual is NOT installed,
+;; and a dead node in a guide is worse than an omission.
+;;
+;; Buttons rather than a keymap of letters: `insert-text-button' is built in,
+;; needs no package, and gives RET and mouse for free without inventing a
+;; binding that could collide with something the operator already uses.
+
+(defconst emanix-guides--entries
+  '(("Emacs manual"         info "(emacs)"
+     "The editor itself, exhaustively")
+    ("Emacs Lisp Intro"     info "(eintr)"
+     "Start here to write your first Elisp")
+    ("Elisp Reference"      info "(elisp)"
+     "The language, for when the intro runs out")
+    ("Org manual"           info "(org)"
+     "Outlines, agenda, literate config")
+    ("Emacs FAQ"            info "(efaq)"
+     "Short answers to the common confusions")
+    ("All info manuals"     info "(dir)"
+     "The whole directory — the same as C-h i")
+    ("Emanix"               url  "https://emanix.net"
+     "This distribution: philosophy, options, keybindings, theming")
+    ("EWM"                  url  "https://codeberg.org/ezemtsov/ewm"
+     "The Wayland compositor Emacs runs as, upstream")
+    ("NixOS manual"         url  "https://nixos.org/manual/nixos/stable/"
+     "Configuring the system")
+    ("Nixpkgs manual"       url  "https://nixos.org/manual/nixpkgs/stable/"
+     "Packages, overlays, and how derivations are written")
+    ("nix.dev"              url  "https://nix.dev/"
+     "Learning Nix the language, from the beginning")
+    ("Home Manager options" url  "https://nix-community.github.io/home-manager/options.xhtml"
+     "Every option the per-user layer accepts"))
+  "Learning resources: (LABEL KIND TARGET BLURB).
+KIND is `info' for a manual in this Emacs, or `url' for the browser.")
+
+(defun emanix-guides--open (entry)
+  "Open ENTRY, an element of `emanix-guides--entries'."
+  (pcase-let ((`(,_label ,kind ,target ,_blurb) entry))
+    (pcase kind
+      ('info (info target))
+      ('url  (browse-url target))
+      (_     (message "emanix: unknown guide kind %s" kind)))))
+
+(define-derived-mode emanix-guides-mode special-mode "Emanix-Guides"
+  "Major mode for the emanix guide index.")
+
+;;;###autoload
+(defun emanix-guides ()
+  "Show every guide worth knowing about, each openable with RET."
+  (interactive)
+  (let ((buf (get-buffer-create "*emanix-guides*")))
+    (with-current-buffer buf
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert "Where to learn\n\n")
+        (insert "  RET or click opens.  TAB moves between entries.  q closes.\n\n")
+        (dolist (e emanix-guides--entries)
+          (pcase-let ((`(,label ,kind ,_target ,blurb) e))
+            (insert "  ")
+            (insert-text-button
+             (format "%-22s" label)
+             'action (lambda (_b) (emanix-guides--open e))
+             'follow-link t
+             'help-echo (format "Open %s" label))
+            (insert (format " %s%s\n" (if (eq kind 'url) "↗ " "  ") blurb))))
+        (insert "\n  C-h i reaches the info directory from anywhere.\n"))
+      (emanix-guides-mode)
+      (goto-char (point-min)))
+    (pop-to-buffer buf)))
 
 (provide 'emanix-welcome)
 ;;; emanix-welcome.el ends here

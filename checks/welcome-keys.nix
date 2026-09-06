@@ -100,8 +100,25 @@ pkgs.runCommand "emanix-welcome-keys" { } ''
   fi
 
   fails=0
+  # Emacs's own default bindings are exempt. The buffer legitimately points at
+  # built-ins -- `C-h i' IS how you reach the info directory, and a guide that
+  # cannot name it is not a guide. emanix does not bind these and never should,
+  # so demanding a binding form for them would fail on correct code.
+  #
+  # Deliberately tiny, and NOT an escape hatch: a key belongs here only if stock
+  # Emacs binds it with no configuration at all. Anything emanix itself provides
+  # must still prove a live binding form below. A future entry being tempting to
+  # add here is the signal that it ought to be bound instead.
+  builtin_key() {
+    case "$1" in
+    "C-h i" | "C-h b" | "C-h k" | "C-h f" | "C-h v" | "C-h m") return 0 ;;
+    *) return 1 ;;
+    esac
+  }
+
   while IFS= read -r key; do
     [ -n "$key" ] || continue
+    if builtin_key "$key"; then continue; fi
     bound=0
     for src in "$config" "$fallback" "$arc"; do
       if grep -vE '^[[:space:]]*;' "$src" \
