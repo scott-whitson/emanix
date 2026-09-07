@@ -229,6 +229,11 @@
           # whenever someone remembers to look. See checks/arc-glue.nix.
           arc-glue = import ./checks/arc-glue.nix { inherit pkgs; };
 
+          # The ACP adapter wrapper, executed rather than read: the failure it
+          # guards (node resolved through PATH) only appears inside the
+          # systemd-run Emacs daemon. See checks/agent-acp-wrapper.nix.
+          agent-acp-wrapper = import ./checks/agent-acp-wrapper.nix { inherit pkgs; };
+
           palette-contrast = pkgs.runCommand "emanix-palette-contrast" { } ''
             ${pkgs.python3}/bin/python3 ${./tests/contrast-check.py} < ${palettesJson} > $out
           '';

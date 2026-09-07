@@ -25,6 +25,7 @@
     ./swaylock.nix
     ./xdg.nix
     ./emacs-daemon.nix
+    ./agent-acp.nix
     ./firefox.nix
     ./btop.nix
     ./lf.nix
