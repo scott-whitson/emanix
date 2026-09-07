@@ -757,7 +757,8 @@ Each cdr is verified to render at the default face's cell width.")
 ;; that put Claude in an Emacs *window* but the window held a terminal, so the
 ;; transcript had no isearch, no yank, no capture. C-c C-' keeps its job.
 (global-set-key (kbd "C-c C-'") #'agent-shell-anthropic-start-claude-code)
-(global-set-key (kbd "C-c p") #'agent-shell-pi-start-agent)
+;; C-c p (pi) is bound in lisp/emanix-agent-shell.el, not here: it needs the
+;; adapter-present guard that lives with the rest of the agent-shell glue.
 ;; C-c r was force-unset by emanix-pi.el, which reserved it for
 ;; emanix/pi-send-region and never bound it. It does that job now.
 (global-set-key (kbd "C-c r") #'agent-shell-send-region)

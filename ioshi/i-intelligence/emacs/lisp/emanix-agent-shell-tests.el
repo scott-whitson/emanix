@@ -82,6 +82,51 @@
       (with-current-buffer buf
         (should (string-match-p "MY-UNSAVED" (buffer-string)))))))
 
+;; Read and Grep complete as tool calls too, so most updates name a file
+;; nothing wrote. Doing the temp-buffer/diff dance for those is waste, and for
+;; a DIRTY buffer it produced a "changed on disk" warning that was simply false.
+(ert-deftest emanix/agent-shell-sync-skips-buffer-already-current ()
+  (emanix/agent-shell-test--with-file f "line1\n"
+    (find-file-noselect f)
+    (should (eq (emanix/agent-shell--sync-from-disk f) 'unchanged))))
+
+(ert-deftest emanix/agent-shell-sync-skips-dirty-buffer-nothing-wrote ()
+  (emanix/agent-shell-test--with-file f "line1\n"
+    (with-current-buffer (find-file-noselect f)
+      (goto-char (point-max))
+      (insert "MY-UNSAVED\n"))
+    (should (eq (emanix/agent-shell--sync-from-disk f) 'unchanged))))
+
+;; The modtime is stamped BEFORE the replacement, so a replacement that
+;; signals would leave the buffer claiming to be in sync with content it never
+;; received -- and would silence the supersession warning too. A read-only
+;; buffer is the reachable case: `view-mode', \[read-only-mode], or an
+;; unwritable file.
+(ert-deftest emanix/agent-shell-sync-updates-read-only-buffer ()
+  (emanix/agent-shell-test--with-file f "line1\nline2\n"
+    (let ((buf (find-file-noselect f)))
+      (with-current-buffer buf (setq buffer-read-only t))
+      (write-region "line1\nline2\nline3\n" nil f nil 0)
+      (should (eq (emanix/agent-shell--sync-from-disk f) 'synced))
+      (with-current-buffer buf
+        (should (equal (buffer-string) "line1\nline2\nline3\n"))
+        (should buffer-read-only)))))
+
+;; The advice hands over the shell buffer's `default-directory', which
+;; upstream's `agent-shell-cwd' falls back to when there is no project. A
+;; shell started from *scratch* would therefore force-save every modified
+;; buffer under $HOME on every RET.
+(ert-deftest emanix/agent-shell-save-project-buffers-refuses-broad-roots ()
+  (emanix/agent-shell-test--with-file f "a\n"
+    (with-current-buffer (find-file-noselect f)
+      (goto-char (point-max))
+      (insert "edited\n"))
+    (should-not (emanix/agent-shell--save-project-buffers "/"))
+    (should (emanix/agent-shell--save-root-too-broad-p
+             (file-name-as-directory (expand-file-name "~"))))
+    (with-current-buffer (find-buffer-visiting f)
+      (should (buffer-modified-p)))))
+
 ;; Scoping matters: an agent shell's `default-directory' is one project, and
 ;; saving every modified buffer in the session would commit unrelated work.
 ;; The two files must therefore live in genuinely different directories --
