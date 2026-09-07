@@ -30,11 +30,29 @@ pkgs.runCommand "agent-shell-glue-sane" { } ''
     exit 1
   fi
 
-  # 4. All four keys must still be read. Drop any and the sync silently stops
-  #    finding files for that branch.
-  for required in ':raw-input' ':locations' ':diffs' ':content' "'path"; do
-    if ! grep -qF -- "$required" "$src"; then
-      echo "emanix-agent-shell.el no longer reads $required from the tool call" >&2
+  # 4. Every branch of the path extractor must still be READ, not merely
+  #    mentioned.
+  #
+  #    This used to grep for the bare keywords ':raw-input', ':locations',
+  #    ':diffs', ':content'. Three of those four could not fail: the function's
+  #    own docstring names `:locations', `:raw-input' and `:diffs' in prose, so
+  #    deleting the entire `(dolist (d (map-elt tool-call :diffs)) ...)' form
+  #    left this check green. Grep for the CODE FORM instead -- prose cannot
+  #    satisfy `(map-elt tool-call :diffs)'. And `:file', the key actually read
+  #    out of each diff, was guarded by nothing at all; it is guarded now.
+  #
+  #    These are the literal forms in emanix/agent-shell--tool-call-paths. If
+  #    that function is legitimately refactored (renamed locals, a different
+  #    accessor), update the strings here deliberately -- do not delete them.
+  for form in \
+    "(map-elt tool-call :diffs)" \
+    "(map-elt tool-call :locations)" \
+    "(map-elt tool-call :content)" \
+    "(:raw-input file_path)" \
+    "(map-elt d :file)"
+  do
+    if ! grep -qF -- "$form" "$src"; then
+      echo "emanix-agent-shell.el no longer reads the tool call via $form" >&2
       exit 1
     fi
   done
@@ -44,9 +62,15 @@ pkgs.runCommand "agent-shell-glue-sane" { } ''
   #     distinguish one branch from two, so deleting the :content branch
   #     outright would still satisfy every string above -- the check would
   #     pass while the regression shipped. Count the occurrences instead.
-  path_count=$(grep -oF "'path" "$src" | wc -l)
+  #
+  #     Counted over comment-stripped source, for the same reason as 4: the
+  #     docstring above the function is free to discuss 'path, and a count that
+  #     prose can inflate is a count that cannot fail. sed drops everything from
+  #     the first `;' on each line, which is exactly an elisp comment here (this
+  #     file has no `;' inside any string or docstring).
+  path_count=$(sed 's/;.*//' "$src" | grep -oF "'path" | wc -l)
   if [ "$path_count" -lt 2 ]; then
-    echo "emanix-agent-shell.el reads 'path in fewer than 2 branches (found $path_count); the :locations and :content branches must each read it" >&2
+    echo "emanix-agent-shell.el reads 'path in fewer than 2 code branches (found $path_count); the :locations and :content branches must each read it" >&2
     exit 1
   fi
 

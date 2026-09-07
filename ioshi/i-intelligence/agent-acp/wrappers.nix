@@ -15,7 +15,11 @@ in
 {
   adapter = pkgs.writeShellScriptBin "claude-agent-acp" ''
     set -eu
-    state="''${XDG_DATA_HOME:-$HOME/.local/share}/claude-agent-acp"
+    # ''${HOME:-}, not $HOME: `set -u' would otherwise abort on "unbound
+    # variable" before the friendly message below ever runs, in exactly the
+    # stripped environment (a systemd unit with no HOME) where that message is
+    # the only clue anyone gets.
+    state="''${XDG_DATA_HOME:-''${HOME:-}/.local/share}/claude-agent-acp"
     entry="$state/${entryPath}"
     if [ ! -f "$entry" ]; then
       echo "claude-agent-acp: adapter payload is not installed at $entry" >&2
@@ -29,7 +33,7 @@ in
 
   updater = pkgs.writeShellScriptBin "claude-acp-update" ''
     set -eu
-    state="''${XDG_DATA_HOME:-$HOME/.local/share}/claude-agent-acp"
+    state="''${XDG_DATA_HOME:-''${HOME:-}/.local/share}/claude-agent-acp"
     mkdir -p "$state"
     echo "Installing ${package} into $state" >&2
     exec ${pkgs.nodejs}/bin/npm install --global --prefix "$state" ${package}
