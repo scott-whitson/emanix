@@ -921,11 +921,26 @@ No code. This is the task that proves the one genuinely new failure mode — the
 
 - [ ] **Step 1: Build both host configurations**
 
-Run on whistle:
+**`~/dotfiles` consumes emanix as `github:scott-whitson/emanix`, NOT as a local path.** A
+plain `nixos-rebuild --flake ~/dotfiles#whistle` therefore builds the emanix that is *pushed*,
+and would silently verify the old code while you believe you are testing this branch. Two
+honest routes:
+
+*Route A — test this branch without publishing anything (do this first):*
 ```bash
 cd ~/projects/emanix && nix flake check
+sudo nixos-rebuild switch --flake ~/dotfiles#whistle \
+  --override-input emanix path:/home/scott/projects/emanix
+```
+
+*Route B — after the branch is merged and pushed, the normal path:*
+```bash
+cd ~/dotfiles && nix flake update emanix
 sudo nixos-rebuild switch --flake ~/dotfiles#whistle
 ```
+Pushing emanix from whistle needs the rafik relay — the GitHub identity whistle uses has no
+access to the emanix repo.
+
 Expected: switch completes.
 
 - [ ] **Step 2: Install the adapter payload**
@@ -978,8 +993,9 @@ In a scratch git repo:
 
 ```bash
 ssh rafik
-cd ~/projects/emanix && git pull   # see reference: rafik's remote is datacore
-sudo nixos-rebuild switch --flake ~/dotfiles#rafik
+cd ~/projects/emanix && git fetch --all && git checkout agent-shell-acp
+sudo nixos-rebuild switch --flake ~/dotfiles#rafik \
+  --override-input emanix path:/home/scott/projects/emanix
 claude-acp-update
 ```
 Then Steps 3-7 again. rafik is a different role (workstation, not WSL) and runs EWM, so **Step 7 must also cover `s-S-<return>` from an EWM slot** — that binding does not exist on whistle.
