@@ -1,0 +1,116 @@
+;;; emanix-agent-shell-tests.el --- Tests for the buffer-sync patch -*- lexical-binding: t; -*-
+;;
+;; These cover the half of emanix-agent-shell.el that has no agent-shell
+;; dependency, which is deliberately the half where every measured failure
+;; lived. Run by checks/agent-shell-sync.nix on every `nix flake check'.
+
+(require 'ert)
+(require 'emanix-agent-shell)
+
+(defmacro emanix/agent-shell-test--with-file (var contents &rest body)
+  "Bind VAR to a temp file containing CONTENTS and run BODY."
+  (declare (indent 2))
+  `(let ((,var (make-temp-file "emanix-agent-shell-test-" nil ".txt" ,contents)))
+     (unwind-protect (progn ,@body)
+       (dolist (b (buffer-list))
+         (when (equal (buffer-file-name b) ,var)
+           (with-current-buffer b (set-buffer-modified-p nil))
+           (kill-buffer b)))
+       (delete-file ,var))))
+
+;; The payload mixes key styles: keywords at the top level of the tool call,
+;; plain symbols inside the JSON-derived vectors. Getting this wrong fails
+;; SILENTLY -- the handler runs, matches nothing, logs nothing -- which is
+;; exactly how it failed during the probe.
+(ert-deftest emanix/agent-shell-tool-call-paths-handles-both-key-styles ()
+  (let ((tool-call
+         '((:title . "Edit x.py")
+           (:status . "completed")
+           (:content . [((type . "diff") (path . "/tmp/from-content"))])
+           (:raw-input (file_path . "/tmp/from-raw-input"))
+           (:locations . [((path . "/tmp/from-locations") (line . 3))])
+           (:diffs ((:file . "/tmp/from-diffs") (:line . 3))))))
+    (let ((paths (emanix/agent-shell--tool-call-paths tool-call)))
+      (dolist (expected '("/tmp/from-content" "/tmp/from-raw-input"
+                          "/tmp/from-locations" "/tmp/from-diffs"))
+        (should (member expected paths))))))
+
+(ert-deftest emanix/agent-shell-tool-call-paths-deduplicates ()
+  (let ((tool-call
+         '((:raw-input (file_path . "/tmp/same"))
+           (:locations . [((path . "/tmp/same"))])
+           (:diffs ((:file . "/tmp/same"))))))
+    (should (equal (emanix/agent-shell--tool-call-paths tool-call) '("/tmp/same")))))
+
+(ert-deftest emanix/agent-shell-sync-updates-clean-buffer ()
+  (emanix/agent-shell-test--with-file f "line1\nline2\n"
+    (let ((buf (find-file-noselect f)))
+      (write-region "line1\nline2\nline3\n" nil f nil 0)
+      (should (eq (emanix/agent-shell--sync-from-disk f) 'synced))
+      (with-current-buffer buf
+        (should (equal (buffer-string) "line1\nline2\nline3\n"))
+        (should-not (buffer-modified-p))))))
+
+(ert-deftest emanix/agent-shell-sync-preserves-point ()
+  (emanix/agent-shell-test--with-file f "line1\nline2\n"
+    (let ((buf (find-file-noselect f)))
+      (with-current-buffer buf (goto-char 4))
+      (write-region "line1\nline2\nline3\n" nil f nil 0)
+      (emanix/agent-shell--sync-from-disk f)
+      (with-current-buffer buf (should (= (point) 4))))))
+
+;; The reason this uses `replace-buffer-contents' and not `revert-buffer':
+;; an agent's edit must be undoable like any other edit.
+(ert-deftest emanix/agent-shell-sync-preserves-undo ()
+  (emanix/agent-shell-test--with-file f "line1\nline2\n"
+    (let ((buf (find-file-noselect f)))
+      (write-region "line1\nline2\nline3\n" nil f nil 0)
+      (emanix/agent-shell--sync-from-disk f)
+      (with-current-buffer buf
+        (undo-start)
+        (undo-more 1)
+        (should (equal (buffer-string) "line1\nline2\n"))))))
+
+(ert-deftest emanix/agent-shell-sync-refuses-dirty-buffer ()
+  (emanix/agent-shell-test--with-file f "line1\nline2\n"
+    (let ((buf (find-file-noselect f)))
+      (with-current-buffer buf
+        (goto-char (point-max))
+        (insert "MY-UNSAVED\n"))
+      (write-region "line1\nline2\nline3\n" nil f nil 0)
+      (should (eq (emanix/agent-shell--sync-from-disk f) 'skipped-dirty))
+      (with-current-buffer buf
+        (should (string-match-p "MY-UNSAVED" (buffer-string)))))))
+
+;; Scoping matters: an agent shell's `default-directory' is one project, and
+;; saving every modified buffer in the session would commit unrelated work.
+;; The two files must therefore live in genuinely different directories --
+;; sharing $TMPDIR would let a broken implementation pass.
+(ert-deftest emanix/agent-shell-save-project-buffers-saves-only-under-root ()
+  (let* ((root (make-temp-file "emanix-agent-shell-root-" t))
+         (inside (expand-file-name "inside.txt" root))
+         (outside (make-temp-file "emanix-agent-shell-outside-" nil ".txt" "b\n")))
+    (unwind-protect
+        (progn
+          (write-region "a\n" nil inside)
+          (dolist (f (list inside outside))
+            (with-current-buffer (find-file-noselect f)
+              (goto-char (point-max))
+              (insert "edited\n")))
+          (let ((saved (emanix/agent-shell--save-project-buffers root)))
+            (should (member inside saved))
+            (should-not (member outside saved)))
+          (with-current-buffer (find-file-noselect inside)
+            (should-not (buffer-modified-p)))
+          ;; The buffer outside the root must still be dirty and unwritten.
+          (with-current-buffer (find-file-noselect outside)
+            (should (buffer-modified-p))))
+      (dolist (f (list inside outside))
+        (when-let* ((b (find-buffer-visiting f)))
+          (with-current-buffer b (set-buffer-modified-p nil))
+          (kill-buffer b)))
+      (delete-directory root t)
+      (delete-file outside))))
+
+(provide 'emanix-agent-shell-tests)
+;;; emanix-agent-shell-tests.el ends here

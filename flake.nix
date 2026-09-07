@@ -234,6 +234,9 @@
           # systemd-run Emacs daemon. See checks/agent-acp-wrapper.nix.
           agent-acp-wrapper = import ./checks/agent-acp-wrapper.nix { inherit pkgs; };
 
+          # The buffer-sync patch's unit tests. See checks/agent-shell-sync.nix.
+          agent-shell-sync = import ./checks/agent-shell-sync.nix { inherit pkgs; };
+
           palette-contrast = pkgs.runCommand "emanix-palette-contrast" { } ''
             ${pkgs.python3}/bin/python3 ${./tests/contrast-check.py} < ${palettesJson} > $out
           '';
