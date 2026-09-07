@@ -237,6 +237,14 @@
           # The buffer-sync patch's unit tests. See checks/agent-shell-sync.nix.
           agent-shell-sync = import ./checks/agent-shell-sync.nix { inherit pkgs; };
 
+          # The agent-shell glue's autoloads and payload parsing. See
+          # checks/agent-shell-glue.nix.
+          agent-shell-glue = import ./checks/agent-shell-glue.nix { inherit pkgs; };
+
+          # The upstream agent-shell API this integration depends on, asserted
+          # against the pinned overlay. See checks/agent-shell-api.nix.
+          agent-shell-api = import ./checks/agent-shell-api.nix { inherit pkgs; };
+
           palette-contrast = pkgs.runCommand "emanix-palette-contrast" { } ''
             ${pkgs.python3}/bin/python3 ${./tests/contrast-check.py} < ${palettesJson} > $out
           '';
