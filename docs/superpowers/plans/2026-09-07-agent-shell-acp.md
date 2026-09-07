@@ -921,19 +921,31 @@ No code. This is the task that proves the one genuinely new failure mode — the
 
 - [ ] **Step 1: Build both host configurations**
 
-**`~/dotfiles` consumes emanix as `github:scott-whitson/emanix`, NOT as a local path.** A
-plain `nixos-rebuild --flake ~/dotfiles#whistle` therefore builds the emanix that is *pushed*,
-and would silently verify the old code while you believe you are testing this branch. Two
-honest routes:
+**This branch must be MERGED TO `main` in `~/projects/emanix` before it can be tested at
+all — a worktree will not do.** Two independent reasons, and the second is the hard one:
 
-*Route A — test this branch without publishing anything (do this first):*
+1. `~/dotfiles` consumes emanix as `github:scott-whitson/emanix`, not as a local path, so a
+   plain rebuild builds the *pushed* emanix and silently verifies the old code.
+2. `dotfiles/home/scott/default.nix:210` sets `emanix.src.path = "$HOME/projects/emanix"`, and
+   `emacs.nix` symlinks `config.el` and `lisp/` out of store from that path. So the LIVE ELISP
+   always comes from the main checkout, whatever `--override-input` says. Overriding the input
+   to a worktree gets you the new nix packages with the OLD elisp: `emanix-pi.el` still
+   present, `emanix-agent-shell.el` still missing. Half-applied and confusing.
+
 ```bash
-cd ~/projects/emanix && nix flake check
+cd ~/projects/emanix
+git merge --ff-only agent-shell-acp
+nix flake check
 sudo nixos-rebuild switch --flake ~/dotfiles#whistle \
   --override-input emanix path:/home/scott/projects/emanix
 ```
 
-*Route B — after the branch is merged and pushed, the normal path:*
+Note the window this opens, and do not restart Emacs inside it: the merge changes the live
+elisp IMMEDIATELY, so `emanix-pi.el` is gone and `emanix-agent-shell.el` is present before the
+switch has installed the agent-shell package. Between merge and switch, `C-c C-'` and `C-c r`
+are void functions. Merge and switch back to back.
+
+Once the branch is pushed, the override is no longer needed:
 ```bash
 cd ~/dotfiles && nix flake update emanix
 sudo nixos-rebuild switch --flake ~/dotfiles#whistle
