@@ -66,8 +66,10 @@ pkgs.runCommand "agent-shell-glue-sane" { } ''
   #     Counted over comment-stripped source, for the same reason as 4: the
   #     docstring above the function is free to discuss 'path, and a count that
   #     prose can inflate is a count that cannot fail. sed drops everything from
-  #     the first `;' on each line, which is exactly an elisp comment here (this
-  #     file has no `;' inside any string or docstring).
+  #     the first `;' on each line, which is a safety measure rather than an exact
+  #     elisp tokeniser -- the module does contain a `;' inside a docstring, so a
+  #     line can be truncated early. Stripping can therefore only ever UNDERCOUNT,
+  #     which fails RED and never GREEN: the direction a guard may be wrong in.
   path_count=$(sed 's/;.*//' "$src" | grep -oF "'path" | wc -l)
   if [ "$path_count" -lt 2 ]; then
     echo "emanix-agent-shell.el reads 'path in fewer than 2 code branches (found $path_count); the :locations and :content branches must each read it" >&2

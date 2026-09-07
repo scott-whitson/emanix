@@ -260,12 +260,28 @@ Every key was already doing this job. Nothing new is taken.
 | Key | Was | Becomes |
 | --- | --- | --- |
 | `C-c C-'` | `claude-code-ide-menu` | Claude agent shell |
-| `C-c p` | `emanix/pi` (Ghostty) | pi agent shell (`agent-shell-pi-start-agent`) |
+| `C-c p` | `emanix/pi` (Ghostty) | pi agent shell (`agent-shell-pi-start-agent`) — **guarded, see below** |
 | `s-S-<return>` | pi in Ghostty, from an EWM slot | Claude agent shell from an EWM slot |
 | `C-c r` | force-unset by `emanix-pi.el` | `agent-shell-send-region` |
 
 `C-c r` replaces the `emanix/pi-send-region` capability lost with
 `emanix-pi.el`, on the key that module was already reserving.
+
+## pi needs an adapter that is not packaged
+
+Correction to this spec's own premise, found during implementation. `agent-shell-pi.el` ships
+in agent-shell, which is why pi looked like a free second agent — but the elisp is only half
+of it. `agent-shell-pi-acp-command` defaults to `("pi-acp")`, and no such binary exists here:
+`pkgs.pi-coding-agent` ships `bin/pi` only, and the dotfiles wrapper has no ACP entry point.
+
+So pi over ACP needs a `pi-acp` adapter the way Claude needs `claude-agent-acp` — and unlike
+Claude's, which has one official implementation, pi's exists only as several competing
+community forks. Choosing which one runs on these machines is a supply-chain decision, so this
+branch does not make it: `C-c p` is bound only when an adapter is actually present, and
+otherwise reports what is missing and which variable to point at it.
+
+The decision recorded above ("keep pi in agent-shell, drop the Ghostty launcher") therefore
+lands half-done on purpose. The Ghostty launcher is gone; pi returns when an adapter is chosen.
 
 ## Scope
 
@@ -287,7 +303,8 @@ agent-shell does not support.
 5. The four patch assertions: clean-buffer sync with point preserved; `C-/`
    reverses an agent edit; a dirty buffer is refused with a warning; the agent
    reads a token present only in the buffer.
-6. `C-c p` opens a pi shell.
+6. `C-c p` reports that a pi ACP adapter is missing, rather than raising a void-function
+   error. It opens a pi shell only once an adapter is installed — see "pi needs an adapter".
 
 ## Risks
 

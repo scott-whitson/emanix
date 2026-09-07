@@ -17,7 +17,7 @@
 - **Adapter package:** `@agentclientprotocol/claude-agent-acp` (NOT the superseded `@zed-industries/claude-code-acp`).
 - **Adapter payload path:** `${XDG_DATA_HOME:-$HOME/.local/share}/claude-agent-acp`, entry point `lib/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js`.
 - **Emacs package versions in the pinned overlay:** `agent-shell-20260901.930`, `acp`, `shell-maker`. Verified to contain `agent-shell-subscribe-to`, the `tool-call-update` event, `:raw-input`, `:diffs`, `agent-shell-send-region`, `agent-shell-pi-start-agent`, `agent-shell-mode-hook`.
-- **Keybindings:** `C-c C-'` → Claude shell; `C-c p` → pi shell; `C-c r` → `agent-shell-send-region`; `s-S-<return>` → Claude shell from an EWM slot.
+- **Keybindings:** `C-c C-'` → Claude shell; `C-c p` → pi shell (guarded: bound only when a pi ACP adapter exists); `C-c r` → `agent-shell-send-region`; `s-S-<return>` → Claude shell from an EWM slot.
 - **Commit trailers:** none. Never add `Co-Authored-By`.
 - **No new top-level `$HOME` directories.** The four-directory home rule (docs/dotfiles/downloads/projects) holds; the adapter payload lives under `~/.local/share`.
 - **Naming:** `emanix.*` is the distro's option namespace; `emanix/` prefixes elisp symbols. This work declares **no new nix option**.
@@ -986,7 +986,9 @@ In a scratch git repo:
 
 - [ ] **Step 7: Verify pi and send-region**
 
-- `C-c p` → a pi agent shell starts.
+- `C-c p` → reports that a pi ACP adapter is missing. This is correct, not a failure: no
+  `pi-acp` binary is packaged, and choosing among the community forks was left to you. It
+  opens a real pi shell only once one is installed.
 - Select a region in a file, press `C-c r` → the region reaches an agent shell.
 
 - [ ] **Step 8: Repeat Steps 1-7 on rafik**

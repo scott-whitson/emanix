@@ -73,8 +73,8 @@ pkgs.runCommand "agent-shell-api" { } ''
     fi
   done
 
-  # Two emit sites, and the sync patch depends on BOTH: one carries :raw-input
-  # only, the other carries :locations and :diffs. Losing one would halve the
+  # Two emit sites, and the sync patch depends on BOTH. They carry overlapping
+  # subsets of these keys rather than disjoint ones. Losing one would halve the
   # paths the sync sees while every presence grep above stayed green, so count
   # rather than merely match.
   emits=$(grep -cF -- ":event 'tool-call-update" "$src")
