@@ -30,14 +30,25 @@ pkgs.runCommand "agent-shell-glue-sane" { } ''
     exit 1
   fi
 
-  # 4. Both key styles must still be read. Drop either and the sync silently
-  #    stops finding files.
-  for required in ':raw-input' ':locations' ':diffs' "'path"; do
+  # 4. All four keys must still be read. Drop any and the sync silently stops
+  #    finding files for that branch.
+  for required in ':raw-input' ':locations' ':diffs' ':content' "'path"; do
     if ! grep -qF -- "$required" "$src"; then
       echo "emanix-agent-shell.el no longer reads $required from the tool call" >&2
       exit 1
     fi
   done
+
+  # 4b. 'path is read from TWO separate branches (:locations and :content),
+  #     each a vector of symbol-keyed alists. A presence-only grep cannot
+  #     distinguish one branch from two, so deleting the :content branch
+  #     outright would still satisfy every string above -- the check would
+  #     pass while the regression shipped. Count the occurrences instead.
+  path_count=$(grep -oF "'path" "$src" | wc -l)
+  if [ "$path_count" -lt 2 ]; then
+    echo "emanix-agent-shell.el reads 'path in fewer than 2 branches (found $path_count); the :locations and :content branches must each read it" >&2
+    exit 1
+  fi
 
   # 5. The three commands the keybindings name must be autoloaded.
   for cmd in \

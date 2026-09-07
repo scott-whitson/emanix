@@ -154,8 +154,13 @@ capability; see this file's header."
   "Subscribe the current agent shell to tool-call updates.
 
 Runs from `agent-shell-mode-hook', where upstream guarantees session state is
-already available.  Wrapped so that an upstream event-shape change costs the
-sync feature and not a working shell."
+already available.  The `condition-case' here guards only this subscription
+call, so a failure at install time costs the sync feature and not a working
+shell.  It does not (and need not) guard the handler itself: that runs later,
+asynchronously, outside this call's dynamic extent, and agent-shell's own
+`agent-shell--emit-event' already wraps every subscriber invocation in its
+own `condition-case' and messages the error, so a throwing handler cannot
+wedge the shell either."
   (when (fboundp 'agent-shell-subscribe-to)
     (condition-case err
         (agent-shell-subscribe-to

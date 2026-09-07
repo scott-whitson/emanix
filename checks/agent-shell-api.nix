@@ -7,8 +7,10 @@
 # otherwise surface as a keybinding that errors when pressed, weeks later.
 { pkgs, ... }:
 let
+  emacsPackages = pkgs.emacsPackagesFor pkgs.emacs-nox;
+  agentShellPkg = emacsPackages.agent-shell;
   emacsWithAgentShell =
-    (pkgs.emacsPackagesFor pkgs.emacs-nox).emacsWithPackages
+    emacsPackages.emacsWithPackages
       (epkgs: [ epkgs.agent-shell epkgs.acp epkgs.shell-maker ]);
 in
 pkgs.runCommand "agent-shell-api" { } ''
@@ -34,5 +36,23 @@ pkgs.runCommand "agent-shell-api" { } ''
     (unless (string-match-p "tool-call-update"
                             (documentation (quote agent-shell-subscribe-to)))
       (error "agent-shell no longer documents the tool-call-update event")))'
+
+  # The symbols above can all stay green while the payload SHAPE underneath
+  # them changes -- a renamed key is not a renamed function. Read the actual
+  # upstream source, not just what it exports, and confirm it still emits a
+  # tool-call-update event carrying :data with :tool-call, and that the
+  # stored tool call still carries :diffs, :raw-input and :locations. Verified
+  # by hand against the pinned version's two emit sites; a bump that drops
+  # any of these keys would otherwise leave every fboundp check above green
+  # while emanix/agent-shell--tool-call-paths silently returns nil for every
+  # call and a synced buffer just goes stale.
+  src=$(echo ${agentShellPkg}/share/emacs/site-lisp/elpa/agent-shell-*/agent-shell.el)
+  for key in ':diffs' ':raw-input' ':locations' ':tool-call'; do
+    if ! grep -qF -- "$key" "$src"; then
+      echo "agent-shell.el no longer constructs $key in its tool-call payload" >&2
+      exit 1
+    fi
+  done
+
   touch $out
 ''
