@@ -96,9 +96,6 @@ let
     ghostel # NOT agent-shell's: the buffer terminal in its own right, C-c t
     transient # magit needs it; listed since ghostel's menu uses it directly
 
-    # --- Mail (mu4e) ---
-    mu4e        # Emacs mail client, backed by the mu indexer + isync/mbsync
-
     # --- Code editing ---
     # Emacs 30 already ships the hard parts: project.el, eglot (LSP client),
     # flymake, xref, python-ts-mode, html-ts-mode and css-ts-mode are all
