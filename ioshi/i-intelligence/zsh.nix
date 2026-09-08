@@ -129,13 +129,16 @@
   # shell. A systemd user service does not start from a login shell, so
   # programs.zsh.sessionVariables above never reaches one — and the Emacs
   # daemon is exactly such a service. Without this, elisp that resolves
-  # $EMANIX_BIN_DIR (the calendar-sync binding, the pi fallback, the EWM
-  # firefox slot) gets an empty string and expands to a bare relative path —
-  # and emanix-welcome.el's $EMANIX_DOTFILES read (see the matching entry
-  # above) would go the same way for a daemon-only session.
+  # $EMANIX_BIN_DIR (the calendar-sync binding, the EWM firefox slot) gets an
+  # empty string and expands to a bare relative path — and
+  # emanix-welcome.el's $EMANIX_DOTFILES read (see the matching entry above)
+  # would go the same way for a daemon-only session.
   #
-  # emanix-pi.el's fallback documents the daemon as its reason for existing,
+  # The calendar-sync binding documents the daemon as its reason for existing,
   # so the daemon is the case that must work, not the one that may be missed.
+  # (emanix-pi.el used to make this point; it retired with the pi launcher on
+  # 2026-09-07, but the reasoning is a property of the daemon, not that file.)
+  #
   # Landing these here rather than in theme.nix, next to the shell exports
   # they mirror, so the two lists cannot drift apart.
   #

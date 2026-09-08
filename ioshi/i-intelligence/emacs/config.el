@@ -648,7 +648,7 @@ base name, hence the `file-name-nondirectory' before the prefix test."
     (message "gdocs not loadable; skipping (see the comment above)")))
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(emanix-theme emanix-weather emanix-openrouter emanix-modeline emanix-launcher emanix-pi emanix-quarterly emanix-prose emanix-web))
+(dolist (feature '(emanix-theme emanix-weather emanix-openrouter emanix-modeline emanix-launcher emanix-agent-shell emanix-quarterly emanix-prose emanix-web))
   (require feature nil :no-error))
 ;; Prose rendering — markdown and org files read as documents, not source.
 ;; C-c z toggles back to raw monospace for heavy editing. Chosen 2026-08-17;
@@ -752,48 +752,16 @@ Each cdr is verified to render at the default face's cell width.")
 ;; fallback, so naming this after either one would be wrong within a release.
 (add-hook 'ghostel-mode-hook #'emanix/terminal-fix-glyph-widths)
 
-;; Claude Code IDE (trial, 2026-08-24) — Claude in an Emacs side window with
-;; MCP access to xref/eglot, tree-sitter, imenu, project.el and flymake,
-;; instead of the vterm → zellij → claude stack. Coexists with that stack;
-;; nothing in zellij.nix or claude.nix changed.
-;;
-;; The package is a git checkout, not a store path: it is not on MELPA and is
-;; early-development (v0.3.0), so `git pull' + restart updates it with no
-;; rebuild. packages.nix carries only its deps (websocket, web-server,
-;; transient) plus ghostel. The file-directory-p guard means a missing checkout
-;; costs one keybinding rather than breaking the config.
-;;
-;; Autoload from "claude-code-ide", NOT from the file that defines the menu:
-;; claude-code-ide-transient.el does not require claude-code-ide.el, so
-;; autoloading the menu from there yields a menu whose every action is a void
-;; function. claude-code-ide.el requires the transient file, so this direction
-;; loads everything. Same explicit-autoload reasoning as vterm above.
-;;
-;; executeCode stays OFF. It is a bare `(eval (car (read-from-string code)) t)'
-;; with no confirmation, allowlist or sandbox, it rides on the core tool list
-;; rather than the optional tools server, and this daemon holds the work vault,
-;; ecomms credentials, agenix buffers and push-capable magit.
-(let ((cci (expand-file-name "~/.config/emacs/site-lisp/claude-code-ide.el")))
-  (when (file-directory-p cci)
-    (add-to-list 'load-path cci)
-    (dolist (cmd '(claude-code-ide-menu claude-code-ide claude-code-ide-check-status))
-      (autoload cmd "claude-code-ide" "Claude Code IDE." t))
-    (global-set-key (kbd "C-c C-'") #'claude-code-ide-menu)
-    (with-eval-after-load 'claude-code-ide
-      (setq claude-code-ide-terminal-backend 'ghostel
-            claude-code-ide-enable-execute-code nil)
-      ;; The daemon runs under systemd, whose PATH has no ~/.local/bin — which
-      ;; is exactly where Claude Code's native installer puts the binary. So a
-      ;; bare "claude" resolves in an interactive shell and NOT in the daemon.
-      ;; Point at it directly when it is there; leave the default alone if the
-      ;; CLI is already on exec-path (a store-installed claude elsewhere).
-      (unless (executable-find "claude")
-        (let ((local (expand-file-name "~/.local/bin/claude")))
-          (when (file-executable-p local)
-            (setq claude-code-ide-cli-path local))))
-      ;; Registers the xref/apropos/treesit/imenu/project tools and sets
-      ;; claude-code-ide-enable-mcp-server non-nil itself.
-      (claude-code-ide-emacs-tools-setup))))
+;; Agent shell (ACP) — Claude Code and pi as Emacs buffers, configured in
+;; lisp/emanix-agent-shell.el. Replaced claude-code-ide.el on 2026-09-07:
+;; that put Claude in an Emacs *window* but the window held a terminal, so the
+;; transcript had no isearch, no yank, no capture. C-c C-' keeps its job.
+(global-set-key (kbd "C-c C-'") #'agent-shell-anthropic-start-claude-code)
+;; C-c p (pi) is bound in lisp/emanix-agent-shell.el, not here: it needs the
+;; adapter-present guard that lives with the rest of the agent-shell glue.
+;; C-c r was force-unset by emanix-pi.el, which reserved it for
+;; emanix/pi-send-region and never bound it. It does that job now.
+(global-set-key (kbd "C-c r") #'agent-shell-send-region)
 
 ;; Frame title must ALWAYS contain "emacs": GlazeWM's ignore rule on the
 ;; work laptop matches WSLg windows by title to leave the Emacs frame
@@ -879,11 +847,11 @@ Each cdr is verified to render at the default face's cell width.")
       (lambda ()
         (interactive)
         (start-process "ghostty" nil "ghostty")))
-    ;; Super+Shift+Enter: open Pi agent in Ghostty.
+    ;; Super+Shift+Enter: the Claude agent shell, from any slot. Was pi in a
+    ;; Ghostty window until 2026-09-07 — the agent is a buffer now, so this
+    ;; summons a buffer.
     (define-key ewm-mode-map (kbd "s-S-<return>")
-      (lambda ()
-        (interactive)
-        (start-process "ghostty-pi" nil "ghostty" "-e" "pi")))
+      #'agent-shell-anthropic-start-claude-code)
     ;; Summon arc (ask) from ANY slot. It must be a single intercepted key:
     ;; the C-c i prefix can't reach Emacs from a focused Wayland surface (the
     ;; follow-up key goes to the surface). C-c i still gives the full command

@@ -229,6 +229,35 @@
           # whenever someone remembers to look. See checks/arc-glue.nix.
           arc-glue = import ./checks/arc-glue.nix { inherit pkgs; };
 
+          # The ACP adapter wrapper, executed rather than read: the failure it
+          # guards (node resolved through PATH) only appears inside the
+          # systemd-run Emacs daemon. See checks/agent-acp-wrapper.nix.
+          agent-acp-wrapper = import ./checks/agent-acp-wrapper.nix { inherit pkgs; };
+
+          # The buffer-sync patch's unit tests. See checks/agent-shell-sync.nix.
+          agent-shell-sync = import ./checks/agent-shell-sync.nix { inherit pkgs; };
+
+          # The agent-shell glue's autoloads and payload parsing. See
+          # checks/agent-shell-glue.nix.
+          agent-shell-glue = import ./checks/agent-shell-glue.nix { inherit pkgs; };
+
+          # The upstream agent-shell API this integration depends on, asserted
+          # against the emacs-overlay build the hosts actually run. See
+          # checks/agent-shell-api.nix.
+          #
+          # `pkgs' above is bare nixpkgs.legacyPackages -- the emacs-overlay is
+          # applied inside nixpkgsModule, which is a NixOS module and therefore
+          # unreachable from `checks'. So this check, and only this check, gets
+          # an overlay-extended pkgs. Without it the assertions resolved
+          # nixpkgs' own agent-shell (20260807.941) while every host ran the
+          # overlay's (20260901.930), i.e. the guard against this branch's
+          # stated top risk pointed at a version nobody runs. The other two
+          # agent-shell checks touch no emacs packages, so they keep plain
+          # pkgs.
+          agent-shell-api = import ./checks/agent-shell-api.nix {
+            pkgs = pkgs.extend emacs-overlay.overlays.default;
+          };
+
           palette-contrast = pkgs.runCommand "emanix-palette-contrast" { } ''
             ${pkgs.python3}/bin/python3 ${./tests/contrast-check.py} < ${palettesJson} > $out
           '';

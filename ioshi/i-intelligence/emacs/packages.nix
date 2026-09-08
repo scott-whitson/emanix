@@ -80,20 +80,21 @@ let
     vterm # native module built by nix; M-x package-install can't do this
     weblorg # pure Emacs Lisp static site generator with org-roam support
 
-    # --- Claude Code IDE (trial, 2026-08-24) ---
-    # claude-code-ide itself is deliberately NOT here: it is not on MELPA and is
-    # early-development software that moves weekly, so it lives as a git
-    # checkout in ~/.config/emacs/site-lisp and config.el adds it to load-path.
-    # A `git pull' updates it with no rebuild. These four are what it needs from
-    # the store.
-    ghostel # libghostty-vt terminal, the backend claude-code-ide recommends.
-    # Native Zig module, so nix must build it for the same reason as vterm above:
-    # upstream auto-downloads a prebuilt .so on first use and cannot write to
-    # the store.
-    websocket # claude-code-ide: MCP transport
-    web-server # claude-code-ide: MCP HTTP server
-    transient # claude-code-ide's menu. Already in the closure via magit; listed
-    # anyway because claude-code-ide requires it directly.
+    # --- Agent shell (ACP) ---
+    # Claude Code and pi as Emacs buffers rather than terminals. agent-shell
+    # speaks ACP -- "LSP for coding agents" -- to the real CLI, so CLAUDE.md,
+    # skills, plugins, hooks and settings permissions all still apply.
+    #
+    # Replaced claude-code-ide.el on 2026-09-07, which was a terminal in a side
+    # window and needed websocket + web-server for its MCP server. Those two
+    # had no other consumer and left with it; so did the Emacs MCP tools it
+    # exposed (xref, imenu, project), a deliberate trade recorded in
+    # docs/superpowers/specs/2026-09-07-agent-shell-acp-design.md.
+    agent-shell
+    acp # the protocol client agent-shell drives
+    shell-maker # agent-shell's buffer/prompt substrate
+    ghostel # NOT agent-shell's: the buffer terminal in its own right, C-c t
+    transient # magit needs it; listed since ghostel's menu uses it directly
 
     # --- Mail (mu4e) ---
     mu4e        # Emacs mail client, backed by the mu indexer + isync/mbsync
