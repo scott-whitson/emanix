@@ -156,8 +156,8 @@ Accepts and ignores FRAME so this can sit on `after-make-frame-functions'."
 (display-battery-mode 1)
 ;; Keep the per-window mode-line clean — the panel lives in the tab-bar now.
 (setq global-mode-string nil)
-(setq-default display-line-numbers-type 'relative)
-(global-display-line-numbers-mode 1)
+(setq-default display-line-numbers-type t)
+(add-hook 'prog-mode-hook #'display-line-numbers-mode)
 
 ;; --- Scratch buffer ---
 ;; Banner is figlet's `slant' font, generated once and pasted (NOT shelled out
@@ -338,7 +338,7 @@ path-specific groups from the personal layer.")
    '("e" . meow-next-word)
    '("E" . meow-next-symbol)
    '("f" . meow-find)
-   '("F" . avy-goto-line)
+   '("F" . avy-goto-char-2)
    '("g" . meow-cancel-selection)
    '("G" . meow-grab)
    '("h" . meow-left)
