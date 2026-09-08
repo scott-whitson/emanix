@@ -21,6 +21,10 @@
     file
     usbutils # lsusb — camera/device detection
 
+    # Mail (mu4e stack)
+    mu          # mail indexer + mu4e backend
+    isync       # mbsync — IMAP sync to local Maildir
+
     # Developer tools
     gh
     lazygit

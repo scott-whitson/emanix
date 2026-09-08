@@ -95,6 +95,9 @@ let
     transient # claude-code-ide's menu. Already in the closure via magit; listed
     # anyway because claude-code-ide requires it directly.
 
+    # --- Mail (mu4e) ---
+    mu4e        # Emacs mail client, backed by the mu indexer + isync/mbsync
+
     # --- Code editing ---
     # Emacs 30 already ships the hard parts: project.el, eglot (LSP client),
     # flymake, xref, python-ts-mode, html-ts-mode and css-ts-mode are all
