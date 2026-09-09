@@ -32,7 +32,8 @@ pkgs.runCommand "agent-shell-api" { } ''
                          agent-shell-submit
                          agent-shell-send-region
                          agent-shell-anthropic-start-claude-code
-                         agent-shell-pi-start-agent)))
+                         agent-shell-pi-start-agent
+                         agent-shell-cwd)))
       (unless (fboundp sym)
         (error "agent-shell no longer defines %s" sym)))
     (dolist (var (quote (agent-shell-mode-hook
@@ -72,6 +73,30 @@ pkgs.runCommand "agent-shell-api" { } ''
       exit 1
     fi
   done
+
+  # emanix/agent-shell-claude opens an agent on another tree by binding
+  # `default-directory' around the upstream command, and that is the ENTIRE
+  # mechanism -- it works only while `agent-shell-cwd' still reads
+  # `default-directory'. If upstream ever resolves the cwd some other way (a
+  # stored variable, a required argument), the wrapper keeps running, the
+  # prompt keeps appearing, and the shell quietly starts in the wrong
+  # directory: no error, and the C-u branch silently becomes a no-op.
+  # `fboundp agent-shell-cwd' above cannot see that; this reads the body.
+  #
+  # Scoped to the defun rather than grepping the whole file, because
+  # `default-directory' appears all over agent-shell-project.el. "End of form"
+  # is the next line starting a top-level form in column 0; an awk RANGE
+  # ending at /^$/ was tried first and is WRONG -- the blank line inside this
+  # defun's own docstring closes it after three lines, so the guard failed red
+  # against correct source. Docstring and body lines are indented or blank, so
+  # only a real following form can stop it. Drilled three ways: green as
+  # shipped, red when the fallback is replaced, red when the defun is renamed.
+  proj=$(echo ${agentShellPkg}/share/emacs/site-lisp/elpa/agent-shell-*/agent-shell-project.el)
+  if ! awk '/^\(defun agent-shell-cwd /{f=1;print;next} f&&/^\(/{exit} f{print}' "$proj" \
+       | grep -qF default-directory; then
+    echo "agent-shell-cwd no longer resolves the cwd from default-directory; emanix/agent-shell-claude's C-u branch is silently broken" >&2
+    exit 1
+  fi
 
   # Two emit sites, and the sync patch depends on BOTH. They carry overlapping
   # subsets of these keys rather than disjoint ones. Losing one would halve the

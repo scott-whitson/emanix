@@ -286,6 +286,51 @@ twice, which is the exact double-flicker the path dedupe exists to avoid."
 (autoload 'agent-shell-send-region "agent-shell"
   "Send the region to an agent shell." t)
 
+(defun emanix/agent-shell-claude (&optional elsewhere)
+  "Start a Claude agent shell, in this tree or one you name.
+
+Without a prefix argument this is `agent-shell-anthropic-start-claude-code'
+unchanged: the shell starts wherever the current buffer already is.
+
+With \\[universal-argument] (ELSEWHERE non-nil), prompt for a directory and
+start there instead -- an agent on a tree you are not currently visiting,
+without first having to `find-file' or `dired' into it.
+
+WHY THIS IS A WRAPPER AND NOT AN UPSTREAM ARGUMENT.  agent-shell resolves a
+shell's working directory from the CURRENT BUFFER -- `agent-shell-cwd'
+returns the project root when `project-current' finds one and
+`default-directory' otherwise -- and reads it ONCE, at start.  Nothing
+re-reads it afterwards: `M-x cd' in the shell buffer never reaches the
+agent, and `agent-shell-restart', which does re-read it, forces a fresh
+session.  Choosing a directory therefore has to happen before the command
+runs, and that is the whole of what happens here.
+
+Binding `default-directory' is deliberately the entire mechanism.
+`agent-shell--new-shell' does take a :location, but it is private AND pins
+`session-strategy' to `new'.  Going through the public command instead
+leaves the directory as the only thing that differs -- which matters
+because ACP sessions are per-cwd: with `agent-shell-session-strategy' at
+its default of `prompt', the new shell offers the resumable sessions
+belonging to the directory just picked.  Continuing a conversation started
+elsewhere is the usual reason for wanting this at all, so a variant that
+could only start fresh ones would miss the point.
+
+The prompt names a directory but the shell may start at that directory's
+PROJECT ROOT, because `agent-shell-cwd' prefers it.  Naming a repo
+subdirectory thus behaves exactly as visiting a file inside it would --
+consistent with the unprefixed key, rather than a second set of rules."
+  (interactive "P")
+  (let ((default-directory
+         (if elsewhere
+             ;; MUSTMATCH: a non-existent directory would leave the ACP
+             ;; process with an unusable cwd, which surfaces as a failure to
+             ;; start rather than as a bad path.
+             (file-name-as-directory
+              (expand-file-name
+               (read-directory-name "Start Claude in: " nil nil t)))
+           default-directory)))
+    (agent-shell-anthropic-start-claude-code)))
+
 (defun emanix/agent-shell--pi-adapter ()
   "Return the pi ACP adapter's executable, or nil when none is installed.
 

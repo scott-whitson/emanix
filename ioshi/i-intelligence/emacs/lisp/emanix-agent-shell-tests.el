@@ -5,6 +5,10 @@
 ;; lived. Run by checks/agent-shell-sync.nix on every `nix flake check'.
 
 (require 'ert)
+;; `cl-letf' (the stubbing in the emanix/agent-shell-claude tests) is cl-lib's,
+;; not a subr. ert happens to pull cl-lib in today; requiring it explicitly
+;; keeps these tests from depending on that.
+(require 'cl-lib)
 (require 'emanix-agent-shell)
 
 (defmacro emanix/agent-shell-test--with-file (var contents &rest body)
@@ -156,6 +160,47 @@
           (kill-buffer b)))
       (delete-directory root t)
       (delete-file outside))))
+
+;; emanix/agent-shell-claude starts an agent elsewhere by binding
+;; `default-directory' around the upstream command, so what these assert is
+;; the value the upstream command SEES. Nothing else about it is observable
+;; from batch: agent-shell is not loadable here (that independence is the
+;; point of this test file), so the command itself is stubbed and the captured
+;; directory is the whole result. `cl-letf' on `symbol-function' is what makes
+;; that work against the top-level `autoload' -- it rebinds the autoload stub
+;; without ever letting it fire, so no ACP process and no package load happen.
+(ert-deftest emanix/agent-shell-claude-uses-current-directory-without-prefix ()
+  (let ((seen nil)
+        (default-directory (file-name-as-directory (make-temp-file "emanix-cwd-" t))))
+    (unwind-protect
+        (cl-letf (((symbol-function 'agent-shell-anthropic-start-claude-code)
+                   (lambda () (setq seen default-directory)))
+                  ;; A bare press must not prompt. Signalling here rather than
+                  ;; returning a value is deliberate: a stub that quietly
+                  ;; answered the prompt would let the regression pass.
+                  ((symbol-function 'read-directory-name)
+                   (lambda (&rest _) (error "prompted without a prefix argument"))))
+          (emanix/agent-shell-claude nil))
+      (delete-directory default-directory t))
+    (should (equal seen default-directory))))
+
+(ert-deftest emanix/agent-shell-claude-uses-prompted-directory-with-prefix ()
+  (let* ((elsewhere (make-temp-file "emanix-elsewhere-" t))
+         (seen nil))
+    (unwind-protect
+        (let ((default-directory (file-name-as-directory (make-temp-file "emanix-cwd-" t))))
+          (unwind-protect
+              (cl-letf (((symbol-function 'agent-shell-anthropic-start-claude-code)
+                         (lambda () (setq seen default-directory)))
+                        ;; Returned WITHOUT a trailing slash, as completion may:
+                        ;; `default-directory' must end in one, so the wrapper
+                        ;; owns that normalisation and this is where it shows.
+                        ((symbol-function 'read-directory-name)
+                         (lambda (&rest _) elsewhere)))
+                (emanix/agent-shell-claude '(4)))
+            (delete-directory default-directory t)))
+      (delete-directory elsewhere t))
+    (should (equal seen (file-name-as-directory elsewhere)))))
 
 (provide 'emanix-agent-shell-tests)
 ;;; emanix-agent-shell-tests.el ends here

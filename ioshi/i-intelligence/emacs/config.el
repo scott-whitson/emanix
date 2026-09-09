@@ -756,7 +756,14 @@ Each cdr is verified to render at the default face's cell width.")
 ;; lisp/emanix-agent-shell.el. Replaced claude-code-ide.el on 2026-09-07:
 ;; that put Claude in an Emacs *window* but the window held a terminal, so the
 ;; transcript had no isearch, no yank, no capture. C-c C-' keeps its job.
-(global-set-key (kbd "C-c C-'") #'agent-shell-anthropic-start-claude-code)
+;;
+;; Bound to the wrapper, not to agent-shell-anthropic-start-claude-code
+;; directly, so that C-u C-c C-' can prompt for a directory: a shell's cwd
+;; comes from the buffer you press this in and is fixed at start, so an agent
+;; on another tree otherwise means dired-ing there first. A bare press is
+;; identical to the upstream command, and C-u on this key did nothing before
+;; (upstream takes no prefix argument), so no keystroke changes meaning.
+(global-set-key (kbd "C-c C-'") #'emanix/agent-shell-claude)
 ;; C-c p (pi) is bound in lisp/emanix-agent-shell.el, not here: it needs the
 ;; adapter-present guard that lives with the rest of the agent-shell glue.
 ;; C-c r was force-unset by emanix-pi.el, which reserved it for
@@ -850,6 +857,12 @@ Each cdr is verified to render at the default face's cell width.")
     ;; Super+Shift+Enter: the Claude agent shell, from any slot. Was pi in a
     ;; Ghostty window until 2026-09-07 — the agent is a buffer now, so this
     ;; summons a buffer.
+    ;;
+    ;; Stays on the upstream command rather than emanix/agent-shell-claude
+    ;; (which C-c C-' uses): this is an INTERCEPTED key, so no C-u can precede
+    ;; it — the prefix keystroke would go to the focused Wayland surface — and
+    ;; the wrapper's only added behaviour is the prefixed one. Same reasoning
+    ;; as s-i for arc below.
     (define-key ewm-mode-map (kbd "s-S-<return>")
       #'agent-shell-anthropic-start-claude-code)
     ;; Summon arc (ask) from ANY slot. It must be a single intercepted key:

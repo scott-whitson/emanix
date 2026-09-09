@@ -76,6 +76,21 @@ pkgs.runCommand "agent-shell-glue-sane" { } ''
     exit 1
   fi
 
+  # 4c. The Claude wrapper C-c C-' is bound to. config.el names
+  #     `emanix/agent-shell-claude' and this module is the only definition
+  #     site, so losing it costs the primary agent keybinding -- and does so
+  #     silently, because config.el requires this feature with :no-error.
+  #
+  #     `defun' specifically, not merely the symbol: the docstring and
+  #     config.el's own comment both name it, so a presence grep would survive
+  #     the function being deleted. The wrapper's BEHAVIOUR (that it honours
+  #     the prompted directory) is unit-tested in checks/agent-shell-sync.nix
+  #     instead, where a batch Emacs can actually call it.
+  if ! grep -qF -- "(defun emanix/agent-shell-claude " "$src"; then
+    echo "emanix-agent-shell.el no longer defines emanix/agent-shell-claude, which config.el binds to C-c C-'" >&2
+    exit 1
+  fi
+
   # 5. The three commands the keybindings name must be autoloaded.
   for cmd in \
     agent-shell-anthropic-start-claude-code \
