@@ -202,5 +202,39 @@
       (delete-directory elsewhere t))
     (should (equal seen (file-name-as-directory elsewhere)))))
 
+;; agent-shell's own defcustom, declared here so these tests can `let'-bind it
+;; under a batch Emacs where agent-shell is not loadable. checks/agent-shell-api.nix
+;; is what asserts the real one still exists.
+(defvar agent-shell-inhibit-system-sleep t)
+
+;; The latch's whole job is turning N messages into 1, and N is produced by
+;; upstream retrying while the variable stays non-nil. So what these assert is
+;; the variable's value after a call -- the thing upstream consults -- plus the
+;; error still travelling, since upstream's `condition-case' is what emits the
+;; one message the user should see.
+(ert-deftest emanix/agent-shell-sleep-latch-disables-after-failure ()
+  (let ((agent-shell-inhibit-system-sleep t))
+    (should-error
+     (emanix/agent-shell--sleep-block-latch
+      (lambda (&rest _)
+        ;; The real failure: logind denying the Inhibit over D-Bus.
+        (signal 'dbus-error '("org.freedesktop.DBus.Error.AccessDenied"
+                              "Permission denied")))
+      "why" t)
+     :type 'dbus-error)
+    (should-not agent-shell-inhibit-system-sleep)))
+
+(ert-deftest emanix/agent-shell-sleep-latch-keeps-working-inhibit ()
+  (let ((agent-shell-inhibit-system-sleep t)
+        (args nil))
+    ;; A host where logind allows this must be left alone: the token has to
+    ;; come back untouched, with the arguments upstream passed intact.
+    (should (equal (emanix/agent-shell--sleep-block-latch
+                    (lambda (&rest a) (setq args a) 'token)
+                    "agent-shell (agent busy)" t)
+                   'token))
+    (should (equal args '("agent-shell (agent busy)" t)))
+    (should agent-shell-inhibit-system-sleep)))
+
 (provide 'emanix-agent-shell-tests)
 ;;; emanix-agent-shell-tests.el ends here

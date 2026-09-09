@@ -39,7 +39,12 @@ pkgs.runCommand "agent-shell-api" { } ''
     (dolist (var (quote (agent-shell-mode-hook
                          agent-shell-anthropic-claude-acp-command
                          agent-shell-pi-acp-command
-                         agent-shell-text-file-capabilities)))
+                         agent-shell-text-file-capabilities
+                         ;; The variable emanix/agent-shell--sleep-block-latch
+                         ;; latches off. Renamed upstream, the latch would set a
+                         ;; variable nobody reads and the per-event message
+                         ;; storm it exists to stop would come back.
+                         agent-shell-inhibit-system-sleep)))
       (unless (boundp var)
         (error "agent-shell no longer defines %s" var)))
     ;; The event name the buffer-sync patch subscribes to. Documented only in
@@ -95,6 +100,16 @@ pkgs.runCommand "agent-shell-api" { } ''
   if ! awk '/^\(defun agent-shell-cwd /{f=1;print;next} f&&/^\(/{exit} f{print}' "$proj" \
        | grep -qF default-directory; then
     echo "agent-shell-cwd no longer resolves the cwd from default-directory; emanix/agent-shell-claude's C-u branch is silently broken" >&2
+    exit 1
+  fi
+
+  # The sleep inhibit must still go through the built-in the latch advises.
+  # `agent-shell-inhibit-system-sleep' being bound (above) does not prove the
+  # inhibit still runs through `system-sleep-block-sleep' -- upstream could
+  # keep the option and call logind itself, at which point the advice never
+  # fires and the message storm returns unannounced.
+  if ! grep -qF -- "(system-sleep-block-sleep " "$src"; then
+    echo "agent-shell no longer inhibits sleep via system-sleep-block-sleep; emanix/agent-shell--sleep-block-latch is dead code" >&2
     exit 1
   fi
 

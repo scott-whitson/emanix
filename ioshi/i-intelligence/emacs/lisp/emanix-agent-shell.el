@@ -367,9 +367,62 @@ later needs no restart."
 ;; glue. config.el carries a pointer at the C-c C-' / C-c r site.
 (global-set-key (kbd "C-c p") #'emanix/agent-shell-pi)
 
+(defun emanix/agent-shell--sleep-block-latch (block-sleep &rest args)
+  "Call BLOCK-SLEEP with ARGS, latching the sleep inhibit off if it fails.
+
+WHAT THIS SILENCES.  agent-shell keeps the system awake for the duration of
+a turn, via Emacs 31.1's `system-sleep' library, which asks logind to
+Inhibit over D-Bus.  Where logind refuses, that request fails EVERY TIME --
+and upstream retries it on every ACP event for as long as the agent is busy,
+reporting each failure to the echo area, because a failed attempt stores no
+token and so leaves nothing to remember it by.  Measured on a WSL host: 38
+identical \"Sleep inhibit unavailable\" messages inside a single turn.
+
+Its own advice is to set `agent-shell-inhibit-system-sleep' to nil, which
+does stop it completely (upstream's `when-let*' short-circuits on that
+variable).  This does exactly that, but only after the host has actually
+proven it cannot inhibit -- so the echo area gets ONE message rather than
+dozens, and no host is opted out of a feature that works for it.  The distro
+cannot decide this statically: the same config runs where logind allows this
+and where it does not.
+
+WHY logind REFUSES, on the host this was written for: an idle inhibitor
+needs polkit authorisation, and `security.polkit.enable' is off there, so
+every request is denied -- reproducible outside Emacs entirely, with
+`systemd-inhibit --what=idle --who=probe --why=test true'.  Nothing is lost
+by giving up on it: that host is a WSL guest, where Windows owns power
+management and a guest-side inhibitor could not keep the machine awake even
+if logind granted it.
+
+Advising `system-sleep-block-sleep' -- an Emacs built-in whose API is stable
+-- rather than the agent-shell internals around it, which upstream describes
+as unstable.  The error is re-signalled unchanged, so upstream's own
+`condition-case' still emits the first message and any other caller of the
+built-in sees identical behaviour.
+
+`setq-default' because upstream reads the variable globally and never makes
+it buffer-local: the claim being recorded is about the HOST, not about one
+shell buffer.  Latched for the session -- if polkit is enabled later, restart
+Emacs (or set the variable back to t) to pick the feature up again."
+  (condition-case err
+      (apply block-sleep args)
+    (error
+     (setq-default agent-shell-inhibit-system-sleep nil)
+     (signal (car err) (cdr err)))))
+
 (with-eval-after-load 'agent-shell
   (add-hook 'agent-shell-mode-hook #'emanix/agent-shell--install)
-  (advice-add 'agent-shell-submit :before #'emanix/agent-shell--submit-advice))
+  (advice-add 'agent-shell-submit :before #'emanix/agent-shell--submit-advice)
+  ;; `system-sleep' is a built-in that agent-shell loads lazily, on its first
+  ;; inhibit attempt. Requiring it HERE is what lets the advice be guarded by
+  ;; `fboundp': advising a void symbol would define its function cell, and
+  ;; agent-shell's own `agent-shell--system-sleep-available-p' probes exactly
+  ;; that -- so on an Emacs too old to have the library, a bare `advice-add'
+  ;; would talk it into calling an API that does not exist.
+  (when (and (require 'system-sleep nil t)
+             (fboundp 'system-sleep-block-sleep))
+    (advice-add 'system-sleep-block-sleep :around
+                #'emanix/agent-shell--sleep-block-latch)))
 
 (with-eval-after-load 'agent-shell-anthropic
   ;; `executable-find', not a store path: this file is out-of-store live elisp

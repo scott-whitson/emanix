@@ -91,6 +91,17 @@ pkgs.runCommand "agent-shell-glue-sane" { } ''
     exit 1
   fi
 
+  # 4d. The sleep-inhibit latch must still be INSTALLED, not merely defined.
+  #     checks/agent-shell-sync.nix unit-tests the function, and would keep
+  #     passing with the `advice-add' deleted -- the tests call it directly.
+  #     Losing the installation is silent by nature: the only symptom is the
+  #     echo-area message storm coming back on hosts where logind refuses to
+  #     inhibit, which no check can observe from a build sandbox.
+  if ! grep -q "advice-add 'system-sleep-block-sleep" "$src"; then
+    echo "emanix-agent-shell.el no longer installs emanix/agent-shell--sleep-block-latch on system-sleep-block-sleep" >&2
+    exit 1
+  fi
+
   # 5. The three commands the keybindings name must be autoloaded.
   for cmd in \
     agent-shell-anthropic-start-claude-code \
