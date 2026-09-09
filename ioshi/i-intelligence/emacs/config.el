@@ -147,6 +147,55 @@ Accepts and ignores FRAME so this can sit on `after-make-frame-functions'."
   (global-set-key (kbd "C-x o") #'ace-window)
   (keymap-set emanix/window-map "m" #'ace-swap-window))
 
+;; Directional window motion. `C-x o' is fine with two windows and ace-window
+;; carries it to three or four, but both are "jump to a label" -- neither
+;; answers "focus the window to the LEFT of this one", which is the motion a
+;; four-window layout actually wants. M-hjkl mirrors zellij, and GlazeWM's
+;; lwin+hjkl on the Windows side, so one direction habit covers every pane
+;; system on the host. Shifted moves the window rather than the point of view.
+;;
+;; NOT `global-set-key'. A global binding loses to any major mode that claims
+;; the key, and org-mode claims M-h for `org-mark-element' -- so these would
+;; work everywhere EXCEPT the buffers an org-roam operator lives in, silently.
+;; diff-mode (M-k/M-K) and gnus (M-k) shadow them too. One
+;; `emulation-mode-map-alists' entry outranks every major mode map at once, and
+;; keeps doing so for the modes that are not loaded yet.
+;;
+;; APPENDED, not prepended, and the order is load-bearing: ghostel and meow are
+;; already in this list, so appending leaves both ahead of us. meow binds no
+;; Meta key in any state today, so that half is only insurance. ghostel is the
+;; deliberate part -- its char mode forwards every key to the terminal (even
+;; M-x), and that is the behaviour to keep, because inside a ghostel the same
+;; M-hjkl is zellij's own pane motion. Leave a ghostel with `C-x o' or the
+;; `C-c w' map, both of which ghostel exempts.
+;;
+;; The four displaced global defaults are cheap. M-j costs nothing at all:
+;; `C-M-j' is bound to the same `default-indent-new-line'. meow's own selection
+;; and kill replace M-h (mark-paragraph) and M-k (kill-sentence). Only M-l
+;; (downcase-word) has no equivalent left; `C-x C-l' downcases a region.
+;;
+;; windmove is built in and every command here is autoloaded, so no `require'.
+(defvar-keymap emanix/windmove-map
+  :doc "Directional window focus, and window swapping, on `M-hjkl'."
+  "M-h" #'windmove-left
+  "M-j" #'windmove-down
+  "M-k" #'windmove-up
+  "M-l" #'windmove-right
+  "M-H" #'windmove-swap-states-left
+  "M-J" #'windmove-swap-states-down
+  "M-K" #'windmove-swap-states-up
+  "M-L" #'windmove-swap-states-right)
+
+(defvar emanix/windmove-active t
+  "Non-nil when `emanix/windmove-map' is live in the current buffer.
+Set buffer-locally to nil to hand `M-hjkl' back to a major mode.")
+
+;; `add-to-list' dedupes with `equal', and `defvar-keymap' will not rebuild the
+;; keymap on a re-load, so re-evaluating this file does not stack entries.
+(add-to-list 'emulation-mode-map-alists
+             `((emanix/windmove-active . ,emanix/windmove-map))
+             :append)
+
 ;; Clock + battery + status for the EWM tab-bar panel (no status bar under EWM).
 ;; Volume/wifi/cpu/ram/gpu/clock/battery all render once in the tab-bar via
 ;; emanix/tab-bar-status, not the mode-line.
