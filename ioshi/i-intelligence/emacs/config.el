@@ -175,14 +175,10 @@ Accepts and ignores FRAME so this can sit on `after-make-frame-functions'."
 ;;
 ;;  C-j = eval + print inline     C-x C-e = eval, echo area
 ;;  M-: = eval from minibuffer    C-x * q = quick calc
+;;  C-c i i = ask arc             C-h i = Info manuals
+;;  M-x emanix-guides = every guide worth knowing about
 
-(emanix-quarterly-open)
-(emanix/calendar-sync)
-(org-agenda nil \"w\")
-(magit-status (getenv \"EMANIX\"))
 (emanix/weather)
-(emanix/openrouter-cost)
-(call-interactively #'emanix/launch-app)
 ")
 
 ;; --- Buffer hygiene: kill buffers by named group ---
