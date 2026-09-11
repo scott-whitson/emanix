@@ -437,7 +437,9 @@ In `flake.nix`, beside `modeline-segments`:
 
 ```bash
 cd ~/projects/emanix
-git add -A
+# Explicit paths only -- NEVER `git add -A' or a directory add. The working
+# tree carries an unrelated uncommitted change to config.el that is not ours.
+git add ioshi/i-intelligence/emacs/test/emanix-theme-test.el checks/theme-switch.nix
 nix build .#checks.x86_64-linux.theme-switch -L
 nix run nixpkgs#nixpkgs-fmt -- --check flake.nix checks/theme-switch.nix
 ```
@@ -480,29 +482,39 @@ Append to `test/emanix-theme-test.el`:
 ```elisp
 ;;; Apply steps.
 
-(defmacro emanix-theme-test--recording (calls &rest body)
+(defvar emanix-theme-test--calls nil
+  "Calls recorded by `emanix-theme-test--recording'.")
+
+(defmacro emanix-theme-test--recording (&rest body)
   "Run BODY with `call-process' and `make-symbolic-link' stubbed.
-CALLS collects (:process PROGRAM ARGS...) and (:link SOURCE TARGET)."
-  (declare (indent 1))
-  `(let ((,calls nil))
+Returns the calls made, in order: (:process PROGRAM ARGS...) and
+(:link SOURCE TARGET). The value is RETURNED rather than bound into a
+caller-named variable, so assertions live outside the stubs -- a
+`should' that runs while `call-process' is stubbed reports failures
+through a crippled environment."
+  (declare (indent 0))
+  `(let ((emanix-theme-test--calls nil))
      (cl-letf (((symbol-function 'call-process)
                 (lambda (program &optional _in _buf _disp &rest args)
-                  (push (cons :process (cons program args)) ,calls)
+                  (push (cons :process (cons program args))
+                        emanix-theme-test--calls)
                   0))
                ((symbol-function 'make-symbolic-link)
                 (lambda (source target &optional _ok)
-                  (push (list :link source target) ,calls)
+                  (push (list :link source target) emanix-theme-test--calls)
                   nil)))
-       ,@body
-       (setq ,calls (nreverse ,calls)))))
+       ,@body)
+     (nreverse emanix-theme-test--calls)))
 
 (ert-deftest emanix-theme-apply-links-symlinks-every-planned-pair ()
   (emanix-theme-test--with-tree
-    (let ((plan (emanix-theme--plan "duskthorn")))
-      (emanix-theme-test--recording calls
-        (should-not (emanix-theme--apply-links plan)))
-      (let ((links (seq-filter (lambda (c) (eq (car c) :link)) calls)))
-        (should (= (length links) (length (plist-get plan :links))))))))
+    (let* ((plan (emanix-theme--plan "duskthorn"))
+           (failures nil)
+           (calls (emanix-theme-test--recording
+                    (setq failures (emanix-theme--apply-links plan))))
+           (links (seq-filter (lambda (c) (eq (car c) :link)) calls)))
+      (should-not failures)
+      (should (= (length links) (length (plist-get plan :links)))))))
 
 (ert-deftest emanix-theme-apply-links-reports-a-failure-without-signalling ()
   "One unwritable target must not cost the other links, or the Emacs theme."
@@ -520,14 +532,13 @@ CALLS collects (:process PROGRAM ARGS...) and (:link SOURCE TARGET)."
 
 (ert-deftest emanix-theme-apply-gtk-sets-each-key-through-gsettings ()
   (emanix-theme-test--with-tree
-    (let ((plan (emanix-theme--plan "duskthorn")))
-      (emanix-theme-test--recording calls
-        (emanix-theme--apply-gtk plan))
-      (let ((cmds (mapcar #'cdr (seq-filter (lambda (c) (eq (car c) :process)) calls))))
-        (should (= 2 (length cmds)))
-        (should (cl-every (lambda (c) (equal (car c) "gsettings")) cmds))
-        (should (seq-find (lambda (c) (member "color-scheme" c)) cmds))
-        (should (seq-find (lambda (c) (member "prefer-dark" c)) cmds))))))
+    (let* ((plan (emanix-theme--plan "duskthorn"))
+           (calls (emanix-theme-test--recording (emanix-theme--apply-gtk plan)))
+           (cmds (mapcar #'cdr (seq-filter (lambda (c) (eq (car c) :process)) calls))))
+      (should (= 2 (length cmds)))
+      (should (cl-every (lambda (c) (equal (car c) "gsettings")) cmds))
+      (should (seq-find (lambda (c) (member "color-scheme" c)) cmds))
+      (should (seq-find (lambda (c) (member "prefer-dark" c)) cmds)))))
 
 (ert-deftest emanix-theme-apply-gtk-tolerates-a-missing-gsettings ()
   "Headless hosts have no GTK to theme; the switch must continue anyway.
@@ -550,11 +561,10 @@ runs everywhere and its failure is reported, not raised."
       (should-not (file-exists-p (emanix-theme--last-file "light"))))))
 
 (ert-deftest emanix-theme-reload-apps-signals-ghostty ()
-  (emanix-theme-test--recording calls
-    (emanix-theme--reload-apps))
-  (should (seq-find (lambda (c) (and (eq (car c) :process)
-                                     (equal (cadr c) "pkill")))
-                    calls)))
+  (let ((calls (emanix-theme-test--recording (emanix-theme--reload-apps))))
+    (should (seq-find (lambda (c) (and (eq (car c) :process)
+                                       (equal (cadr c) "pkill")))
+                      calls))))
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -672,16 +682,19 @@ Append to `test/emanix-theme-test.el`:
 (ert-deftest emanix-theme-set-rejects-an-unknown-name-without-touching-anything ()
   "A bad name from a shell argument must not disable the working theme."
   (emanix-theme-test--with-tree
-    (emanix-theme-test--recording calls
-      (should-not (emanix/theme-set "nosuchtheme")))
-    (should-not calls)
-    (should-not (file-exists-p (emanix-theme--state-file)))))
+    (let (result
+          (calls (emanix-theme-test--recording
+                   (setq result (emanix/theme-set "nosuchtheme")))))
+      (should-not result)
+      (should-not calls)
+      (should-not (file-exists-p (emanix-theme--state-file))))))
 
 (ert-deftest emanix-theme-set-runs-state-links-gtk-and-reload ()
   (emanix-theme-test--with-tree
-    (cl-letf (((symbol-function 'emanix-theme--apply-emacs) (lambda (_) 'catppuccin)))
-      (emanix-theme-test--recording calls
-        (emanix/theme-set "duskthorn"))
+    (let ((calls (cl-letf (((symbol-function 'emanix-theme--apply-emacs)
+                            (lambda (_) 'catppuccin)))
+                   (emanix-theme-test--recording
+                     (emanix/theme-set "duskthorn")))))
       (should (equal "duskthorn" (emanix-theme--read (emanix-theme--state-file))))
       (should (seq-find (lambda (c) (eq (car c) :link)) calls))
       (should (seq-find (lambda (c) (and (eq (car c) :process)
@@ -696,7 +709,7 @@ Append to `test/emanix-theme-test.el`:
     (let* ((seen nil)
            (emanix/theme-apply-functions (list (lambda (plan) (setq seen plan)))))
       (cl-letf (((symbol-function 'emanix-theme--apply-emacs) (lambda (_) 'catppuccin)))
-        (emanix-theme-test--recording _calls
+        (emanix-theme-test--recording
           (emanix/theme-set "duskthorn")))
       (should (equal (plist-get seen :name) "duskthorn"))
       (should (equal (plist-get seen :variant) "dark")))))
@@ -708,9 +721,12 @@ Append to `test/emanix-theme-test.el`:
            (emanix/theme-apply-functions
             (list (lambda (_plan) (error "boom"))
                   (lambda (_plan) (setq ran t)))))
-      (cl-letf (((symbol-function 'emanix-theme--apply-emacs) (lambda (_) 'catppuccin)))
-        (emanix-theme-test--recording _calls
-          (should (eq 'catppuccin (emanix/theme-set "duskthorn")))))
+      (let (result)
+        (cl-letf (((symbol-function 'emanix-theme--apply-emacs)
+                   (lambda (_) 'catppuccin)))
+          (emanix-theme-test--recording
+            (setq result (emanix/theme-set "duskthorn"))))
+        (should (eq 'catppuccin result)))
       (should ran))))
 
 (ert-deftest emanix-theme-set-returns-the-theme-even-when-side-effects-fail ()
@@ -969,7 +985,8 @@ C-c v   toggle dark / light
 - [ ] **Step 7: Verify the key guard sees it**
 
 ```bash
-cd ~/projects/emanix && git add -A
+cd ~/projects/emanix
+git add ioshi/i-intelligence/emacs/lisp/emanix-welcome.el ioshi/i-intelligence/emacs/config.el
 nix build .#checks.x86_64-linux.welcome-keys -L
 nix build .#checks.x86_64-linux.theme-switch -L
 ```
@@ -1065,12 +1082,18 @@ every start would be an idempotent re-base in the spirit of
 `nixos-rebuild switch', but it rewrites ~/.claude/settings.json at each
 login, and Claude Code rewrites that file at runtime -- repeating the
 write when nothing changed only widens that race."
-  (let* ((name (emanix-theme--active-name))
-         (plan (and (emanix-theme--read (emanix-theme--state-file))
-                    (emanix-theme--plan name))))
+  (let* ((recorded (emanix-theme--read (emanix-theme--state-file)))
+         (plan (and recorded (emanix-theme--plan recorded))))
     (if plan
         (emanix-theme--apply-emacs plan)
-      (emanix/theme-set name))))
+      ;; No marker, or one naming a theme no longer in the tree. Converge on
+      ;; `emanix-theme--default\' -- NOT on the recorded name, which is the
+      ;; dead one, and not on the host\'s configured `emanix.theme\', which is
+      ;; a Nix value Emacs cannot reliably see (same reachability problem as
+      ;; the GUI detection the spec rejects). A host whose flake sets a
+      ;; non-default theme therefore converges to the distro default on first
+      ;; start; one `dot-theme-set\' makes the right one permanent.
+      (emanix/theme-set emanix-theme--default))))
 ```
 
 - [ ] **Step 4: Run the tests to verify they pass**
@@ -1110,7 +1133,8 @@ it is (`lib.mkIf`, `lib.mapAttrs'`), so the argument list is unchanged.
 - [ ] **Step 6: Verify**
 
 ```bash
-cd ~/projects/emanix && git add -A
+cd ~/projects/emanix
+git add ioshi/i-intelligence/ghostty.nix
 nix run nixpkgs#nixpkgs-fmt -- --check ioshi/i-intelligence/ghostty.nix
 nix build .#checks.x86_64-linux.theme-switch -L
 nix eval --raw .#nixosConfigurations.x86_64-linux 2>/dev/null || true
@@ -1201,7 +1225,8 @@ rather than trusting the comment).
 - [ ] **Step 4: Verify**
 
 ```bash
-cd ~/projects/emanix && git add -A
+cd ~/projects/emanix
+git add lib/theme-tree.nix ioshi/i-intelligence/default.nix ioshi/i-intelligence/swaylock.nix
 nix run nixpkgs#nixpkgs-fmt -- --check lib/theme-tree.nix ioshi/i-intelligence/default.nix
 nix flake check
 ```
@@ -1212,7 +1237,9 @@ proves removing the module did not break the Home Manager aggregate.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lib/theme-tree.nix ioshi/i-intelligence/
+# Named paths, not the directory: ioshi/i-intelligence/emacs/config.el holds
+# an unrelated uncommitted change that is not part of this task.
+git add lib/theme-tree.nix ioshi/i-intelligence/default.nix ioshi/i-intelligence/swaylock.nix
 git commit -m "theme: swaylock follows the runtime switch, like btop already did"
 ```
 
@@ -1267,7 +1294,7 @@ the fallback path.
 - [ ] **Step 3: Commit and push**
 
 ```bash
-git add -A
+git add ioshi/i-intelligence/emacs/lisp/emanix-theme.el
 git commit -m "theme: emacs is the switch authority; docs and header follow"
 git push origin main
 ```
