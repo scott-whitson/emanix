@@ -368,12 +368,12 @@ write when nothing changed only widens that race."
     (if plan
         (emanix-theme--apply-emacs plan)
       ;; No marker, or one naming a theme no longer in the tree. Converge on
-      ;; `emanix-theme--default\' -- NOT on the recorded name, which is the
-      ;; dead one, and not on the host\'s configured `emanix.theme\', which is
+      ;; `emanix-theme--default' -- NOT on the recorded name, which is the
+      ;; dead one, and not on the host's configured `emanix.theme', which is
       ;; a Nix value Emacs cannot reliably see (same reachability problem as
       ;; the GUI detection the spec rejects). A host whose flake sets a
       ;; non-default theme therefore converges to the distro default on first
-      ;; start; one `dot-theme-set\' makes the right one permanent.
+      ;; start; one `dot-theme-set' makes the right one permanent.
       (emanix/theme-set emanix-theme--default))))
 
 (defun emanix-theme--themes-of-variant (variant)
