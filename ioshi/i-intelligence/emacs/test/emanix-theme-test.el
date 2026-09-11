@@ -348,3 +348,40 @@ runs everywhere and its failure is reported, not raised."
     (make-directory emanix/theme-state-dir t)
     (write-region "duskthorn\n" nil (emanix-theme--state-file))
     (should-not (emanix/theme-toggle))))
+
+;;; Startup convergence.
+
+(ert-deftest emanix-theme-init-converges-when-state-is-missing ()
+  "A fresh machine has no marker; the first Emacs start themes everything."
+  (emanix-theme-test--with-tree
+    (let ((emanix-theme--default "duskthorn")
+          (switched nil))
+      (cl-letf (((symbol-function 'emanix/theme-set)
+                 (lambda (name) (setq switched name) 'stub)))
+        (emanix/theme-init))
+      (should (equal "duskthorn" switched)))))
+
+(ert-deftest emanix-theme-init-converges-when-state-names-a-dead-theme ()
+  (emanix-theme-test--with-tree
+    (make-directory emanix/theme-state-dir t)
+    (write-region "deletedtheme\n" nil (emanix-theme--state-file))
+    (let ((emanix-theme--default "duskthorn")
+          (switched nil))
+      (cl-letf (((symbol-function 'emanix/theme-set)
+                 (lambda (name) (setq switched name) 'stub)))
+        (emanix/theme-init))
+      (should (equal "duskthorn" switched)))))
+
+(ert-deftest emanix-theme-init-only-loads-colours-when-state-is-valid ()
+  "Every subsequent start: no gsettings, no relinking, no JSON rewrites."
+  (emanix-theme-test--with-tree
+    (make-directory emanix/theme-state-dir t)
+    (write-region "duskthorn\n" nil (emanix-theme--state-file))
+    (let ((full nil) (loaded nil))
+      (cl-letf (((symbol-function 'emanix/theme-set)
+                 (lambda (name) (setq full name) 'stub))
+                ((symbol-function 'emanix-theme--apply-emacs)
+                 (lambda (plan) (setq loaded (plist-get plan :name)) 'stub)))
+        (emanix/theme-init))
+      (should-not full)
+      (should (equal "duskthorn" loaded)))))

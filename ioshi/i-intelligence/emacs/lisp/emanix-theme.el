@@ -350,8 +350,31 @@ read-only btop directory must not look like a failed theme switch."
     nil))
 
 (defun emanix/theme-init ()
-  "Load the theme matching the active dotfiles theme."
-  (emanix/theme-set (emanix-theme--active-name)))
+  "Apply the active theme at startup.
+
+Converges the whole machine when `active-theme' is missing or names a
+theme that is no longer in the tree, seeding from
+`emanix-theme--default'. That is the fresh-install case, and it is why
+ghostty's `seedGhosttyTheme' activation hook could be deleted: seeding
+one application was a narrower version of this.
+
+Otherwise loads only the Emacs theme. Re-running the full switch on
+every start would be an idempotent re-base in the spirit of
+`nixos-rebuild switch', but it rewrites ~/.claude/settings.json at each
+login, and Claude Code rewrites that file at runtime -- repeating the
+write when nothing changed only widens that race."
+  (let* ((recorded (emanix-theme--read (emanix-theme--state-file)))
+         (plan (and recorded (emanix-theme--plan recorded))))
+    (if plan
+        (emanix-theme--apply-emacs plan)
+      ;; No marker, or one naming a theme no longer in the tree. Converge on
+      ;; `emanix-theme--default\' -- NOT on the recorded name, which is the
+      ;; dead one, and not on the host\'s configured `emanix.theme\', which is
+      ;; a Nix value Emacs cannot reliably see (same reachability problem as
+      ;; the GUI detection the spec rejects). A host whose flake sets a
+      ;; non-default theme therefore converges to the distro default on first
+      ;; start; one `dot-theme-set\' makes the right one permanent.
+      (emanix/theme-set emanix-theme--default))))
 
 (defun emanix-theme--themes-of-variant (variant)
   "Names of every theme in the tree whose variant is VARIANT."
