@@ -1068,12 +1068,50 @@ because `full` is non-nil).
 - [ ] **Step 3: Rewrite `emanix/theme-init`**
 
 ```elisp
+(defun emanix-theme--seed-name ()
+  "The theme name a machine with no usable state converges on.
+
+The host's build-time `emanix.theme', delivered as $EMANIX_THEME, and
+`emanix-theme--default' only when that is unset or empty.
+
+The Nix value IS reachable here, contrary to what this function's
+predecessor asserted. The spec's rejection of `EMANIX_GUI' was about
+the EWM Emacs not inheriting a SHELL variable, because it is started
+outside the login shell -- but ewm.nix launches it FROM
+`environment.loginShellInit' and now exports both $EMANIX_THEME and
+$EMANIX_THEMES_DIR through `environment.sessionVariables', which NixOS
+writes to /etc/set-environment and /etc/zshenv sources before
+/etc/zprofile runs the launch snippet. The non-EWM daemon gets the same
+pair from zsh.nix's `systemd.user.sessionVariables'.
+
+Falling back to `emanix-theme--default' rather than requiring the
+variable keeps a host that has not rebuilt since this landed working
+exactly as it did before."
+  (let ((configured (getenv "EMANIX_THEME")))
+    (if (and configured (not (equal configured ""))) configured
+      emanix-theme--default)))
+
+(defun emanix-theme--colours-only-plan (name)
+  "A plan carrying just what `emanix-theme--apply-emacs' reads: NAME and a theme.
+
+Not a real plan -- no :dir, :links or :gtk, so it must never be handed
+to the side-effect steps. It exists for the one case `emanix/theme-init'
+must survive and `emanix-theme--plan' cannot describe: no theme tree at
+all. `emanix-theme--apply-emacs' then resolves the symbol through
+`emanix-theme--pick-loadable', which falls back catppuccin ->
+`emanix-theme--builtin-fallback', so a session with an unreadable tree
+still gets colours."
+  (list :name name
+        :emacs-theme (condition-case nil
+                         (emanix-theme--emacs-theme name)
+                       (error 'catppuccin))))
+
 (defun emanix/theme-init ()
-  "Apply the active theme at startup.
+  "Apply the active theme at startup. Never signals, and never no-ops.
 
 Converges the whole machine when `active-theme' is missing or names a
 theme that is no longer in the tree, seeding from
-`emanix-theme--default'. That is the fresh-install case, and it is why
+`emanix-theme--seed-name'. That is the fresh-install case, and it is why
 ghostty's `seedGhosttyTheme' activation hook could be deleted: seeding
 one application was a narrower version of this.
 
@@ -1081,20 +1119,46 @@ Otherwise loads only the Emacs theme. Re-running the full switch on
 every start would be an idempotent re-base in the spirit of
 `nixos-rebuild switch', but it rewrites ~/.claude/settings.json at each
 login, and Claude Code rewrites that file at runtime -- repeating the
-write when nothing changed only widens that race."
+write when nothing changed only widens that race.
+
+ALWAYS ends with a theme enabled if Emacs can load one at all. The
+tree is reached through $EMANIX_THEMES_DIR, and an environment
+regression that empties or misdirects that variable makes every plan
+nil -- which would otherwise leave the session with NO theme loaded,
+the failure mode measured on the EWM host on 2026-09-11 when the
+variable never reached the login shell. A themeless desktop is a worse
+outcome than the wrong colours, so the last resort is a plan that
+describes colours and nothing else."
   (let* ((recorded (emanix-theme--read (emanix-theme--state-file)))
          (plan (and recorded (emanix-theme--plan recorded))))
     (if plan
         (emanix-theme--apply-emacs plan)
       ;; No marker, or one naming a theme no longer in the tree. Converge on
-      ;; `emanix-theme--default\' -- NOT on the recorded name, which is the
-      ;; dead one, and not on the host\'s configured `emanix.theme\', which is
-      ;; a Nix value Emacs cannot reliably see (same reachability problem as
-      ;; the GUI detection the spec rejects). A host whose flake sets a
-      ;; non-default theme therefore converges to the distro default on first
-      ;; start; one `dot-theme-set\' makes the right one permanent.
-      (emanix/theme-set emanix-theme--default))))
+      ;; the seed -- NOT on the recorded name, which is the dead one.
+      (let ((seed (emanix-theme--seed-name)))
+        (or (emanix/theme-set seed)
+            ;; The tree could not describe the seed either, so there is
+            ;; nothing to converge. Load colours and stop; writing state for
+            ;; a theme whose directory we cannot read would only record a
+            ;; second dead marker.
+            (emanix-theme--apply-emacs
+             (emanix-theme--colours-only-plan seed)))))))
 ```
+
+The block above is the SHIPPED text, updated 2026-09-11 by the fix wave
+that followed this plan. Two things changed from what was planned here,
+and both are load-bearing enough that a plan showing the earlier version
+would be a trap for anyone reading the two side by side:
+
+- the seed is `emanix-theme--seed-name` ($EMANIX_THEME, falling back to
+  `emanix-theme--default`), not `emanix-theme--default` directly. The
+  planned comment's claim that Emacs cannot reliably see the host's
+  `emanix.theme` stopped being true once `ewm.nix` exported it through
+  `environment.sessionVariables`.
+- `theme-init` can no longer return without a theme loaded. When no plan
+  can be built for any candidate -- an absent or misdirected
+  $EMANIX_THEMES_DIR, which is exactly what was measured on the EWM host
+  -- it falls through to a colours-only plan rather than nil.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
