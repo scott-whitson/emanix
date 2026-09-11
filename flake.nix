@@ -242,6 +242,9 @@
           # holds the seam. See checks/modeline-segments.nix.
           modeline-segments = import ./checks/modeline-segments.nix { inherit pkgs; };
 
+          # The theme switch's unit tests. See checks/theme-switch.nix.
+          theme-switch = import ./checks/theme-switch.nix { inherit pkgs; };
+
           # The agent-shell glue's autoloads and payload parsing. See
           # checks/agent-shell-glue.nix.
           agent-shell-glue = import ./checks/agent-shell-glue.nix { inherit pkgs; };

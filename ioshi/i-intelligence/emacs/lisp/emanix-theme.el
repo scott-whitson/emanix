@@ -21,7 +21,30 @@
 ;; variable is defined. Extend load-path so the overrides below actually apply.
 (add-to-list 'load-path (expand-file-name "themes/" data-directory))
 
-(defconst emanix-theme--state-file "~/.config/dotfiles/active-theme")
+(defgroup emanix nil
+  "The emanix distribution."
+  :group 'environment)
+
+(defcustom emanix/theme-state-dir "~/.config/dotfiles"
+  "Directory holding the runtime theme state markers.
+Contains `active-theme' and one `last-<variant>' per variant. A
+defcustom rather than a constant because Emacs now WRITES here: the
+tests bind it to a temp directory, which a hardcoded path made
+impossible without writing into the real state.
+
+The name is stow-era and predates Emacs owning what is inside it.
+Renaming it is worth doing and is deliberately not folded into this
+change -- see the 2026-09-11 theme-authority-inversion spec."
+  :type 'directory
+  :group 'emanix)
+
+(defun emanix-theme--state-file ()
+  "Path of the active-theme marker."
+  (expand-file-name "active-theme" emanix/theme-state-dir))
+
+(defun emanix-theme--last-file (variant)
+  "Path of the last-VARIANT marker."
+  (expand-file-name (concat "last-" variant) emanix/theme-state-dir))
 ;; Fallback matters only if the daemon starts before EMANIX_THEMES_DIR is in
 ;; its environment. The distro generates the theme tree itself now (see
 ;; lib/theme-tree.nix); this ~/dotfiles hardcode is a stale last resort, not
@@ -139,7 +162,7 @@ read, so behaviour is unchanged when the directory is missing or broken."
 
 (defun emanix-theme--active-name ()
   "Name of the active dotfiles theme."
-  (or (emanix-theme--read emanix-theme--state-file) emanix-theme--default))
+  (or (emanix-theme--read (emanix-theme--state-file)) emanix-theme--default))
 
 (defun emanix-theme--emacs-theme (name)
   "Emacs theme symbol for dotfiles theme NAME."
@@ -147,6 +170,64 @@ read, so behaviour is unchanged when the directory is missing or broken."
                (expand-file-name (format "%s/emacs-theme" name)
                                  emanix-theme--themes-dir))
               "catppuccin")))
+
+(defconst emanix-theme--zellij-themes-dir
+  "~/.local/share/emanix/zellij-themes"
+  "Where zellij.nix writes its two ANSI-index theme definitions.
+Both are named `emanix' inside the KDL -- zellij selects a theme by
+NAME, so switching swaps which definition is visible in theme_dir
+rather than editing config.kdl, which lives in the checkout and must
+stay clean.")
+
+(defun emanix-theme--parse-gtk-conf (path)
+  "Parse PATH, a KEY=VALUE file, into an alist of strings.
+The bash this replaces `source'd the file; reading it as data instead
+means a theme tree cannot execute anything in this Emacs."
+  (when (file-readable-p path)
+    (with-temp-buffer
+      (insert-file-contents path)
+      (let (out)
+        (goto-char (point-min))
+        (while (re-search-forward "^\\([A-Z_]+\\)=\\(.*\\)$" nil t)
+          (push (cons (match-string 1) (string-trim (match-string 2))) out))
+        (nreverse out)))))
+
+(defun emanix-theme--link-plan (name dir variant)
+  "Return the (SOURCE . TARGET) symlinks for theme NAME in DIR at VARIANT.
+Sources that do not exist are dropped, which is `link_if_present' from
+the bash this replaces: ghostty renders its palettes only on hosts with
+`emanix.ghostty.enable', and zellij's tree exists only where
+`emanix.zellij.enable' is set."
+  (seq-filter
+   (lambda (pair) (file-exists-p (car pair)))
+   (list
+    (cons (expand-file-name (format "~/.config/ghostty/themes/%s.conf" name))
+          (expand-file-name "~/.config/ghostty/theme.conf"))
+    (cons (expand-file-name "btop.theme" dir)
+          (expand-file-name "~/.config/btop/themes/active.theme"))
+    (cons (expand-file-name "swaylock.conf" dir)
+          (expand-file-name "~/.config/swaylock/config"))
+    (cons (expand-file-name (format "available/emanix-%s.kdl" variant)
+                            emanix-theme--zellij-themes-dir)
+          (expand-file-name "active/theme.kdl"
+                            emanix-theme--zellij-themes-dir)))))
+
+(defun emanix-theme--plan (name)
+  "Describe the switch to theme NAME as data, or nil if NAME is unusable.
+Writes nothing and touches no application state, so it is safe to call
+on a name that came from a shell argument. Returning nil here is what
+lets `emanix/theme-set' reject a bad name before disabling the theme
+that is currently working."
+  (let* ((dir (expand-file-name name emanix-theme--themes-dir))
+         (variant (emanix-theme--read (expand-file-name "variant" dir))))
+    (when (and (file-directory-p dir) (member variant '("dark" "light")))
+      (list :name name
+            :dir dir
+            :variant variant
+            :emacs-theme (emanix-theme--emacs-theme name)
+            :links (emanix-theme--link-plan name dir variant)
+            :gtk (emanix-theme--parse-gtk-conf
+                  (expand-file-name "gtk.conf" dir))))))
 
 (defconst emanix-theme--builtin-fallback 'modus-vivendi
   "Last-resort theme when even catppuccin cannot be loaded.
