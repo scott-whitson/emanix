@@ -18,6 +18,7 @@ let
       cp ${pkgs.writeText "colors.toml" t.colorsToml}   $out/colors.toml
       cp ${pkgs.writeText "gtk.conf" t.gtk}             $out/gtk.conf
       cp ${pkgs.writeText "btop.theme" t.btop}          $out/btop.theme
+      cp ${pkgs.writeText "swaylock.conf" t.swaylock}   $out/swaylock.conf
       printf '%s\n' ${lib.escapeShellArg t.variant}     > $out/variant
       printf '%s\n' ${lib.escapeShellArg palette.emacsTheme} > $out/emacs-theme
       # pi's theme JSON is 205 lines of colour logic (variant detection,
