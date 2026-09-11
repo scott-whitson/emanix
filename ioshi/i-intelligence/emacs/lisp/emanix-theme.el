@@ -64,9 +64,16 @@ change -- see the 2026-09-11 theme-authority-inversion spec."
     ("high-contrast-light" . ((bg-main "#f2f2f2") (fg-main "#111111")))))
 
 (defun emanix-theme--read (path)
-  "Return the trimmed contents of PATH, or nil if unreadable."
+  "Return the trimmed contents of PATH, or nil if unreadable.
+`file-readable-p' is necessary but NOT sufficient: it returns t for a
+DIRECTORY, and it describes the filesystem as of a moment that has
+passed by the time `insert-file-contents' runs. Both cases signal
+`file-error', and every caller here already treats nil as \"unreadable\",
+so unreadable is what they get."
   (when (file-readable-p path)
-    (string-trim (with-temp-buffer (insert-file-contents path) (buffer-string)))))
+    (condition-case nil
+        (string-trim (with-temp-buffer (insert-file-contents path) (buffer-string)))
+      (error nil))))
 
 (defun emanix-theme--read-palette-value (name key)
   "Return the KEY value from themes/NAME/colors.toml's [palette] section.
@@ -217,17 +224,34 @@ the bash this replaces: ghostty renders its palettes only on hosts with
 Writes nothing and touches no application state, so it is safe to call
 on a name that came from a shell argument. Returning nil here is what
 lets `emanix/theme-set' reject a bad name before disabling the theme
-that is currently working."
-  (let* ((dir (expand-file-name name emanix-theme--themes-dir))
-         (variant (emanix-theme--read (expand-file-name "variant" dir))))
-    (when (and (file-directory-p dir) (member variant '("dark" "light")))
-      (list :name name
-            :dir dir
-            :variant variant
-            :emacs-theme (emanix-theme--emacs-theme name)
-            :links (emanix-theme--link-plan name dir variant)
-            :gtk (emanix-theme--parse-gtk-conf
-                  (expand-file-name "gtk.conf" dir))))))
+that is currently working.
+
+CANNOT SIGNAL. This is the one step `emanix/theme-set' and
+`emanix/theme-init' run OUTSIDE their per-step `condition-case'
+wrappers -- it is what produces the plan those wrappers consume -- so a
+signal escaping here escapes all the way into init on the host where
+Emacs is the compositor. `emanix-theme--parse-gtk-conf' tests
+`file-readable-p' and then calls `insert-file-contents', and
+`file-readable-p' returns t for a DIRECTORY: a `gtk.conf' that is a
+directory signals `file-error', as does a permission change landing
+between the two calls. `emanix-theme--read' guards itself the same way,
+so this wrapper is the outer one rather than the only one. An unusable
+tree must read as an unusable theme NAME, which is exactly nil."
+  (condition-case err
+      (let* ((dir (expand-file-name name emanix-theme--themes-dir))
+             (variant (emanix-theme--read (expand-file-name "variant" dir))))
+        (when (and (file-directory-p dir) (member variant '("dark" "light")))
+          (list :name name
+                :dir dir
+                :variant variant
+                :emacs-theme (emanix-theme--emacs-theme name)
+                :links (emanix-theme--link-plan name dir variant)
+                :gtk (emanix-theme--parse-gtk-conf
+                      (expand-file-name "gtk.conf" dir)))))
+    (error
+     (message "emanix-theme: cannot plan %S in %s: %S"
+              name emanix-theme--themes-dir err)
+     nil)))
 
 (defconst emanix-theme--builtin-fallback 'modus-vivendi
   "Last-resort theme when even catppuccin cannot be loaded.
@@ -349,12 +373,50 @@ read-only btop directory must not look like a failed theme switch."
              name emanix-theme--themes-dir)
     nil))
 
+(defun emanix-theme--seed-name ()
+  "The theme name a machine with no usable state converges on.
+
+The host's build-time `emanix.theme', delivered as $EMANIX_THEME, and
+`emanix-theme--default' only when that is unset or empty.
+
+The Nix value IS reachable here, contrary to what this function's
+predecessor asserted. The spec's rejection of `EMANIX_GUI' was about
+the EWM Emacs not inheriting a SHELL variable, because it is started
+outside the login shell -- but ewm.nix launches it FROM
+`environment.loginShellInit' and now exports both $EMANIX_THEME and
+$EMANIX_THEMES_DIR through `environment.sessionVariables', which NixOS
+writes to /etc/set-environment and /etc/zshenv sources before
+/etc/zprofile runs the launch snippet. The non-EWM daemon gets the same
+pair from zsh.nix's `systemd.user.sessionVariables'.
+
+Falling back to `emanix-theme--default' rather than requiring the
+variable keeps a host that has not rebuilt since this landed working
+exactly as it did before."
+  (let ((configured (getenv "EMANIX_THEME")))
+    (if (and configured (not (equal configured ""))) configured
+      emanix-theme--default)))
+
+(defun emanix-theme--colours-only-plan (name)
+  "A plan carrying just what `emanix-theme--apply-emacs' reads: NAME and a theme.
+
+Not a real plan -- no :dir, :links or :gtk, so it must never be handed
+to the side-effect steps. It exists for the one case `emanix/theme-init'
+must survive and `emanix-theme--plan' cannot describe: no theme tree at
+all. `emanix-theme--apply-emacs' then resolves the symbol through
+`emanix-theme--pick-loadable', which falls back catppuccin ->
+`emanix-theme--builtin-fallback', so a session with an unreadable tree
+still gets colours."
+  (list :name name
+        :emacs-theme (condition-case nil
+                         (emanix-theme--emacs-theme name)
+                       (error 'catppuccin))))
+
 (defun emanix/theme-init ()
-  "Apply the active theme at startup.
+  "Apply the active theme at startup. Never signals, and never no-ops.
 
 Converges the whole machine when `active-theme' is missing or names a
 theme that is no longer in the tree, seeding from
-`emanix-theme--default'. That is the fresh-install case, and it is why
+`emanix-theme--seed-name'. That is the fresh-install case, and it is why
 ghostty's `seedGhosttyTheme' activation hook could be deleted: seeding
 one application was a narrower version of this.
 
@@ -362,19 +424,30 @@ Otherwise loads only the Emacs theme. Re-running the full switch on
 every start would be an idempotent re-base in the spirit of
 `nixos-rebuild switch', but it rewrites ~/.claude/settings.json at each
 login, and Claude Code rewrites that file at runtime -- repeating the
-write when nothing changed only widens that race."
+write when nothing changed only widens that race.
+
+ALWAYS ends with a theme enabled if Emacs can load one at all. The
+tree is reached through $EMANIX_THEMES_DIR, and an environment
+regression that empties or misdirects that variable makes every plan
+nil -- which would otherwise leave the session with NO theme loaded,
+the failure mode measured on the EWM host on 2026-09-11 when the
+variable never reached the login shell. A themeless desktop is a worse
+outcome than the wrong colours, so the last resort is a plan that
+describes colours and nothing else."
   (let* ((recorded (emanix-theme--read (emanix-theme--state-file)))
          (plan (and recorded (emanix-theme--plan recorded))))
     (if plan
         (emanix-theme--apply-emacs plan)
       ;; No marker, or one naming a theme no longer in the tree. Converge on
-      ;; `emanix-theme--default' -- NOT on the recorded name, which is the
-      ;; dead one, and not on the host's configured `emanix.theme', which is
-      ;; a Nix value Emacs cannot reliably see (same reachability problem as
-      ;; the GUI detection the spec rejects). A host whose flake sets a
-      ;; non-default theme therefore converges to the distro default on first
-      ;; start; one `dot-theme-set' makes the right one permanent.
-      (emanix/theme-set emanix-theme--default))))
+      ;; the seed -- NOT on the recorded name, which is the dead one.
+      (let ((seed (emanix-theme--seed-name)))
+        (or (emanix/theme-set seed)
+            ;; The tree could not describe the seed either, so there is
+            ;; nothing to converge. Load colours and stop; writing state for
+            ;; a theme whose directory we cannot read would only record a
+            ;; second dead marker.
+            (emanix-theme--apply-emacs
+             (emanix-theme--colours-only-plan seed)))))))
 
 (defun emanix-theme--themes-of-variant (variant)
   "Names of every theme in the tree whose variant is VARIANT."

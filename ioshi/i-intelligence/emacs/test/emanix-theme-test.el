@@ -95,6 +95,26 @@ real home directory."
     (make-directory (expand-file-name "halfbaked" emanix-theme--themes-dir))
     (should-not (emanix-theme--plan "halfbaked"))))
 
+(ert-deftest emanix-theme-plan-rejects-a-theme-whose-variant-is-a-directory ()
+  "`file-readable-p' is t for a DIRECTORY, so the read that follows it signals.
+Both `emanix/theme-set' and `emanix/theme-init' call the planner outside
+any `condition-case' of their own -- it is what BUILDS the plan the
+wrappers consume -- so this must fail into nil rather than out into
+init, on the host where init is the desktop."
+  (emanix-theme-test--with-tree
+    (let ((variant (expand-file-name "duskthorn/variant" emanix-theme--themes-dir)))
+      (delete-file variant)
+      (make-directory variant))
+    (should-not (emanix-theme--plan "duskthorn"))))
+
+(ert-deftest emanix-theme-plan-rejects-a-theme-whose-gtk-conf-is-a-directory ()
+  "The same fault one file further in, past the point the variant read guards."
+  (emanix-theme-test--with-tree
+    (let ((gtk (expand-file-name "duskthorn/gtk.conf" emanix-theme--themes-dir)))
+      (delete-file gtk)
+      (make-directory gtk))
+    (should-not (emanix-theme--plan "duskthorn"))))
+
 (ert-deftest emanix-theme-plan-links-btop-and-swaylock-from-the-theme-dir ()
   (emanix-theme-test--with-tree
     (let* ((plan (emanix-theme--plan "duskthorn"))
@@ -385,3 +405,56 @@ runs everywhere and its failure is reported, not raised."
         (emanix/theme-init))
       (should-not full)
       (should (equal "duskthorn" loaded)))))
+
+;;; The seed: the host's configured theme, not the distro default.
+
+(ert-deftest emanix-theme-seed-name-prefers-the-hosts-configured-theme ()
+  "$EMANIX_THEME carries the build-time `emanix.theme' -- ewm.nix exports it
+through `environment.sessionVariables', zsh.nix through both the shell and
+`systemd.user.sessionVariables'. A host whose flake sets a non-default theme
+must converge on THAT, not on the distro default."
+  (let ((process-environment (cons "EMANIX_THEME=duskthorn" process-environment)))
+    (should (equal (emanix-theme--seed-name) "duskthorn"))))
+
+(ert-deftest emanix-theme-seed-name-falls-back-to-the-default-when-unset ()
+  "A host that has not rebuilt since the export landed behaves exactly as before.
+An EMPTY value counts as unset: that is what a variable declared but never
+given a value looks like from `getenv'."
+  (let ((emanix-theme--default "catppuccin-mocha"))
+    (let ((process-environment (cons "EMANIX_THEME=" process-environment)))
+      (should (equal (emanix-theme--seed-name) "catppuccin-mocha")))
+    (let ((process-environment
+           (seq-remove (lambda (v) (string-prefix-p "EMANIX_THEME=" v))
+                       process-environment)))
+      (should (equal (emanix-theme--seed-name) "catppuccin-mocha")))))
+
+(ert-deftest emanix-theme-init-seeds-from-the-configured-theme ()
+  (emanix-theme-test--with-tree
+    (let ((process-environment (cons "EMANIX_THEME=dawnthorn" process-environment))
+          (emanix-theme--default "duskthorn")
+          (switched nil))
+      (cl-letf (((symbol-function 'emanix/theme-set)
+                 (lambda (name) (setq switched name) 'stub)))
+        (emanix/theme-init))
+      (should (equal "dawnthorn" switched)))))
+
+;;; The floor: startup can never leave the session unthemed.
+
+(ert-deftest emanix-theme-init-still-enables-a-theme-with-no-theme-tree ()
+  "The 2026-09-11 EWM fault: $EMANIX_THEMES_DIR never reached the login shell,
+so `emanix-theme--themes-dir' pointed at a directory that does not exist. Every
+plan is then nil, and an init that stopped there would hand the desktop NO
+theme at all -- strictly worse than the wrong colours. It must still come out
+the other side with something enabled."
+  (emanix-theme-test--with-tree
+    (let ((emanix-theme--themes-dir
+           (expand-file-name "no-such-theme-tree" emanix-theme--themes-dir))
+          (enabled-before custom-enabled-themes))
+      (unwind-protect
+          (progn
+            (mapc #'disable-theme custom-enabled-themes)
+            (emanix/theme-init)
+            (should custom-enabled-themes))
+        (mapc #'disable-theme custom-enabled-themes)
+        (dolist (theme (reverse enabled-before))
+          (ignore-errors (enable-theme theme)))))))
