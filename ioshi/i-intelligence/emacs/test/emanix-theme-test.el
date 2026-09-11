@@ -140,3 +140,89 @@ so a plan must not name a source that is not there."
     (emanix-theme--plan "duskthorn")
     (emanix-theme--plan "nosuchtheme")
     (should-not (file-exists-p (emanix-theme--state-file)))))
+
+;;; Apply steps.
+
+(defvar emanix-theme-test--calls nil
+  "Calls recorded by `emanix-theme-test--recording'.")
+
+(defmacro emanix-theme-test--recording (&rest body)
+  "Run BODY with `call-process' and `make-symbolic-link' stubbed.
+Returns the calls made, in order: (:process PROGRAM ARGS...) and
+(:link SOURCE TARGET). The value is RETURNED rather than bound into a
+caller-named variable, so assertions live outside the stubs -- a
+`should' that runs while `call-process' is stubbed reports failures
+through a crippled environment."
+  (declare (indent 0))
+  `(let ((emanix-theme-test--calls nil))
+     (cl-letf (((symbol-function 'call-process)
+                (lambda (program &optional _in _buf _disp &rest args)
+                  (push (cons :process (cons program args))
+                        emanix-theme-test--calls)
+                  0))
+               ((symbol-function 'make-symbolic-link)
+                (lambda (source target &optional _ok)
+                  (push (list :link source target) emanix-theme-test--calls)
+                  nil)))
+       ,@body)
+     (nreverse emanix-theme-test--calls)))
+
+(ert-deftest emanix-theme-apply-links-symlinks-every-planned-pair ()
+  (emanix-theme-test--with-tree
+    (let* ((plan (emanix-theme--plan "duskthorn"))
+           (failures nil)
+           (calls (emanix-theme-test--recording
+                    (setq failures (emanix-theme--apply-links plan))))
+           (links (seq-filter (lambda (c) (eq (car c) :link)) calls)))
+      (should-not failures)
+      (should (= (length links) (length (plist-get plan :links)))))))
+
+(ert-deftest emanix-theme-apply-links-reports-a-failure-without-signalling ()
+  "One unwritable target must not cost the other links, or the Emacs theme."
+  (emanix-theme-test--with-tree
+    (let ((plan (emanix-theme--plan "duskthorn"))
+          (n 0))
+      (cl-letf (((symbol-function 'make-symbolic-link)
+                 (lambda (_s _t &optional _ok)
+                   (setq n (1+ n))
+                   (when (= n 1) (error "read-only file system")))))
+        (let ((failures (emanix-theme--apply-links plan)))
+          (should (= 1 (length failures)))
+          ;; The remaining links were still attempted.
+          (should (= n (length (plist-get plan :links)))))))))
+
+(ert-deftest emanix-theme-apply-gtk-sets-each-key-through-gsettings ()
+  (emanix-theme-test--with-tree
+    (let* ((plan (emanix-theme--plan "duskthorn"))
+           (calls (emanix-theme-test--recording (emanix-theme--apply-gtk plan)))
+           (cmds (mapcar #'cdr (seq-filter (lambda (c) (eq (car c) :process)) calls))))
+      (should (= 2 (length cmds)))
+      (should (cl-every (lambda (c) (equal (car c) "gsettings")) cmds))
+      (should (seq-find (lambda (c) (member "color-scheme" c)) cmds))
+      (should (seq-find (lambda (c) (member "prefer-dark" c)) cmds)))))
+
+(ert-deftest emanix-theme-apply-gtk-tolerates-a-missing-gsettings ()
+  "Headless hosts have no GTK to theme; the switch must continue anyway.
+Emacs cannot see `emanix.gui' -- see the 2026-09-11 spec -- so the step
+runs everywhere and its failure is reported, not raised."
+  (emanix-theme-test--with-tree
+    (let ((plan (emanix-theme--plan "duskthorn")))
+      (cl-letf (((symbol-function 'call-process)
+                 (lambda (&rest _) (error "No such file or directory, gsettings"))))
+        (let ((failures (emanix-theme--apply-gtk plan)))
+          (should (= 2 (length failures)))
+          (should (cl-every #'stringp failures)))))))
+
+(ert-deftest emanix-theme-write-state-writes-both-markers ()
+  (emanix-theme-test--with-tree
+    (let ((plan (emanix-theme--plan "duskthorn")))
+      (should-not (emanix-theme--write-state plan))
+      (should (equal "duskthorn" (emanix-theme--read (emanix-theme--state-file))))
+      (should (equal "duskthorn" (emanix-theme--read (emanix-theme--last-file "dark"))))
+      (should-not (file-exists-p (emanix-theme--last-file "light"))))))
+
+(ert-deftest emanix-theme-reload-apps-signals-ghostty ()
+  (let ((calls (emanix-theme-test--recording (emanix-theme--reload-apps))))
+    (should (seq-find (lambda (c) (and (eq (car c) :process)
+                                       (equal (cadr c) "pkill")))
+                      calls))))

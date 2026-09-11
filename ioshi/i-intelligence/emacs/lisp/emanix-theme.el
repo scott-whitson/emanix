@@ -304,5 +304,61 @@ when the theme directory or the key is missing, matching
 `emanix-theme--read-palette-value'."
   (emanix-theme--read-palette-value (emanix-theme--active-name) key))
 
+(defmacro emanix-theme--collecting (failures &rest body)
+  "Run BODY, pushing a description of any error onto FAILURES.
+Every apply step reports rather than signals: `emanix/theme-set' runs
+during init on the host where Emacs is the compositor, so an error
+escaping one side-effect must not cost the rest of the switch."
+  (declare (indent 1))
+  `(condition-case err
+       (progn ,@body)
+     (error (push (format "%S" err) ,failures))))
+
+(defun emanix-theme--apply-links (plan)
+  "Create every symlink in PLAN. Return a list of failure descriptions."
+  (let (failures)
+    (pcase-dolist (`(,source . ,target) (plist-get plan :links))
+      (emanix-theme--collecting failures
+        (make-directory (file-name-directory target) t)
+        (make-symbolic-link source target :ok-if-already-exists)))
+    (nreverse failures)))
+
+(defun emanix-theme--apply-gtk (plan)
+  "Apply PLAN's gtk.conf values through gsettings.
+Runs unconditionally: Emacs cannot see `emanix.gui', a session variable
+would not reach the EWM Emacs (started by a system unit, so it does not
+inherit the shell environment), and `display-graphic-p' is nil on a
+frameless daemon. A headless host simply fails here and has no GTK to
+theme anyway."
+  (let ((keys '(("COLOR_SCHEME" . "color-scheme")
+                ("GTK_THEME"    . "gtk-theme")))
+        failures)
+    (pcase-dolist (`(,var . ,key) keys)
+      (when-let* ((value (alist-get var (plist-get plan :gtk) nil nil #'equal)))
+        (emanix-theme--collecting failures
+          (call-process "gsettings" nil nil nil
+                        "set" "org.gnome.desktop.interface" key value))))
+    (nreverse failures)))
+
+(defun emanix-theme--write-state (plan)
+  "Record PLAN as the active theme. Return a list of failure descriptions."
+  (let (failures)
+    (emanix-theme--collecting failures
+      (make-directory emanix/theme-state-dir t)
+      (let ((name (plist-get plan :name)))
+        (write-region (concat name "\n") nil (emanix-theme--state-file))
+        (write-region (concat name "\n") nil
+                      (emanix-theme--last-file (plist-get plan :variant)))))
+    (nreverse failures)))
+
+(defun emanix-theme--reload-apps ()
+  "Tell running apps to re-read their config. Return failure descriptions.
+Only ghostty needs this: btop, zellij and swaylock read their theme
+when they next start, and GTK apps follow gsettings live."
+  (let (failures)
+    (emanix-theme--collecting failures
+      (call-process "pkill" nil nil nil "-SIGUSR2" "ghostty"))
+    (nreverse failures)))
+
 (provide 'emanix-theme)
 ;;; emanix-theme.el ends here
