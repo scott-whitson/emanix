@@ -375,6 +375,28 @@ path-specific groups from the personal layer.")
    '("'" . repeat)
    '("<escape>" . ignore)))
 (meow-setup)
+
+;; Terminal and agent buffers start in INSERT (2026-09-11). Neither
+;; `ghostel-mode' nor `agent-shell-mode' names itself here, so meow walks
+;; `derived-mode-parent' until it lands on `fundamental-mode' — which the
+;; default `meow-mode-state-list' maps to NORMAL. Both therefore opened with
+;; their input keys captured: `j' in a ghostel buffer ran `meow-next' instead
+;; of reaching the shell, and the first keystroke of every Claude prompt was
+;; swallowed. These are buffers you open in order to type into; there is no
+;; case where the first thing wanted is a motion. MOTION state would not fix
+;; it — the keys are still meow's.
+;;
+;; The cost is ESC in ghostel: `meow-insert-state-keymap' binds it to
+;; `meow-insert-exit', and a minor-mode map shadows the major-mode one, so it
+;; no longer reaches the TUI (Claude Code's interrupt, vim's normal state,
+;; less's quit). Accepted rather than worked around, because ghostel already
+;; ships the escape hatch: `C-c C-q' (`ghostel-send-next-key') takes the next
+;; event with `read-event', below the keymaps entirely, so `C-c C-q ESC'
+;; delivers a literal ESC whatever meow has bound. agent-shell has no such
+;; conflict — ESC leaving insert state is what a comint transcript should do.
+(dolist (mode '(ghostel-mode agent-shell-mode))
+  (add-to-list 'meow-mode-state-list (cons mode 'insert)))
+
 (meow-global-mode 1)
 
 ;; Line movement (global bindings, works with Meow selections)
