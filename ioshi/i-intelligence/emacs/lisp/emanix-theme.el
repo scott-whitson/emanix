@@ -261,19 +261,15 @@ themeless."
       (message "emanix-theme: no fallback theme is available either; leaving current theme in place")
       nil))))
 
-(defun emanix/theme-set (name)
-  "Switch the running session to dotfiles theme NAME.
-Never signals to its caller. This runs early in init.el, ahead of
-`emanix/modeline-mode' and the EWM window-management commands — an uncaught
-error here would abort the rest of init on the host where Emacs is the
-desktop, not just leave colours wrong. So: resolve and confirm the theme is
-loadable (falling back per `emanix-theme--pick-loadable') BEFORE disabling
-whatever is currently enabled, then wrap `load-theme' itself in
-`condition-case' as belt-and-braces, since a theme can be listed as
-available and still error while loading. Returns the theme symbol actually
-enabled, or nil if nothing could be loaded at all."
-  (interactive "sTheme name: ")
-  (let* ((wanted (emanix-theme--emacs-theme name))
+(defun emanix-theme--apply-emacs (plan)
+  "Load PLAN's Emacs theme. Return the theme symbol enabled, or nil.
+Resolve and confirm the theme is loadable BEFORE disabling whatever is
+currently enabled, then wrap `load-theme' itself in `condition-case' as
+belt-and-braces, since a theme can be listed as available and still
+error while loading. That ordering is what stops a failed switch from
+leaving the session themeless."
+  (let* ((name (plist-get plan :name))
+         (wanted (plist-get plan :emacs-theme))
          (theme (emanix-theme--pick-loadable wanted name)))
     (setq modus-themes-common-palette-overrides
           (emanix-theme--modus-overrides name))
@@ -289,6 +285,62 @@ enabled, or nil if nothing could be loaded at all."
         (error
          (message "emanix-theme: load-theme %S failed: %S" theme err)
          nil)))))
+
+(defcustom emanix/theme-apply-functions nil
+  "Functions run after a theme switch, each called with the plan plist.
+The plist carries :name, :dir, :variant, :emacs-theme, :links and :gtk.
+
+This is the CONSUMER extension point, and the distribution registers
+none of its own. Side effects for programs emanix does not install --
+the author's pi agent and Claude Code settings, for instance -- belong
+here rather than in `emanix/theme-set', which must stay ignorant of
+anything `scott.*' declares.
+
+A function that signals is reported and skipped; the switch continues."
+  :type '(repeat function)
+  :group 'emanix)
+
+(defun emanix-theme--run-hook (plan)
+  "Run `emanix/theme-apply-functions' on PLAN. Return failure descriptions."
+  (let (failures)
+    (dolist (f emanix/theme-apply-functions)
+      (condition-case err
+          (funcall f plan)
+        (error (push (format "%s: %S" f err) failures))))
+    (nreverse failures)))
+
+(defun emanix/theme-set (name)
+  "Switch the running session to theme NAME, everywhere.
+Never signals to its caller. This runs from init on the host where
+Emacs is the desktop, so an uncaught error here would abort the rest of
+init rather than merely leave colours wrong -- and it now drives six
+side-effects rather than one, so each is wrapped individually and
+reports instead of raising.
+
+Returns the Emacs theme symbol actually enabled, or nil if the name is
+unknown or nothing could be loaded. Side-effect failures do NOT change
+the return value: the colours are the part you can see, and a
+read-only btop directory must not look like a failed theme switch."
+  (interactive
+   (list (completing-read
+          "Theme: "
+          (and (file-directory-p emanix-theme--themes-dir)
+               (directory-files emanix-theme--themes-dir nil "\\`[^.]"))
+          nil t)))
+  (if-let* ((plan (emanix-theme--plan name)))
+      (let ((failures (append (emanix-theme--write-state plan)
+                              (emanix-theme--apply-links plan)
+                              (emanix-theme--apply-gtk plan)
+                              (emanix-theme--run-hook plan)
+                              (emanix-theme--reload-apps)))
+            (theme (emanix-theme--apply-emacs plan)))
+        (when failures
+          (message "emanix-theme: %s applied with %d failure(s): %s"
+                   name (length failures) (string-join failures "; ")))
+        theme)
+    (message "emanix-theme: no such theme %S in %s"
+             name emanix-theme--themes-dir)
+    nil))
 
 (defun emanix/theme-init ()
   "Load the theme matching the active dotfiles theme."

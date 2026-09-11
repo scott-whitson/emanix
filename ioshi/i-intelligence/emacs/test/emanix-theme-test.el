@@ -226,3 +226,69 @@ runs everywhere and its failure is reported, not raised."
     (should (seq-find (lambda (c) (and (eq (car c) :process)
                                        (equal (cadr c) "pkill")))
                       calls))))
+
+;;; Orchestration.
+
+(ert-deftest emanix-theme-set-rejects-an-unknown-name-without-touching-anything ()
+  "A bad name from a shell argument must not disable the working theme."
+  (emanix-theme-test--with-tree
+    (let (result
+          (calls (emanix-theme-test--recording
+                   (setq result (emanix/theme-set "nosuchtheme")))))
+      (should-not result)
+      (should-not calls)
+      (should-not (file-exists-p (emanix-theme--state-file))))))
+
+(ert-deftest emanix-theme-set-runs-state-links-gtk-and-reload ()
+  (emanix-theme-test--with-tree
+    (let ((calls (cl-letf (((symbol-function 'emanix-theme--apply-emacs)
+                            (lambda (_) 'catppuccin)))
+                   (emanix-theme-test--recording
+                     (emanix/theme-set "duskthorn")))))
+      (should (equal "duskthorn" (emanix-theme--read (emanix-theme--state-file))))
+      (should (seq-find (lambda (c) (eq (car c) :link)) calls))
+      (should (seq-find (lambda (c) (and (eq (car c) :process)
+                                         (equal (cadr c) "gsettings")))
+                        calls))
+      (should (seq-find (lambda (c) (and (eq (car c) :process)
+                                         (equal (cadr c) "pkill")))
+                        calls)))))
+
+(ert-deftest emanix-theme-set-calls-the-consumer-hook-with-the-plan ()
+  (emanix-theme-test--with-tree
+    (let* ((seen nil)
+           (emanix/theme-apply-functions (list (lambda (plan) (setq seen plan)))))
+      (cl-letf (((symbol-function 'emanix-theme--apply-emacs) (lambda (_) 'catppuccin)))
+        (emanix-theme-test--recording
+          (emanix/theme-set "duskthorn")))
+      (should (equal (plist-get seen :name) "duskthorn"))
+      (should (equal (plist-get seen :variant) "dark")))))
+
+(ert-deftest emanix-theme-set-survives-a-signalling-hook-function ()
+  "A consumer's broken registration must not stop the ones after it."
+  (emanix-theme-test--with-tree
+    (let* ((ran nil)
+           (emanix/theme-apply-functions
+            (list (lambda (_plan) (error "boom"))
+                  (lambda (_plan) (setq ran t)))))
+      (let (result)
+        (cl-letf (((symbol-function 'emanix-theme--apply-emacs)
+                   (lambda (_) 'catppuccin)))
+          (emanix-theme-test--recording
+            (setq result (emanix/theme-set "duskthorn"))))
+        (should (eq 'catppuccin result)))
+      (should ran))))
+
+(ert-deftest emanix-theme-set-returns-the-theme-even-when-side-effects-fail ()
+  "The colours are the part the user sees; a failed symlink must not mask them."
+  (emanix-theme-test--with-tree
+    (cl-letf (((symbol-function 'emanix-theme--apply-emacs) (lambda (_) 'catppuccin))
+              ((symbol-function 'make-symbolic-link)
+               (lambda (&rest _) (error "read-only file system")))
+              ((symbol-function 'call-process)
+               (lambda (&rest _) (error "not found"))))
+      (should (eq 'catppuccin (emanix/theme-set "duskthorn"))))))
+
+(ert-deftest emanix-theme-apply-functions-defaults-empty ()
+  "The distribution registers none of its own; this seam is the consumer's."
+  (should (null (default-value 'emanix/theme-apply-functions))))
