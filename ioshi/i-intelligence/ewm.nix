@@ -202,7 +202,12 @@ in
       # Screen lock (ext-session-lock): swayidle fires swaylock on logind's
       # before-sleep (lid close → suspend) and on loginctl lock-session.
       # swayidle is started from emacs (lisp/emanix-ewm.el) so it inherits
-      # WAYLAND_DISPLAY and dies with the session. Config: swaylock.nix (HM).
+      # WAYLAND_DISPLAY and dies with the session. Config: the runtime theme
+      # switcher (Emacs) symlinks $EMANIX_THEMES_DIR/<name>/swaylock.conf --
+      # generated per palette by lib/theme-tree.nix -- onto
+      # ~/.config/swaylock/config. No Home Manager module renders that path
+      # anymore: a runtime path with two owners gets renamed to .hm-bak at
+      # every activation, the trap ghostty.nix documents.
       swaylock
       swayidle
       # XWayland — EWM is a wlroots compositor; X11 apps (Steam, etc.)
