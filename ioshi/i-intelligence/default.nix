@@ -28,7 +28,6 @@
     ./agent-acp.nix
     ./firefox.nix
     ./btop.nix
-    ./lf.nix
     ./mpv.nix
     ./yt-dlp.nix
     ./wireplumber.nix

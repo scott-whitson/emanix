@@ -16,6 +16,14 @@ let
   renderKdl = f: substHome (builtins.readFile f);
 in
 {
+  # Default false, and it stays that way on any host where Emacs IS the
+  # desktop: EWM already gives persistence, tabs and splits, so a multiplexer
+  # there is a second window manager inside the first. It is enabled on the
+  # two hosts that are NOT an Emacs desktop and have a real use for it --
+  # whistle (WSL, where zellij is how the box gets a usable terminal) and
+  # datacore (headless, so a remote session survives a reboot). Consumers set
+  # it per host; there is no role to inherit it from (roles were deleted
+  # 2026-08-30).
   options.emanix.zellij.enable = lib.mkEnableOption
     "zellij with the zellaude bar, deployed live from ioshi/i-intelligence/zellij";
 

@@ -60,16 +60,17 @@
       # Local bin
       export PATH="$HOME/.local/bin:$PATH"
 
-      # fzf (installed by Nix or apt, source if available)
-      if [[ -f /usr/share/fzf/key-bindings.zsh ]]; then
-        source /usr/share/fzf/key-bindings.zsh
-        source /usr/share/fzf/completion.zsh
-      fi
-
-      # zoxide
-      if command -v zoxide &>/dev/null; then
-        eval "$(zoxide init zsh)"
-      fi
+      # NO fzf, zoxide or starship hooks. All three were `command -v' (or
+      # /usr/share) guarded sources carried over from the stow/apt era, and
+      # none of the three has ever been in this flake -- so all three were
+      # guards that could only ever take their false branch. "If it is not in
+      # the flake, it does not exist" has to cut both ways or the shell init
+      # becomes a list of things that might be true somewhere. Removed
+      # 2026-09-10. Reinstate the hook and the package together, or neither.
+      #
+      # starship additionally contradicted the oh-my-zsh robbyrussell theme
+      # set above: had it ever been installed, the last prompt assignment
+      # would have won and the declared theme would have been a no-op.
 
       # Dotfiles theme state markers
       [[ -f "$HOME/.config/dotfiles/active-theme" ]] && \
@@ -78,11 +79,6 @@
       # Refresh PATH from Nix profiles on every shell
       if [[ -d /nix/var/nix/profiles/default/bin ]]; then
         export PATH="/nix/var/nix/profiles/default/bin:$PATH"
-      fi
-
-      # Starship prompt (if installed)
-      if command -v starship &>/dev/null; then
-        eval "$(starship init zsh)"
       fi
 
       # Emacs clients. ec prefers the Wayland display: pgtk emacs over X11 is

@@ -276,9 +276,9 @@ twice, which is the exact double-flicker the path dedupe exists to avoid."
 
 ;;; --- agent-shell configuration ---
 
-;; Explicit autoloads for the same reason config.el gives for vterm and
-;; ghostel: the nix-installed package's own autoloads do not reliably reach
-;; the daemon session. Upstream autoloads none of these three anyway.
+;; Explicit autoloads for the same reason config.el gives for ghostel: the
+;; nix-installed package's own autoloads do not reliably reach the daemon
+;; session. Upstream autoloads none of these three anyway.
 (autoload 'agent-shell-anthropic-start-claude-code "agent-shell-anthropic"
   "Start an interactive Claude Code shell." t)
 (autoload 'agent-shell-pi-start-agent "agent-shell-pi"

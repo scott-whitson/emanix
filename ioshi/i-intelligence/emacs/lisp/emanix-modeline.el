@@ -27,6 +27,19 @@
   "Hide the battery segment at or above this capacity when not charging."
   :type 'integer)
 
+(defcustom emanix/modeline-extra-segments nil
+  "Functions contributing extra status segments.
+Each is called with no arguments and returns a string to display or
+nil to show nothing, following the wifi/battery convention of staying
+silent when there is nothing to say.
+
+This is the CONSUMER extension point. The distribution ships none of
+its own: a consuming flake's personal.el registers here instead of
+advising `emanix/modeline--render', which is private and moves.
+Segments render after gpu and before the clock, so clock and battery
+remain the fixed right-hand anchor."
+  :type '(repeat function))
+
 (defvar emanix/modeline-status ""
   "Cached status string displayed via `global-mode-string'.")
 (put 'emanix/modeline-status 'risky-local-variable t)
@@ -144,26 +157,41 @@ The displayed value lags one update interval."
                          (t "󰕾"))))
         (format "%s %s%%" icon pct)))))
 
+(defun emanix/modeline--extra-segments ()
+  "Call each of `emanix/modeline-extra-segments', dropping nil results.
+A segment that signals is dropped too, not propagated: under EWM this
+Emacs is the compositor, so a consumer's broken segment must not take
+the status bar -- or the redraw that follows it -- down with it."
+  (mapcar (lambda (f)
+            (condition-case err
+                (funcall f)
+              (error
+               (message "emanix/modeline: segment %S failed: %S" f err)
+               nil)))
+          emanix/modeline-extra-segments))
+
 (defun emanix/modeline--render ()
   "Compose and redraw the current EWM status bar."
   (setq emanix/modeline-status
         (mapconcat
          #'identity
          (delq nil
-               (list (emanix/modeline--volume-segment)
-                     (when-let* ((w (emanix/modeline--wifi))) w)
-                     (let ((cpu (emanix/modeline--cpu)))
-                       (when (> cpu emanix/modeline-threshold)
-                         (format "cpu %d%%" cpu)))
-                     (when-let* ((r (emanix/modeline--ram)))
-                       (when (> r emanix/modeline-threshold)
-                         (format "ram %d%%" r)))
-                     (when-let* ((g (emanix/modeline--gpu)))
-                       (let ((gpu (string-to-number g)))
-                         (when (> gpu emanix/modeline-threshold)
-                           (format "gpu %s%%" g))))
-                     (emanix/modeline--clock)
-                     (emanix/modeline--battery)))
+               (append
+                (list (emanix/modeline--volume-segment)
+                      (when-let* ((w (emanix/modeline--wifi))) w)
+                      (let ((cpu (emanix/modeline--cpu)))
+                        (when (> cpu emanix/modeline-threshold)
+                          (format "cpu %d%%" cpu)))
+                      (when-let* ((r (emanix/modeline--ram)))
+                        (when (> r emanix/modeline-threshold)
+                          (format "ram %d%%" r)))
+                      (when-let* ((g (emanix/modeline--gpu)))
+                        (let ((gpu (string-to-number g)))
+                          (when (> gpu emanix/modeline-threshold)
+                            (format "gpu %s%%" g)))))
+                (emanix/modeline--extra-segments)
+                (list (emanix/modeline--clock)
+                      (emanix/modeline--battery))))
          "   "))
   (force-mode-line-update t)
   (when (fboundp 'tab-bar--update-tab-bar-lines)

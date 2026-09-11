@@ -237,6 +237,11 @@
           # The buffer-sync patch's unit tests. See checks/agent-shell-sync.nix.
           agent-shell-sync = import ./checks/agent-shell-sync.nix { inherit pkgs; };
 
+          # The tab-bar status bar's consumer extension point. Nothing in the
+          # distribution registers a segment, so this is the only thing that
+          # holds the seam. See checks/modeline-segments.nix.
+          modeline-segments = import ./checks/modeline-segments.nix { inherit pkgs; };
+
           # The agent-shell glue's autoloads and payload parsing. See
           # checks/agent-shell-glue.nix.
           agent-shell-glue = import ./checks/agent-shell-glue.nix { inherit pkgs; };
