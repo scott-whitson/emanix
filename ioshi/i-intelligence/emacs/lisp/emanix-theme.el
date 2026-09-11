@@ -353,6 +353,38 @@ read-only btop directory must not look like a failed theme switch."
   "Load the theme matching the active dotfiles theme."
   (emanix/theme-set (emanix-theme--active-name)))
 
+(defun emanix-theme--themes-of-variant (variant)
+  "Names of every theme in the tree whose variant is VARIANT."
+  (when (file-directory-p emanix-theme--themes-dir)
+    (seq-filter
+     (lambda (name)
+       (equal variant (emanix-theme--read
+                       (expand-file-name (format "%s/variant" name)
+                                         emanix-theme--themes-dir))))
+     (directory-files emanix-theme--themes-dir nil "\\`[^.]"))))
+
+;;;###autoload
+(defun emanix/theme-toggle ()
+  "Flip between the last-used dark theme and the last-used light one.
+Prefers the `last-<variant>' marker, then any theme of the opposite
+variant. A marker naming a theme that no longer exists is ignored
+rather than trusted -- deleting a theme directory is how themes are
+retired here, so a stale marker is expected, not exceptional."
+  (interactive)
+  (let* ((active (emanix-theme--active-name))
+         (plan (emanix-theme--plan active))
+         (variant (or (plist-get plan :variant) "dark"))
+         (other (if (equal variant "dark") "light" "dark"))
+         (marked (emanix-theme--read (emanix-theme--last-file other)))
+         (target (if (and marked (emanix-theme--plan marked))
+                     marked
+                   (car (emanix-theme--themes-of-variant other)))))
+    (if target
+        (emanix/theme-set target)
+      (message "emanix-theme: no %s theme in %s"
+               other emanix-theme--themes-dir)
+      nil)))
+
 (defun emanix/theme-palette-color (key)
   "Return the active dotfiles theme's palette colour for KEY, or nil.
 KEY is a name from themes/<name>/colors.toml's [palette] section, e.g.

@@ -305,3 +305,46 @@ runs everywhere and its failure is reported, not raised."
 (ert-deftest emanix-theme-apply-functions-defaults-empty ()
   "The distribution registers none of its own; this seam is the consumer's."
   (should (null (default-value 'emanix/theme-apply-functions))))
+
+;;; The toggle.
+
+(ert-deftest emanix-theme-toggle-uses-the-counterpart-marker ()
+  (emanix-theme-test--with-tree
+    (make-directory emanix/theme-state-dir t)
+    (write-region "duskthorn\n" nil (emanix-theme--state-file))
+    (write-region "dawnthorn\n" nil (emanix-theme--last-file "light"))
+    (let (switched)
+      (cl-letf (((symbol-function 'emanix/theme-set)
+                 (lambda (name) (setq switched name) 'stub)))
+        (should (eq 'stub (emanix/theme-toggle))))
+      (should (equal "dawnthorn" switched)))))
+
+(ert-deftest emanix-theme-toggle-falls-back-to-any-opposite-variant ()
+  "First toggle on a fresh machine has no counterpart marker yet."
+  (emanix-theme-test--with-tree
+    (make-directory emanix/theme-state-dir t)
+    (write-region "dawnthorn\n" nil (emanix-theme--state-file))
+    (let (switched)
+      (cl-letf (((symbol-function 'emanix/theme-set)
+                 (lambda (name) (setq switched name) 'stub)))
+        (emanix/theme-toggle))
+      (should (equal "duskthorn" switched)))))
+
+(ert-deftest emanix-theme-toggle-ignores-a-stale-counterpart-marker ()
+  "A marker naming a theme that has since been deleted must not be used."
+  (emanix-theme-test--with-tree
+    (make-directory emanix/theme-state-dir t)
+    (write-region "duskthorn\n" nil (emanix-theme--state-file))
+    (write-region "deletedtheme\n" nil (emanix-theme--last-file "light"))
+    (let (switched)
+      (cl-letf (((symbol-function 'emanix/theme-set)
+                 (lambda (name) (setq switched name) 'stub)))
+        (emanix/theme-toggle))
+      (should (equal "dawnthorn" switched)))))
+
+(ert-deftest emanix-theme-toggle-returns-nil-when-there-is-no-counterpart ()
+  (emanix-theme-test--with-tree
+    (delete-directory (expand-file-name "dawnthorn" emanix-theme--themes-dir) t)
+    (make-directory emanix/theme-state-dir t)
+    (write-region "duskthorn\n" nil (emanix-theme--state-file))
+    (should-not (emanix/theme-toggle))))

@@ -792,6 +792,12 @@ Each cdr is verified to render at the default face's cell width.")
 ;; unmanaged (the default title is bare "%b" once a second frame exists,
 ;; which would silently re-enroll Emacs into tiling). Harmless elsewhere.
 (setq frame-title-format '("%b — emacs@" system-name))
+;; C-c v — flip dark/light. "v" for variant, which is what it flips.
+;; Lowercase deliberately: checks/welcome-keys.nix extracts `C-[a-z] [a-z?]'
+;; and its own comment states an uppercase row will not be extracted at all,
+;; so `C-c T' would have advertised an unguarded key.
+(when (fboundp 'emanix/theme-toggle)
+  (global-set-key (kbd "C-c v") #'emanix/theme-toggle))
 (when (fboundp 'emanix/theme-init)
   (emanix/theme-init))
 (when (fboundp 'emanix/modeline-mode)
