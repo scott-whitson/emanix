@@ -44,6 +44,13 @@
       EMANIX_DOTFILES = config.emanix.src.dotfilesPath;
       # Interactive convenience only — nothing in the repo reads it.
       EMANIX_ROLE = config.emanix.role;
+      # The host's BUILD-TIME theme, as distinct from EMANIX_THEMES_DIR (the
+      # tree) and ~/.config/dotfiles/active-theme (the RUNTIME choice).
+      # `emanix-theme--seed-name' reads it to converge a machine with no
+      # runtime state on the theme the flake configures, rather than on the
+      # distro default — which is the only moment this value is consulted, so
+      # it never overrides a theme the user has switched to.
+      EMANIX_THEME = config.emanix.theme;
     };
 
     initContent = ''
@@ -121,7 +128,7 @@
     '';
   };
 
-  # The same four paths, exported to the SYSTEMD USER MANAGER as well as the
+  # The same five values, exported to the SYSTEMD USER MANAGER as well as the
   # shell. A systemd user service does not start from a login shell, so
   # programs.zsh.sessionVariables above never reaches one — and the Emacs
   # daemon is exactly such a service. Without this, elisp that resolves
@@ -146,5 +153,6 @@
     EMANIX_THEMES_DIR = config.emanix.src.themesDir;
     EMANIX_BIN_DIR = config.emanix.src.binDir;
     EMANIX_DOTFILES = config.emanix.src.dotfilesPath;
+    EMANIX_THEME = config.emanix.theme;
   };
 }
