@@ -267,24 +267,31 @@ Resolve and confirm the theme is loadable BEFORE disabling whatever is
 currently enabled, then wrap `load-theme' itself in `condition-case' as
 belt-and-braces, since a theme can be listed as available and still
 error while loading. That ordering is what stops a failed switch from
-leaving the session themeless."
-  (let* ((name (plist-get plan :name))
-         (wanted (plist-get plan :emacs-theme))
-         (theme (emanix-theme--pick-loadable wanted name)))
-    (setq modus-themes-common-palette-overrides
-          (emanix-theme--modus-overrides name))
-    (when (eq theme 'catppuccin)
-      (setq catppuccin-flavor (emanix-theme--catppuccin-flavor name)))
-    (when theme
-      (condition-case err
-          (progn
-            (mapc #'disable-theme custom-enabled-themes)
-            (load-theme theme :no-confirm)
-            (when (eq theme 'catppuccin) (catppuccin-reload))
-            theme)
-        (error
-         (message "emanix-theme: load-theme %S failed: %S" theme err)
-         nil)))))
+leaving the session themeless.
+
+The whole prelude -- `emanix-theme--pick-loadable' and the
+`colors.toml' read behind `emanix-theme--modus-overrides' -- runs
+inside the same `condition-case': a `colors.toml' that is a directory,
+or a permissions race, would otherwise signal `file-error' straight
+out of this function and, on the host where Emacs is the compositor,
+cost the rest of init. Every step this function drives must fail into
+`nil', never out."
+  (condition-case err
+      (let* ((name (plist-get plan :name))
+             (wanted (plist-get plan :emacs-theme))
+             (theme (emanix-theme--pick-loadable wanted name)))
+        (setq modus-themes-common-palette-overrides
+              (emanix-theme--modus-overrides name))
+        (when (eq theme 'catppuccin)
+          (setq catppuccin-flavor (emanix-theme--catppuccin-flavor name)))
+        (when theme
+          (mapc #'disable-theme custom-enabled-themes)
+          (load-theme theme :no-confirm)
+          (when (eq theme 'catppuccin) (catppuccin-reload))
+          theme))
+    (error
+     (message "emanix-theme: apply-emacs for %S failed: %S" (plist-get plan :name) err)
+     nil)))
 
 (defcustom emanix/theme-apply-functions nil
   "Functions run after a theme switch, each called with the plan plist.
@@ -328,12 +335,12 @@ read-only btop directory must not look like a failed theme switch."
                (directory-files emanix-theme--themes-dir nil "\\`[^.]"))
           nil t)))
   (if-let* ((plan (emanix-theme--plan name)))
-      (let ((failures (append (emanix-theme--write-state plan)
-                              (emanix-theme--apply-links plan)
-                              (emanix-theme--apply-gtk plan)
-                              (emanix-theme--run-hook plan)
-                              (emanix-theme--reload-apps)))
-            (theme (emanix-theme--apply-emacs plan)))
+      (let* ((theme (emanix-theme--apply-emacs plan))
+             (failures (append (emanix-theme--write-state plan)
+                               (emanix-theme--apply-links plan)
+                               (emanix-theme--apply-gtk plan)
+                               (emanix-theme--run-hook plan)
+                               (emanix-theme--reload-apps))))
         (when failures
           (message "emanix-theme: %s applied with %d failure(s): %s"
                    name (length failures) (string-join failures "; ")))
