@@ -134,7 +134,7 @@ again per buffer with a live process, which on a daemon that has been up for
 days is a long interactive walk.  This saves file buffers unattended and then
 calls `kill-emacs', which runs `kill-emacs-hook' but asks nothing.
 
-The trade-off, stated plainly: live processes (vterm shells, running agents)
+The trade-off, stated plainly: live processes (ghostel shells, running agents)
 are terminated without a prompt.  Anything unsaved that is NOT a file buffer
 is lost.  That is the intended bargain for a deliberate restart.
 

@@ -270,6 +270,18 @@ rec {
 
   # swaylock config (colors are RRGGBB[AA], no leading '#').
   # Ring/text states follow upstream catppuccin/swaylock conventions.
+  #
+  # NO `daemonize' line, deliberately. The retired swaylock.nix prepended one
+  # when it rendered ~/.config/swaylock/config from this text; nothing does
+  # now — lib/theme-tree.nix writes this verbatim to
+  # <tree>/<name>/swaylock.conf and the switch symlinks it into place.
+  #
+  # Harmless today because the only caller passes `-f' explicitly: emanix-ewm.el
+  # starts swayidle with `swaylock -f'. If a future caller drops that flag,
+  # swaylock stays in the FOREGROUND and whatever invoked it blocks until the
+  # screen is unlocked — which from swayidle's before-sleep hook means the
+  # suspend itself waits. Add `daemonize' here, or keep `-f' at the call site;
+  # do not assume this file supplies it.
   swaylock = palette:
     let c = name: builtins.substring 1 6 palette.colors.${name};
     in ''

@@ -420,6 +420,28 @@ path-specific groups from the personal layer.")
    '("'" . repeat)
    '("<escape>" . ignore)))
 (meow-setup)
+
+;; Terminal and agent buffers start in INSERT (2026-09-11). Neither
+;; `ghostel-mode' nor `agent-shell-mode' names itself here, so meow walks
+;; `derived-mode-parent' until it lands on `fundamental-mode' — which the
+;; default `meow-mode-state-list' maps to NORMAL. Both therefore opened with
+;; their input keys captured: `j' in a ghostel buffer ran `meow-next' instead
+;; of reaching the shell, and the first keystroke of every Claude prompt was
+;; swallowed. These are buffers you open in order to type into; there is no
+;; case where the first thing wanted is a motion. MOTION state would not fix
+;; it — the keys are still meow's.
+;;
+;; The cost is ESC in ghostel: `meow-insert-state-keymap' binds it to
+;; `meow-insert-exit', and a minor-mode map shadows the major-mode one, so it
+;; no longer reaches the TUI (Claude Code's interrupt, vim's normal state,
+;; less's quit). Accepted rather than worked around, because ghostel already
+;; ships the escape hatch: `C-c C-q' (`ghostel-send-next-key') takes the next
+;; event with `read-event', below the keymaps entirely, so `C-c C-q ESC'
+;; delivers a literal ESC whatever meow has bound. agent-shell has no such
+;; conflict — ESC leaving insert state is what a comint transcript should do.
+(dolist (mode '(ghostel-mode agent-shell-mode))
+  (add-to-list 'meow-mode-state-list (cons mode 'insert)))
+
 (meow-global-mode 1)
 
 ;; Line movement (global bindings, works with Meow selections)
@@ -721,25 +743,29 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 ;; Terminal in a buffer. The 2026-08-04 decision stands — a real terminal app
 ;; can never be a buffer outside EWM's own compositor — but the buffer terminal
 ;; is ghostel as of 2026-08-25, not vterm. libghostty-vt (the VT engine behind
-;; Ghostty) through a native Zig module: ~4x vterm throughput, ~30fps vs ~10,
+;; Ghostty) through a native Zig module: ~4x vterm's throughput, ~30fps vs ~10,
 ;; DEC 2026 synchronized output, real mouse passthrough to TUIs, and password
 ;; prompts intercepted via `read-passwd' instead of every character of a sudo
 ;; password landing in `view-lossage' and the recent-keys ring.
 ;;
-;; This does NOT retire ghostty, which is installed on all three hosts and
+;; This did NOT retire ghostty, which is installed on all three hosts and
 ;; remains the answer for shell and build work: it is an independent window
 ;; that survives an Emacs wedge, whereas a ghostel buffer rides Emacs's main
 ;; thread. Buffer terminal and window terminal are different jobs.
 ;;
-;; C-u C-c t = new terminal (same as it did with vterm); a numeric prefix
+;; C-u C-c t = new terminal; a numeric prefix
 ;; (C-1 C-c t) switches to that numbered one. Explicit autoload for the same
 ;; reason as before: the nix-installed package's autoloads don't reliably reach
 ;; the daemon session (observed 2026-08-04 — installed but M-x-less).
 ;;
-;; vterm stays in packages.nix and keeps its autoload as the fallback — ghostel
-;; puts a native module in the critical path, and a broken one should cost a
-;; terminal, not a working Emacs. Retire vterm only once ghostel has weeks on it.
-(autoload 'vterm "vterm" "Open a vterm terminal buffer." t)
+;; vterm was kept beside it as a fallback for exactly this long, on the
+;; reasoning that ghostel puts a native module in the critical path and a
+;; broken one should cost a terminal rather than a working Emacs. That hedge
+;; was time-boxed to "once ghostel has weeks on it" and was retired
+;; 2026-09-10, sixteen days in, with no fallback taken in between. The
+;; remaining hedge is the better one and is the paragraph above: ghostty is a
+;; separate process in a separate window, so it survives the Emacs wedge that
+;; would take any in-Emacs terminal down with it.
 (autoload 'ghostel "ghostel" "Open a ghostel terminal buffer." t)
 (global-set-key (kbd "C-c t") #'ghostel)
 
@@ -788,13 +814,11 @@ Each cdr is verified to render at the default face's cell width.")
       (aset dt (+ #x2800 i) (vector (make-glyph-code ?·))))
     (setq buffer-display-table dt)))
 
-(add-hook 'vterm-mode-hook #'emanix/terminal-fix-glyph-widths)
-
-;; Both backends need it. Those symbols are off-grid because of glyph advance
-;; vs the 9px cell — a FONT problem, not a backend one — and neither vterm nor
-;; ghostel remaps widths itself, so any TUI misaligns in both identically.
-;; Hence the backend-neutral name: ghostel is the primary terminal and vterm the
-;; fallback, so naming this after either one would be wrong within a release.
+;; The name stays backend-neutral. Those symbols are off-grid because of
+;; glyph advance vs the 9px cell — a FONT problem, not a backend one — so this
+;; belonged to no single terminal even while there were two (vterm had the
+;; same hook until 2026-09-10), and will not need renaming if ghostel is ever
+;; itself replaced.
 (add-hook 'ghostel-mode-hook #'emanix/terminal-fix-glyph-widths)
 
 ;; Agent shell (ACP) — Claude Code and pi as Emacs buffers, configured in
@@ -820,6 +844,12 @@ Each cdr is verified to render at the default face's cell width.")
 ;; unmanaged (the default title is bare "%b" once a second frame exists,
 ;; which would silently re-enroll Emacs into tiling). Harmless elsewhere.
 (setq frame-title-format '("%b — emacs@" system-name))
+;; C-c v — flip dark/light. "v" for variant, which is what it flips.
+;; Lowercase deliberately: checks/welcome-keys.nix extracts `C-[a-z] [a-z?]'
+;; and its own comment states an uppercase row will not be extracted at all,
+;; so `C-c T' would have advertised an unguarded key.
+(when (fboundp 'emanix/theme-toggle)
+  (global-set-key (kbd "C-c v") #'emanix/theme-toggle))
 (when (fboundp 'emanix/theme-init)
   (emanix/theme-init))
 (when (fboundp 'emanix/modeline-mode)

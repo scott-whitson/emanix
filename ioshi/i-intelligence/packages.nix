@@ -13,8 +13,11 @@
     ripgrep
     fd
     jq
-    htop
-    btop
+    # NO htop and NO btop here. btop.nix's `programs.btop.enable' installs
+    # btop already -- listing it here too put the same derivation in
+    # home.packages twice, the same shape as the mpv and firefox overlaps
+    # noted below. htop went with it on 2026-09-10: two system monitors for
+    # one job, and btop is the one that is actually configured.
     fastfetch
     unzip
     xz
@@ -100,7 +103,7 @@
     # for "JetBrainsMono Nerd Font" here would find nothing.
     jetbrains-mono
     nerd-fonts.symbols-only
-    # Symbol fallback for TUIs in vterm (Claude Code's ⏵ ⏸ ⏺). No JetBrains
+    # Symbol fallback for TUIs in ghostel (Claude Code's ⏵ ⏸ ⏺). No JetBrains
     # face — nor Nerd Font's symbol set — covers the media-control block
     # U+23F5/23F8/23FA, so emacs drew hex-tofu boxes. NotoSansSymbols2 (in
     # this package) is the only thing in nixpkgs checked that has them.

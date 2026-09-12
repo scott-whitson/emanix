@@ -46,6 +46,23 @@ let
   theEmacs = emacsPkgs.mkEmacs {
     extraPackages = [ ewmPkg ];
   };
+
+  # The user's HOME MANAGER config, read from the NixOS tier.
+  #
+  # `emanix.theme' and `emanix.src.themesDir' are declared in
+  # i-intelligence/theme.nix, which is a Home Manager module (it resolves
+  # `config.home.homeDirectory'). There is no `config.emanix.src' at NixOS
+  # level -- emanix.nix declares exactly one NixOS-tier option, `username' --
+  # so the values have to be reached through the HM submodule. This module
+  # already addresses that submodule by name for `emanix.ewm.enable' below;
+  # this reads from it rather than writing to it.
+  #
+  # Re-deriving themesDir here from lib/theme-tree.nix instead would evaluate
+  # without any cross-tier reach and be WRONG on exactly the hosts that matter:
+  # a consumer with its own theme tree overrides the option, and a second
+  # derivation would silently disagree with the one the shell and the daemon
+  # both export.
+  hmCfg = config.home-manager.users.${config.emanix.username};
 in
 {
   imports = [ "${ewm}/nix/service.nix" ];
@@ -181,6 +198,31 @@ in
     '';
 
     sessionVariables = {
+      # The theme pair, delivered to the EWM Emacs specifically.
+      #
+      # zsh.nix exports both of these, but NEITHER reaches this Emacs. It is
+      # launched from `loginShellInit' above, which NixOS writes into
+      # /etc/zprofile -- and Home Manager's own ~/.zprofile, where its
+      # `programs.zsh.sessionVariables' land, is read AFTER that. Its
+      # `systemd.user.sessionVariables' do not help either: the EWM Emacs is
+      # started by the login shell, not by the user manager.
+      #
+      # Measured on the live EWM session 2026-09-11:
+      #   (getenv "EMANIX_THEMES_DIR")  => nil
+      #   emanix-theme--themes-dir      => "~/dotfiles/themes"  (absent)
+      # so every theme file read silently missed and the desktop had been
+      # running the wrong colours. `environment.sessionVariables' is the fix
+      # because of WHERE NixOS puts it: it merges into `environment.variables',
+      # which lands in /etc/set-environment, which /etc/zshenv sources -- and
+      # zshenv is read before zprofile, so the variables exist by the time the
+      # snippet above runs `ewm-launch'.
+      EMANIX_THEMES_DIR = hmCfg.emanix.src.themesDir;
+
+      # The host's build-time theme, which `emanix-theme--seed-name' reads to
+      # converge a machine with no runtime state on the theme its flake
+      # actually configures rather than on the distro default.
+      EMANIX_THEME = hmCfg.emanix.theme;
+
       # arc reads this to load the sqlite-vec (vec0) extension into its DB;
       # keeps the /nix/store path in Nix so the liveElisp emanix-arc.el stays
       # store-path-free. Present in the login shell → inherited by the EWM daemon.
@@ -202,7 +244,12 @@ in
       # Screen lock (ext-session-lock): swayidle fires swaylock on logind's
       # before-sleep (lid close → suspend) and on loginctl lock-session.
       # swayidle is started from emacs (lisp/emanix-ewm.el) so it inherits
-      # WAYLAND_DISPLAY and dies with the session. Config: swaylock.nix (HM).
+      # WAYLAND_DISPLAY and dies with the session. Config: the runtime theme
+      # switcher (Emacs) symlinks $EMANIX_THEMES_DIR/<name>/swaylock.conf --
+      # generated per palette by lib/theme-tree.nix -- onto
+      # ~/.config/swaylock/config. No Home Manager module renders that path
+      # anymore: a runtime path with two owners gets renamed to .hm-bak at
+      # every activation, the trap ghostty.nix documents.
       swaylock
       swayidle
       # XWayland — EWM is a wlroots compositor; X11 apps (Steam, etc.)

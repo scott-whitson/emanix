@@ -77,7 +77,6 @@ let
     org-modern # bullets, block framing, tag/timestamp styling for org
     org-appear # reveal org emphasis markers at point (markdown's equivalent
     # is hand-rolled in emanix-prose.el — no package provides it)
-    vterm # native module built by nix; M-x package-install can't do this
     weblorg # pure Emacs Lisp static site generator with org-roam support
 
     # --- Agent shell (ACP) ---
@@ -93,7 +92,18 @@ let
     agent-shell
     acp # the protocol client agent-shell drives
     shell-maker # agent-shell's buffer/prompt substrate
-    ghostel # NOT agent-shell's: the buffer terminal in its own right, C-c t
+    # ghostel is THE buffer terminal, C-c t. NOT agent-shell's -- a terminal
+    # in its own right.
+    #
+    # vterm sat beside it as a fallback from 2026-08-25, on the reasoning that
+    # ghostel puts a native Zig module in the critical path and a broken one
+    # should cost a terminal rather than a working Emacs. That was a
+    # time-boxed hedge ("retire vterm only once ghostel has weeks on it") and
+    # the weeks happened: removed 2026-09-10. The hedge it replaced is still
+    # in place and is the better one -- ghostty is installed on every host and
+    # is an independent window that survives an Emacs wedge entirely, which a
+    # second in-Emacs terminal never could.
+    ghostel
     transient # magit needs it; listed since ghostel's menu uses it directly
 
     # --- Code editing ---

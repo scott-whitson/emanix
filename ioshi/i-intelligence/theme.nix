@@ -8,10 +8,24 @@ in
 {
   options.emanix = {
     theme = lib.mkOption {
-      # enum, not str: an unknown name used to build cleanly and then break at
-      # RUNTIME — ghostty.nix seeds theme.conf by interpolating this value into
-      # a symlink target, so a typo produced a dangling link and a ghostty that
-      # could not load its config. Now it is an eval error naming the valid set.
+      # enum, not str: this value is a LOOKUP KEY, and BOTH of its consumers
+      # degrade silently on a key that matches nothing.
+      #
+      # firefox.nix writes `palettes.${config.emanix.theme} or
+      # palettes.catppuccin-mocha' — a typo there builds, installs and renders
+      # the wrong chrome, saying nothing. zsh.nix and ewm.nix export it as
+      # EMANIX_THEME, where `emanix-theme--seed-name' hands it to the planner
+      # at the first Emacs start of a machine with no runtime state; a name
+      # with no directory in the theme tree yields no plan, and the session
+      # falls through to the distro default instead. Neither path can fail
+      # loudly, so the TYPE has to: an enum turns the typo into an eval error
+      # naming the valid set, at the only point anything here can still tell
+      # the difference.
+      #
+      # (Until 2026-09-11 this comment cited ghostty.nix's seedGhosttyTheme
+      # activation hook, which interpolated the value into a symlink target.
+      # That hook is gone — `emanix/theme-init' converges every target now —
+      # so the reason had to be restated, not merely kept.)
       type = lib.types.enum (lib.attrNames palettes);
       default = "catppuccin-mocha";
       description = "Active theme name. Must be a key in lib/themes.nix palettes.";

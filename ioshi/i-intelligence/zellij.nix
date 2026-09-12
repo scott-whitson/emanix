@@ -16,6 +16,14 @@ let
   renderKdl = f: substHome (builtins.readFile f);
 in
 {
+  # Default false, and it stays that way on any host where Emacs IS the
+  # desktop: EWM already gives persistence, tabs and splits, so a multiplexer
+  # there is a second window manager inside the first. It is enabled on the
+  # two hosts that are NOT an Emacs desktop and have a real use for it --
+  # whistle (WSL, where zellij is how the box gets a usable terminal) and
+  # datacore (headless, so a remote session survives a reboot). Consumers set
+  # it per host; there is no role to inherit it from (roles were deleted
+  # 2026-08-30).
   options.emanix.zellij.enable = lib.mkEnableOption
     "zellij with the zellaude bar, deployed live from ioshi/i-intelligence/zellij";
 
@@ -325,9 +333,26 @@ in
 
       };
 
-      # theme_dir must EXIST before zellij starts: pointing it at a missing
-      # directory is a hard IoError, not a warning, and zellij refuses to run.
-      # Seed the active symlink if absent, same pattern as ghostty's theme.conf.
+      # KEPT, where ghostty's equivalent was deleted on 2026-09-11. The
+      # reasoning that retired seedGhosttyTheme -- `emanix/theme-init'
+      # converges every target on first start, and the switch links zellij's
+      # active theme too -- does not close this case, for two reasons that
+      # compound:
+      #
+      # 1. theme-init converges only when ~/.config/dotfiles/active-theme is
+      #    ABSENT or names a dead theme. Turning `emanix.zellij.enable' on for
+      #    the first time on a host that already has a theme is therefore a
+      #    rebuild after which the switch never runs, and nothing creates
+      #    theme_dir. A fresh install is the only case the converge covers,
+      #    and it is not the only case that produces a missing theme_dir.
+      # 2. The failure is not cosmetic. A theme_dir that does not resolve is a
+      #    hard IoError (verified against 0.44.3, see renderKdl above) and
+      #    zellij refuses to start at all -- where ghostty's missing theme.conf
+      #    only costs colours and still gives you a terminal. The cost of
+      #    being wrong is asymmetric, and the hook is four lines.
+      #
+      # The `-e' guard means it can never fight the switcher: once Emacs has
+      # written the symlink, every later activation is a no-op.
       activation.seedZellijTheme =
         lib.hm.dag.entryAfter [ "writeBoundary" ] ''
           active="$HOME/.local/share/emanix/zellij-themes/active"

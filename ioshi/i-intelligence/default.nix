@@ -2,7 +2,7 @@
 #
 # ioshi's three concerns are descriptive (see README): i-intelligence says what
 # a thing is about, not which module system delivers it. So this directory holds
-# 17 modules and this list imports 16. The one it deliberately omits is a NixOS
+# 16 modules and this list imports 15. The one it deliberately omits is a NixOS
 # module, exposed as `nixosModules.ewm` and imported at system level by the
 # consuming flake instead:
 #
@@ -22,13 +22,11 @@
     ./zsh.nix
     ./ghostty.nix
     ./packages.nix
-    ./swaylock.nix
     ./xdg.nix
     ./emacs-daemon.nix
     ./agent-acp.nix
     ./firefox.nix
     ./btop.nix
-    ./lf.nix
     ./mpv.nix
     ./yt-dlp.nix
     ./wireplumber.nix

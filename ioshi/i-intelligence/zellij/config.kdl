@@ -1,7 +1,9 @@
-// Theme comes from ~/.local/share/dotfiles/zellij-themes/active/, which holds
-// exactly one file: a symlink flipped by bin/dot-theme-set. Both candidate
-// themes are named `emanix`, so this line never changes — zellij selects by
-// theme NAME, and switching swaps which definition is visible.
+// Theme comes from ~/.local/share/emanix/zellij-themes/active/, which holds
+// exactly one file: a symlink flipped by `emanix/theme-set' (Emacs has owned
+// the runtime theme since 2026-09-11; bin/dot-theme-set is now a one-line
+// emacsclient wrapper). Both candidate themes are named `emanix`, so this
+// line never changes — zellij selects by theme NAME, and switching swaps
+// which definition is visible.
 //
 // Kept outside the repo because ~/.config/zellij is a live symlink into the
 // checkout and must stay clean. This directory must exist or zellij fails to

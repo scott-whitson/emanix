@@ -67,15 +67,10 @@ in
       };
     };
 
-    # Seed theme.conf only when absent, so a fresh machine has a theme before
-    # the first dot-theme-set run. `-e` is false for a dangling symlink, which
-    # is the case worth re-seeding, so this is the right test.
-    home.activation.seedGhosttyTheme =
-      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        target="$HOME/.config/ghostty/theme.conf"
-        if [ ! -e "$target" ]; then
-          run ln -sfn "$HOME/.config/ghostty/themes/${config.emanix.theme}.conf" "$target"
-        fi
-      '';
+    # NO seeding hook. `emanix/theme-init' converges the whole machine on the
+    # first Emacs start when ~/.config/dotfiles/active-theme is absent, which
+    # is a fresh install -- and it seeds btop, zellij, swaylock, gtk and the
+    # consumer's registrations too, not only this one symlink. Removed
+    # 2026-09-11 with the theme-authority inversion.
   };
 }
