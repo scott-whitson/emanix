@@ -2,7 +2,14 @@
 
 ;; The active theme is named in ~/.config/dotfiles/active-theme, and each
 ;; themes/<name>/ directory carries an `emacs-theme' file naming the Emacs
-;; theme to load. bin/dot-theme-set calls (emanix/theme-set "<name>") on switch.
+;; theme to load.
+;;
+;; THIS FILE is the authority for a switch as of 2026-09-11. `emanix/theme-set'
+;; writes that marker, links every per-app theme file, calls gsettings, and runs
+;; `emanix/theme-apply-functions' for whatever the consuming flake registered.
+;; A consumer's bin/dot-theme-set is a wrapper that calls in here -- the reverse
+;; of the arrangement it replaced, where 228 lines of bash orchestrated the
+;; switch and handed Emacs the theme name last, as a client.
 ;;
 ;; This used to take a catppuccin flavor ("mocha"/"latte") and derive it with
 ;; (string-match-p "latte" name), which silently mapped every other theme name
