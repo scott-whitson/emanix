@@ -230,6 +230,22 @@ in
       # is the loud failure this variable exists to make possible.
       ARC_VEC0_PATH = emacsPkgs.arcVecPath;
 
+      # Helper-script dir. Same mechanism as EMANIX_THEMES_DIR above and the
+      # same symptom: unset here, getenv returns nil in this Emacs specifically.
+      # emanix-ewm-slots.el's Firefox slot and config.el's calendar-sync
+      # binding both resolve their target through this, falling back to a
+      # bare relative path (which resolves nowhere) when it is missing; a
+      # consuming flake's personal.el does the same for its own helper
+      # scripts.
+      EMANIX_BIN_DIR = hmCfg.emanix.src.binDir;
+
+      # The consumer's own checkout (e.g. ~/dotfiles) — emanix-welcome.el
+      # reads this to find the config repo (see zsh.nix's EMANIX_DOTFILES for
+      # the full story). Same mechanism as above: without it, the welcome
+      # buffer in this Emacs falls through to /etc/nixos and wrongly reports
+      # "no config repo yet" even on hosts that have one.
+      EMANIX_DOTFILES = hmCfg.emanix.src.dotfilesPath;
+
       # XWayland display — X11 apps (Steam, etc.) use this to find XWayland.
       # XWayland is started from the loginShellInit below, after the compositor
       # is up.
