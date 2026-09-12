@@ -32,13 +32,19 @@ pkgs.runCommand "agent-shell-api" { } ''
                          agent-shell-submit
                          agent-shell-send-region
                          agent-shell-anthropic-start-claude-code
-                         agent-shell-pi-start-agent)))
+                         agent-shell-pi-start-agent
+                         agent-shell-cwd)))
       (unless (fboundp sym)
         (error "agent-shell no longer defines %s" sym)))
     (dolist (var (quote (agent-shell-mode-hook
                          agent-shell-anthropic-claude-acp-command
                          agent-shell-pi-acp-command
-                         agent-shell-text-file-capabilities)))
+                         agent-shell-text-file-capabilities
+                         ;; The variable emanix/agent-shell--sleep-block-latch
+                         ;; latches off. Renamed upstream, the latch would set a
+                         ;; variable nobody reads and the per-event message
+                         ;; storm it exists to stop would come back.
+                         agent-shell-inhibit-system-sleep)))
       (unless (boundp var)
         (error "agent-shell no longer defines %s" var)))
     ;; The event name the buffer-sync patch subscribes to. Documented only in
@@ -72,6 +78,40 @@ pkgs.runCommand "agent-shell-api" { } ''
       exit 1
     fi
   done
+
+  # emanix/agent-shell-claude opens an agent on another tree by binding
+  # `default-directory' around the upstream command, and that is the ENTIRE
+  # mechanism -- it works only while `agent-shell-cwd' still reads
+  # `default-directory'. If upstream ever resolves the cwd some other way (a
+  # stored variable, a required argument), the wrapper keeps running, the
+  # prompt keeps appearing, and the shell quietly starts in the wrong
+  # directory: no error, and the C-u branch silently becomes a no-op.
+  # `fboundp agent-shell-cwd' above cannot see that; this reads the body.
+  #
+  # Scoped to the defun rather than grepping the whole file, because
+  # `default-directory' appears all over agent-shell-project.el. "End of form"
+  # is the next line starting a top-level form in column 0; an awk RANGE
+  # ending at /^$/ was tried first and is WRONG -- the blank line inside this
+  # defun's own docstring closes it after three lines, so the guard failed red
+  # against correct source. Docstring and body lines are indented or blank, so
+  # only a real following form can stop it. Drilled three ways: green as
+  # shipped, red when the fallback is replaced, red when the defun is renamed.
+  proj=$(echo ${agentShellPkg}/share/emacs/site-lisp/elpa/agent-shell-*/agent-shell-project.el)
+  if ! awk '/^\(defun agent-shell-cwd /{f=1;print;next} f&&/^\(/{exit} f{print}' "$proj" \
+       | grep -qF default-directory; then
+    echo "agent-shell-cwd no longer resolves the cwd from default-directory; emanix/agent-shell-claude's C-u branch is silently broken" >&2
+    exit 1
+  fi
+
+  # The sleep inhibit must still go through the built-in the latch advises.
+  # `agent-shell-inhibit-system-sleep' being bound (above) does not prove the
+  # inhibit still runs through `system-sleep-block-sleep' -- upstream could
+  # keep the option and call logind itself, at which point the advice never
+  # fires and the message storm returns unannounced.
+  if ! grep -qF -- "(system-sleep-block-sleep " "$src"; then
+    echo "agent-shell no longer inhibits sleep via system-sleep-block-sleep; emanix/agent-shell--sleep-block-latch is dead code" >&2
+    exit 1
+  fi
 
   # Two emit sites, and the sync patch depends on BOTH. They carry overlapping
   # subsets of these keys rather than disjoint ones. Losing one would halve the

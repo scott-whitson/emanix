@@ -76,6 +76,32 @@ pkgs.runCommand "agent-shell-glue-sane" { } ''
     exit 1
   fi
 
+  # 4c. The Claude wrapper C-c C-' is bound to. config.el names
+  #     `emanix/agent-shell-claude' and this module is the only definition
+  #     site, so losing it costs the primary agent keybinding -- and does so
+  #     silently, because config.el requires this feature with :no-error.
+  #
+  #     `defun' specifically, not merely the symbol: the docstring and
+  #     config.el's own comment both name it, so a presence grep would survive
+  #     the function being deleted. The wrapper's BEHAVIOUR (that it honours
+  #     the prompted directory) is unit-tested in checks/agent-shell-sync.nix
+  #     instead, where a batch Emacs can actually call it.
+  if ! grep -qF -- "(defun emanix/agent-shell-claude " "$src"; then
+    echo "emanix-agent-shell.el no longer defines emanix/agent-shell-claude, which config.el binds to C-c C-'" >&2
+    exit 1
+  fi
+
+  # 4d. The sleep-inhibit latch must still be INSTALLED, not merely defined.
+  #     checks/agent-shell-sync.nix unit-tests the function, and would keep
+  #     passing with the `advice-add' deleted -- the tests call it directly.
+  #     Losing the installation is silent by nature: the only symptom is the
+  #     echo-area message storm coming back on hosts where logind refuses to
+  #     inhibit, which no check can observe from a build sandbox.
+  if ! grep -q "advice-add 'system-sleep-block-sleep" "$src"; then
+    echo "emanix-agent-shell.el no longer installs emanix/agent-shell--sleep-block-latch on system-sleep-block-sleep" >&2
+    exit 1
+  fi
+
   # 5. The three commands the keybindings name must be autoloaded.
   for cmd in \
     agent-shell-anthropic-start-claude-code \

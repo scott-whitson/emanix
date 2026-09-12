@@ -286,6 +286,51 @@ twice, which is the exact double-flicker the path dedupe exists to avoid."
 (autoload 'agent-shell-send-region "agent-shell"
   "Send the region to an agent shell." t)
 
+(defun emanix/agent-shell-claude (&optional elsewhere)
+  "Start a Claude agent shell, in this tree or one you name.
+
+Without a prefix argument this is `agent-shell-anthropic-start-claude-code'
+unchanged: the shell starts wherever the current buffer already is.
+
+With \\[universal-argument] (ELSEWHERE non-nil), prompt for a directory and
+start there instead -- an agent on a tree you are not currently visiting,
+without first having to `find-file' or `dired' into it.
+
+WHY THIS IS A WRAPPER AND NOT AN UPSTREAM ARGUMENT.  agent-shell resolves a
+shell's working directory from the CURRENT BUFFER -- `agent-shell-cwd'
+returns the project root when `project-current' finds one and
+`default-directory' otherwise -- and reads it ONCE, at start.  Nothing
+re-reads it afterwards: `M-x cd' in the shell buffer never reaches the
+agent, and `agent-shell-restart', which does re-read it, forces a fresh
+session.  Choosing a directory therefore has to happen before the command
+runs, and that is the whole of what happens here.
+
+Binding `default-directory' is deliberately the entire mechanism.
+`agent-shell--new-shell' does take a :location, but it is private AND pins
+`session-strategy' to `new'.  Going through the public command instead
+leaves the directory as the only thing that differs -- which matters
+because ACP sessions are per-cwd: with `agent-shell-session-strategy' at
+its default of `prompt', the new shell offers the resumable sessions
+belonging to the directory just picked.  Continuing a conversation started
+elsewhere is the usual reason for wanting this at all, so a variant that
+could only start fresh ones would miss the point.
+
+The prompt names a directory but the shell may start at that directory's
+PROJECT ROOT, because `agent-shell-cwd' prefers it.  Naming a repo
+subdirectory thus behaves exactly as visiting a file inside it would --
+consistent with the unprefixed key, rather than a second set of rules."
+  (interactive "P")
+  (let ((default-directory
+         (if elsewhere
+             ;; MUSTMATCH: a non-existent directory would leave the ACP
+             ;; process with an unusable cwd, which surfaces as a failure to
+             ;; start rather than as a bad path.
+             (file-name-as-directory
+              (expand-file-name
+               (read-directory-name "Start Claude in: " nil nil t)))
+           default-directory)))
+    (agent-shell-anthropic-start-claude-code)))
+
 (defun emanix/agent-shell--pi-adapter ()
   "Return the pi ACP adapter's executable, or nil when none is installed.
 
@@ -322,9 +367,62 @@ later needs no restart."
 ;; glue. config.el carries a pointer at the C-c C-' / C-c r site.
 (global-set-key (kbd "C-c p") #'emanix/agent-shell-pi)
 
+(defun emanix/agent-shell--sleep-block-latch (block-sleep &rest args)
+  "Call BLOCK-SLEEP with ARGS, latching the sleep inhibit off if it fails.
+
+WHAT THIS SILENCES.  agent-shell keeps the system awake for the duration of
+a turn, via Emacs 31.1's `system-sleep' library, which asks logind to
+Inhibit over D-Bus.  Where logind refuses, that request fails EVERY TIME --
+and upstream retries it on every ACP event for as long as the agent is busy,
+reporting each failure to the echo area, because a failed attempt stores no
+token and so leaves nothing to remember it by.  Measured on a WSL host: 38
+identical \"Sleep inhibit unavailable\" messages inside a single turn.
+
+Its own advice is to set `agent-shell-inhibit-system-sleep' to nil, which
+does stop it completely (upstream's `when-let*' short-circuits on that
+variable).  This does exactly that, but only after the host has actually
+proven it cannot inhibit -- so the echo area gets ONE message rather than
+dozens, and no host is opted out of a feature that works for it.  The distro
+cannot decide this statically: the same config runs where logind allows this
+and where it does not.
+
+WHY logind REFUSES, on the host this was written for: an idle inhibitor
+needs polkit authorisation, and `security.polkit.enable' is off there, so
+every request is denied -- reproducible outside Emacs entirely, with
+`systemd-inhibit --what=idle --who=probe --why=test true'.  Nothing is lost
+by giving up on it: that host is a WSL guest, where Windows owns power
+management and a guest-side inhibitor could not keep the machine awake even
+if logind granted it.
+
+Advising `system-sleep-block-sleep' -- an Emacs built-in whose API is stable
+-- rather than the agent-shell internals around it, which upstream describes
+as unstable.  The error is re-signalled unchanged, so upstream's own
+`condition-case' still emits the first message and any other caller of the
+built-in sees identical behaviour.
+
+`setq-default' because upstream reads the variable globally and never makes
+it buffer-local: the claim being recorded is about the HOST, not about one
+shell buffer.  Latched for the session -- if polkit is enabled later, restart
+Emacs (or set the variable back to t) to pick the feature up again."
+  (condition-case err
+      (apply block-sleep args)
+    (error
+     (setq-default agent-shell-inhibit-system-sleep nil)
+     (signal (car err) (cdr err)))))
+
 (with-eval-after-load 'agent-shell
   (add-hook 'agent-shell-mode-hook #'emanix/agent-shell--install)
-  (advice-add 'agent-shell-submit :before #'emanix/agent-shell--submit-advice))
+  (advice-add 'agent-shell-submit :before #'emanix/agent-shell--submit-advice)
+  ;; `system-sleep' is a built-in that agent-shell loads lazily, on its first
+  ;; inhibit attempt. Requiring it HERE is what lets the advice be guarded by
+  ;; `fboundp': advising a void symbol would define its function cell, and
+  ;; agent-shell's own `agent-shell--system-sleep-available-p' probes exactly
+  ;; that -- so on an Emacs too old to have the library, a bare `advice-add'
+  ;; would talk it into calling an API that does not exist.
+  (when (and (require 'system-sleep nil t)
+             (fboundp 'system-sleep-block-sleep))
+    (advice-add 'system-sleep-block-sleep :around
+                #'emanix/agent-shell--sleep-block-latch)))
 
 (with-eval-after-load 'agent-shell-anthropic
   ;; `executable-find', not a store path: this file is out-of-store live elisp
