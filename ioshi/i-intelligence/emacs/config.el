@@ -39,6 +39,18 @@
   (declare-function embark-bindings "embark"))
 
 (add-to-list 'load-path (locate-user-emacs-file "lisp"))
+;; emanix-prose-mode is named by file-local variable blocks out in the org tree
+;; (`eval: (emanix-prose-mode -1)' opts a vendor document out of prose
+;; rendering). Those evals run whenever a file is *visited*, which includes the
+;; org-roam startup sync far below -- long before the `require' near the bottom
+;; of this file. Without this autoload the eval signals void-function, org-roam
+;; catches it and skips the file wholesale, so the note silently vanishes from
+;; the database (observed 2026-09-13: two work notes gone, their stale
+;; .stversions copies indexed in their place). The ;;;###autoload cookie in
+;; emanix-prose.el cannot cover this -- lisp/ is only on load-path and nothing
+;; generates or loads an autoloads file for it -- so it is explicit here, for
+;; the same reason as nix-ts-mode and ghostel below.
+(autoload 'emanix-prose-mode "emanix-prose" "Render the current buffer as prose." t)
 (setq custom-file (locate-user-emacs-file "custom.el"))
 (load custom-file :no-error)
 
@@ -551,6 +563,15 @@ path-specific groups from the personal layer.")
 (make-directory org-directory t)
 (when (require 'org-roam nil :no-error)
   (setq org-roam-directory org-directory)
+  ;; Syncthing parks conflict and version backups in .stversions/ inside the
+  ;; org tree. They are real .org files carrying the real :ID: property, so
+  ;; org-roam indexes them: 110 of 544 file rows on 2026-09-13. That makes
+  ;; `org-roam-node-find' ambiguous and lets a months-old copy stand in for a
+  ;; note the live sync skipped. Matched against the path relative to
+  ;; org-roam-directory, and added rather than set, because the default value
+  ;; (list org-attach-id-dir) is still wanted. Must precede the autosync call:
+  ;; that kicks off a sync immediately.
+  (add-to-list 'org-roam-file-exclude-regexp "\\.stversions/")
   (org-roam-db-autosync-mode 1)
   (global-set-key (kbd "C-c n f") #'org-roam-node-find)
   (global-set-key (kbd "C-c n i") #'org-roam-node-insert)
