@@ -171,32 +171,44 @@ the status bar -- or the redraw that follows it -- down with it."
           emanix/modeline-extra-segments))
 
 (defun emanix/modeline--render ()
-  "Compose and redraw the current EWM status bar."
-  (setq emanix/modeline-status
-        (mapconcat
-         #'identity
-         (delq nil
-               (append
-                (list (emanix/modeline--volume-segment)
-                      (when-let* ((w (emanix/modeline--wifi))) w)
-                      (let ((cpu (emanix/modeline--cpu)))
-                        (when (> cpu emanix/modeline-threshold)
-                          (format "cpu %d%%" cpu)))
-                      (when-let* ((r (emanix/modeline--ram)))
-                        (when (> r emanix/modeline-threshold)
-                          (format "ram %d%%" r)))
-                      (when-let* ((g (emanix/modeline--gpu)))
-                        (let ((gpu (string-to-number g)))
-                          (when (> gpu emanix/modeline-threshold)
-                            (format "gpu %s%%" g)))))
-                (emanix/modeline--extra-segments)
-                (list (emanix/modeline--clock)
-                      (emanix/modeline--battery))))
-         "   "))
-  (force-mode-line-update t)
-  (when (fboundp 'tab-bar--update-tab-bar-lines)
-    (tab-bar--update-tab-bar-lines))
-  (redraw-display))
+  "Compose the EWM status bar, and repaint it only when it moved.
+The timer fires every `emanix/modeline-interval' seconds; the clock is
+the only segment that changes on most of those ticks, and it changes
+once a minute.  So compare before assigning, and leave redisplay alone
+otherwise.
+
+`force-mode-line-update' is the whole repaint.  It is enough: the status
+is a `tab-bar-format' item, and the tab bar is recomposed with the mode
+lines.  Neither `redraw-display' nor `tab-bar--update-tab-bar-lines'
+belongs here -- the first clears and repaints every frame, and the second
+assigns `tab-bar-lines', which takes the frame-resize path even when the
+line count is unchanged and so fires `window-size-change-functions'.  On
+an EWM session both are paid by every managed client: a flash, and a
+resize, on a timer."
+  (let ((status
+         (mapconcat
+          #'identity
+          (delq nil
+                (append
+                 (list (emanix/modeline--volume-segment)
+                       (when-let* ((w (emanix/modeline--wifi))) w)
+                       (let ((cpu (emanix/modeline--cpu)))
+                         (when (> cpu emanix/modeline-threshold)
+                           (format "cpu %d%%" cpu)))
+                       (when-let* ((r (emanix/modeline--ram)))
+                         (when (> r emanix/modeline-threshold)
+                           (format "ram %d%%" r)))
+                       (when-let* ((g (emanix/modeline--gpu)))
+                         (let ((gpu (string-to-number g)))
+                           (when (> gpu emanix/modeline-threshold)
+                             (format "gpu %s%%" g)))))
+                 (emanix/modeline--extra-segments)
+                 (list (emanix/modeline--clock)
+                       (emanix/modeline--battery))))
+          "   ")))
+    (unless (equal status emanix/modeline-status)
+      (setq emanix/modeline-status status)
+      (force-mode-line-update t))))
 
 (defun emanix/modeline--wifi ()
   "Wireless status, or nil when connected or absent."
