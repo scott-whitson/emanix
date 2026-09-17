@@ -204,6 +204,23 @@ in
             sleep 1
           done
           systemctl --user import-environment WAYLAND_DISPLAY DISPLAY 2>/dev/null || true
+          # ...and give those services something to be ordered against.
+          # xdg-desktop-portal has Requisite=graphical-session.target, and a
+          # Requisite that is not ALREADY active fails the job outright rather
+          # than pulling it in — so with the target never started, every portal
+          # activation died with "Dependency failed for Portal service" and
+          # Firefox's file chooser simply never opened. Importing the
+          # environment above was necessary but not sufficient.
+          #
+          # It cannot be started directly -- graphical-session.target sets
+          # RefuseManualStart=yes and answers `Operation refused, unit ... may
+          # be requested by dependency only'. It has to be PULLED IN, which is
+          # what ewm-session.target below is for: its BindsTo= implies
+          # Requires=, so starting it activates graphical-session.target as a
+          # dependency, which is allowed. That EWM ships ewm-shutdown.target,
+          # whose whole content is Conflicts= against these two targets, is the
+          # upstream half of the same arrangement.
+          systemctl --user start ewm-session.target 2>/dev/null || true
           if [ "$_ewm_started" = 0 ]; then
             # The daemon never showed up inside the 30s poll above -- that IS
             # the failure this marker exists to record. Elapsed time is the
@@ -222,6 +239,12 @@ in
               echo "daemon started then died within 15s" > "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap"   # died fast — next login gets a shell
             fi
           fi
+          # Tear the session targets down again. ewm-shutdown.target
+          # Conflicts with both and is StopWhenUnneeded, so starting it stops
+          # them and then goes away by itself. Without this they stay active
+          # across a logout and the next session inherits units that think a
+          # compositor is running.
+          systemctl --user start ewm-shutdown.target 2>/dev/null || true
           exit 0                   # end session; autologin relaunches
         fi
       fi
@@ -301,7 +324,35 @@ in
       # XWayland — EWM is a wlroots compositor; X11 apps (Steam, etc.)
       # need this to run under Wayland.
       xwayland
+      # ...and the thing that actually starts it. EWM does not exec Xwayland
+      # itself: compositor/src/xwayland/satellite.rs holds the X11 sockets and
+      # spawns `xwayland-satellite' by name when an X11 client first connects
+      # (const XWAYLAND_SATELLITE). It is a SEPARATE package from xwayland, and
+      # without it every session logged
+      #   error spawning xwayland-satellite, disabling integration:
+      #   No such file or directory (os error 2)
+      # and no X11 app could start at all — Steam and Factorio being the ones
+      # this host cares about.
+      xwayland-satellite
     ];
+  };
+
+  # The session target the login path starts, and the only way to get
+  # graphical-session.target up: that one is RefuseManualStart=yes, so it can
+  # be activated as a dependency but never by name. BindsTo= implies Requires=,
+  # so starting this pulls it in -- and, in the other direction, binds this
+  # target's lifetime to it, so EWM's own ewm-shutdown.target (Conflicts= with
+  # graphical-session.target) tears both down on the way out.
+  #
+  # This is what xdg-desktop-portal was missing: it declares
+  # Requisite=graphical-session.target, and a Requisite that is not already
+  # active fails the job instead of pulling it in.
+  systemd.user.targets.ewm-session = {
+    description = "EWM session";
+    documentation = [ "man:systemd.special(7)" ];
+    bindsTo = [ "graphical-session.target" ];
+    wants = [ "graphical-session-pre.target" ];
+    after = [ "graphical-session-pre.target" ];
   };
 
   # Required by EWM: Mesa/EGL for the compositor's graphics backend.
