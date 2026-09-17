@@ -29,7 +29,27 @@ let
   # theEmacs.emacs IS emacs-pgtk) — so this changes nothing about which Emacs
   # builds the elisp, while breaking the loop that would otherwise exist
   # between theEmacs and the option it feeds.
-  ewmPkg = import "${ewm}/nix/default.nix" {
+  # EWM cannot bind a key Emacs reports only by number -- the media/vendor
+  # keysyms in the XF86 0x1008xxxx block, which is how the dictation key on
+  # this ThinkPad arrives. The elisp side cannot work around it, and a patch
+  # that tried lived in personal.el for a while doing nothing:
+  # `ewm--event-key-spec' sends a non-symbol :key as an INTEGER, and the
+  # compositor's `keysym_from_value' reads an integer as a UNICODE CODEPOINT
+  # (xkb::utf32_to_keysym). 0x10081247 is 268964423, far above Unicode's
+  # 0x10FFFF, so it resolves to NoSymbol however it is spelled -- and sending
+  # it as the string "0x10081247" instead reaches `resolve_keysym_from_name',
+  # which tries the name as-is, hyphens-as-underscores, an XF86 prefix and a
+  # lossy-name table, but never parses hex.
+  #
+  # So the fix has to be where the name is resolved. Upstream carries no such
+  # parse; if it gains one, this patch is what to drop.
+  ewmSrc = pkgs.applyPatches {
+    name = "ewm-keysym-hex";
+    src = ewm;
+    patches = [ ../../patches/ewm-keysym-hex.patch ];
+  };
+
+  ewmPkg = import "${ewmSrc}/nix/default.nix" {
     pkgs = pkgsEwm;
     withScreencastSupport = config.programs.ewm.screencast.enable;
     emacsPackage = pkgs.emacs-pgtk;

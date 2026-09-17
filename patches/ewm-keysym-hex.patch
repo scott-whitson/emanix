@@ -1,0 +1,28 @@
+--- a/compositor/src/module.rs
++++ b/compositor/src/module.rs
+@@ -1192,6 +1192,25 @@
+ fn resolve_keysym_from_name(name: &str) -> xkb::Keysym {
+     let no_symbol: xkb::Keysym = keysyms::KEY_NoSymbol.into();
+ 
++    // Try an explicit hex keysym first: "0xNNNN"/"0XNNNN".
++    //
++    // These are the vendor keysyms (the XF86 0x1008xxxx block) that Emacs
++    // reports by number when it has no name for the key. They cannot arrive
++    // any other way: ewm--event-key-spec sends a non-symbol :key as an
++    // INTEGER, and keysym_from_value reads an integer as a Unicode codepoint
++    // via utf32_to_keysym -- and 0x10081247 is far above Unicode's 0x10FFFF,
++    // so it resolves to NoSymbol no matter how it is spelled. Parsing the
++    // name here is the only place the value survives.
++    //
++    // Done before keysym_from_name rather than after: libxkbcommon is
++    // documented to accept the hex form, but has not been reliable about it
++    // across versions, and this is unambiguous.
++    if let Some(hex) = name.strip_prefix("0x").or_else(|| name.strip_prefix("0X")) {
++        if let Ok(val) = u32::from_str_radix(hex, 16) {
++            return xkb::Keysym::from(val);
++        }
++    }
++
+     // Try the name as-is (case-insensitive)
+     let sym = xkb::keysym_from_name(name, xkb::KEYSYM_CASE_INSENSITIVE);
+     if sym != no_symbol {
