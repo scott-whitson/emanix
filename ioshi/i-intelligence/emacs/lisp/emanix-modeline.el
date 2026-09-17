@@ -45,6 +45,24 @@ remain the fixed right-hand anchor."
 (put 'emanix/modeline-status 'risky-local-variable t)
 
 (defvar emanix/modeline--timer nil)
+(defvar emanix/modeline--gpu-file 'unset
+  "Cached amdgpu busy-percent sysfs path, nil if absent, `unset' if unprobed.
+`file-expand-wildcards' is a directory scan, and the render runs on a
+timer; the card does not move for the life of the session.")
+
+(defvar emanix/modeline--battery-dir 'unset
+  "Cached BAT* sysfs directory, nil if absent, `unset' if unprobed.
+Same reason as `emanix/modeline--gpu-file'.")
+
+(defvar emanix/modeline--wifi-dev 'unset
+  "Cached wireless interface name, nil if none, `unset' if unprobed.")
+
+(defvar emanix/modeline--wifi-status nil
+  "Rendered wireless segment, or nil.  Written by `emanix/modeline--poll-wifi'.")
+
+(defvar emanix/modeline--wifi-output ""
+  "Accumulated stdout of the running `nmcli', parsed when it exits.")
+
 (defvar emanix/modeline--prev-cpu nil
   "Cons of (idle . total) jiffies from the previous sample.")
 
@@ -78,9 +96,12 @@ remain the fixed right-hand anchor."
 
 (defun emanix/modeline--gpu ()
   "GPU busy percent from amdgpu sysfs, or nil."
-  (when-let* ((f (car (file-expand-wildcards
-                       "/sys/class/drm/card*/device/gpu_busy_percent"))))
-    (string-trim (with-temp-buffer (insert-file-contents f) (buffer-string)))) )
+  (when (eq emanix/modeline--gpu-file 'unset)
+    (setq emanix/modeline--gpu-file
+          (car (file-expand-wildcards
+                "/sys/class/drm/card*/device/gpu_busy_percent"))))
+  (when-let* ((f emanix/modeline--gpu-file))
+    (string-trim (with-temp-buffer (insert-file-contents f) (buffer-string)))))
 
 (defun emanix/modeline--clock ()
   "Day, weekday, and 12-hour time; a trailing period marks PM.
@@ -106,7 +127,10 @@ The period is the PM indicator, so it appears only in the afternoon
 
 (defun emanix/modeline--battery ()
   "Battery status, or nil when the machine is full and idle."
-  (when-let* ((bat (car (file-expand-wildcards "/sys/class/power_supply/BAT*"))))
+  (when (eq emanix/modeline--battery-dir 'unset)
+    (setq emanix/modeline--battery-dir
+          (car (file-expand-wildcards "/sys/class/power_supply/BAT*"))))
+  (when-let* ((bat emanix/modeline--battery-dir))
     (let* ((status (string-trim (with-temp-buffer
                                   (insert-file-contents (expand-file-name "status" bat))
                                   (buffer-string))))
@@ -171,11 +195,23 @@ the status bar -- or the redraw that follows it -- down with it."
           emanix/modeline-extra-segments))
 
 (defun emanix/modeline--render ()
-  "Compose the EWM status bar, and repaint it only when it moved.
-The timer fires every `emanix/modeline-interval' seconds; the clock is
-the only segment that changes on most of those ticks, and it changes
-once a minute.  So compare before assigning, and leave redisplay alone
-otherwise.
+  "Compose the EWM status bar and mark the tab bar for repaint.
+
+The repaint is unconditional, and has to be.  The status is not the only
+item in this tab bar: `emanix/ewm-tab-bar-slots' renders every frame's
+label and highlights the focused one, so a change in frame A must repaint
+frame B's bar, and only a global force-update does that.  Only the s-N,
+close and rename commands force it themselves -- not EWM's own close
+handler, not compositor-driven focus, not a client retitling itself.  An
+earlier version of this function gated the force-update on the status
+string having changed, which left the slot list stale for up to a minute
+on an idle desktop, because every other segment here is either
+event-driven, threshold-gated or minute-granular.
+
+Gating it bought nothing anyway.  `force-mode-line-update' only sets the
+update flags; redisplay compares glyphs and paints nothing when nothing
+moved.  The calls that actually cost something were the two removed
+below, not this one.
 
 `force-mode-line-update' is the whole repaint.  It is enough: the status
 is a `tab-bar-format' item, and the tab bar is recomposed with the mode
@@ -206,32 +242,78 @@ resize, on a timer."
                  (list (emanix/modeline--clock)
                        (emanix/modeline--battery))))
           "   ")))
-    (unless (equal status emanix/modeline-status)
-      (setq emanix/modeline-status status)
-      (force-mode-line-update t))))
+    (setq emanix/modeline-status status)
+    (force-mode-line-update t)))
+
+(defun emanix/modeline--wifi-device ()
+  "Return the wireless interface name, or nil.  Probed once."
+  (when (eq emanix/modeline--wifi-dev 'unset)
+    (setq emanix/modeline--wifi-dev
+          (seq-find
+           (lambda (d) (file-exists-p (format "/sys/class/net/%s/wireless" d)))
+           (directory-files "/sys/class/net" nil "^[^.]"))))
+  emanix/modeline--wifi-dev)
+
+(defun emanix/modeline--wifi-parse (out)
+  "Return the wifi segment for `nmcli' device-status output OUT.
+Its own function so the parse is testable without spawning anything:
+inlined in the sentinel, the only way to cover it was to restate it."
+  (let* ((lines (split-string out "\n" t))
+         (line (seq-find (lambda (s) (string-prefix-p "wifi:" s)) lines))
+         (state (and line (cadr (split-string line ":" t)))))
+    (unless (equal state "connected") "wifi✗")))
+
+(defun emanix/modeline--poll-wifi ()
+  "Refresh `emanix/modeline--wifi-status', without blocking the render.
+
+Same reason `emanix/modeline--poll-volume' is asynchronous: under EWM
+this Emacs is the compositor, and `nmcli' is a fork, an exec, and a wait
+on NetworkManager.  On the render timer that is the whole desktop's
+latency, several times a minute.  The displayed value lags one interval.
+
+The `nmcli' output is accumulated and parsed when the process exits: a
+filter can be handed a partial line, and this reply is several lines."
+  (let ((dev (emanix/modeline--wifi-device)))
+    (cond
+     ((null dev)
+      (setq emanix/modeline--wifi-status nil))
+     ((not (executable-find "nmcli"))
+      ;; No NetworkManager: operstate is one small sysfs read, cheap inline.
+      (setq emanix/modeline--wifi-status
+            (unless (equal "up"
+                           (string-trim
+                            (with-temp-buffer
+                              (insert-file-contents
+                               (format "/sys/class/net/%s/operstate" dev))
+                              (buffer-string))))
+              "wifi✗")))
+     ((not (get-process "emanix-modeline-nmcli"))
+      (setq emanix/modeline--wifi-output "")
+      (make-process
+       :name "emanix-modeline-nmcli"
+       :command '("nmcli" "-t" "-f" "TYPE,STATE" "dev" "status")
+       :noquery t
+       :connection-type 'pipe
+       :filter (lambda (_proc out)
+                 (setq emanix/modeline--wifi-output
+                       (concat emanix/modeline--wifi-output out)))
+       :sentinel (lambda (_proc event)
+                   (when (string-prefix-p "finished" event)
+                     (setq emanix/modeline--wifi-status
+                           (emanix/modeline--wifi-parse
+                            emanix/modeline--wifi-output))
+                     (setq emanix/modeline--wifi-output "")
+                     (emanix/modeline--render))))))))
 
 (defun emanix/modeline--wifi ()
-  "Wireless status, or nil when connected or absent."
-  (when-let* ((dev (seq-find
-                    (lambda (d) (file-exists-p (format "/sys/class/net/%s/wireless" d)))
-                    (directory-files "/sys/class/net" nil "^[^.]") )))
-    (let ((connected-p
-           (if (executable-find "nmcli")
-               (let* ((lines (split-string (shell-command-to-string
-                                            "nmcli -t -f TYPE,STATE dev status 2>/dev/null")
-                                           "\n" t))
-                      (line (seq-find (lambda (s) (string-prefix-p "wifi:" s)) lines))
-                      (state (and line (cadr (split-string line ":" t)))))
-                 (string= state "connected"))
-             (string= (string-trim
-                       (with-temp-buffer
-                         (insert-file-contents (format "/sys/class/net/%s/operstate" dev))
-                         (buffer-string)))
-                      "up"))))
-      (unless connected-p "wifi✗"))))
+  "Wireless status, or nil when connected or absent.
+A plain read of `emanix/modeline--wifi-status'; the work that produces it
+happens in `emanix/modeline--poll-wifi', off the render path."
+  emanix/modeline--wifi-status)
 
 (defun emanix/modeline--update ()
   (emanix/modeline--poll-volume)
+  (emanix/modeline--poll-wifi)
   (emanix/modeline--render))
 
 (defun emanix/tab-bar-status ()
@@ -253,6 +335,10 @@ the mode-line; this mode only drives the refresh timer."
   (if emanix/modeline-mode
       (progn
         (setq emanix/modeline--prev-cpu nil)
+        ;; Re-probe on re-enable: hardware may have been hotplugged since.
+        (setq emanix/modeline--gpu-file 'unset
+              emanix/modeline--battery-dir 'unset
+              emanix/modeline--wifi-dev 'unset)
         (setq emanix/modeline--timer
               (run-at-time 0 emanix/modeline-interval #'emanix/modeline--update)))
     (when emanix/modeline--timer
