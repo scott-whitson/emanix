@@ -1,0 +1,20 @@
+--- a/lisp/ewm-input.el
++++ b/lisp/ewm-input.el
+@@ -208,8 +208,15 @@
+   (setopt ewm-intercept-prefixes
+           \\='(\"C-x\" \"C-u\" \"C-h\" \"M-x\" \"M-`\"
+             (\"<Print>\" :fullscreen)))"
+-  :type '(repeat (choice character string
+-                         (list (choice character string) (const :fullscreen))))
++  ;; `integer' as well as `character': a key event carrying a modifier bit is
++  ;; not a character.  ?\M-x is 134217848 and ?\s-f is 8388710, both well above
++  ;; `max-char' (4194303), so `characterp' rejects them -- and both are in this
++  ;; option's own default value.  Nothing validated the list until something
++  ;; called `setopt' on it, at which point the default failed its own :type and
++  ;; warned on every startup.
++  :type '(repeat (choice character integer string
++                         (list (choice character integer string)
++                               (const :fullscreen))))
+   :initialize 'custom-initialize-default
+   :set #'ewm-input--set-intercept-config
+   :group 'ewm-input)

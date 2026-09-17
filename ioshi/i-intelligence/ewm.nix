@@ -43,10 +43,20 @@ let
   #
   # So the fix has to be where the name is resolved. Upstream carries no such
   # parse; if it gains one, this patch is what to drop.
+  # Second patch: `ewm-intercept-prefixes' declares :type with `character',
+  # but its OWN DEFAULT holds ?\M-x (134217848) and ?\s-f (8388710), both
+  # above `max-char' (4194303) -- a key event with a modifier bit is an
+  # integer, not a character. Nothing validated the list until the personal
+  # layer called `setopt' on it to add the dictation key, and then the
+  # upstream default failed the upstream type on every startup. Widened to
+  # accept integers.
   ewmSrc = pkgs.applyPatches {
-    name = "ewm-keysym-hex";
+    name = "ewm-patched";
     src = ewm;
-    patches = [ ../../patches/ewm-keysym-hex.patch ];
+    patches = [
+      ../../patches/ewm-keysym-hex.patch
+      ../../patches/ewm-intercept-type.patch
+    ];
   };
 
   ewmPkg = import "${ewmSrc}/nix/default.nix" {
