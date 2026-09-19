@@ -20,6 +20,7 @@ let
     , stateName # directory under XDG_DATA_HOME holding the payload
     , entry # the JS entry point, relative to the npm prefix
     , needs ? [ ] # executables the adapter itself spawns
+    , postInstall ? "" # optional payload patch/verification command
     }:
     let
       # ''${HOME:-}, not $HOME: `set -u' would otherwise abort on "unbound
@@ -63,9 +64,13 @@ let
         state=${stateExpr}
         mkdir -p "$state"
         echo "Installing ${package} into $state" >&2
-        exec ${pkgs.nodejs}/bin/npm install --global --prefix "$state" ${package}
+        ${pkgs.nodejs}/bin/npm install --global --prefix "$state" ${package}
+        ${postInstall}
       '';
     };
+
+  piAcpUsagePatch = pkgs.writeText "pi-acp-usage-patch.mjs"
+    (builtins.readFile ./pi-acp-usage-patch.mjs);
 
   claude = mkAcpAdapter {
     command = "claude-agent-acp";
@@ -90,6 +95,7 @@ let
     stateName = "pi-acp";
     entry = "lib/node_modules/pi-acp/dist/index.js";
     needs = [ "pi" ];
+    postInstall = "${pkgs.nodejs}/bin/node ${piAcpUsagePatch} \"$state/lib/node_modules/pi-acp/dist/index.js\"";
   };
 in
 {

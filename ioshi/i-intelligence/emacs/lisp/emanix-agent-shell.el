@@ -240,8 +240,47 @@ capability, see this file's header."
       (message "agent-shell: saved %d modified buffer(s) before prompting"
                (length saved)))))
 
+(defun emanix/agent-shell--bottom-bar-status ()
+  "Return the session name and cumulative cost for the mode line.
+
+The ACP adapter reports cumulative cost through agent-shell's existing
+`:usage' state.  Keep this renderer read-only and tolerant of adapters that do
+not report either value: Claude and older pi-acp sessions should retain their
+normal mode line rather than signal during redisplay."
+  (when (derived-mode-p 'agent-shell-mode)
+    (let* ((state (agent-shell--state))
+           (title (map-nested-elt state '(:session :title)))
+           (usage (or (map-elt state :usage) '()))
+           (amount (map-elt usage :cost-amount))
+           (currency (or (map-elt usage :cost-currency) "$"))
+           (parts nil))
+      (when (and (stringp title)
+                 (not (string-empty-p title))
+                 (not (string= title "Untitled")))
+        (push (propertize (format "Session: %s" title)
+                          'face 'agent-shell-session-title)
+              parts))
+      (when (numberp amount)
+        (push (propertize (format "Cost: %s%.3f" currency amount)
+                          'face 'agent-shell-secondary)
+              parts))
+      (when parts
+        (concat "  " (mapconcat #'identity (nreverse parts) "  "))))))
+
 (defvar-local emanix/agent-shell--subscription nil
   "Token for this shell buffer's tool-call-update subscription, if any.")
+
+(defvar-local emanix/agent-shell--bottom-bar-installed nil
+  "Non-nil after the agent-shell status segment was added to this buffer.")
+
+(defun emanix/agent-shell--install-bottom-bar-status ()
+  "Add session name and cumulative cost to this shell's bottom mode line."
+  (unless emanix/agent-shell--bottom-bar-installed
+    (setq-local mode-line-misc-info
+                (append mode-line-misc-info
+                        '((:eval (emanix/agent-shell--bottom-bar-status)))))
+    (setq emanix/agent-shell--bottom-bar-installed t)
+    (force-mode-line-update)))
 
 (defun emanix/agent-shell--install ()
   "Subscribe the current agent shell to tool-call updates.
@@ -262,6 +301,7 @@ twice, which is the exact double-flicker the path dedupe exists to avoid."
   (when (fboundp 'agent-shell-subscribe-to)
     (condition-case err
         (progn
+          (emanix/agent-shell--install-bottom-bar-status)
           (when (and emanix/agent-shell--subscription
                      (fboundp 'agent-shell-unsubscribe))
             (agent-shell-unsubscribe :subscription emanix/agent-shell--subscription))
