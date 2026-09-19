@@ -57,12 +57,12 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "scott-whitson";
         repo = "arc";
-        rev = "268aa5e56f493c0ee2f8bab4484896f678d577e7";
-        hash = "sha256-E7UrNUF2pqWiLTqKqKMoLGvOmLrj04uUMFBB+hREA2I=";
+        rev = "7d441ce";
+        hash = "sha256-uZorzPc8ayuBSq+kqpcp0DpK0fXHk73112fsCGGsqsE=";
       };
       # arc.el's own Package-Requires, exactly: llm, async, plz, transient.
-      # NOT ellama — arc renders its own answer buffer and dropped that
-      # dependency, which is why ellama is no longer in this list at all.
+      # ARC is retrieval/tooling now; the calling agent owns prose generation.
+      # NOT ellama — it is no longer an ARC dependency.
       packageRequires = with epkgs; [ llm async plz transient ];
     })
     async # arc dep (Package-Requires); also loadable standalone for testing

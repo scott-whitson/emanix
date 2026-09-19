@@ -234,6 +234,10 @@
           # systemd-run Emacs daemon. See checks/agent-acp-wrapper.nix.
           agent-acp-wrapper = import ./checks/agent-acp-wrapper.nix { inherit pkgs; };
 
+          # The ARC compatibility bridge's dispatch and key contracts, tested
+          # without ARC, Ollama or a live database. See checks/arc-bridge.nix.
+          arc-bridge = import ./checks/arc-bridge.nix { inherit pkgs; };
+
           # The buffer-sync patch's unit tests. See checks/agent-shell-sync.nix.
           agent-shell-sync = import ./checks/agent-shell-sync.nix { inherit pkgs; };
 

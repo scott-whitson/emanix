@@ -45,6 +45,10 @@
 ;; `after-save-hook'. Derived collections (options, manuals) are deliberately
 ;; never auto-rebuilt; see arc-watch.el's commentary.
 (require 'arc-watch nil :no-error)
+;; The document-level retrieval UI is newer than the pinned ARC package. Keep
+;; this optional so the distro can boot with the old answer-oriented package
+;; while the ARC pin catches up.
+(require 'arc-search-ui nil :no-error)
 
 (defgroup emanix-arc nil
   "arc, the emanix distribution assistant."
@@ -113,7 +117,7 @@ what makes the `w' key do anything at all."
       (save-buffer))
     (message "arc: captured to %s" (abbreviate-file-name file))))
 
-(when (featurep 'arc)
+(when (and (featurep 'arc) (boundp 'arc-ui-capture-function))
   (setq arc-ui-capture-function #'emanix/arc-capture))
 
 ;;; Commands and keys --------------------------------------------------------
@@ -129,15 +133,10 @@ what makes the `w' key do anything at all."
 
 ;;;###autoload
 (defun emanix/arc-ask (prompt)
-  "Ask arc PROMPT, checking Ollama first so the failure names its cause.
-EWM binds this to `s-i', reachable from any slot -- the `C-c i' prefix
-cannot be completed from a focused Wayland surface, because the
-follow-up key goes to the surface rather than to Emacs.
-
-`C-c i i' calls `arc-ask' directly instead of this, and a down Ollama
-surfaces there as \"arc: retrieval failed\" rendered into the answer
-buffer.  That is a real error path, not a silent one, so it is left
-alone rather than wrapped."
+  "Ask arc PROMPT through the pinned answer-oriented ARC package.
+This is the compatibility fallback while the newer retrieval surface is
+absent. EWM binds `s-i' to `emanix/arc-search', not to this function, so
+that one intercepted key can move to retrieval without changing again."
   (interactive "sarc> ")
   (unless (fboundp 'arc-ask)
     (user-error "arc is not installed: `arc-ask' is not defined"))
@@ -145,12 +144,75 @@ alone rather than wrapped."
     (user-error "Ollama is not running -- start it with `systemctl --user start ollama'"))
   (arc-ask prompt))
 
-;; arc's own prefix map, bound whole rather than mirrored, so a key added to
-;; arc upstream arrives here without this file needing an edit.  Today that
-;; is: i ask, n vault only, o options only, m toggle chat model, R reindex,
-;; c cancel a running reindex.
+(defun emanix/arc-search (prompt)
+  "Search ARC for PROMPT, falling back to the old answer path.
+The document-level `arc-search-show' surface is present only in newer ARC
+revisions. Keep the old `arc-ask' path available until Emanix's package pin
+catches up, but make the distro-owned command the only binding target."
+  (interactive "sarc search> ")
+  (if (fboundp 'arc-search-show)
+      (arc-search-show prompt)
+    (emanix/arc-ask prompt)))
+
+(defun emanix/arc--scoped-search (prompt collections fallback)
+  "Search PROMPT in COLLECTIONS, or invoke FALLBACK when unavailable.
+A partial new ARC surface must never silently broaden a scoped request to the
+whole corpus, so the retrieval path requires both `arc-search-show' and
+`arc-scope' before it is selected."
+  (if (and (fboundp 'arc-search-show)
+           (fboundp 'arc-scope)
+           collections)
+      (arc-search-show prompt (arc-scope :collections collections))
+    (if (fboundp fallback)
+        (funcall fallback prompt)
+      (user-error "arc: scoped retrieval is unavailable"))))
+
+(defun emanix/arc-search-vault (prompt)
+  "Search the vault, with the pinned ARC answer fallback."
+  (interactive "sarc vault> ")
+  (emanix/arc--scoped-search prompt
+                             (and (boundp 'arc-vault-collections)
+                                  arc-vault-collections)
+                             #'arc-ask-vault))
+
+(defun emanix/arc-search-options (prompt)
+  "Search NixOS and Home Manager options, with the pinned ARC fallback."
+  (interactive "sarc options> ")
+  (emanix/arc--scoped-search prompt
+                             (and (boundp 'arc-option-collections)
+                                  arc-option-collections)
+                             #'arc-ask-options))
+
+(defun emanix/arc-reindex ()
+  "Reindex ARC's configured corpus when the command exists."
+  (interactive)
+  (if (fboundp 'arc-reindex-all)
+      (call-interactively #'arc-reindex-all)
+    (user-error "arc: reindex command is unavailable")))
+
+(defun emanix/arc-cancel-reindex ()
+  "Cancel ARC's running reindex when the command exists."
+  (interactive)
+  (if (fboundp 'arc-reindex-cancel)
+      (call-interactively #'arc-reindex-cancel)
+    (user-error "arc: reindex cancellation is unavailable")))
+
+(defvar emanix/arc-command-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "i") #'emanix/arc-search)
+    (define-key map (kbd "n") #'emanix/arc-search-vault)
+    (define-key map (kbd "o") #'emanix/arc-search-options)
+    (define-key map (kbd "R") #'emanix/arc-reindex)
+    (define-key map (kbd "c") #'emanix/arc-cancel-reindex)
+    map)
+  "Emanix-owned ARC prefix map.
+ARC's own answer command map is an implementation detail of the old package;
+keeping this map here lets the distro own the key contract across the
+retrieval-only transition. Every command has a compatibility fallback where
+the old pinned package can provide one.")
+
 (when (featurep 'arc)
-  (keymap-set global-map "C-c i" arc-command-map))
+  (keymap-set global-map "C-c i" emanix/arc-command-map))
 
 (when (featurep 'arc-watch)
   (arc-watch-mode 1))

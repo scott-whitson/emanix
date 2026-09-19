@@ -40,5 +40,28 @@ pkgs.runCommand "arc-glue-sane" { } ''
     fi
   done
 
+  # 4. The distro owns the ARC key contract. The old package's command map
+  # disappears with the prose-answer layer, so Emanix must bind its own map
+  # and own the retrieval wrapper while retaining the pinned-package fallback.
+  for required in \
+    emanix/arc-search \
+    emanix/arc-search-vault \
+    emanix/arc-search-options \
+    emanix/arc-command-map
+  do
+    if ! grep -qF "$required" "$src"; then
+      echo "emanix-arc.el no longer defines $required" >&2
+      exit 1
+    fi
+  done
+  if grep -qF '(keymap-set global-map "C-c i" arc-command-map)' "$src"; then
+    echo "emanix-arc.el binds ARC's internal command map directly" >&2
+    exit 1
+  fi
+  if ! grep -qF "(require 'arc-search-ui nil :no-error)" "$src"; then
+    echo "emanix-arc.el no longer keeps the newer search UI optional" >&2
+    exit 1
+  fi
+
   touch $out
 ''

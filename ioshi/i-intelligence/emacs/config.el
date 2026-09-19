@@ -897,9 +897,9 @@ Each cdr is verified to render at the default face's cell width.")
   (tab-bar-mode 1))
 
 ;; arc — local, offline, config-aware emanix oracle (Emacs/Elisp/Linux/NixOS/
-;; org-roam RAG over this machine's own config, via sqlite-vec + a local
-;; Ollama). Binds the C-c i map: i ask, n vault only, o options only, m toggle
-;; chat model, R reindex, c cancel a reindex.
+;; org-roam retrieval over this machine's own config, via sqlite-vec. The
+;; distro-owned C-c i map keeps i/n/o/R/c stable across ARC package revisions;
+;; the old Ollama answer path remains only as a compatibility fallback.
 (require 'emanix-arc nil :no-error)
 
 ;; Orientation buffer, shown once per machine. `nil :no-error' like its
@@ -961,12 +961,12 @@ Each cdr is verified to render at the default face's cell width.")
     ;; as s-i for arc below.
     (define-key ewm-mode-map (kbd "s-S-<return>")
       #'agent-shell-anthropic-start-claude-code)
-    ;; Summon arc (ask) from ANY slot. It must be a single intercepted key:
-    ;; the C-c i prefix can't reach Emacs from a focused Wayland surface (the
-    ;; follow-up key goes to the surface). C-c i still gives the full command
-    ;; set when a native Emacs frame is focused.
-    (when (fboundp 'emanix/arc-ask)
-      (define-key ewm-mode-map (kbd "s-i") #'emanix/arc-ask))
+    ;; Summon ARC retrieval from ANY slot. It must be a single intercepted
+    ;; key: the C-c i prefix cannot reach Emacs from a focused Wayland surface
+    ;; (the follow-up key goes to the surface). C-c i still gives the full
+    ;; command set when a native Emacs frame is focused.
+    (when (fboundp 'emanix/arc-search)
+      (define-key ewm-mode-map (kbd "s-i") #'emanix/arc-search))
     (when (fboundp 'ewm--send-intercept-keys)
       (ewm--send-intercept-keys))))
 
