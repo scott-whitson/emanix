@@ -48,13 +48,14 @@
     max-free = 21474836480; # 20 GiB
   };
 
-  # Daily, not weekly. On a WSL host the vhdx never shrinks below its
-  # high-water mark, so garbage that lives for six days costs real disk on the
-  # Windows side even after it is collected.
+  # Daily GC keeps the store lean. --delete-generations +3 retains the current
+  # generation and the two before it, which gives a safe rollback window without
+  # accumulating weeks of dead paths. On a WSL host the vhdx never shrinks below
+  # its high-water mark, so the daily cadence still matters.
   nix.gc = {
     automatic = true;
     dates = "daily";
-    options = "--delete-older-than 14d";
+    options = "--delete-generations +3";
   };
 
   # NOTE: system.stateVersion is per-host — it records the release a machine was
