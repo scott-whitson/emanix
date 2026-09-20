@@ -93,32 +93,52 @@ flags; redisplay paints nothing when no glyph moved."
 (ert-deftest emanix-modeline-wifi-segment-is-a-cache-read ()
   "The wifi segment reads a variable and runs no subprocess.
 
-`nmcli' is a fork, an exec and a wait on NetworkManager.  On the render
-timer, in the process that is also the compositor, that is the desktop's
-own latency several times a minute -- the same hazard that made the
-volume poll asynchronous."
+The value comes from one sysfs read in `emanix/modeline--poll-wifi', not
+from `nmcli' -- which was a fork, an exec and a D-Bus round trip on
+NetworkManager, on the render timer, in the process that is also the
+compositor."
   (let ((emanix/modeline--wifi-status "wifi✗"))
     (cl-letf (((symbol-function 'shell-command-to-string)
                (lambda (&rest _) (error "render shelled out")))
               ((symbol-function 'call-process)
-               (lambda (&rest _) (error "render shelled out"))))
+               (lambda (&rest _) (error "render shelled out")))
+              ((symbol-function 'make-process)
+               (lambda (&rest _) (error "render forked"))))
       (should (equal (emanix/modeline--wifi) "wifi✗")))))
 
-(ert-deftest emanix-modeline-wifi-parses-nmcli-output ()
-  "Connected wifi renders nothing; anything else renders the marker.
-The parse runs at process exit rather than in the filter, because a
-filter can be handed half a line and this reply has several."
-  (should (null (emanix/modeline--wifi-parse
-                 "wifi:connected\nethernet:connected\n")))
-  (should (equal "wifi✗" (emanix/modeline--wifi-parse
-                          "wifi:disconnected\nethernet:connected\n")))
-  (should (equal "wifi✗" (emanix/modeline--wifi-parse
-                          "wifi:unavailable\n")))
-  ;; Split across filter calls in the worst place: the parse only ever
-  ;; sees the whole thing, so a torn line is not its problem -- but an
-  ;; empty or truncated reply must not read as connected.
-  (should (equal "wifi✗" (emanix/modeline--wifi-parse "wifi:conn")))
-  (should (equal "wifi✗" (emanix/modeline--wifi-parse ""))))
+(ert-deftest emanix-modeline-wifi-segment-maps-operstate ()
+  "Associated renders nothing; anything else renders the marker.
+This replaces the nmcli parse: `operstate' is the whole input now, and
+every state nmcli distinguished beyond `connected' maps to the marker."
+  (should (null (emanix/modeline--wifi-segment "up\n")))
+  (should (equal "wifi✗" (emanix/modeline--wifi-segment "down\n")))
+  (should (equal "wifi✗" (emanix/modeline--wifi-segment "dormant\n")))
+  (should (equal "wifi✗" (emanix/modeline--wifi-segment "")))
+  ;; A truncated read must not read as connected.
+  (should (equal "wifi✗" (emanix/modeline--wifi-segment "u"))))
+
+(ert-deftest emanix-modeline-render-cadence-spawns-nothing ()
+  "The render-cadence tick never probes volume.
+Volume is the only segment that forks, and it belongs on the probe timer.
+If it creeps back onto `emanix/modeline--update', every render tick forks
+again -- and under EWM takes an activation token and a journal line with
+it."
+  (let ((probed 0))
+    (cl-letf (((symbol-function 'emanix/modeline--poll-volume)
+               (lambda () (setq probed (1+ probed))))
+              ((symbol-function 'emanix/modeline--poll-wifi) (lambda () nil))
+              ((symbol-function 'emanix/modeline--render) (lambda () nil)))
+      (emanix/modeline--update)
+      (emanix/modeline--update)
+      (should (= probed 0)))))
+
+(ert-deftest emanix-modeline-probe-cadence-probes-volume ()
+  "The probe tick is where the volume subprocess lives."
+  (let ((probed 0))
+    (cl-letf (((symbol-function 'emanix/modeline--poll-volume)
+               (lambda () (setq probed (1+ probed)))))
+      (emanix/modeline--probe)
+      (should (= probed 1)))))
 
 (ert-deftest emanix-modeline-sysfs-globs-are-probed-once ()
   "The gpu and battery sysfs paths are found once, not on every tick.

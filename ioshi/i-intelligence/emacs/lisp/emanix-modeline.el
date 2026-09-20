@@ -4,8 +4,10 @@
 
 ;; EWM has no status bar; these segments replace the old desktop status bar:
 ;; volume/mute, wifi, cpu%, ram%, gpu%, clock, battery.
-;; Everything reads sysfs/procfs except volume, which shells out to
-;; wpctl — cheap enough at the update interval.
+;; Everything reads sysfs/procfs except volume, which needs `wpctl'. Nothing
+;; here forks at the render cadence: under EWM a fork is also an
+;; xdg-activation token and a journal line (see emanix-ewm.el), and wifi's
+;; state is one sysfs read.
 ;;
 ;; The status is rendered in the frame-global TAB-BAR (see
 ;; `emanix/tab-bar-status', wired into `tab-bar-format' in init.el), not the
@@ -16,7 +18,19 @@
   :group 'mode-line)
 
 (defcustom emanix/modeline-interval 3
-  "Seconds between status refreshes."
+  "Seconds between status refreshes.
+This is the RENDER cadence, and every segment it drives reads sysfs or
+procfs.  Do not put a subprocess on it; see
+`emanix/modeline-probe-interval'."
+  :type 'integer)
+
+(defcustom emanix/modeline-probe-interval 15
+  "Seconds between volume probes.
+Volume is the one segment that needs a subprocess (`wpctl'), and under
+EWM every subprocess also costs an xdg-activation token and a journal
+line.  It is also the least volatile value on this bar -- it changes when
+a human turns a knob -- so it polls on its own slow timer rather than at
+`emanix/modeline-interval'."
   :type 'integer)
 
 (defcustom emanix/modeline-threshold 25
@@ -45,6 +59,7 @@ remain the fixed right-hand anchor."
 (put 'emanix/modeline-status 'risky-local-variable t)
 
 (defvar emanix/modeline--timer nil)
+(defvar emanix/modeline--probe-timer nil)
 (defvar emanix/modeline--gpu-file 'unset
   "Cached amdgpu busy-percent sysfs path, nil if absent, `unset' if unprobed.
 `file-expand-wildcards' is a directory scan, and the render runs on a
@@ -59,9 +74,6 @@ Same reason as `emanix/modeline--gpu-file'.")
 
 (defvar emanix/modeline--wifi-status nil
   "Rendered wireless segment, or nil.  Written by `emanix/modeline--poll-wifi'.")
-
-(defvar emanix/modeline--wifi-output ""
-  "Accumulated stdout of the running `nmcli', parsed when it exits.")
 
 (defvar emanix/modeline--prev-cpu nil
   "Cons of (idle . total) jiffies from the previous sample.")
@@ -254,67 +266,54 @@ resize, on a timer."
            (directory-files "/sys/class/net" nil "^[^.]"))))
   emanix/modeline--wifi-dev)
 
-(defun emanix/modeline--wifi-parse (out)
-  "Return the wifi segment for `nmcli' device-status output OUT.
-Its own function so the parse is testable without spawning anything:
-inlined in the sentinel, the only way to cover it was to restate it."
-  (let* ((lines (split-string out "\n" t))
-         (line (seq-find (lambda (s) (string-prefix-p "wifi:" s)) lines))
-         (state (and line (cadr (split-string line ":" t)))))
-    (unless (equal state "connected") "wifi✗")))
+(defun emanix/modeline--wifi-segment (operstate)
+  "Wifi segment for an interface OPERSTATE string.
+OPERSTATE is the contents of the interface's sysfs `operstate': \"up\"
+means associated, and anything else -- \"down\", \"dormant\", a partial
+read -- earns the marker.  Pure, so the mapping is testable without a
+network interface."
+  (unless (equal "up" (string-trim operstate)) "wifi✗"))
 
 (defun emanix/modeline--poll-wifi ()
-  "Refresh `emanix/modeline--wifi-status', without blocking the render.
+  "Refresh `emanix/modeline--wifi-status' from sysfs, with no subprocess.
 
-Same reason `emanix/modeline--poll-volume' is asynchronous: under EWM
-this Emacs is the compositor, and `nmcli' is a fork, an exec, and a wait
-on NetworkManager.  On the render timer that is the whole desktop's
-latency, several times a minute.  The displayed value lags one interval.
+This used to shell out to `nmcli' for the connection state: a fork, an
+exec and a D-Bus round trip on NetworkManager, and under EWM also an
+xdg-activation token and a journal line, every few seconds -- to learn
+something `operstate' already answers.  It is one small file read now,
+and synchronous because it cannot block: the device is probed once and
+the file is local.
 
-The `nmcli' output is accumulated and parsed when the process exits: a
-filter can be handed a partial line, and this reply is several lines."
-  (let ((dev (emanix/modeline--wifi-device)))
-    (cond
-     ((null dev)
-      (setq emanix/modeline--wifi-status nil))
-     ((not (executable-find "nmcli"))
-      ;; No NetworkManager: operstate is one small sysfs read, cheap inline.
-      (setq emanix/modeline--wifi-status
-            (unless (equal "up"
-                           (string-trim
-                            (with-temp-buffer
-                              (insert-file-contents
-                               (format "/sys/class/net/%s/operstate" dev))
-                              (buffer-string))))
-              "wifi✗")))
-     ((not (get-process "emanix-modeline-nmcli"))
-      (setq emanix/modeline--wifi-output "")
-      (make-process
-       :name "emanix-modeline-nmcli"
-       :command '("nmcli" "-t" "-f" "TYPE,STATE" "dev" "status")
-       :noquery t
-       :connection-type 'pipe
-       :filter (lambda (_proc out)
-                 (setq emanix/modeline--wifi-output
-                       (concat emanix/modeline--wifi-output out)))
-       :sentinel (lambda (_proc event)
-                   (when (string-prefix-p "finished" event)
-                     (setq emanix/modeline--wifi-status
-                           (emanix/modeline--wifi-parse
-                            emanix/modeline--wifi-output))
-                     (setq emanix/modeline--wifi-output "")
-                     (emanix/modeline--render))))))))
+`nmcli' reported finer states than `up'/`down' (`connecting',
+`deactivating', `unavailable'), but none of them is \"up\", so all of
+them render the marker -- which is exactly what the nmcli parse did with
+everything but `connected'."
+  (let* ((dev (emanix/modeline--wifi-device))
+         (file (and dev (format "/sys/class/net/%s/operstate" dev))))
+    (setq emanix/modeline--wifi-status
+          (when (and file (file-readable-p file))
+            (emanix/modeline--wifi-segment
+             (with-temp-buffer
+               (insert-file-contents file)
+               (buffer-string)))))))
 
 (defun emanix/modeline--wifi ()
   "Wireless status, or nil when connected or absent.
-A plain read of `emanix/modeline--wifi-status'; the work that produces it
-happens in `emanix/modeline--poll-wifi', off the render path."
+A plain read of `emanix/modeline--wifi-status'; `emanix/modeline--poll-wifi'
+refreshes it from sysfs at the start of each render."
   emanix/modeline--wifi-status)
 
 (defun emanix/modeline--update ()
-  (emanix/modeline--poll-volume)
+  "Render-cadence refresh: sysfs and procfs only, never a subprocess."
   (emanix/modeline--poll-wifi)
   (emanix/modeline--render))
+
+(defun emanix/modeline--probe ()
+  "Probe-cadence refresh: the segments that need a subprocess.
+Volume only, for now.  Separate from `emanix/modeline--update' so the
+render cadence can stay at `emanix/modeline-interval' without forking
+anything.  `emanix/modeline--poll-volume' renders when its reply lands."
+  (emanix/modeline--poll-volume))
 
 (defun emanix/tab-bar-status ()
   "Right-aligned tab-bar item: system stats + clock + battery.
@@ -330,7 +329,13 @@ Add to `tab-bar-format' (see init.el)."
 (define-minor-mode emanix/modeline-mode
   "Poll volume/wifi/cpu/ram/gpu into `emanix/modeline-status'.
 The value is displayed by `emanix/tab-bar-status' in the tab-bar, not
-the mode-line; this mode only drives the refresh timer."
+the mode-line; this mode only drives the refresh timers.
+
+Two timers, deliberately.  The render timer reads sysfs and procfs and
+runs at `emanix/modeline-interval'; the probe timer runs the one segment
+that needs a subprocess, at `emanix/modeline-probe-interval'.  Putting
+volume on the render timer would mean a fork -- and under EWM an
+xdg-activation token and a journal line -- every few seconds."
   :global t
   (if emanix/modeline-mode
       (progn
@@ -340,10 +345,15 @@ the mode-line; this mode only drives the refresh timer."
               emanix/modeline--battery-dir 'unset
               emanix/modeline--wifi-dev 'unset)
         (setq emanix/modeline--timer
-              (run-at-time 0 emanix/modeline-interval #'emanix/modeline--update)))
+              (run-at-time 0 emanix/modeline-interval #'emanix/modeline--update)
+              emanix/modeline--probe-timer
+              (run-at-time 0 emanix/modeline-probe-interval #'emanix/modeline--probe)))
     (when emanix/modeline--timer
       (cancel-timer emanix/modeline--timer)
-      (setq emanix/modeline--timer nil))))
+      (setq emanix/modeline--timer nil))
+    (when emanix/modeline--probe-timer
+      (cancel-timer emanix/modeline--probe-timer)
+      (setq emanix/modeline--probe-timer nil))))
 
 (provide 'emanix-modeline)
 ;;; emanix-modeline.el ends here

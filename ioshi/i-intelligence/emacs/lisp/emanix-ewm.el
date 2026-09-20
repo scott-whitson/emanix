@@ -110,11 +110,15 @@ No-op (demoted) for an output that is not connected right now."
 ;; EWM advises `start-process' and `make-process' to inject
 ;; XDG_ACTIVATION_TOKEN into every spawned process, so a launched GUI app can
 ;; request focus, and it LOGS a line per token. The tab-bar modeline polls
-;; volume and wifi through `make-process' on `emanix/modeline-interval' -- a
-;; CLI poll, not an app launch. The token is meaningless for it, and one log
-;; line per poll is not: measured on rafik 2026-09-20 at 8 spawns per 12
-;; seconds (a 3s interval times two probes), which is roughly 57,000 journal
-;; lines a day and grows the journal for no reason.
+;; volume through `make-process' -- a CLI poll, not an app launch. The token
+;; is meaningless for it, and one log line per poll is not: measured on rafik
+;; 2026-09-20 at 8 spawns per 12 seconds (the then-3s interval times two
+;; probes, volume and wifi), roughly 57,000 journal lines a day.
+;;
+;; Wifi no longer forks at all -- it reads sysfs -- and volume moved to its
+;; own slower timer, so the modeline is quiet now. The mechanism stays because
+;; the same mistake is one `make-process' away, and because a consumer's own
+;; pollers (cpgw, the fleet aggregator) are the same shape.
 ;;
 ;; This wraps the injector rather than removing EWM's advice, because EWM
 ;; installs that advice from `ewm-start-module' and would put it back. The
@@ -123,10 +127,17 @@ No-op (demoted) for an output that is not connected right now."
 ;; a poll can be spawned through the ORIGINAL function with no token at all.
 ;; Everything that is not a modeline poll is unchanged, focus-on-launch
 ;; included.
-(defconst emanix/ewm--no-token-process-prefix "emanix-modeline-"
-  "Spawned-process names that must not get an activation token.
-These exist to be POLLED by the modeline, not to open a window, so a
-focus token means nothing to them.")
+(defvar emanix/ewm--no-token-process-prefixes '("emanix-modeline-")
+  "Process-name prefixes that must not get an XDG activation token.
+Each entry is matched with `string-prefix-p' against the spawned process's
+name.  A match is spawned directly, skipping the token AND the journal line
+EWM logs for one.
+
+This is the CONSUMER extension point.  The distribution lists only the
+processes it polls itself; a consuming flake adds its own from personal.el
+with `add-to-list', because a distribution that names one consumer's
+processes is exactly the boundary this list exists to keep.  A token is for
+a launched GUI app to request focus, and a poll has no window to focus.")
 
 (defun emanix/ewm--spawn-name (spawn-args)
   "Process name for a `start-process'/`make-process' SPAWN-ARGS list, or nil.
@@ -137,13 +148,14 @@ takes NAME as its first positional argument."
         ((stringp (car spawn-args)) (car spawn-args))))
 
 (defun emanix/ewm--spawn-without-token-for-polls (orig &rest args)
-  "Run ORIG, or spawn directly when ARGS name an internal modeline poll.
+  "Run ORIG, or spawn directly when ARGS name a process we poll ourselves.
 Bypassing ORIG is what skips both the token and EWM's log line for it."
   (let* ((spawn-fn (car args))
          (spawn-args (cdr args))
          (name (emanix/ewm--spawn-name spawn-args)))
     (if (and (stringp name)
-             (string-prefix-p emanix/ewm--no-token-process-prefix name))
+             (seq-some (lambda (prefix) (string-prefix-p prefix name))
+                       emanix/ewm--no-token-process-prefixes))
         (apply spawn-fn spawn-args)
       (apply orig args))))
 
