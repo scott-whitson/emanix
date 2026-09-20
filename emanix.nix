@@ -19,6 +19,13 @@
     description = "Primary user account. Set by lib/mkHost.nix from the `username` argument.";
   };
 
+  # NB `emanix.emacs.extraPackages' is NOT here. It is declared in
+  # ioshi/i-intelligence/emacs.nix, the Home Manager module, because the
+  # consumer sets it as HM config and ewm.nix (the NixOS side) reaches it
+  # through `config.home-manager.users.<user>' — the same cross-tier path this
+  # file's siblings use for emanix.src. Declaring it here would have put it
+  # out of reach of emacs-daemon.nix, which is also an HM module.
+
   # No text-to-speech anywhere in emanix.
   #
   # NB `config.` prefix: this module declares options.emanix.username, which

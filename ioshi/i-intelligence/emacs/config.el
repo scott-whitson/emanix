@@ -238,8 +238,6 @@ Set buffer-locally to nil to hand `M-hjkl' back to a major mode.")
 ;;  M-: = eval from minibuffer    C-x * q = quick calc
 ;;  C-c i i = ask arc             C-h i = Info manuals
 ;;  M-x emanix-guides = every guide worth knowing about
-
-(emanix/weather)
 ")
 
 ;; --- Buffer hygiene: kill buffers by named group ---
@@ -687,56 +685,18 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 
 (global-set-key (kbd "C-c c") #'emanix/calendar-sync)
 
-;; --- Google Docs sync (org ↔ Google Docs) ---
-;; Bidirectional sync between org files and Google Docs.
-;; Requires: Google Cloud project with Docs API + Drive API enabled,
-;; OAuth credentials configured in gdocs-accounts.
-;; M-x gdocs-authenticate, then M-x gdocs-create or M-x gdocs-open.
-;; rafik-only. init.el is shared by every host, and use-package :vc
-;; fetches from GitHub on load - without this guard whistle and datacore
-;; would pull gdocs too, for a workflow only rafik has. A wrapping `when`
-;; rather than use-package's :if on purpose: :if guards the runtime body,
-;; but :vc install work can run at macro-expansion time. A false `when`
-;; never expands the macro at all.
-(when (equal (system-name) "rafik")
-  ;; Two separate problems, both fixed here (2026-08-10):
-  ;;
-  ;; 1. ~/.config/emacs/elpa is NOT on load-path. This Emacs takes its
-  ;;    packages from Nix, so package-activate-all never runs and whatever
-  ;;    package-vc downloaded is invisible to `require'. gdocs.el really is
-  ;;    at ~/.config/emacs/elpa/gdocs/gdocs.el, but (locate-library "gdocs")
-  ;;    returned nil. Add the elpa subdirectories explicitly.
-  ;;
-  ;; 2. A bare (require 'gdocs) SIGNALS when it fails, and nothing above
-  ;;    catches it, so the failure aborted every remaining form in init.el.
-  ;;    After a reboot that meant no top bar (emanix/modeline-mode), no s-d
-  ;;    (emanix/launcher) and no EWM window commands (emanix/ewm--goto and
-  ;;    friends) -- all defined below this point. Never let an optional
-  ;;    package take the desktop down: require it with :no-error and only
-  ;;    configure it if it actually loaded.
-  (let ((elpa (expand-file-name "elpa" user-emacs-directory)))
-    (when (file-directory-p elpa)
-      (dolist (d (directory-files elpa t "\\`[^.]"))
-        (when (file-directory-p d) (add-to-list 'load-path d)))))
-  (if (require 'gdocs nil :no-error)
-      (progn
-        (setq gdocs-auto-push-on-save t)
-        ;; Sync into the org tree, not the package's ~/org/gdocs/ default.
-        ;; That default mints a SECOND top-level org directory in $HOME, which
-        ;; breaks the four-directory home rule (docs/dotfiles/downloads/
-        ;; projects). Deleting the directory is not enough: gdocs--doc-file-path
-        ;; calls make-directory on every open, so it comes straight back.
-        ;; ~/docs/org is also Syncthing-replicated, so synced docs reach
-        ;; datacore like the rest of the org tree.
-        (setq gdocs-directory (expand-file-name "~/docs/org/gdocs/"))
-        ;; Credentials live outside the checkout (mode 600) so the OAuth
-        ;; client secret is never committed. Absent file = no account.
-        (load (expand-file-name "gdocs-creds.el" user-emacs-directory)
-              :noerror :nomessage))
-    (message "gdocs not loadable; skipping (see the comment above)")))
+;; --- Google Docs sync moved to the consumer (2026-09-20) ---
+;; The org <-> Google Docs workflow is rafik-only and names the author's own
+;; org tree, OAuth credentials and hostname, so it belongs to the consuming
+;; flake rather than to the distribution. It now lives in dotfiles'
+;; home/scott/emacs/personal.el, which this file loads LAST (see the bottom).
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
-(dolist (feature '(emanix-theme emanix-weather emanix-openrouter emanix-modeline emanix-launcher emanix-agent-shell emanix-quarterly emanix-prose emanix-web))
+;; This list is the DISTRIBUTION's surfaces. Personal ones (weather,
+;; openrouter cost, the quarterly tracker) moved to the consumer on 2026-09-20;
+;; they ship in dotfiles/home/scott/emacs/personal-lisp and load from
+;; personal.el, which config.el loads LAST at the bottom of this file.
+(dolist (feature '(emanix-theme emanix-modeline emanix-launcher emanix-agent-shell emanix-prose emanix-web))
   (require feature nil :no-error))
 ;; Prose rendering — markdown and org files read as documents, not source.
 ;; C-c z toggles back to raw monospace for heavy editing. Chosen 2026-08-17;
@@ -752,10 +712,6 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 ;; on first save. See https://emanix.net/docs/keybindings.html for opting a repo in.
 (when (fboundp 'emanix-web-setup)
   (emanix-web-setup))
-;; Quarterly tracker — C-c q opens this quarter's note, C-u C-c q forces the
-;; work one on a machine that has both trees.
-(when (fboundp 'emanix-quarterly-open)
-  (global-set-key (kbd "C-c q") #'emanix-quarterly-open))
 ;; App launcher — the EWM s-d experience on every machine (C-c o works
 ;; under EWM too; s-d remains on emanix).
 (when (fboundp 'emanix/launch-app)

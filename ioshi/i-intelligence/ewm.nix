@@ -74,7 +74,12 @@ let
   # system PATH below so emacsclient is available (EDITOR/VISUAL point at it
   # via zsh.nix).
   theEmacs = emacsPkgs.mkEmacs {
-    extraPackages = [ ewmPkg ];
+    # A function of the package set, not a list: the consumer's extras take the
+    # same shape. Read from the HM submodule because the option is declared
+    # there (i-intelligence/emacs.nix) — see the hmCfg note below for why the
+    # consumer-facing options live on the HM tier. EWM's own package is not
+    # from the Emacs package set, so the two are concatenated.
+    extraPackages = epkgs: [ ewmPkg ] ++ hmCfg.emanix.emacs.extraPackages epkgs;
   };
 
   # The user's HOME MANAGER config, read from the NixOS tier.

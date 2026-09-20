@@ -67,7 +67,11 @@ let
     })
     async # arc dep (Package-Requires); also loadable standalone for testing
     plz # arc/llm HTTP dep
-    s # string manipulation library (gdocs dependency)
+    # `s' used to sit here as the gdocs dependency. The gdocs workflow moved to
+    # dotfiles on 2026-09-20, and the consumer now supplies `s' through
+    # emanix.emacs.extraPackages — which is what that seam is for. Removed
+    # 2026-09-20 so the distribution carries no package that exists for one
+    # consumer's workflow.
     org-roam
     org
     catppuccin-theme
@@ -136,9 +140,9 @@ in
   # The sole build site. `extraPackages` carries the caller's difference —
   # ewm.nix appends EWM's own package, which this file cannot know about, so
   # the seam takes a value rather than naming a variant.
-  mkEmacs = { extraPackages ? [ ] }:
+  mkEmacs = { extraPackages ? (epkgs: [ ]) }:
     (pkgs.emacsPackagesFor pkgs.emacs-pgtk).emacsWithPackages
-      (epkgs: list epkgs ++ extraPackages);
+      (epkgs: list epkgs ++ extraPackages epkgs);
 
   # arc's sqlite-vec extension. Exported because arc is in `list` above, so
   # this file owns the dependency; the two consumers set it on different tiers

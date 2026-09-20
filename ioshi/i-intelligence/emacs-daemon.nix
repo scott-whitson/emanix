@@ -6,7 +6,11 @@ let
   # daemon (services.emacs below). Same package set as the emanix system
   # build, minus the EWM package — non-EWM machines have no compositor role.
   emacsPkgs = import ./emacs/packages.nix { inherit pkgs; };
-  standaloneEmacs = emacsPkgs.mkEmacs { };
+  # extraPackages is a function of the package set (see emanix.nix's option):
+  # pass it straight through so a consumer's packages reach this build too.
+  standaloneEmacs = emacsPkgs.mkEmacs {
+    extraPackages = config.emanix.emacs.extraPackages;
+  };
 in
 {
   # Declared HERE rather than in ewm.nix, which is where the name points. This
