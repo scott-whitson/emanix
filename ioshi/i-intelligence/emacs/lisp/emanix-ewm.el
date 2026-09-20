@@ -105,6 +105,54 @@ No-op (demoted) for an output that is not connected right now."
 
 (emanix/ewm-apply-output-layout)
 
+;;; Keep CLI polls out of the activation-token path -------------------------
+
+;; EWM advises `start-process' and `make-process' to inject
+;; XDG_ACTIVATION_TOKEN into every spawned process, so a launched GUI app can
+;; request focus, and it LOGS a line per token. The tab-bar modeline polls
+;; volume and wifi through `make-process' on `emanix/modeline-interval' -- a
+;; CLI poll, not an app launch. The token is meaningless for it, and one log
+;; line per poll is not: measured on rafik 2026-09-20 at 8 spawns per 12
+;; seconds (a 3s interval times two probes), which is roughly 57,000 journal
+;; lines a day and grows the journal for no reason.
+;;
+;; This wraps the injector rather than removing EWM's advice, because EWM
+;; installs that advice from `ewm-start-module' and would put it back. The
+;; spawn function and its arguments arrive as the first two elements of ARGS
+;; -- `ewm--inject-activation-token' has signature (ORIG-FUN &REST ARGS) -- so
+;; a poll can be spawned through the ORIGINAL function with no token at all.
+;; Everything that is not a modeline poll is unchanged, focus-on-launch
+;; included.
+(defconst emanix/ewm--no-token-process-prefix "emanix-modeline-"
+  "Spawned-process names that must not get an activation token.
+These exist to be POLLED by the modeline, not to open a window, so a
+focus token means nothing to them.")
+
+(defun emanix/ewm--spawn-name (spawn-args)
+  "Process name for a `start-process'/`make-process' SPAWN-ARGS list, or nil.
+`make-process' takes its arguments as one keyword plist, so SPAWN-ARGS
+ITSELF is the plist and the name is its `:name' entry; `start-process'
+takes NAME as its first positional argument."
+  (cond ((plistp spawn-args) (plist-get spawn-args :name))
+        ((stringp (car spawn-args)) (car spawn-args))))
+
+(defun emanix/ewm--spawn-without-token-for-polls (orig &rest args)
+  "Run ORIG, or spawn directly when ARGS name an internal modeline poll.
+Bypassing ORIG is what skips both the token and EWM's log line for it."
+  (let* ((spawn-fn (car args))
+         (spawn-args (cdr args))
+         (name (emanix/ewm--spawn-name spawn-args)))
+    (if (and (stringp name)
+             (string-prefix-p emanix/ewm--no-token-process-prefix name))
+        (apply spawn-fn spawn-args)
+      (apply orig args))))
+
+(with-eval-after-load 'ewm
+  (unless (advice-member-p #'emanix/ewm--spawn-without-token-for-polls
+                           'ewm--inject-activation-token)
+    (advice-add 'ewm--inject-activation-token :around
+                #'emanix/ewm--spawn-without-token-for-polls)))
+
 (provide 'emanix-ewm)
 
 ;;; --- XWayland helper ---
