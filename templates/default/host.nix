@@ -14,7 +14,7 @@
   # this; null is correct for a headless or virtualised host. A graphical host
   # with the wrong value here boots to a black screen, because a compositor
   # started from tty1 loses the DRM-master race — see emanix's
-  # ioshi/hi-hardware/gpu.nix.
+  # modules/gpu.nix.
   gpu = null;
 
   # OPTIONAL. The name of a nixos-hardware module for this exact machine, e.g.

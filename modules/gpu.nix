@@ -67,7 +67,7 @@ in
         screen (boot.initrd.allowMissingModules hides this at build time).
 
         Either leave hardware.enableRedistributableFirmware at emanix's
-        default of true (see ioshi/hi-hardware/firmware.nix), or set
+        default of true (see modules/firmware.nix), or set
         emanix.hardware.gpu = null if this host has no display to bring up.
       '';
     }];

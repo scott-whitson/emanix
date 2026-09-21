@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  themeLib = import ../../lib/themes.nix { inherit pkgs; };
+  themeLib = import ../lib/themes.nix { inherit pkgs; };
   inherit (themeLib) palettes;
   # Resolved once, from config.emanix.theme, at rebuild time — NOT what
   # `dot-theme-set` changes. Unlike ghostty (which pre-renders all four

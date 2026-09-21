@@ -4,10 +4,10 @@
 { pkgs, ... }:
 pkgs.runCommand "emanix-arc-bridge-tests" { } ''
   export HOME=$(mktemp -d)
-  export EMANIX_ARC_CONFIG=${../ioshi/i-intelligence/emacs/config.el}
+  export EMANIX_ARC_CONFIG=${../emacs/config.el}
   ${pkgs.emacs-nox}/bin/emacs -Q --batch \
-    -L ${../ioshi/i-intelligence/emacs/lisp} \
-    -L ${../ioshi/i-intelligence/emacs/test} \
+    -L ${../emacs/lisp} \
+    -L ${../emacs/test} \
     -l ert \
     -l emanix-arc-test \
     -f ert-run-tests-batch-and-exit

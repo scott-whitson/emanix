@@ -3,7 +3,7 @@
 { config, lib, ... }:
 {
   # emanix.gui and emanix.src.liveElisp are Home Manager options
-  # (ioshi/i-intelligence/theme.nix), not NixOS ones — this module is spliced
+  # (home/theme.nix), not NixOS ones — this module is spliced
   # into extraModules, which are NixOS modules, so they must be set through
   # home-manager.users.<username> rather than at the top level.
   # config.emanix.username is the NixOS-level option mkHost sets from its own
@@ -20,7 +20,7 @@
     # option defaults to would dangle:
     # ~/.config/emacs/{config.el,fallback.el,init.el,lisp} would point into a
     # $HOME/projects/emanix that was never created — no welcome buffer, no
-    # keybindings, no fallback. See ioshi/i-intelligence/theme.nix's own doc
+    # keybindings, no fallback. See home/theme.nix's own doc
     # for src.liveElisp: "Disable on hosts with no checkout." Copied into the
     # store instead; edits need a rebuild, which is the correct trade for a
     # generated host.
@@ -29,7 +29,7 @@
 
   # Opt in to autologin only if this machine's disk is encrypted. Without
   # encryption, autologin means physical access alone yields a logged-in
-  # session — see ioshi/i-intelligence/ewm.nix for why this is the host's
+  # session — see modules/ewm.nix for why this is the host's
   # decision and not the distribution's.
   # services.getty.autologinUser = "youruser";
 

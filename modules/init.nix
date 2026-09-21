@@ -12,7 +12,7 @@
     (pkgs.writeShellApplication {
       name = "emanix-init";
       runtimeInputs = with pkgs; [ git nix ];
-      text = builtins.readFile ../../installer/emanix-init.sh;
+      text = builtins.readFile ../installer/emanix-init.sh;
     })
   ];
 }

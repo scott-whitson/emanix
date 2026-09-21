@@ -29,34 +29,42 @@ not read as a leak: `arc`, the distribution's bundled offline assistant, is
 pinned to `scott-whitson/arc`. That is a public repository belonging to the same
 author. It is a distribution capability, not a personal preference.
 
-## The ioshi concerns
+## How the config is organised
 
-Config is organised by what it is *about*, under three concerns:
+Two tiers, split by **module system** — the one fact that decides how a file is
+imported:
 
-- **i — intelligence interface** (`ioshi/i-intelligence/`): Emacs, EWM, theming,
-  the shell, the terminal, and the user workspace. Mostly Home Manager modules,
-  but not entirely — `ewm.nix` is a NixOS module, because a compositor needs a
-  system service.
-- **os — operating system** (`ioshi/os-system/`): the NixOS substrate — `base.nix`,
-  `init.nix`, `firstboot.nix`.
-- **hi — hardware / internet** (`ioshi/hi-hardware/`): hardware **capability**
-  only — a GPU option that defaults to null, and the redistributable-firmware
-  default. The machine *facts* are not here: which GPU a box has, how its disks
-  are partitioned, and what network it joins belong to the consuming flake, the
-  only thing that can know them.
+- **`home/`** — the Home Manager tier: Emacs, EWM's user half, theming, the
+  shell, the terminal, the agent adapters. `home/default.nix` is the aggregate,
+  reached through `mkHost`'s `homeModules`.
+- **`modules/`** — the NixOS tier: the substrate (`base.nix`, `init.nix`,
+  `firstboot.nix`), hardware **capability** (`gpu.nix` — an option defaulting to
+  null — and `firmware.nix`), and the compositor service (`ewm.nix`, exposed as
+  `nixosModules.ewm`).
 
-The three concerns are **descriptive, not enforced**. They say what a piece of
-config is about, not which module system delivers it. Nothing checks the
-boundary, and nothing is meant to. When deciding where a file goes, ask what it
-is about, not how it is wired.
+The machine *facts* are in neither: which GPU a box has, how its disks are
+partitioned and what network it joins belong to the consuming flake, the only
+thing that can know them.
+
+This used to be spelled `ioshi/i-intelligence`, `ioshi/os-system` and
+`ioshi/hi-hardware` — a three-concern story (i / os / hi) about what config is
+*about* rather than how it is wired. The story was true and is still how the
+distribution is reasoned about; it just was not a partitioning of anything.
+`i-intelligence` held 48 of the 53 files, and `hi-hardware` never held hardware
+facts at all. Worse, it was a boundary nothing enforced, and the consuming flake
+used the same three words for its own tree, which made every path in both repos
+ambiguous. So it is prose now rather than directories.
 
 ## Layout
 
 ```text
 emanix.nix                        # the distribution — one profile, imported by mkHost
-ioshi/i-intelligence/             # Emacs, EWM, theme, zsh, git, terminal, agent-shell
-ioshi/os-system/                  # base, init, firstboot
-ioshi/hi-hardware/                # gpu.nix, firmware.nix — capability, not facts
+home/                             # Home Manager tier: theme, emacs, zsh, git, terminal, agent-acp
+home/default.nix                  # the Home Manager aggregate
+modules/                          # NixOS tier: base, init, firstboot, gpu, firmware, ewm
+emacs/                            # init.el, config.el, fallback.el, lisp/, test/, packages.nix
+zellij/                           # config.kdl, layouts/, plugins/
+agent-acp/                        # the ACP adapter scripts
 lib/mkHost.nix                    # the host composer
 lib/disk.nix                      # mkDisk, for disko layouts a consumer passes in
 lib/{themes,theme-tree}.nix       # palettes, and the rendered runtime theme tree
@@ -65,7 +73,7 @@ installer/                        # ISO module, fresh-emanix-install, emanix-ini
 templates/default/                # `nix flake init` host template
 checks/                           # eval/derivation checks run by `nix flake check`
 tests/                            # shell and python tests the checks call
-patches/                          # ewm patches, applied by ewm.nix
+patches/                          # ewm patches, applied by modules/ewm.nix
 docs/                             # frozen design records
 ```
 
@@ -133,7 +141,7 @@ It takes the package set so the consumer never names the Emacs variant — which
 Emacs to build is the distribution's choice and stays its choice. The seam
 exists so a consumer's own elisp can need a package the distribution cannot
 justify shipping to every host. The distribution's Emacs is built in one place
-(`ioshi/i-intelligence/emacs/packages.nix`), and this is the only way to add
+(`emacs/packages.nix`), and this is the only way to add
 to it.
 
 ## The installer ISO

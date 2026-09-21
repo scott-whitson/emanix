@@ -3,10 +3,10 @@
 let
   # Elisp lives in the repo and is symlinked out-of-store (liveElisp) so it can
   # be edited without a home-manager switch. The Emacs BUILD is system-owned
-  # (ioshi/i-intelligence/ewm.nix, from emacs/packages.nix) — this module
+  # (modules/ewm.nix, from emacs/packages.nix) — this module
   # delivers config, and declares the one option the consumer needs to reach
   # that build.
-  emacsDir = "${config.emanix.src.path}/ioshi/i-intelligence/emacs";
+  emacsDir = "${config.emanix.src.path}/emacs";
 in
 {
   options.emanix.emacs.extraPackages = lib.mkOption {
@@ -31,15 +31,15 @@ in
       "emacs/early-init.el".source =
         if config.emanix.src.liveElisp
         then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/early-init.el"
-        else ./emacs/early-init.el;
+        else ../emacs/early-init.el;
       "emacs/init.el".source =
         if config.emanix.src.liveElisp
         then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/init.el"
-        else ./emacs/init.el;
+        else ../emacs/init.el;
       "emacs/lisp".source =
         if config.emanix.src.liveElisp
         then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/lisp"
-        else ./emacs/lisp;
+        else ../emacs/lisp;
 
       # config.el and fallback.el are deployed exactly like init.el. If fallback.el
       # is ever missing, the loader's (load ... :noerror) degrades to "no fallback"
@@ -51,11 +51,11 @@ in
       "emacs/fallback.el".source =
         if config.emanix.src.liveElisp
         then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/fallback.el"
-        else ./emacs/fallback.el;
+        else ../emacs/fallback.el;
       "emacs/config.el".source =
         if config.emanix.src.liveElisp
         then config.lib.file.mkOutOfStoreSymlink "${emacsDir}/config.el"
-        else ./emacs/config.el;
+        else ../emacs/config.el;
     };
 
     # NO ~/.emacs.d mirror: emacs PREFERS ~/.emacs.d over ~/.config/emacs when

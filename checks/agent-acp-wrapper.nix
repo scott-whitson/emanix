@@ -9,7 +9,7 @@
 # for its first caller and wrong for its second.
 { pkgs, ... }:
 let
-  wrappers = import ../ioshi/i-intelligence/agent-acp/wrappers.nix { inherit pkgs; };
+  wrappers = import ../agent-acp/wrappers.nix { inherit pkgs; };
 in
 pkgs.runCommand "agent-acp-wrapper" { } ''
   export HOME=$(mktemp -d)

@@ -6,7 +6,7 @@
   #
   # i-intelligence modules (theme, emacs, zsh, ...) are HOME MANAGER modules;
   # they are delivered to the user via lib/mkHost.nix's mkHmModule
-  # (home-manager.users.${username}.imports = [ ./ioshi/i-intelligence ]).
+  # (home-manager.users.${username}.imports = [ ./home ]).
 
   options.emanix.username = lib.mkOption {
     type = lib.types.str;
@@ -20,7 +20,7 @@
   };
 
   # NB `emanix.emacs.extraPackages' is NOT here. It is declared in
-  # ioshi/i-intelligence/emacs.nix, the Home Manager module, because the
+  # emacs.nix, the Home Manager module, because the
   # consumer sets it as HM config and ewm.nix (the NixOS side) reaches it
   # through `config.home-manager.users.<user>' — the same cross-tier path this
   # file's siblings use for emanix.src. Declaring it here would have put it
@@ -54,9 +54,9 @@
   config.services.speechd.enable = lib.mkOverride 500 false;
 
   imports = [
-    ./ioshi/os-system/base.nix
-    ./ioshi/os-system/firstboot.nix
-    ./ioshi/os-system/init.nix
+    ./modules/base.nix
+    ./modules/firstboot.nix
+    ./modules/init.nix
     # hi-hardware — the machine-facing tier. Imported by EVERY host, not only
     # graphical ones. The two modules are imported together but they are NOT
     # both free, and the earlier version of this comment implied they were.
@@ -91,7 +91,7 @@
     # mkForce. Before doing that on a graphical host, read the assertion in
     # gpu.nix: declining the firmware while emanix.hardware.gpu is set is the
     # black-screen combination, and the assertion is what stops it building.
-    ./ioshi/hi-hardware/gpu.nix
-    ./ioshi/hi-hardware/firmware.nix
+    ./modules/gpu.nix
+    ./modules/firmware.nix
   ];
 }

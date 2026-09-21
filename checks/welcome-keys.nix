@@ -13,10 +13,10 @@
 # Checking is cheap and loses nothing.
 { pkgs, ... }:
 pkgs.runCommand "emanix-welcome-keys" { } ''
-  welcome=${../ioshi/i-intelligence/emacs/lisp/emanix-welcome.el}
-  config=${../ioshi/i-intelligence/emacs/config.el}
-  fallback=${../ioshi/i-intelligence/emacs/fallback.el}
-  arc=${../ioshi/i-intelligence/emacs/lisp/emanix-arc.el}
+  welcome=${../emacs/lisp/emanix-welcome.el}
+  config=${../emacs/config.el}
+  fallback=${../emacs/fallback.el}
+  arc=${../emacs/lisp/emanix-arc.el}
 
   # 1. No absolute home path. Same rule as arc-glue.nix, same reason.
   if grep -nE '"/home/[a-z]' "$welcome"; then

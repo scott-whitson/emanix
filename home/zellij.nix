@@ -1,7 +1,7 @@
 { config, lib, ... }:
 
 let
-  zellijDir = "${config.emanix.src.path}/ioshi/i-intelligence/zellij";
+  zellijDir = "${config.emanix.src.path}/zellij";
 
   # zellij's KDL parser performs NO expansion. Verified against 0.44.3:
   # "$HOME/x", "~/x" and a relative "x" are all taken literally, and a
@@ -25,11 +25,11 @@ in
   # it per host; there is no role to inherit it from (roles were deleted
   # 2026-08-30).
   options.emanix.zellij.enable = lib.mkEnableOption
-    "zellij with the zellaude bar, deployed live from ioshi/i-intelligence/zellij";
+    "zellij with the zellaude bar, deployed live from zellij";
 
   config = lib.mkIf config.emanix.zellij.enable {
     # Package only — no `settings`: the kdl files in
-    # ioshi/i-intelligence/zellij are the single source of truth, and
+    # zellij are the single source of truth, and
     # zellaude writes to its own settings json (a store copy would be
     # read-only). enableZshIntegration stays off; it would auto-start
     # zellij in every interactive shell.
@@ -46,9 +46,9 @@ in
     # this, the KDL carried a hardcoded /home/<user> path instead, which worked
     # only for the one user who wrote it.
     xdg.configFile = {
-      "zellij/config.kdl".text = renderKdl ./zellij/config.kdl;
+      "zellij/config.kdl".text = renderKdl ../zellij/config.kdl;
       "zellij/layouts/default.kdl".text =
-        renderKdl ./zellij/layouts/default.kdl;
+        renderKdl ../zellij/layouts/default.kdl;
       "zellij/plugins".source =
         config.lib.file.mkOutOfStoreSymlink "${zellijDir}/plugins";
     };

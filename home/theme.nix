@@ -3,7 +3,7 @@
 let
   # The palette set is the real constraint on emanix.theme, so the option's
   # type is derived from it rather than restating it in prose.
-  inherit (import ../../lib/themes.nix { inherit pkgs; }) palettes;
+  inherit (import ../lib/themes.nix { inherit pkgs; }) palettes;
 in
 {
   options.emanix = {
@@ -90,7 +90,7 @@ in
         # 2026-08-18, which was correct while the distro shipped no themes —
         # that premise is what generating them removes. Consumers with their own
         # tree still override this.
-        default = toString (import ../../lib/theme-tree.nix { inherit pkgs; });
+        default = toString (import ../lib/theme-tree.nix { inherit pkgs; });
         description = "Path to the themes directory the active-theme tooling reads from.";
       };
       binDir = lib.mkOption {

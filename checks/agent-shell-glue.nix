@@ -8,7 +8,7 @@
 # styles in the tool-call payload fail by matching nothing at all.
 { pkgs, ... }:
 pkgs.runCommand "agent-shell-glue-sane" { } ''
-  src=${../ioshi/i-intelligence/emacs/lisp/emanix-agent-shell.el}
+  src=${../emacs/lisp/emanix-agent-shell.el}
 
   # 1. No absolute home path, ever. The distro cannot know the operator's name.
   if grep -nE '"/home/[a-z]' "$src"; then

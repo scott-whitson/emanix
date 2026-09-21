@@ -8,7 +8,7 @@
 # every `nix flake check' rather than only when someone remembers to look.
 { pkgs, ... }:
 pkgs.runCommand "arc-glue-sane" { } ''
-  src=${../ioshi/i-intelligence/emacs/lisp/emanix-arc.el}
+  src=${../emacs/lisp/emanix-arc.el}
 
   # 1. No absolute home path, ever. Derive from $HOME.
   if grep -nE '"/home/[a-z]' "$src"; then

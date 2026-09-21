@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  themeLib = import ../../lib/themes.nix { inherit pkgs; };
+  themeLib = import ../lib/themes.nix { inherit pkgs; };
   inherit (themeLib) palettes ghostty;
 in
 {

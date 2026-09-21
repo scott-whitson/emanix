@@ -5,7 +5,7 @@
 # Note kernelModules, NOT availableKernelModules: nixos-generate-config writes
 # the latter (modules PERMITTED in the initrd) and never the former (modules
 # FORCED to load). EWM needs the forced form, which is the whole reason this
-# option exists — see ioshi/hi-hardware/gpu.nix.
+# option exists — see modules/gpu.nix.
 { pkgs, mkHost, ... }:
 let
   initrdModulesFor = gpu:

@@ -71,7 +71,7 @@ let
           # gets. `ewm` (the flake input) reaches this module via mkHost's
           # own specialArgs, same as every other consumer of
           # emanix.nixosModules.ewm.
-          (import ../ioshi/i-intelligence/ewm.nix)
+          (import ../modules/ewm.nix)
         ]
         ++ pkgs.lib.optional (fixture.hardwareModule != null)
           nixos-hardware.nixosModules.${fixture.hardwareModule};

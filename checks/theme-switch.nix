@@ -9,10 +9,10 @@
 pkgs.runCommand "theme-switch-tests" { } ''
   export HOME=$(mktemp -d)
   ${pkgs.emacs-nox}/bin/emacs -Q --batch \
-    -L ${../ioshi/i-intelligence/emacs/lisp} \
+    -L ${../emacs/lisp} \
     -l ert \
     -l cl-lib \
-    -l ${../ioshi/i-intelligence/emacs/test/emanix-theme-test.el} \
+    -l ${../emacs/test/emanix-theme-test.el} \
     -f ert-run-tests-batch-and-exit
   touch $out
 ''

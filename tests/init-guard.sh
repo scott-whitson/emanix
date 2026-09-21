@@ -18,7 +18,7 @@
 set -uo pipefail
 
 EMACS="${EMACS:-emacs}"
-SRC="$(cd "$(dirname "$0")/.." && pwd)/ioshi/i-intelligence/emacs"
+SRC="$(cd "$(dirname "$0")/.." && pwd)/emacs"
 FAILURES=0
 
 PROBE='(message "PROBE fellback=%s fallbackloaded=%s modeline=%s launch=%s ewmgoto=%s theme=%s"

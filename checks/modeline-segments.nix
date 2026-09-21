@@ -9,10 +9,10 @@
 pkgs.runCommand "modeline-segment-tests" { } ''
   export HOME=$(mktemp -d)
   ${pkgs.emacs-nox}/bin/emacs -Q --batch \
-    -L ${../ioshi/i-intelligence/emacs/lisp} \
+    -L ${../emacs/lisp} \
     -l ert \
     -l emanix-modeline \
-    -l ${../ioshi/i-intelligence/emacs/test/emanix-modeline-test.el} \
+    -l ${../emacs/test/emanix-modeline-test.el} \
     -f ert-run-tests-batch-and-exit
   touch $out
 ''

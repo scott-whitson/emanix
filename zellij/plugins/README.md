@@ -21,7 +21,7 @@ went the `chrono`/`chrono-tz` dependencies and the minute-rollover re-render gat
 The fork lives in the consumer's own checkout (`origin` = the consumer's own
 remote; `upstream` = ishefi/zellaude). Only the compiled `.wasm` ships here,
 because `~/.config/zellij` is an out-of-store symlink into
-`ioshi/i-intelligence/zellij`,
+`zellij`,
 so the plugin must be a real file in this directory rather than a store path.
 
 ## Rebuilding

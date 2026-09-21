@@ -99,7 +99,7 @@
           # out-of-store symlink into one.
           backupFileExtension = nixpkgs.lib.mkDefault "hm-bak";
           users.${username} = {
-            imports = [ ./ioshi/i-intelligence ];
+            imports = [ ./home ];
             # The distribution tracks nixpkgs unstable; consumers pin their own
             # stateVersion in personal config if they need a different one.
             home.stateVersion = nixpkgs.lib.mkDefault "26.05";
@@ -123,7 +123,7 @@
         # the rest. What is offered instead is the compositor as a named
         # module, so a host that wants a graphical session imports it
         # explicitly rather than inheriting it from a role it did not choose.
-        ewm = import ./ioshi/i-intelligence/ewm.nix;
+        ewm = import ./modules/ewm.nix;
         installer = import ./installer/iso.nix;
       };
 
@@ -172,7 +172,7 @@
       #
       # nix flake check otherwise touches almost nothing here: it does not
       # reach lib.mkHost, the role profiles, or any of the Home Manager
-      # modules under ioshi/i-intelligence/, so a broken option or a renamed
+      # modules under home/, so a broken option or a renamed
       # upstream setting stays green until a CONSUMER's rebuild trips over
       # it. Each check below composes a throwaway host through the real
       # mkHost and forces its toplevel, which drags in the role profile, the

@@ -13,7 +13,7 @@
 # the distribution depend on one consumer's taste in agents.
 { pkgs, ... }:
 let
-  wrappers = import ./agent-acp/wrappers.nix { inherit pkgs; };
+  wrappers = import ../agent-acp/wrappers.nix { inherit pkgs; };
 in
 {
   home.packages = [

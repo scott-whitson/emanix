@@ -12,12 +12,12 @@
 # prints the preflight checklist and exits without touching anything.
 #
 # Automates: preflight -> disko -> inject host key -> nixos-install
-# -> set password -> reboot. Full context: docs/ioshi/emanix-install.md.
+# -> set password -> reboot.
 # Spec: docs/superpowers/specs/2026-08-15-emanix-installer-iso-design.md
 set -euo pipefail
 
 # Same figlet `slant' art as the scratch buffer's banner
-# (ioshi/i-intelligence/emacs/config.el) so the installer and the desktop
+# (emacs/config.el) so the installer and the desktop
 # introduce themselves with one face. Pasted, not shelled out: figlet is not on
 # the ISO and this must not depend on it. Regenerate with:
 #   nix run nixpkgs#figlet -- -f slant Emanix
@@ -723,7 +723,7 @@ fi
 # display and the confirmation text.
 #
 # Ask the FLAKE, not a file. This grepped a per-host disko layout file under
-# $REPO/ioshi/hi-hardware/disko/ (named after $FLAKE_HOST) until 2026-09-05,
+# $REPO/modules/disko/ (named after $FLAKE_HOST) until 2026-09-05,
 # when a consuming repo moved its layout inline and the grep silently started
 # returning nothing -- `|| true` swallowed it, $declared went empty, and the
 # mismatch branch became unreachable. A consumer's file layout is not this

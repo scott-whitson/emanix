@@ -16,7 +16,7 @@ _:
   # grub device would only add a second, contradictory loader.
   boot.loader.grub.enable = false;
 
-  # Per-host in a real deployment (see ioshi/os-system/base.nix); pinned here
+  # Per-host in a real deployment (see modules/base.nix); pinned here
   # only so the assertion is satisfied.
   system.stateVersion = "26.05";
 }

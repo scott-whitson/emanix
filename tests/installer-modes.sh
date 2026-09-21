@@ -255,7 +255,7 @@ done
 # cross-check that reconciles the two MUST read the flake, not a file path that
 # a consuming repo is free to move (it already did, on 2026-09-05, which is how
 # this was found).
-if grep -q 'ioshi/hi-hardware/disko/\$FLAKE_HOST\.nix' "$SCRIPT"; then
+if grep -q 'modules/disko/\$FLAKE_HOST\.nix' "$SCRIPT"; then
   echo "FAIL cross-check still greps a hardcoded consumer file path"
   fails=$((fails + 1))
 else

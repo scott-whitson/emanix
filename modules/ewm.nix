@@ -54,8 +54,8 @@ let
     name = "ewm-patched";
     src = ewm;
     patches = [
-      ../../patches/ewm-keysym-hex.patch
-      ../../patches/ewm-intercept-type.patch
+      ../patches/ewm-keysym-hex.patch
+      ../patches/ewm-intercept-type.patch
     ];
   };
 
@@ -65,7 +65,7 @@ let
     emacsPackage = pkgs.emacs-pgtk;
   };
 
-  emacsPkgs = import ./emacs/packages.nix { inherit pkgs; };
+  emacsPkgs = import ../emacs/packages.nix { inherit pkgs; };
   # The EWM variant of the emanix Emacs: the shared build (emacs/packages.nix,
   # which owns the package set) plus EWM's own package. The non-EWM variant is
   # emacs-daemon.nix, which calls the same builder with no extras — so "sole
