@@ -8,6 +8,11 @@ keybindings, theming, installation, and every `emanix.*` option. This README is
 the contract for consuming the flake. Dated design records live in
 [`docs/`](docs/) and are history, not instructions.
 
+[`WALKTHROUGH.md`](WALKTHROUGH.md) explains the whole distribution one time, in
+Simplified Technical English — the two tiers, how `mkHost` composes a machine,
+the theme system, the installer, the checks, and what the distribution does not
+own. Read it before the reference below.
+
 The claim the distribution makes is narrow and testable: **any Emanix machine
 can be rebuilt from the configuration alone. If it is not in the flake, it does
 not exist.**
