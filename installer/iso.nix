@@ -52,9 +52,27 @@ let
     path = cfg.keysDir;
   };
 
-  # Private halves present in keysDir (a .pub alone is not an identity).
+  # A tailnet preauthkey, when the keys dir carries one. It rides with the host
+  # keys because it is the same kind of thing — a credential that lets a fresh
+  # machine identify itself — and because it is the ONE credential a fresh
+  # machine cannot obtain for itself: the coordination server is unreachable
+  # until the join succeeds, and the machine has no key with which to reach a
+  # machine that could mint one.
+  #
+  # Named by convention rather than by option: one file,
+  # `tailscale-preauthkey`, in the same directory. Use a REUSABLE key with a
+  # long expiry. A short-lived one expires before the ISO is used, which is
+  # worse than no key at all, because it fails at the moment of need and looks
+  # like the staged key was ignored.
+  preauthKeyName = "tailscale-preauthkey";
+  hasPreauthKey =
+    hasKeys && builtins.pathExists (cfg.keysDir + "/${preauthKeyName}");
+
+  # Private halves present in keysDir (a .pub alone is not an identity). The
+  # preauthkey is excluded: it is not a host key, and counting it would satisfy
+  # the assertion below on a keys dir that carries no identity at all.
   privateHalves =
-    lib.filter (n: !lib.hasSuffix ".pub" n)
+    lib.filter (n: !lib.hasSuffix ".pub" n && n != preauthKeyName)
       (lib.attrNames (builtins.readDir cfg.keysDir));
 
   # disko from the flake input when exposed, else nixpkgs' package — either
@@ -110,11 +128,22 @@ in
     environment.etc =
       { "emanix/flake".source = stagedRepo; }
       // lib.optionalAttrs hasKeys { "emanix/keys".source = stagedKeys; }
+      // lib.optionalAttrs hasPreauthKey {
+        # Read by the consuming flake's emanix-firstboot, which then joins the
+        # tailnet without prompting. Only the consumer's firstboot knows to
+        # look here — the distribution ships no tailnet join of its own.
+        "emanix/tailscale-authkey".source = builtins.path {
+          name = "tailscale-preauthkey";
+          path = cfg.keysDir + "/${preauthKeyName}";
+        };
+      }
       // {
         "issue".text = ''
           ══ emanix installer ════════════════════════════════════════════
             flake : /etc/emanix/flake
             keys  : /etc/emanix/keys (only when a customized ISO carried them)
+            tailnet: /etc/emanix/tailscale-authkey (only when the keys dir
+                     carried a reusable preauthkey)
             install a host:  sudo fresh-emanix-install <host> [--disk /dev/X]
             check only:      sudo fresh-emanix-install <host> --check-only
             remote access:   boot with live.nixos.passwd=<pw> on the kernel
