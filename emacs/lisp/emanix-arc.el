@@ -13,7 +13,7 @@
 ;;      paths that exist on no machine here.  The config corpus was
 ;;      therefore never indexed for six weeks and nothing ever said so:
 ;;      elisa answered from the Emacs manuals alone and looked fine doing
-;;      it.  Every path below is derived from $HOME, and checks/arc-paths.nix
+;;      it.  Every path below is derived from $HOME, and checks/arc-glue.nix
 ;;      fails the build if one of them stops existing.
 ;;
 ;;   2. arc's own upstream defaults still name the collection, and its
@@ -154,33 +154,42 @@ catches up, but make the distro-owned command the only binding target."
       (arc-search-show prompt)
     (emanix/arc-ask prompt)))
 
-(defun emanix/arc--scoped-search (prompt collections fallback)
-  "Search PROMPT in COLLECTIONS, or invoke FALLBACK when unavailable.
-A partial new ARC surface must never silently broaden a scoped request to the
-whole corpus, so the retrieval path requires both `arc-search-show' and
-`arc-scope' before it is selected."
-  (if (and (fboundp 'arc-search-show)
-           (fboundp 'arc-scope)
-           collections)
-      (arc-search-show prompt (arc-scope :collections collections))
-    (if (fboundp fallback)
-        (funcall fallback prompt)
-      (user-error "arc: scoped retrieval is unavailable"))))
+(defun emanix/arc--scope-preset (name)
+  "Return the ARC scope preset NAME, or nil when it is unavailable.
+The presets are the current scoped-retrieval surface. They replaced the
+per-concern collection variables (`arc-vault-collections',
+`arc-option-collections') that the old answer commands read, so a preset is
+the only way to scope a search on the pinned ARC. `arc.el' requires
+`arc-scope', so both the variable and the constructor are present whenever
+arc itself is."
+  (and (boundp 'arc-scope-presets)
+       (alist-get name arc-scope-presets nil nil #'equal)))
+
+(defun emanix/arc--scoped-search (prompt scope fallback)
+  "Search PROMPT in SCOPE, or invoke FALLBACK when neither is available.
+SCOPE is an arc scope plist or nil. A partial new ARC surface must never
+silently broaden a scoped request to the whole corpus, so a nil scope is an
+error rather than an unscoped search."
+  (cond
+   ((and (fboundp 'arc-search-show) scope)
+    (arc-search-show prompt scope))
+   ((fboundp fallback)
+    (funcall fallback prompt))
+   (t
+    (user-error "arc: scoped retrieval is unavailable"))))
 
 (defun emanix/arc-search-vault (prompt)
-  "Search the vault, with the pinned ARC answer fallback."
+  "Search the org-roam vault, with the pinned ARC answer fallback."
   (interactive "sarc vault> ")
   (emanix/arc--scoped-search prompt
-                             (and (boundp 'arc-vault-collections)
-                                  arc-vault-collections)
+                             (emanix/arc--scope-preset "vault")
                              #'arc-ask-vault))
 
 (defun emanix/arc-search-options (prompt)
   "Search NixOS and Home Manager options, with the pinned ARC fallback."
   (interactive "sarc options> ")
   (emanix/arc--scoped-search prompt
-                             (and (boundp 'arc-option-collections)
-                                  arc-option-collections)
+                             (emanix/arc--scope-preset "options")
                              #'arc-ask-options))
 
 (defun emanix/arc-reindex ()
