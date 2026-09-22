@@ -701,10 +701,15 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 ;; Prose rendering — markdown and org files read as documents, not source.
 ;; C-c z toggles back to raw monospace for heavy editing. Chosen 2026-08-17;
 ;; C-c a/b/c/d/e/f/i/m/n/o/q/t were already taken.
+;; C-c + / C-c - / C-c 0 magnify the document: Emacs's text scaling, which is
+;; per buffer, so a second document keeps its own size.
 (when (fboundp 'emanix-prose-mode)
   (add-hook 'markdown-mode-hook #'emanix-prose-mode)
   (add-hook 'org-mode-hook #'emanix-prose-mode)
-  (global-set-key (kbd "C-c z") #'emanix-prose-toggle))
+  (global-set-key (kbd "C-c z") #'emanix-prose-toggle)
+  (global-set-key (kbd "C-c +") #'emanix-prose-increase-magnification)
+  (global-set-key (kbd "C-c -") #'emanix-prose-decrease-magnification)
+  (global-set-key (kbd "C-c 0") #'emanix-prose-reset-magnification))
 ;; Web languages — Jinja2 templates, HTML and CSS. Jinja2 here is all plain
 ;; .html under templates/ dirs, so emanix-web.el picks the mode on path.
 ;; Format-on-save is gated on the repo declaring its own djlint/prettier

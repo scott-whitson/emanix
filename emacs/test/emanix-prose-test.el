@@ -297,5 +297,119 @@ without them the mode must still work and this test must not fail."
     (should (not (bound-and-true-p org-modern-mode)))
     (should (not (bound-and-true-p org-appear-mode)))))
 
+
+;; --- Drawn markdown tables --------------------------------------------------
+
+(ert-deftest emanix-prose-draws-a-markdown-table-as-a-box ()
+  "A table line is display-replaced by a drawn row, not left as source."
+  (emanix-prose-test--with-md "| Name | Type |\n| --- | --- |\n| rafik | T14 |\n"
+    (goto-char (point-min))
+    (let ((header (get-text-property (point) 'display)))
+      (should (stringp header))
+      (should (string-match-p "┌" header))
+      (should (string-match-p "│" header))
+      (should (string-match-p "Name" header)))
+    (forward-line 1)
+    (should (string-match-p "├" (get-text-property (point) 'display)))
+    (forward-line 1)
+    (should (string-match-p "└" (get-text-property (point) 'display)))))
+
+(ert-deftest emanix-prose-table-columns-align-despite-ragged-source ()
+  "Every drawn line of a ragged source table has one width.
+The source is deliberately not aligned; the renderer owns the geometry."
+  (emanix-prose-test--with-md "| A | Bee |\n| --- | --- |\n| longvalue | x |\n"
+    (let (widths)
+      (goto-char (point-min))
+      (dotimes (_ 3)
+        (let ((d (get-text-property (point) 'display)))
+          (when (stringp d)
+            (dolist (line (split-string d "\n"))
+              (unless (string-empty-p line)
+                (push (string-width line) widths)))))
+        (forward-line 1))
+      (should (> (length widths) 0))
+      (should (apply #'= widths)))))
+
+(ert-deftest emanix-prose-table-honours-column-alignment ()
+  "A right-aligned column pads on the left, and a clear one on the right."
+  (emanix-prose-test--with-md "| Item | Qty |\n| --- | ---: |\n| bolts | 12 |\n"
+    (goto-char (point-max))
+    (forward-line -1)
+    (let ((row (get-text-property (point) 'display)))
+      (should (string-match-p "  12 " row))
+      (should (string-match-p " bolts " row)))))
+
+(ert-deftest emanix-prose-table-cells-hide-inline-markup ()
+  "A code span inside a cell is drawn without its backticks."
+  (emanix-prose-test--with-md "| Path |\n| --- |\n| `~/dotfiles` |\n"
+    (goto-char (point-max))
+    (forward-line -1)
+    (let ((row (get-text-property (point) 'display)))
+      (should (string-match-p "~/dotfiles" row))
+      (should-not (string-match-p "`" row)))))
+
+(ert-deftest emanix-prose-draws-a-bottom-border-without-data-rows ()
+  "A table of only a header and a delimiter still closes its box."
+  (emanix-prose-test--with-md "| H |\n| --- |\n"
+    (goto-char (point-min))
+    (forward-line 1)
+    (let ((rule (get-text-property (point) 'display)))
+      (should (string-match-p "├" rule))
+      (should (string-match-p "└" rule)))))
+
+(ert-deftest emanix-prose-leaves-a-lone-pipe-line-alone ()
+  "A pipe line with no delimiter row is not a table and is not drawn."
+  (emanix-prose-test--with-md "| just prose\n"
+    (goto-char (point-min))
+    (should (null (get-text-property (point) 'display)))))
+
+(ert-deftest emanix-prose-removes-drawn-tables-on-disable ()
+  "Disabling the mode leaves no drawn table behind."
+  (emanix-prose-test--with-md "| A | B |\n| --- | --- |\n| 1 | 2 |\n"
+    (goto-char (point-min))
+    (should (stringp (get-text-property (point) 'display)))
+    (emanix-prose-mode -1)
+    (font-lock-ensure)
+    (goto-char (point-min))
+    (should (null (get-text-property (point) 'display)))))
+
+(ert-deftest emanix-prose-reveals-a-drawn-table-line ()
+  "Point on a drawn table line shows its source; leaving redraws the box."
+  (emanix-prose-test--with-md "Text\n\n| A |\n| --- |\n| 1 |\n"
+    (goto-char (point-min))
+    (search-forward "| A |")
+    (beginning-of-line)
+    (should (stringp (get-text-property (point) 'display)))
+    (emanix-prose--reveal-at-point)
+    (should (null (get-text-property (point) 'display)))
+    (emanix-prose--rehide)
+    (font-lock-ensure)
+    (goto-char (point-min))
+    (search-forward "| A |")
+    (beginning-of-line)
+    (should (stringp (get-text-property (point) 'display)))))
+
+;; --- Magnification ----------------------------------------------------------
+
+(ert-deftest emanix-prose-magnification-round-trip ()
+  "Increase, decrease and reset move the buffer's text scale."
+  (with-temp-buffer
+    (markdown-mode)
+    (emanix-prose-mode 1)
+    (emanix-prose-increase-magnification)
+    (should (> text-scale-mode-amount 0))
+    (emanix-prose-increase-magnification 2)
+    (should (= text-scale-mode-amount 3))
+    (emanix-prose-decrease-magnification)
+    (should (= text-scale-mode-amount 2))
+    (emanix-prose-reset-magnification)
+    (should (= text-scale-mode-amount 0))))
+
+(ert-deftest emanix-prose-magnification-commands-show-a-document ()
+  "The magnification commands are interactive, so the keys can call them."
+  (should (commandp #'emanix-prose-increase-magnification))
+  (should (commandp #'emanix-prose-decrease-magnification))
+  (should (commandp #'emanix-prose-reset-magnification)))
+
 (provide 'emanix-prose-test)
 ;;; emanix-prose-test.el ends here

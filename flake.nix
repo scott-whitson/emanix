@@ -270,6 +270,14 @@
             pkgs = pkgs.extend emacs-overlay.overlays.default;
           };
 
+          # The prose renderer's unit tests, including the drawn markdown
+          # table and document magnification. See checks/prose.nix. Like
+          # agent-shell-api, it reads emacs package internals, so it needs the
+          # overlay-extended pkgs rather than bare nixpkgs.
+          prose = import ./checks/prose.nix {
+            pkgs = pkgs.extend emacs-overlay.overlays.default;
+          };
+
           palette-contrast = pkgs.runCommand "emanix-palette-contrast" { } ''
             ${pkgs.python3}/bin/python3 ${./tests/contrast-check.py} < ${palettesJson} > $out
           '';

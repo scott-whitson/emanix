@@ -23,6 +23,11 @@
 (declare-function emanix/theme-palette-color "emanix-theme" (key))
 (declare-function markdown-toggle-markup-hiding "markdown-mode" (&optional arg))
 (declare-function markdown-display-inline-images "markdown-mode" ())
+(declare-function markdown-table-at-point-p "markdown-mode" ())
+(declare-function markdown-table-begin "markdown-mode" ())
+(declare-function markdown-table-end "markdown-mode" ())
+(declare-function markdown-table-colfmt "markdown-mode" (fmtspec))
+(declare-function markdown--remove-invisible-markup "markdown-mode" (s))
 (declare-function visual-fill-column-mode "visual-fill-column" (&optional arg))
 (declare-function org-modern-mode "org-modern" (&optional arg))
 (declare-function org-appear-mode "org-appear" (&optional arg))
@@ -165,7 +170,13 @@ bookkeeping with it.")
     (unless (equal emanix-prose--revealed (cons beg end))
       (emanix-prose--rehide)
       (with-silent-modifications
-        (remove-text-properties beg end '(invisible nil)))
+        (remove-text-properties beg end '(invisible nil))
+        ;; A drawn table line is display-replaced whole.  Reveal it with the
+        ;; rest of the markup so the source under point stays readable and
+        ;; editable; `emanix-prose--rehide' refontifies the box back.
+        (when (and (derived-mode-p 'markdown-mode)
+                   (markdown-table-at-point-p))
+          (remove-text-properties beg end '(display nil))))
       (setq emanix-prose--revealed (cons beg end)))))
 
 ;; --- Reading column, bullets, images --------------------------------------
@@ -190,6 +201,201 @@ so group 1 is the marker character."
   "Font-lock keywords displaying unordered list markers as a bullet.
 Ordered lists are untouched — a numbered list carries information a
 bullet would throw away — and so are thematic breaks, see the matcher.")
+
+;; --- Markdown tables drawn as boxes ---------------------------------------
+;;
+;; markdown-mode fontifies a table but never renders one: the reader sees the
+;; `|' source, and a hand-written table need not even be aligned (the tables
+;; in this repository's WALKTHROUGH.md are not).  Org gets boxes from
+;; org-modern; markdown must get them from us, or the two prose branches read
+;; differently.  A table line's display is replaced by the same grid the
+;; source encodes: cells padded to one width per column, box sides, a rule
+;; under the header, and drawn corners.
+;;
+;; Geometry is per table, not per line, because the source cannot be trusted to
+;; be aligned.  Rendered strings are cached and keyed on the buffer's
+;; modification tick, so a font-lock pass over a table computes the widths
+;; once.  Cells are split on an unescaped `|'; a table that needs a literal
+;; pipe inside a code span must escape it, which is the GFM rule anyway.
+
+(defvar-local emanix-prose--table-cache-tick nil
+  "`buffer-chars-modified-tick' the table cache was built at.")
+
+(defvar-local emanix-prose--table-cache nil
+  "Alist of (TABLE-BEGIN (LINE-BEGIN . DISPLAY-STRING) ...) ...")
+
+(defun emanix-prose--table-line-cells ()
+  "Return the cell strings of the table line at point.
+Each cell has its hidden markup removed and its surrounding whitespace
+trimmed.  An escaped pipe (`\\|') stays inside its cell."
+  (let ((bol (line-beginning-position))
+        (eol (line-end-position))
+        (start nil)
+        cells)
+    (save-excursion
+      (goto-char bol)
+      (skip-chars-forward " \t")
+      (when (looking-at-p "|")
+        (forward-char 1))
+      (setq start (point))
+      (while (re-search-forward "|" eol t)
+        (unless (eq (char-before (1- (point))) ?\\)
+          (push (buffer-substring start (1- (point))) cells)
+          (setq start (point))))
+      (push (buffer-substring start eol) cells))
+    (setq cells (nreverse cells))
+    ;; An optional trailing pipe contributes one empty cell; drop it.
+    (when (and cells (string-empty-p (string-trim (car (last cells)))))
+      (setq cells (butlast cells)))
+    (mapcar (lambda (cell)
+              (let ((s (markdown--remove-invisible-markup
+                        (string-trim (replace-regexp-in-string "\\\\|" "|" cell)))))
+                ;; Keep the cell's face, drop anything that would render (or
+                ;; hide) inside the drawn row: markdown's alignment spaces and
+                ;; our own display property from an earlier font-lock pass.
+                (remove-text-properties 0 (length s) '(display nil invisible nil) s)
+                s))
+            cells)))
+
+(defun emanix-prose--table-metrics (begin end)
+  "Return (WIDTHS ALIGNS ROWS) for the table in [BEGIN,END].
+WIDTHS is one width per column; ALIGNS the delimiter row's specifiers
+\(`l', `r', `c' or `d'); ROWS the cell lists of every non-delimiter line,
+in order.  ALIGNS is nil when the table has no delimiter row."
+  (let (rows aligns)
+    (save-excursion
+      (goto-char begin)
+      (while (< (point) end)
+        (let ((line (buffer-substring (line-beginning-position)
+                                      (line-end-position))))
+          (if (markdown--is-delimiter-row line)
+              (unless aligns (setq aligns (markdown-table-colfmt line)))
+            (push (emanix-prose--table-line-cells) rows)))
+        (forward-line 1)))
+    (setq rows (nreverse rows))
+    (let* ((ncols (apply #'max 1 (mapcar #'length rows)))
+           (widths (make-list ncols 1)))
+      (dolist (row rows)
+        (dotimes (i ncols)
+          (let ((w (string-width (or (nth i row) ""))))
+            (when (> w (nth i widths))
+              (setcar (nthcdr i widths) w)))))
+      (list widths aligns rows))))
+
+(defun emanix-prose--table-pad (string width align)
+  "Return STRING padded to WIDTH according to ALIGN."
+  (let ((pad (- width (string-width string))))
+    (cond
+     ((<= pad 0) string)
+     ((eq align 'r) (concat (make-string pad ?\s) string))
+     ((eq align 'c) (concat (make-string (/ pad 2) ?\s) string
+                            (make-string (- pad (/ pad 2)) ?\s)))
+     (t (concat string (make-string pad ?\s))))))
+
+(defun emanix-prose--table-draw (string)
+  "Give STRING the table's monospace face and return it."
+  (add-face-text-property 0 (length string) 'markdown-table-face nil string)
+  string)
+
+(defun emanix-prose--table-row-string (cells widths aligns)
+  "Render one body row of a table as a line of box drawing."
+  (emanix-prose--table-draw
+   (concat
+    "│"
+    (mapconcat
+     (lambda (i)
+       (concat " "
+               (emanix-prose--table-pad (or (nth i cells) "")
+                                        (nth i widths)
+                                        (or (nth i aligns) 'l))
+               " "))
+     (number-sequence 0 (1- (length widths)))
+     "│")
+    "│")))
+
+(defun emanix-prose--table-rule (widths left middle right)
+  "Render a horizontal rule spanning WIDTHS with the given corners."
+  (emanix-prose--table-draw
+   (concat left
+           (mapconcat (lambda (w) (make-string (+ w 2) ?─)) widths middle)
+           right)))
+
+(defun emanix-prose--table-render (begin end)
+  "Return an alist (LINE-BEGIN . DISPLAY-STRING) for the table in [BEGIN,END].
+Nil when the block has no delimiter row and is therefore not a table."
+  (let* ((metrics (emanix-prose--table-metrics begin end))
+         (widths (nth 0 metrics))
+         (aligns (nth 1 metrics))
+         (top (emanix-prose--table-rule widths "┌" "┬" "┐"))
+         (rule (emanix-prose--table-rule widths "├" "┼" "┤"))
+         (bottom (emanix-prose--table-rule widths "└" "┴" "┘")))
+    (when aligns
+      (let (entries)
+        (save-excursion
+          (goto-char begin)
+          (while (< (point) end)
+            (let* ((b (line-beginning-position))
+                   (line (buffer-substring b (line-end-position)))
+                   (delim (markdown--is-delimiter-row line)))
+              (push (cons b (if delim 'delim 'data)) entries))
+            (forward-line 1)))
+        (setq entries (nreverse entries))
+        (let ((result nil)
+              (last-line (car (car (last entries))))
+              (header-p t))
+          (dolist (entry entries)
+            (let ((b (car entry)))
+              (if (eq (cdr entry) 'delim)
+                  (push (cons b (if (equal b last-line)
+                                    (concat rule "\n" bottom)
+                                  rule))
+                        result)
+                (let* ((cells (save-excursion
+                                (goto-char b)
+                                (emanix-prose--table-line-cells)))
+                       (row (emanix-prose--table-row-string cells widths aligns))
+                       (text (cond (header-p (concat top "\n" row))
+                                   ((equal b last-line) (concat row "\n" bottom))
+                                   (t row))))
+                  (push (cons b text) result)
+                  (setq header-p nil)))))
+          (nreverse result))))))
+
+(defun emanix-prose--table-lines (begin)
+  "Return the rendered lines for the table at BEGIN, from the cache."
+  (let ((tick (buffer-chars-modified-tick)))
+    (unless (eq tick emanix-prose--table-cache-tick)
+      (setq emanix-prose--table-cache-tick tick
+            emanix-prose--table-cache nil))
+    (or (cdr (assq begin emanix-prose--table-cache))
+        (let* ((end (save-excursion (goto-char begin) (markdown-table-end)))
+               (rendered (emanix-prose--table-render begin end)))
+          (push (cons begin rendered) emanix-prose--table-cache)
+          rendered))))
+
+(defun emanix-prose--table-display ()
+  "Replace the table line under the current match with a drawn row.
+A font-lock function: it sets the `display' property itself, like
+org-modern's table renderer, and returns nil."
+  (when (derived-mode-p 'markdown-mode)
+    (let* ((bol (save-excursion (goto-char (match-beginning 0))
+                                (line-beginning-position)))
+           (begin (save-excursion (goto-char bol) (markdown-table-begin)))
+           (entry (assq bol (emanix-prose--table-lines begin))))
+      (when entry
+        (put-text-property bol (line-end-position) 'display (cdr entry))))))
+
+(defun emanix-prose--match-table-line (limit)
+  "Font-lock matcher for a line inside a markdown table, searching to LIMIT."
+  (when (re-search-forward "^[ \t]*|" limit t)
+    (when (save-excursion
+            (goto-char (match-beginning 0))
+            (markdown-table-at-point-p))
+      t)))
+
+(defconst emanix-prose--table-keywords
+  '((emanix-prose--match-table-line (0 (emanix-prose--table-display))))
+  "Font-lock keywords drawing a markdown table as a box.")
 
 (defun emanix-prose--buffer-has-images-p ()
   "Non-nil if the buffer contains a markdown image link."
@@ -247,6 +453,8 @@ bullet would throw away — and so are thematic breaks, see the matcher.")
                       (cons 'display font-lock-extra-managed-props))
           (setq emanix-prose--added-display-prop t))
         (font-lock-add-keywords nil emanix-prose--bullet-keywords t)
+        (when (derived-mode-p 'markdown-mode)
+          (font-lock-add-keywords nil emanix-prose--table-keywords t))
         (when (and (derived-mode-p 'markdown-mode)
                    (emanix-prose--buffer-has-images-p)
                    (fboundp 'markdown-display-inline-images))
@@ -269,6 +477,9 @@ bullet would throw away — and so are thematic breaks, see the matcher.")
       (when (fboundp 'org-modern-mode) (org-modern-mode -1))
       (when (fboundp 'org-appear-mode) (org-appear-mode -1)))
     (font-lock-remove-keywords nil emanix-prose--bullet-keywords)
+    (when (derived-mode-p 'markdown-mode)
+      (font-lock-remove-keywords nil emanix-prose--table-keywords))
+    (setq emanix-prose--table-cache nil)
     (emanix-prose--teardown-column)
     (kill-local-variable 'markdown-max-image-size)
     (font-lock-flush)
@@ -287,6 +498,32 @@ bullet would throw away — and so are thematic breaks, see the matcher.")
   "Toggle `emanix-prose-mode' in the current buffer."
   (interactive)
   (emanix-prose-mode (if emanix-prose-mode -1 1)))
+
+;; --- Magnification ---------------------------------------------------------
+;;
+;; The reading column is fixed and the heading scales are fixed, so a reader
+;; who needs larger type had no way to enlarge the document.  These wrap
+;; Emacs's own text scaling, which remaps the default face in the buffer:
+;; every face built on it (body, headings, code, drawn tables) grows together,
+;; and the setting is per buffer, so no other document changes.
+
+;;;###autoload
+(defun emanix-prose-increase-magnification (&optional n)
+  "Enlarge the current document N steps (default 1, or the prefix argument)."
+  (interactive "p")
+  (text-scale-increase (or n 1)))
+
+;;;###autoload
+(defun emanix-prose-decrease-magnification (&optional n)
+  "Shrink the current document N steps (default 1, or the prefix argument)."
+  (interactive "p")
+  (text-scale-decrease (or n 1)))
+
+;;;###autoload
+(defun emanix-prose-reset-magnification ()
+  "Return the current document to its default size."
+  (interactive)
+  (text-scale-set 0))
 
 (provide 'emanix-prose)
 ;;; emanix-prose.el ends here
