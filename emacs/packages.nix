@@ -57,8 +57,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "scott-whitson";
         repo = "arc";
-        rev = "f19fcb7";
-        hash = "sha256-chNtx+mxJ1ncw88Gdha4s0TuuEBxHu1/1FwqkkUBHN8=";
+        rev = "4e31666";
+        hash = "sha256-Qg5We0VSbXKJRBVPrhaEhxYmr+53FQCLWz+rYg0bHgM=";
       };
       # arc.el's own Package-Requires, exactly: llm, async, plz, transient.
       # ARC is retrieval/tooling now; the calling agent owns prose generation.
