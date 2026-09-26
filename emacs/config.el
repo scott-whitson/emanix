@@ -473,6 +473,12 @@ path-specific groups from the personal layer.")
 (dirvish-override-dired-mode 1)
 (setq dired-listing-switches "-alh --group-directories-first"
       dired-dwim-target t)
+;; Dirvish hides the `ls' detail columns (dirvish-hide-details defaults to t)
+;; and draws its own attributes at the right fringe instead.  Its default is
+;; just `(file-size)', which is why only the size shows.  Render the
+;; modification time before the size; drop `file-size' below to show only time.
+(setq dirvish-attributes '(file-time file-size)
+      dirvish-time-format-string "%Y-%m-%d %H:%M")
 (global-set-key (kbd "C-c d") #'dirvish)
 
 ;; --- Git ---
