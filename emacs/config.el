@@ -31,6 +31,8 @@
   (declare-function org-roam-node-find "org-roam")
   (declare-function org-roam-node-insert "org-roam")
   (declare-function org-roam-db-autosync-mode "org-roam")
+  (declare-function org-roam-db-sync "org-roam-db")
+  (declare-function org-roam-id-find "org-roam-id")
   (declare-function winner-undo "winner")
   (declare-function winner-redo "winner")
   (declare-function ace-window "ace-window")
@@ -579,7 +581,107 @@ path-specific groups from the personal layer.")
   (org-roam-db-autosync-mode 1)
   (global-set-key (kbd "C-c n f") #'org-roam-node-find)
   (global-set-key (kbd "C-c n i") #'org-roam-node-insert)
-  (global-set-key (kbd "C-c n c") #'org-roam-capture))
+  (global-set-key (kbd "C-c n c") #'org-roam-capture)
+
+  ;; --- db freshness: this org-roam has NO file watcher ---
+  ;;
+  ;; `org-roam-db-autosync-mode' (org-roam-db.el, 20260425.1623) indexes
+  ;; through exactly four paths: a `find-file-hook' that indexes the file you
+  ;; visit, an `after-save-hook' on buffers that already visited one, advice on
+  ;; `rename-file'/`delete-file', and ONE full `org-roam-db-sync' at mode
+  ;; enable -- i.e. at daemon start. There is no watcher anywhere in the
+  ;; package: grep add-watch/file-notify across the installed org-roam and you
+  ;; get zero hits. A .org file created by anything that is not Emacs --
+  ;; Syncthing, a script, an agent writing into ~/docs/org -- therefore stays
+  ;; invisible to the db until something visits it, and the daemon runs for
+  ;; weeks, so the gap only widens.
+  ;;
+  ;; Observed 2026-09-28: six externally-created files were missing from
+  ;; org-roam.db (spirituality/Pocket Buddhism.org, spirituality/Pocket Zen.org,
+  ;; Zurvan Akarana.org, three under websites/emanix/pages/docs/) and one stale
+  ;; row had survived an external rename. The symptom is not a node missing
+  ;; from the graph, it is a frozen Emacs: org-roam-id.el puts
+  ;; `org-roam-id-find' on `org-id-find' as :before-until advice, so a miss
+  ;; falls through to plain org-id, which finds no `org-id-locations' file on
+  ;; this host and walks the vault hunting the uuid. Every [[id:...]] link to
+  ;; an unindexed file hung behind a spinning cursor.
+  ;;
+  ;; Two triggers, because there are two failure modes with different
+  ;; latencies.
+  ;;
+  ;;   1. A lookup that MISSES syncs once and retries. `org-id-find' is the
+  ;;      only place the staleness becomes visible to a user, and this is what
+  ;;      makes a dead link repair itself. Cooldown-gated so a genuinely bogus
+  ;;      id cannot buy a full vault sync on every click. The timestamp is
+  ;;      stamped BEFORE the sync so a nested lookup inside `org-roam-db-sync'
+  ;;      sees the cooldown and cannot recurse.
+  ;;   2. An idle sweep catches what no lookup reaches: external edits to
+  ;;      already-indexed files (stale titles and headlines), and external
+  ;;      deletes (ghost nodes `org-roam-node-find' keeps offering). Idle
+  ;;      rather than wall-clock so it never competes with typing, and 30 min
+  ;;      because the sweep re-hashes every file in the tree to find changes.
+  ;;
+  ;; A cheap mtime pre-check was considered and rejected: a wrong comparison
+  ;; fails by NEVER syncing, which is the exact bug this section exists to fix.
+  ;; The sweep is affordable because it runs at idle and only files whose hash
+  ;; moved are re-parsed. Re-evaluating this buffer must not stack a second
+  ;; timer, hence the cancel-then-set.
+  (defvar emanix/org-roam-miss-cooldown 60
+    "Seconds between miss-triggered `org-roam-db-sync' runs.")
+  (defvar emanix/org-roam--last-miss-sync 0
+    "`float-time' of the last miss-triggered sync.")
+  (defvar emanix/org-roam-idle-sync-timer nil
+    "The repeating idle sweep, so a re-eval replaces it rather than doubles it.")
+  (defvar emanix/org-roam-deferred-sync-timer nil
+    "A pending one-shot re-arming the idle sweep, tracked so re-eval cancels it.")
+
+  (defun emanix/org-roam-sync-on-miss-a (id &optional markerp)
+    "Resolve ID via the org-roam db, syncing once if the first try misses.
+The sync is fail-safe. `org-roam-db-sync' hashes every file in the tree
+outside any per-file error handler, so a file Syncthing or an agent deletes
+between the listing and the hash signals `file-missing'; unguarded that
+aborts whichever command called us -- `org-open-at-point' on the very
+[[id:...]] link this exists to repair. Fall through to the pre-existing slow
+path instead, and say why it is slow."
+    (or (org-roam-id-find id markerp)
+        (when (< (+ emanix/org-roam--last-miss-sync
+                    emanix/org-roam-miss-cooldown)
+                 (float-time))
+          (setq emanix/org-roam--last-miss-sync (float-time))
+          (condition-case err
+              (org-roam-db-sync)
+            (error (message "org-roam: sync after a missed id lookup failed: %s"
+                            (error-message-string err))))
+          (org-roam-id-find id markerp))))
+
+  (defun emanix/org-roam-idle-sync ()
+    "Sweep the org-roam db for changes made outside Emacs.
+Defers a short one-shot when input is pending, so a keystroke landing in the
+same idle pass as the sweep is not swallowed by a sub-second freeze."
+    (when (bound-and-true-p org-roam-db-autosync-mode)
+      (if (input-pending-p)
+          (progn
+            (when (timerp emanix/org-roam-deferred-sync-timer)
+              (cancel-timer emanix/org-roam-deferred-sync-timer))
+            (setq emanix/org-roam-deferred-sync-timer
+                  (run-with-idle-timer 120 nil #'emanix/org-roam-idle-sync)))
+        (org-roam-db-sync))))
+
+  ;; Re-evaluating this buffer is normal on a live desktop, so the timers are
+  ;; cancel-then-set. The deferred one-shot needs its OWN variable: folding
+  ;; both timers into one would orphan the repeating timer the first time a
+  ;; deferral overwrote it, and the cancel below would then kill only the
+  ;; one-shot while the orphan fired on -- a second sweep every 30 minutes,
+  ;; invisible. (`advice-add' needs no such guard: nadvice refuses an identical
+  ;; pair, so re-running the add leaves exactly one advice -- checked on
+  ;; Emacs 31.1, not assumed.)
+  (advice-add 'org-id-find :before-until #'emanix/org-roam-sync-on-miss-a)
+  (when (timerp emanix/org-roam-idle-sync-timer)
+    (cancel-timer emanix/org-roam-idle-sync-timer))
+  (when (timerp emanix/org-roam-deferred-sync-timer)
+    (cancel-timer emanix/org-roam-deferred-sync-timer))
+  (setq emanix/org-roam-idle-sync-timer
+        (run-with-idle-timer 1800 t #'emanix/org-roam-idle-sync)))
 (global-set-key (kbd "C-c a") #'org-agenda)
 
 ;; Release the org buffers the agenda opened for scanning.
