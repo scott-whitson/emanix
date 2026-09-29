@@ -13,6 +13,23 @@
     };
     ewm = {
       url = "https://codeberg.org/ezemtsov/ewm/archive/master.tar.gz";
+      # Followed like the rest, and it costs nothing to evaluation: modules/
+      # ewm.nix consumes this input as a PATH -- `imports = [ "${ewm}/nix/
+      # service.nix" ]' -- and nix/service.nix is a plain NixOS module taking
+      # { config, lib, pkgs, ... }, so it builds against the HOST's pkgs. No
+      # flake output of ewm is ever dereferenced, so ewm's own nixpkgs was
+      # unreachable rather than merely unused.
+      #
+      # Leaving it unfollowed still had a cost: it parked a SECOND nixpkgs in
+      # flake.lock, seven months stale (2026-02-17, rev 0182a361) while the
+      # ewm input itself was a day old. Zero occurrences of that rev in
+      # whistle's or rafik's closure confirmed it built nothing -- but it was
+      # a loaded gun. The first `ewm.packages.*' anyone reaches for would
+      # silently evaluate against February nixpkgs with no warning.
+      #
+      # dotfiles has carried this follows since the split; this is the distro
+      # catching up, so the two flakes agree on one nixpkgs.
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     disko = {
       url = "github:nix-community/disko";
