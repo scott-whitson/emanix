@@ -20,7 +20,6 @@ let
     , stateName # directory under XDG_DATA_HOME holding the payload
     , entry # the JS entry point, relative to the npm prefix
     , needs ? [ ] # executables the adapter itself spawns
-    , postInstall ? "" # optional payload patch/verification command
     }:
     let
       # ''${HOME:-}, not $HOME: `set -u' would otherwise abort on "unbound
@@ -65,12 +64,8 @@ let
         mkdir -p "$state"
         echo "Installing ${package} into $state" >&2
         ${pkgs.nodejs}/bin/npm install --global --prefix "$state" ${package}
-        ${postInstall}
       '';
     };
-
-  piAcpUsagePatch = pkgs.writeText "pi-acp-usage-patch.mjs"
-    (builtins.readFile ./pi-acp-usage-patch.mjs);
 
   claude = mkAcpAdapter {
     command = "claude-agent-acp";
@@ -95,7 +90,24 @@ let
     stateName = "pi-acp";
     entry = "lib/node_modules/pi-acp/dist/index.js";
     needs = [ "pi" ];
-    postInstall = "${pkgs.nodejs}/bin/node ${piAcpUsagePatch} \"$state/lib/node_modules/pi-acp/dist/index.js\"";
+    # No postInstall. There used to be one: pi-acp-usage-patch.mjs injected an
+    # `emitUsageUpdate' method and called it from the `agent_settled' case,
+    # because -- in its own words -- "older releases do not bridge that value
+    # into ACP". pi-acp 0.0.34 bridges it natively: `agent_settled' is now a
+    # one-line `void this.settleTurn()', and settleTurn opens with `await
+    # this.publishContextUsage()'. The patch's anchor is simply gone.
+    #
+    # That made `pi-acp-update' fail outright on every current release -- the
+    # patch threw "agent_settled anchor not found" and `set -eu' took the
+    # updater down with it, AFTER npm had already installed a perfectly good
+    # payload. Found on rafik 2026-09-29: a reinstall left ~/.local/share/
+    # pi-acp absent (it is imperative state, not nix's), the wrapper exited
+    # 127, and the repair command could not complete.
+    #
+    # Deleted rather than made tolerant. Keeping it would mean carrying a
+    # backfill for a feature upstream ships, gated on a version nobody
+    # installs -- a guard that can only ever take its false branch, which this
+    # tree already refuses elsewhere (see home/zsh.nix on fzf/zoxide/starship).
   };
 in
 {
