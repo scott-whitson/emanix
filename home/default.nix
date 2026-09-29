@@ -33,7 +33,6 @@
     ./mpv.nix
     ./yt-dlp.nix
     ./wireplumber.nix
-    ./zellij.nix
   ];
 
   # Give `home-manager` a CLI after the first bootstrap switch.

@@ -29,6 +29,9 @@ pkgs.runCommand "agent-shell-api" { } ''
     (require (quote agent-shell-anthropic))
     (require (quote agent-shell-pi))
     (dolist (sym (quote (agent-shell-subscribe-to
+                         ;; dotfiles scott-agents.el reads these two live.
+                         agent-shell-status
+                         agent-shell-buffers
                          agent-shell-submit
                          agent-shell-send-region
                          agent-shell-anthropic-start-claude-code
@@ -51,7 +54,11 @@ pkgs.runCommand "agent-shell-api" { } ''
     ;; the docstring of agent-shell-subscribe-to, so assert against that.
     (unless (string-match-p "tool-call-update"
                             (documentation (quote agent-shell-subscribe-to)))
-      (error "agent-shell no longer documents the tool-call-update event")))'
+      (error "agent-shell no longer documents the tool-call-update event"))
+    ;; dotfiles scott-agents.el (the waiting-signal) counts on these events.
+    (dolist (ev (quote ("turn-complete" "input-submitted" "clean-up")))
+      (unless (string-match-p ev (documentation (quote agent-shell-subscribe-to)))
+        (error "agent-shell no longer documents the %s event" ev))))'
 
   # The symbols above can all stay green while the payload SHAPE underneath
   # them changes -- a renamed key is not a renamed function. So read the actual

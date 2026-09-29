@@ -80,9 +80,8 @@
     # No notifications: libnotify was dropped 2026-08-08. There is no daemon to
     # receive them — mako went with the Hyprland stack and EWM implements no
     # org.freedesktop.Notifications service — so notify-send had nothing to talk
-    # to. Its two callers (the zellaude hook's Claude notification path and
-    # tools/stt/push-to-talk.sh) both guard on `command -v notify-send`, so they
-    # now skip cleanly rather than silently no-op. Reinstate libnotify AND a
+    # to. Its one remaining caller, tools/stt/push-to-talk.sh, guards on
+    # `command -v notify-send`, so it skips cleanly rather than silently no-op. Reinstate libnotify AND a
     # daemon together if desktop notifications are ever wanted back.
 
     # Terminal — config lives in ghostty.nix; the package (and its XDG

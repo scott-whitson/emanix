@@ -31,17 +31,14 @@
     root))
 
 (defun emanix-theme-test--make-home ()
-  "Return a temp HOME holding the ghostty and zellij sources a plan links.
-Both live outside the theme tree -- ghostty renders per-palette files
-into its own config dir, and zellij's two definitions are written by
-zellij.nix -- so a fixture that omits them makes every link assertion
-depend on whether the REAL home happens to have them."
+  "Return a temp HOME holding the ghostty sources a plan links.
+They live outside the theme tree -- ghostty renders per-palette files
+into its own config dir -- so a fixture that omits them makes every link
+assertion depend on whether the REAL home happens to have them."
   (let ((home (make-temp-file "emanix-theme-test-home" t)))
     (push home emanix-theme-test--dirs)
     (dolist (rel '(".config/ghostty/themes/duskthorn.conf"
-                   ".config/ghostty/themes/dawnthorn.conf"
-                   ".local/share/emanix/zellij-themes/available/emanix-dark.kdl"
-                   ".local/share/emanix/zellij-themes/available/emanix-light.kdl"))
+                   ".config/ghostty/themes/dawnthorn.conf"))
       (let ((path (expand-file-name rel home)))
         (make-directory (file-name-directory path) t)
         (write-region "fixture\n" nil path)))
@@ -126,20 +123,22 @@ init, on the host where init is the desktop."
       (should (equal (car (rassoc (expand-file-name "~/.config/btop/themes/active.theme") links))
                      (expand-file-name "btop.theme" (plist-get plan :dir)))))))
 
-(ert-deftest emanix-theme-plan-links-zellij-by-variant-not-by-name ()
-  "Both zellij theme definitions are named `emanix'; the variant picks the file."
+(ert-deftest emanix-theme-plan-links-nothing-of-zellij ()
+  "zellij was retired 2026-09-29; no plan may name its theme tree.
+A leftover generated file from before the retirement must not bring
+the link back, so the fixture creates one."
   (emanix-theme-test--with-tree
-    (let* ((plan (emanix-theme--plan "dawnthorn"))
-           (links (plist-get plan :links))
-           (zellij (seq-find (lambda (l) (string-match-p "zellij" (cdr l))) links)))
-      (should zellij)
-      (should (string-match-p "emanix-light\\.kdl\\'" (car zellij))))))
+    (let ((stale (expand-file-name
+                  "~/.local/share/emanix/zellij-themes/available/emanix-dark.kdl")))
+      (make-directory (file-name-directory stale) t)
+      (write-region "leftover\n" nil stale))
+    (let ((links (plist-get (emanix-theme--plan "duskthorn") :links)))
+      (should-not (seq-find (lambda (l) (string-match-p "zellij" (concat (car l) (cdr l)))) links)))))
 
 (ert-deftest emanix-theme-plan-omits-links-whose-source-is-absent ()
   "link_if_present, in plan form.
 ghostty renders per-palette files only where `emanix.ghostty.enable' is
-set, and zellij's tree exists only where `emanix.zellij.enable' is --
-so a plan must not name a source that is not there."
+set, so a plan must not name a source that is not there."
   (emanix-theme-test--with-tree
     (let ((before (length (plist-get (emanix-theme--plan "duskthorn") :links))))
       (delete-file (expand-file-name "~/.config/ghostty/themes/duskthorn.conf"))

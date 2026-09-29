@@ -68,7 +68,6 @@ home/                             # Home Manager tier: theme, emacs, zsh, git, t
 home/default.nix                  # the Home Manager aggregate
 modules/                          # NixOS tier: base, init, firstboot, gpu, firmware, ewm
 emacs/                            # init.el, config.el, fallback.el, lisp/, test/, packages.nix
-zellij/                           # config.kdl, layouts/, plugins/
 agent-acp/                        # the ACP adapter scripts
 lib/mkHost.nix                    # the host composer
 lib/disk.nix                      # mkDisk, for disko layouts a consumer passes in
@@ -132,7 +131,6 @@ The options a consumer is expected to set. The full list is on
 | --- | --- | --- |
 | `emanix.gui` | Home Manager | This machine has a graphical session |
 | `emanix.theme` | Home Manager | Which palette to build the runtime theme tree from |
-| `emanix.zellij.enable` | Home Manager | Run Zellij, so SSH logins land in a persistent session |
 | `emanix.src.*` | Home Manager | Where the consumer's checkout and this distribution's checkout live |
 | `emanix.emacs.extraPackages` | Home Manager | Emacs packages the consumer adds to the distribution's Emacs build |
 

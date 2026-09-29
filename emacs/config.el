@@ -164,7 +164,7 @@ Accepts and ignores FRAME so this can sit on `after-make-frame-functions'."
 ;; Directional window motion. `C-x o' is fine with two windows and ace-window
 ;; carries it to three or four, but both are "jump to a label" -- neither
 ;; answers "focus the window to the LEFT of this one", which is the motion a
-;; four-window layout actually wants. M-hjkl mirrors zellij, and GlazeWM's
+;; four-window layout actually wants. M-hjkl mirrors GlazeWM's
 ;; lwin+hjkl on the Windows side, so one direction habit covers every pane
 ;; system on the host. Shifted moves the window rather than the point of view.
 ;;
@@ -180,7 +180,7 @@ Accepts and ignores FRAME so this can sit on `after-make-frame-functions'."
 ;; Meta key in any state today, so that half is only insurance. ghostel is the
 ;; deliberate part -- its char mode forwards every key to the terminal (even
 ;; M-x), and that is the behaviour to keep, because inside a ghostel the same
-;; M-hjkl is zellij's own pane motion. Leave a ghostel with `C-x o' or the
+;; M-hjkl belongs to whatever runs in the terminal. Leave a ghostel with `C-x o' or the
 ;; `C-c w' map, both of which ghostel exempts.
 ;;
 ;; The four displaced global defaults are cheap. M-j costs nothing at all:
@@ -267,7 +267,7 @@ Set buffer-locally to nil to hand `M-hjkl' back to a major mode.")
 Buffers whose name begins with a space are protected wholesale. By Emacs
 convention those are internal — the minibuffers, ` *server*', encoding
 scratch space — and killing ` *server*' in a daemon takes emacsclient down
-with it, which on this setup means every frame across every zellij session.
+with it, which on this setup means every frame, including tty frames opened over `uplink'.
 Nothing a user means by \"close my buffers\" lives in that namespace.
 
 NOT VERIFIED: whether EWM represents client windows as buffers on the

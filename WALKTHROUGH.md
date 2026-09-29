@@ -158,7 +158,6 @@ holds the option. `emanix.*` is in this repository.
 | `emanix.gui` | The machine has a screen |
 | `emanix.git.userName`, `emanix.git.userEmail` | The git identity |
 | `emanix.ghostty.enable` | Use Ghostty as the terminal |
-| `emanix.zellij.enable` | Use Zellij. A login over SSH continues after a disconnect |
 | `emanix.emacs.extraPackages` | The Emacs packages of the consumer |
 | `emanix.hardware.gpu` | The graphics option. The default is `null` |
 | `emanix.firstboot.runtimeInputs`, `emanix.firstboot.text` | The first-boot script |
@@ -173,7 +172,6 @@ flake.nix       the outputs, the composer, and the checks
 home/           the Home Manager tier. home/default.nix is the aggregate
 modules/        the NixOS tier
 emacs/          the Emacs configuration: init.el, config.el, lisp/, test/
-zellij/         the Zellij configuration: config.kdl, layouts/, plugins/
 agent-acp/      the adapters between Emacs and a coding agent
 lib/            mkHost, mkDisk, the palettes, and the theme renderer
 installer/      the installer image and the install script

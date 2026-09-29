@@ -185,14 +185,6 @@ read, so behaviour is unchanged when the directory is missing or broken."
                                  emanix-theme--themes-dir))
               "catppuccin")))
 
-(defconst emanix-theme--zellij-themes-dir
-  "~/.local/share/emanix/zellij-themes"
-  "Where zellij.nix writes its two ANSI-index theme definitions.
-Both are named `emanix' inside the KDL -- zellij selects a theme by
-NAME, so switching swaps which definition is visible in theme_dir
-rather than editing config.kdl, which lives in the checkout and must
-stay clean.")
-
 (defun emanix-theme--parse-gtk-conf (path)
   "Parse PATH, a KEY=VALUE file, into an alist of strings.
 The bash this replaces `source'd the file; reading it as data instead
@@ -206,12 +198,11 @@ means a theme tree cannot execute anything in this Emacs."
           (push (cons (match-string 1) (string-trim (match-string 2))) out))
         (nreverse out)))))
 
-(defun emanix-theme--link-plan (name dir variant)
-  "Return the (SOURCE . TARGET) symlinks for theme NAME in DIR at VARIANT.
+(defun emanix-theme--link-plan (name dir)
+  "Return the (SOURCE . TARGET) symlinks for theme NAME in DIR.
 Sources that do not exist are dropped, which is `link_if_present' from
 the bash this replaces: ghostty renders its palettes only on hosts with
-`emanix.ghostty.enable', and zellij's tree exists only where
-`emanix.zellij.enable' is set."
+`emanix.ghostty.enable'."
   (seq-filter
    (lambda (pair) (file-exists-p (car pair)))
    (list
@@ -220,11 +211,7 @@ the bash this replaces: ghostty renders its palettes only on hosts with
     (cons (expand-file-name "btop.theme" dir)
           (expand-file-name "~/.config/btop/themes/active.theme"))
     (cons (expand-file-name "swaylock.conf" dir)
-          (expand-file-name "~/.config/swaylock/config"))
-    (cons (expand-file-name (format "available/emanix-%s.kdl" variant)
-                            emanix-theme--zellij-themes-dir)
-          (expand-file-name "active/theme.kdl"
-                            emanix-theme--zellij-themes-dir)))))
+          (expand-file-name "~/.config/swaylock/config")))))
 
 (defun emanix-theme--plan (name)
   "Describe the switch to theme NAME as data, or nil if NAME is unusable.
@@ -252,7 +239,7 @@ tree must read as an unusable theme NAME, which is exactly nil."
                 :dir dir
                 :variant variant
                 :emacs-theme (emanix-theme--emacs-theme name)
-                :links (emanix-theme--link-plan name dir variant)
+                :links (emanix-theme--link-plan name dir)
                 :gtk (emanix-theme--parse-gtk-conf
                       (expand-file-name "gtk.conf" dir)))))
     (error
@@ -547,7 +534,7 @@ theme anyway."
 
 (defun emanix-theme--reload-apps ()
   "Tell running apps to re-read their config. Return failure descriptions.
-Only ghostty needs this: btop, zellij and swaylock read their theme
+Only ghostty needs this: btop and swaylock read their theme
 when they next start, and GTK apps follow gsettings live."
   (let (failures)
     (emanix-theme--collecting failures

@@ -160,7 +160,7 @@ rec {
   # light colour at index 0 on latte — inverted, and disagreeing with
   # themes/catppuccin-latte/colors.toml, which had it right.
   #
-  # This is not cosmetic: zellij themes and Claude Code's -ansi themes read
+  # This is not cosmetic: Claude Code's -ansi themes read
   # these indices, so an inverted light palette renders unreadable.
   #
   # colorsToml below (this same file) consumes this ordering directly for
