@@ -172,6 +172,17 @@ in
     # backend).
     networking.networkmanager.wifi.backend = "iwd";
 
+    # Start NetworkManager only after iwd. Neither nixpkgs module orders the
+    # pair, and on rafik's bare metal (ath11k, 2026-09-28) the live ISO came up
+    # with `wlan0` present but NM reporting it "unavailable" and
+    # `iwctl station wlan0` saying "Device wlan0 not found". Stopping NM,
+    # restarting iwd, then starting NM fixed it every time, which points at the
+    # startup order. `wants` pulls iwd in; `after` makes NM wait for it.
+    systemd.services.NetworkManager = {
+      wants = [ "iwd.service" ];
+      after = [ "iwd.service" ];
+    };
+
     # sshd for driving the target remotely. Host keys are generated fresh at
     # every boot (live tmpfs) — ephemeral by construction. The nixos user has an
     # EMPTY password on the ISO, so nothing can log in remotely until a password
