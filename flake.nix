@@ -92,7 +92,61 @@
       # useGlobalPkgs.
       nixpkgsModule = {
         nixpkgs = {
-          overlays = [ emacs-overlay.overlays.default ];
+          overlays = [
+            emacs-overlay.overlays.default
+            (final: prev: {
+              pi-coding-agent = prev.pi-coding-agent.overrideAttrs (old: rec {
+                version = "0.99.1";
+
+                src = final.fetchFromGitHub {
+                  owner = "earendil-works";
+                  repo = "pi";
+                  tag = "v${version}";
+                  hash = "sha256-bLDEt1sKiS6ReQ6Uch0tOSLU8aykKl3UwN7WVkRE9Og=";
+                };
+
+                modelData = final.fetchurl {
+                  url = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-${version}.tgz";
+                  hash = "sha256-+fRGkhV9C/VnnEoXMEoxACgjHX2q6q6jtzJS9LeiZNM=";
+                };
+
+                # overrideAttrs does NOT recompute the `npmDeps` default baked
+                # into buildNpmPackage's extendDrvArgs, so it stays bound to the
+                # original 0.87.1 fetcher (verified: npmDeps resolved to the
+                # 0.87.1-npm-deps drv). Override it explicitly.
+                npmDeps = final.fetchNpmDeps {
+                  name = "pi-coding-agent-${version}-npm-deps";
+                  inherit src;
+                  hash = "sha256-eKtv1fN7X4ukuYbsj7hduGZ3W2FdmO/fAnoaWJp7MQQ=";
+                };
+
+                # 0.99.1 dropped `tsgo` (the native compiler was removed and
+                # upstream now builds with plain `tsc` from typescript 7.0.2 in
+                # the root devDeps). The nixpkgs buildPhase still calls npx
+                # tsgo, which tries to fetch it from the registry — and the
+                # offline npm cache rejects that. Same shape, tsc instead.
+                buildPhase = ''
+                  runHook preBuild
+
+                  npx tsc -p packages/chord/tsconfig.build.json
+                  npx tsc -p packages/tui/tsconfig.build.json
+                  npx tsc -p packages/telemetry/tsconfig.build.json
+                  npx tsc -p packages/ai/tsconfig.build.json
+                  npx tsc -p packages/agent/tsconfig.build.json
+                  npx tsc -p packages/protocol/tsconfig.build.json
+                  npx tsc -p packages/client/tsconfig.build.json
+                  npx tsc -p packages/server/tsconfig.build.json
+                  # 0.99.1: coding-agent also imports these two workspaces;
+                  # the nixpkgs buildPhase predates them.
+                  npx tsc -p packages/codemode/tsconfig.build.json
+                  npx tsc -p packages/mcp/tsconfig.build.json
+                  npm run build --workspace=packages/coding-agent
+
+                  runHook postBuild
+                '';
+              });
+            })
+          ];
           config.allowUnfree = true;
           config.permittedInsecurePackages = [ "electron-39.8.10" ];
         };
