@@ -144,6 +144,24 @@
 
                   runHook postBuild
                 '';
+
+                # 0.99.1: coding-agent imports two more workspace packages.
+                # npm resolves @earendil-works/pi-codemode and pi-mcp through
+                # workspace links into packages/, but only the ROOT package is
+                # copied into $out -- packages/ is not -- so those links dangle
+                # and `import "@earendil-works/pi-codemode"` throws at runtime.
+                # Any child process that loads the codemode extension (a
+                # subagent) dies at startup. Copy the built workspaces into the
+                # installed node_modules. Their own deps (quickjs-wasi,
+                # cross-spawn) are already present from npmDeps.
+                postInstall = ''
+                  dst="$out/lib/node_modules/pi-monorepo/node_modules/@earendil-works"
+                  mkdir -p "$dst"
+                  for pair in codemode:pi-codemode mcp:pi-mcp; do
+                    rm -rf "$dst/''${pair##*:}"
+                    cp -r "packages/''${pair%%:*}" "$dst/''${pair##*:}"
+                  done
+                '';
               });
             })
           ];
