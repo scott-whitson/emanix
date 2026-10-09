@@ -98,59 +98,15 @@
     (should (bound-and-true-p display-line-numbers-mode))))
 
 (ert-deftest emanix-prose-sets-up-the-reading-column ()
-  "Enabling the mode establishes the centered column and visual wrapping."
+  "Enabling the mode establishes the left margin, centered column and visual wrapping."
   (with-temp-buffer
     (org-mode)
     (emanix-prose-mode 1)
     (should (bound-and-true-p visual-line-mode))
     (should (= visual-fill-column-width emanix-prose-width))
-    (should visual-fill-column-center-text)))
-
-(ert-deftest emanix-prose-displays-list-bullets ()
-  "An unordered list marker gets a bullet display property."
-  (with-temp-buffer
-    (insert "- first item\n- second item\n")
-    (org-mode)
-    (emanix-prose-mode 1)
-    (font-lock-ensure)
-    (goto-char (point-min))
-    (should (equal (get-text-property (point) 'display) "•"))))
-
-(ert-deftest emanix-prose-leaves-ordered-lists-alone ()
-  "Numbered list markers are not replaced."
-  (with-temp-buffer
-    (insert "1. first item\n")
-    (org-mode)
-    (emanix-prose-mode 1)
-    (goto-char (point-min))
-    (should (null (get-text-property (point) 'display)))))
-
-(ert-deftest emanix-prose-removes-bullets-on-disable ()
-  "Disabling the mode leaves no display property behind on list markers."
-  (with-temp-buffer
-    (insert "- first item\n")
-    (org-mode)
-    (emanix-prose-mode 1)
-    (font-lock-ensure)
-    (goto-char (point-min))
-    (should (equal (get-text-property (point) 'display) "•"))
-    (emanix-prose-mode -1)
-    (font-lock-ensure)
-    (goto-char (point-min))
-    (should (null (get-text-property (point) 'display)))))
-
-(ert-deftest emanix-prose-leaves-major-mode-managed-props-intact ()
-  "Teardown retracts only our own `display' addition."
-  (with-temp-buffer
-    (org-mode)
-    (org-mode)  ; ensure a clean state
-    (font-lock-ensure)
-    (let ((before (copy-sequence font-lock-extra-managed-props))
-          (by-name (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
-      (emanix-prose-mode 1)
-      (emanix-prose-mode -1)
-      (should (equal (sort (copy-sequence font-lock-extra-managed-props) by-name)
-                     (sort (copy-sequence before) by-name))))))
+    (should visual-fill-column-center-text)
+    (should (stringp line-prefix))
+    (should (= (length line-prefix) emanix-prose-left-margin))))
 
 (ert-deftest emanix-prose-org-hides-emphasis-markers ()
   "Enabling the mode in org hides emphasis markers and disabling restores."

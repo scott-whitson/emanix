@@ -47,15 +47,17 @@
   "Width in characters of the centered reading column."
   :type 'integer :group 'emanix-prose)
 
+(defcustom emanix-prose-left-margin 4
+  "Left margin width in characters.
+Creates whitespace on the left side of the buffer for better readability."
+  :type 'integer :group 'emanix-prose)
+
 (defcustom emanix-prose-heading-scales '(1.6 1.4 1.25 1.15 1.05 1.0)
   "Height multipliers for heading levels 1-6."
   :type '(repeat number) :group 'emanix-prose)
 
 (defvar-local emanix-prose--cookies nil
   "Face-remap cookies added by `emanix-prose-mode' in this buffer.")
-
-(defvar-local emanix-prose--added-display-prop nil
-  "Non-nil if this mode added `display' to `font-lock-extra-managed-props'.")
 
 (defvar-local emanix-prose--line-numbers-prior nil
   "Whether `display-line-numbers-mode' was on before this mode turned it off.
@@ -113,31 +115,14 @@ off — re-recording there would forget they had ever been on.")
   (mapc #'face-remap-remove-relative emanix-prose--cookies)
   (setq emanix-prose--cookies nil))
 
-;; --- Reading column, bullets ----------------------------------------------
-
-(defun emanix-prose--match-list-bullet (limit)
-  "Font-lock matcher for an unordered list marker, searching to LIMIT.
-Skips thematic breaks (`* * *'), which share the marker-space
-prefix with a list item but are horizontal rules.  Sets the match data
-so group 1 is the marker character."
-  (let (found)
-    (while (and (not found)
-                (re-search-forward "^[ \t]*\\([-*+]\\)[ \t]+" limit t))
-      (unless (save-excursion
-                (goto-char (line-beginning-position))
-                (looking-at-p
-                 "[ \t]*\\([-*+]\\)[ \t]*\\(?:\\1[ \t]*\\)\\{2,\\}$"))
-        (setq found t)))
-    found))
-
-(defconst emanix-prose--bullet-keywords
-  '((emanix-prose--match-list-bullet 1 '(face nil display "•")))
-  "Font-lock keywords displaying unordered list markers as a bullet.
-Ordered lists are untouched -- a numbered list carries information a
-bullet would throw away -- and so are thematic breaks, see the matcher.")
+;; --- Reading column, left margin ------------------------------------------
 
 (defun emanix-prose--setup-column ()
-  "Turn on visual wrapping in a centered reading column."
+  "Turn on visual wrapping in a centered reading column with a left margin."
+  (let ((indent-str (propertize (make-string emanix-prose-left-margin ?\s)
+                                'face 'default)))
+    (setq-local line-prefix indent-str)
+    (setq-local wrap-prefix indent-str))
   (visual-line-mode 1)
   (when (require 'visual-fill-column nil :no-error)
     (setq-local visual-fill-column-width emanix-prose-width)
@@ -146,6 +131,8 @@ bullet would throw away -- and so are thematic breaks, see the matcher.")
 
 (defun emanix-prose--teardown-column ()
   "Undo `emanix-prose--setup-column'."
+  (kill-local-variable 'line-prefix)
+  (kill-local-variable 'wrap-prefix)
   (when (fboundp 'visual-fill-column-mode)
     (visual-fill-column-mode -1))
   (kill-local-variable 'visual-fill-column-width)
@@ -172,14 +159,6 @@ bullet would throw away -- and so are thematic breaks, see the matcher.")
           (when (require 'org-modern nil :no-error) (org-modern-mode 1))
           (when (require 'org-appear nil :no-error) (org-appear-mode 1)))
         (emanix-prose--setup-column)
-        ;; font-lock only removes properties it is told it manages. Without
-        ;; `display' here the bullets would be applied but never cleaned up,
-        ;; so disabling the mode would leave • behind on every list marker.
-        (unless (memq 'display font-lock-extra-managed-props)
-          (setq-local font-lock-extra-managed-props
-                      (cons 'display font-lock-extra-managed-props))
-          (setq emanix-prose--added-display-prop t))
-        (font-lock-add-keywords nil emanix-prose--bullet-keywords t)
         (font-lock-flush)
         (font-lock-ensure))
     (emanix-prose--unapply-faces)
@@ -191,18 +170,9 @@ bullet would throw away -- and so are thematic breaks, see the matcher.")
       (kill-local-variable 'org-hide-emphasis-markers)
       (when (fboundp 'org-modern-mode) (org-modern-mode -1))
       (when (fboundp 'org-appear-mode) (org-appear-mode -1)))
-    (font-lock-remove-keywords nil emanix-prose--bullet-keywords)
     (emanix-prose--teardown-column)
     (font-lock-flush)
-    (font-lock-ensure)
-    ;; Done only after the flush/ensure above: font-lock strips a managed
-    ;; prop from stale text during that refontification by consulting this
-    ;; variable's CURRENT value, so retracting it first would drop `display'
-    ;; before the • display properties get a chance to be cleaned up.
-    (when emanix-prose--added-display-prop
-      (setq-local font-lock-extra-managed-props
-                  (remq 'display font-lock-extra-managed-props))
-      (setq emanix-prose--added-display-prop nil))))
+    (font-lock-ensure))))
 
 ;;;###autoload
 (defun emanix-prose-toggle ()
