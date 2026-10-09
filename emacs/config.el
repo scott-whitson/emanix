@@ -337,9 +337,7 @@ path-specific groups from the personal layer.")
 (global-set-key (kbd "M-g g") #'consult-goto-line)
 ;; Heading navigation — the "table of contents" for markdown and org buffers,
 ;; and imenu everywhere else. M-g already hosts goto-line, so this extends an
-;; existing prefix rather than claiming a new one. Folding needs no binding:
-;; markdown-mode already puts markdown-cycle on TAB and markdown-shifttab on
-;; S-TAB, org-style.
+;; existing prefix rather than claiming a new one.
 (global-set-key (kbd "M-g i") #'consult-imenu)
 (global-set-key (kbd "M-y") #'consult-yank-pop)
 (global-set-key (kbd "C-c f") #'consult-ripgrep)
@@ -812,12 +810,19 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 ;; C-c + / C-c - / C-c 0 magnify the document: Emacs's text scaling, which is
 ;; per buffer, so a second document keeps its own size.
 (when (fboundp 'emanix-prose-mode)
-  (add-hook 'markdown-mode-hook #'emanix-prose-mode)
+  ;; Org only: markdown rendering is handled by markdown-modern.
   (add-hook 'org-mode-hook #'emanix-prose-mode)
   (global-set-key (kbd "C-c z") #'emanix-prose-toggle)
   (global-set-key (kbd "C-c +") #'emanix-prose-increase-magnification)
   (global-set-key (kbd "C-c -") #'emanix-prose-decrease-magnification)
   (global-set-key (kbd "C-c 0") #'emanix-prose-reset-magnification))
+
+;; markdown-modern — modern markdown editing with inline rendering.
+;; markdown-modern-mode is not autoloaded by the Nix package; declare it
+;; explicitly so auto-mode-alist works without a prior (require '...).
+(autoload 'markdown-modern-mode "markdown-modern"
+  "Major mode for Markdown, via tree-sitter." t)
+(add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-modern-mode))
 ;; Web languages — Jinja2 templates, HTML and CSS. Jinja2 here is all plain
 ;; .html under templates/ dirs, so emanix-web.el picks the mode on path.
 ;; Format-on-save is gated on the repo declaring its own djlint/prettier

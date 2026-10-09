@@ -1,6 +1,5 @@
 ;;; emanix-prose-test.el --- ERT tests -*- lexical-binding: t; -*-
 (require 'ert)
-(require 'markdown-mode)
 (require 'org)
 (require 'emanix-prose)
 
@@ -12,232 +11,6 @@
 (ert-deftest emanix-prose-palette-color-unknown-key ()
   "An absent key returns nil rather than signalling."
   (should (null (emanix/theme-palette-color "no-such-palette-key"))))
-
-(ert-deftest emanix-prose-remaps-cover-markdown-faces ()
-  "Every markdown face the design names is in the remap table."
-  (with-temp-buffer
-    (markdown-mode)
-    (let ((faces (mapcar #'car (emanix-prose--face-remaps))))
-      (dolist (f '(markdown-header-face-1 markdown-header-face-2
-                   markdown-header-face-3 markdown-header-face-4
-                   markdown-header-face-5 markdown-header-face-6
-                   markdown-pre-face markdown-code-face
-                   markdown-inline-code-face markdown-table-face
-                   markdown-language-keyword-face markdown-markup-face))
-        (should (memq f faces))))))
-
-(ert-deftest emanix-prose-tables-and-code-stay-monospace ()
-  "Table and code faces are remapped to the mono family, not the body font."
-  (with-temp-buffer
-    (markdown-mode)
-    (let ((remaps (emanix-prose--face-remaps)))
-      (dolist (f '(markdown-table-face markdown-code-face
-                   markdown-pre-face markdown-inline-code-face))
-        (should (equal (plist-get (alist-get f remaps) :family)
-                       emanix-prose-mono-font))))))
-
-(ert-deftest emanix-prose-headings-use-the-heading-font-and-descend ()
-  "Headings use the heading font at strictly decreasing scale."
-  (with-temp-buffer
-    (markdown-mode)
-    (let* ((remaps (emanix-prose--face-remaps))
-           (scales (mapcar (lambda (n)
-                             (plist-get
-                              (alist-get (intern (format "markdown-header-face-%d" n))
-                                         remaps)
-                              :height))
-                           '(1 2 3 4 5 6))))
-      (should (equal (plist-get (alist-get 'markdown-header-face-1 remaps) :family)
-                     emanix-prose-heading-font))
-      (should (equal scales (sort (copy-sequence scales) #'>)))
-      (should (> (car scales) 1.0)))))
-
-(ert-deftest emanix-prose-enabling-adds-cookies-disabling-removes-them ()
-  "The mode leaves no face-remap state behind when switched off."
-  (with-temp-buffer
-    (markdown-mode)
-    (should (null emanix-prose--cookies))
-    (emanix-prose-mode 1)
-    (should (> (length emanix-prose--cookies) 0))
-    (emanix-prose-mode -1)
-    (should (null emanix-prose--cookies))))
-
-(ert-deftest emanix-prose-toggling-is-idempotent ()
-  "Enabling twice then disabling twice ends in a clean buffer."
-  (with-temp-buffer
-    (markdown-mode)
-    (emanix-prose-mode 1)
-    (let ((n (length emanix-prose--cookies)))
-      (emanix-prose-mode 1)
-      (should (= n (length emanix-prose--cookies))))
-    (emanix-prose-mode -1)
-    (emanix-prose-mode -1)
-    (should (null emanix-prose--cookies))))
-
-(ert-deftest emanix-prose-restores-line-numbers-on-disable ()
-  "Line numbers on before the mode are restored after it."
-  (with-temp-buffer
-    (markdown-mode)
-    (display-line-numbers-mode 1)
-    (emanix-prose-mode 1)
-    (should (not (bound-and-true-p display-line-numbers-mode)))
-    (emanix-prose-mode -1)
-    (should (bound-and-true-p display-line-numbers-mode))))
-
-(ert-deftest emanix-prose-leaves-line-numbers-off-if-they-were-off ()
-  "A buffer without line numbers does not gain them from a round trip."
-  (with-temp-buffer
-    (markdown-mode)
-    (emanix-prose-mode 1)
-    (emanix-prose-mode -1)
-    (should (not (bound-and-true-p display-line-numbers-mode)))))
-
-(ert-deftest emanix-prose-double-enable-does-not-forget-line-numbers ()
-  "Enabling twice still restores line numbers on disable."
-  (with-temp-buffer
-    (markdown-mode)
-    (display-line-numbers-mode 1)
-    (emanix-prose-mode 1)
-    (emanix-prose-mode 1)
-    (emanix-prose-mode -1)
-    (should (bound-and-true-p display-line-numbers-mode))))
-
-(defmacro emanix-prose-test--with-md (text &rest body)
-  "Run BODY in a fontified markdown buffer containing TEXT."
-  (declare (indent 1))
-  `(with-temp-buffer
-     (insert ,text)
-     (markdown-mode)
-     (emanix-prose-mode 1)
-     (font-lock-ensure)
-     (goto-char (point-min))
-     ,@body))
-
-(defun emanix-prose-test--invisible-count ()
-  "Number of characters carrying an `invisible' property in this buffer."
-  (let ((n 0))
-    (save-excursion
-      (goto-char (point-min))
-      (while (not (eobp))
-        (when (get-text-property (point) 'invisible) (setq n (1+ n)))
-        (forward-char 1)))
-    n))
-
-(ert-deftest emanix-prose-hides-markup ()
-  "With the mode on, emphasis markers carry an invisible property."
-  (emanix-prose-test--with-md "Some **bold** text\n\nMore text\n"
-    (should (> (emanix-prose-test--invisible-count) 0))))
-
-(ert-deftest emanix-prose-reveals-the-line-at-point ()
-  "Markup on the line at point is revealed; markup elsewhere is not."
-  (emanix-prose-test--with-md "Some **bold** text\n\nAnd `code` here\n"
-    (goto-char (point-min))
-    (emanix-prose--reveal-at-point)
-    (should (equal emanix-prose--revealed
-                   (cons (line-beginning-position) (line-end-position))))
-    ;; nothing on line 1 is hidden any more
-    (should (null (get-text-property (+ (point-min) 5) 'invisible)))
-    ;; but the backticks on line 3 still are
-    (should (save-excursion
-              (goto-char (point-max))
-              (search-backward "code" nil t)
-              (get-text-property (1- (point)) 'invisible)))))
-
-(ert-deftest emanix-prose-rehides-when-point-leaves ()
-  "Moving to another line restores the markup that was revealed."
-  (emanix-prose-test--with-md "Some **bold** text\n\nAnd `code` here\n"
-    (goto-char (point-min))
-    (emanix-prose--reveal-at-point)
-    (let ((revealed (emanix-prose-test--invisible-count)))
-      (goto-char (point-max))
-      (emanix-prose--reveal-at-point)
-      (should (> (emanix-prose-test--invisible-count) revealed)))))
-
-(ert-deftest emanix-prose-disabling-clears-reveal-state ()
-  "Turning the mode off drops the reveal hook and its state."
-  (emanix-prose-test--with-md "Some **bold** text\n"
-    (emanix-prose--reveal-at-point)
-    (should emanix-prose--revealed)
-    (emanix-prose-mode -1)
-    (should (null emanix-prose--revealed))
-    ;; The hook is added buffer-locally, so check the buffer-local value —
-    ;; checking the global default would pass vacuously and prove nothing.
-    (should (not (memq #'emanix-prose--reveal-at-point post-command-hook)))))
-
-(ert-deftest emanix-prose-detects-image-links ()
-  "Image detection is true only for buffers containing an image link."
-  (with-temp-buffer
-    (insert "A [link](http://x) but no picture\n")
-    (markdown-mode)
-    (should (null (emanix-prose--buffer-has-images-p))))
-  (with-temp-buffer
-    (insert "Here: ![alt](assets/diagram.png)\n")
-    (markdown-mode)
-    (should (emanix-prose--buffer-has-images-p))))
-
-(ert-deftest emanix-prose-sets-up-the-reading-column ()
-  "Enabling the mode establishes the centered column and visual wrapping."
-  (emanix-prose-test--with-md "Body text\n"
-    (should (bound-and-true-p visual-line-mode))
-    (should (= visual-fill-column-width emanix-prose-width))
-    (should visual-fill-column-center-text)))
-
-(ert-deftest emanix-prose-displays-list-bullets ()
-  "An unordered list marker gets a bullet display property."
-  (emanix-prose-test--with-md "- first item\n- second item\n"
-    (goto-char (point-min))
-    (should (equal (get-text-property (point) 'display) "•"))))
-
-(ert-deftest emanix-prose-leaves-ordered-lists-alone ()
-  "Numbered list markers are not replaced."
-  (emanix-prose-test--with-md "1. first item\n"
-    (goto-char (point-min))
-    (should (null (get-text-property (point) 'display)))))
-
-(ert-deftest emanix-prose-removes-bullets-on-disable ()
-  "Disabling the mode leaves no display property behind on list markers."
-  (emanix-prose-test--with-md "- first item\n"
-    (goto-char (point-min))
-    (should (equal (get-text-property (point) 'display) "•"))
-    (emanix-prose-mode -1)
-    (font-lock-ensure)
-    (goto-char (point-min))
-    (should (null (get-text-property (point) 'display)))))
-
-(ert-deftest emanix-prose-leaves-hyphen-thematic-breaks-alone ()
-  "A `- - -' horizontal rule does not get a bullet stamped on it.
-markdown-mode's own `markdown-hide-markup' feature (on since Task 3)
-legitimately puts its own `display' property here — a rendered hr line —
-so the assertion is that it is not OUR bullet, not that it is absent."
-  (emanix-prose-test--with-md "Text\n\n- - -\n\nMore\n"
-    (goto-char (point-min))
-    (search-forward "- - -")
-    (beginning-of-line)
-    (should (not (equal (get-text-property (point) 'display) "•")))))
-
-(ert-deftest emanix-prose-leaves-asterisk-thematic-breaks-alone ()
-  "A `* * *' horizontal rule does not get a bullet stamped on it.
-markdown-mode's own `markdown-hide-markup' feature (on since Task 3)
-legitimately puts its own `display' property here — a rendered hr line —
-so the assertion is that it is not OUR bullet, not that it is absent."
-  (emanix-prose-test--with-md "Text\n\n* * *\n\nMore\n"
-    (goto-char (point-min))
-    (search-forward "* * *")
-    (beginning-of-line)
-    (should (not (equal (get-text-property (point) 'display) "•")))))
-
-(ert-deftest emanix-prose-leaves-major-mode-managed-props-intact ()
-  "Teardown retracts only our own `display' addition."
-  (with-temp-buffer
-    (markdown-mode)
-    (setq-local markdown-hide-markup t)
-    (font-lock-ensure)
-    (let ((before (copy-sequence font-lock-extra-managed-props))
-          (by-name (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
-      (emanix-prose-mode 1)
-      (emanix-prose-mode -1)
-      (should (equal (sort (copy-sequence font-lock-extra-managed-props) by-name)
-                     (sort (copy-sequence before) by-name))))))
 
 (ert-deftest emanix-prose-remaps-cover-org-faces ()
   "Every org face the design names is in the remap table."
@@ -258,6 +31,127 @@ so the assertion is that it is not OUR bullet, not that it is absent."
                               :family)
                    emanix-prose-mono-font))))
 
+(ert-deftest emanix-prose-headings-use-the-heading-font-and-descend ()
+  "Headings use the heading font at strictly decreasing scale."
+  (with-temp-buffer
+    (org-mode)
+    (let* ((remaps (emanix-prose--face-remaps))
+           (scales (mapcar (lambda (n)
+                             (plist-get
+                              (alist-get (intern (format "org-level-%d" n))
+                                         remaps)
+                              :height))
+                           '(1 2 3 4 5 6))))
+      (should (equal (plist-get (alist-get 'org-level-1 remaps) :family)
+                     emanix-prose-heading-font))
+      (should (equal scales (sort (copy-sequence scales) #'>)))
+      (should (> (car scales) 1.0)))))
+
+(ert-deftest emanix-prose-enabling-adds-cookies-disabling-removes-them ()
+  "The mode leaves no face-remap state behind when switched off."
+  (with-temp-buffer
+    (org-mode)
+    (should (null emanix-prose--cookies))
+    (emanix-prose-mode 1)
+    (should (> (length emanix-prose--cookies) 0))
+    (emanix-prose-mode -1)
+    (should (null emanix-prose--cookies))))
+
+(ert-deftest emanix-prose-toggling-is-idempotent ()
+  "Enabling twice then disabling twice ends in a clean buffer."
+  (with-temp-buffer
+    (org-mode)
+    (emanix-prose-mode 1)
+    (let ((n (length emanix-prose--cookies)))
+      (emanix-prose-mode 1)
+      (should (= n (length emanix-prose--cookies))))
+    (emanix-prose-mode -1)
+    (emanix-prose-mode -1)
+    (should (null emanix-prose--cookies))))
+
+(ert-deftest emanix-prose-restores-line-numbers-on-disable ()
+  "Line numbers on before the mode are restored after it."
+  (with-temp-buffer
+    (org-mode)
+    (display-line-numbers-mode 1)
+    (emanix-prose-mode 1)
+    (should (not (bound-and-true-p display-line-numbers-mode)))
+    (emanix-prose-mode -1)
+    (should (bound-and-true-p display-line-numbers-mode))))
+
+(ert-deftest emanix-prose-leaves-line-numbers-off-if-they-were-off ()
+  "A buffer without line numbers does not gain them from a round trip."
+  (with-temp-buffer
+    (org-mode)
+    (emanix-prose-mode 1)
+    (emanix-prose-mode -1)
+    (should (not (bound-and-true-p display-line-numbers-mode)))))
+
+(ert-deftest emanix-prose-double-enable-does-not-forget-line-numbers ()
+  "Enabling twice still restores line numbers on disable."
+  (with-temp-buffer
+    (org-mode)
+    (display-line-numbers-mode 1)
+    (emanix-prose-mode 1)
+    (emanix-prose-mode 1)
+    (emanix-prose-mode -1)
+    (should (bound-and-true-p display-line-numbers-mode))))
+
+(ert-deftest emanix-prose-sets-up-the-reading-column ()
+  "Enabling the mode establishes the centered column and visual wrapping."
+  (with-temp-buffer
+    (org-mode)
+    (emanix-prose-mode 1)
+    (should (bound-and-true-p visual-line-mode))
+    (should (= visual-fill-column-width emanix-prose-width))
+    (should visual-fill-column-center-text)))
+
+(ert-deftest emanix-prose-displays-list-bullets ()
+  "An unordered list marker gets a bullet display property."
+  (with-temp-buffer
+    (insert "- first item\n- second item\n")
+    (org-mode)
+    (emanix-prose-mode 1)
+    (font-lock-ensure)
+    (goto-char (point-min))
+    (should (equal (get-text-property (point) 'display) "•"))))
+
+(ert-deftest emanix-prose-leaves-ordered-lists-alone ()
+  "Numbered list markers are not replaced."
+  (with-temp-buffer
+    (insert "1. first item\n")
+    (org-mode)
+    (emanix-prose-mode 1)
+    (goto-char (point-min))
+    (should (null (get-text-property (point) 'display)))))
+
+(ert-deftest emanix-prose-removes-bullets-on-disable ()
+  "Disabling the mode leaves no display property behind on list markers."
+  (with-temp-buffer
+    (insert "- first item\n")
+    (org-mode)
+    (emanix-prose-mode 1)
+    (font-lock-ensure)
+    (goto-char (point-min))
+    (should (equal (get-text-property (point) 'display) "•"))
+    (emanix-prose-mode -1)
+    (font-lock-ensure)
+    (goto-char (point-min))
+    (should (null (get-text-property (point) 'display)))))
+
+(ert-deftest emanix-prose-leaves-major-mode-managed-props-intact ()
+  "Teardown retracts only our own `display' addition."
+  (with-temp-buffer
+    (org-mode)
+    (org-mode)  ; ensure a clean state
+    (font-lock-ensure)
+    (let ((before (copy-sequence font-lock-extra-managed-props))
+          (by-name (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
+      (emanix-prose-mode 1)
+      (emanix-prose-mode -1)
+      (should (equal (sort (copy-sequence font-lock-extra-managed-props) by-name)
+                     (sort (copy-sequence before) by-name))))))
+
 (ert-deftest emanix-prose-org-hides-emphasis-markers ()
   "Enabling the mode in org hides emphasis markers and disabling restores."
   (with-temp-buffer
@@ -266,13 +160,6 @@ so the assertion is that it is not OUR bullet, not that it is absent."
     (should org-hide-emphasis-markers)
     (emanix-prose-mode -1)
     (should (null (local-variable-p 'org-hide-emphasis-markers)))))
-
-(ert-deftest emanix-prose-org-does-not-install-the-markdown-reveal-hook ()
-  "Org uses org-appear; the hand-rolled markdown reveal must not attach."
-  (with-temp-buffer
-    (org-mode)
-    (emanix-prose-mode 1)
-    (should (not (memq #'emanix-prose--reveal-at-point post-command-hook)))))
 
 (ert-deftest emanix-prose-org-enables-org-modern-and-org-appear ()
   "The org branch actually turns on org-modern and org-appear.
@@ -297,104 +184,12 @@ without them the mode must still work and this test must not fail."
     (should (not (bound-and-true-p org-modern-mode)))
     (should (not (bound-and-true-p org-appear-mode)))))
 
-
-;; --- Drawn markdown tables --------------------------------------------------
-
-(ert-deftest emanix-prose-draws-a-markdown-table-as-a-box ()
-  "A table line is display-replaced by a drawn row, not left as source."
-  (emanix-prose-test--with-md "| Name | Type |\n| --- | --- |\n| rafik | T14 |\n"
-    (goto-char (point-min))
-    (let ((header (get-text-property (point) 'display)))
-      (should (stringp header))
-      (should (string-match-p "┌" header))
-      (should (string-match-p "│" header))
-      (should (string-match-p "Name" header)))
-    (forward-line 1)
-    (should (string-match-p "├" (get-text-property (point) 'display)))
-    (forward-line 1)
-    (should (string-match-p "└" (get-text-property (point) 'display)))))
-
-(ert-deftest emanix-prose-table-columns-align-despite-ragged-source ()
-  "Every drawn line of a ragged source table has one width.
-The source is deliberately not aligned; the renderer owns the geometry."
-  (emanix-prose-test--with-md "| A | Bee |\n| --- | --- |\n| longvalue | x |\n"
-    (let (widths)
-      (goto-char (point-min))
-      (dotimes (_ 3)
-        (let ((d (get-text-property (point) 'display)))
-          (when (stringp d)
-            (dolist (line (split-string d "\n"))
-              (unless (string-empty-p line)
-                (push (string-width line) widths)))))
-        (forward-line 1))
-      (should (> (length widths) 0))
-      (should (apply #'= widths)))))
-
-(ert-deftest emanix-prose-table-honours-column-alignment ()
-  "A right-aligned column pads on the left, and a clear one on the right."
-  (emanix-prose-test--with-md "| Item | Qty |\n| --- | ---: |\n| bolts | 12 |\n"
-    (goto-char (point-max))
-    (forward-line -1)
-    (let ((row (get-text-property (point) 'display)))
-      (should (string-match-p "  12 " row))
-      (should (string-match-p " bolts " row)))))
-
-(ert-deftest emanix-prose-table-cells-hide-inline-markup ()
-  "A code span inside a cell is drawn without its backticks."
-  (emanix-prose-test--with-md "| Path |\n| --- |\n| `~/dotfiles` |\n"
-    (goto-char (point-max))
-    (forward-line -1)
-    (let ((row (get-text-property (point) 'display)))
-      (should (string-match-p "~/dotfiles" row))
-      (should-not (string-match-p "`" row)))))
-
-(ert-deftest emanix-prose-draws-a-bottom-border-without-data-rows ()
-  "A table of only a header and a delimiter still closes its box."
-  (emanix-prose-test--with-md "| H |\n| --- |\n"
-    (goto-char (point-min))
-    (forward-line 1)
-    (let ((rule (get-text-property (point) 'display)))
-      (should (string-match-p "├" rule))
-      (should (string-match-p "└" rule)))))
-
-(ert-deftest emanix-prose-leaves-a-lone-pipe-line-alone ()
-  "A pipe line with no delimiter row is not a table and is not drawn."
-  (emanix-prose-test--with-md "| just prose\n"
-    (goto-char (point-min))
-    (should (null (get-text-property (point) 'display)))))
-
-(ert-deftest emanix-prose-removes-drawn-tables-on-disable ()
-  "Disabling the mode leaves no drawn table behind."
-  (emanix-prose-test--with-md "| A | B |\n| --- | --- |\n| 1 | 2 |\n"
-    (goto-char (point-min))
-    (should (stringp (get-text-property (point) 'display)))
-    (emanix-prose-mode -1)
-    (font-lock-ensure)
-    (goto-char (point-min))
-    (should (null (get-text-property (point) 'display)))))
-
-(ert-deftest emanix-prose-reveals-a-drawn-table-line ()
-  "Point on a drawn table line shows its source; leaving redraws the box."
-  (emanix-prose-test--with-md "Text\n\n| A |\n| --- |\n| 1 |\n"
-    (goto-char (point-min))
-    (search-forward "| A |")
-    (beginning-of-line)
-    (should (stringp (get-text-property (point) 'display)))
-    (emanix-prose--reveal-at-point)
-    (should (null (get-text-property (point) 'display)))
-    (emanix-prose--rehide)
-    (font-lock-ensure)
-    (goto-char (point-min))
-    (search-forward "| A |")
-    (beginning-of-line)
-    (should (stringp (get-text-property (point) 'display)))))
-
 ;; --- Magnification ----------------------------------------------------------
 
 (ert-deftest emanix-prose-magnification-round-trip ()
   "Increase, decrease and reset move the buffer's text scale."
   (with-temp-buffer
-    (markdown-mode)
+    (text-mode)
     (emanix-prose-mode 1)
     (emanix-prose-increase-magnification)
     (should (> text-scale-mode-amount 0))

@@ -75,12 +75,32 @@ let
     org-roam
     org
     catppuccin-theme
-    markdown-mode # transition: vault is still .md until the conversion sub-project
+    # --- Markdown rendering (markdown-modern replaces markdown-mode) ---
+    # markdown-modern is a full major mode (derived from text-mode) that renders
+    # markdown inline using text properties and overlays, in the spirit of
+    # org-modern.  It replaces both markdown-mode (the major mode) and the
+    # markdown half of emanix-prose.el (face remaps, table boxes, reveal).
+    (trivialBuild {
+      pname = "markdown-modern";
+      version = "2.0.0";
+      src = pkgs.fetchFromGitHub {
+        owner = "rjprins";
+        repo = "markdown-modern";
+        rev = "58e1d0e6cdeaa6c8610bb90acdf3ba3083e22ae1";
+        hash = "sha256-i9I1jGr3ixbcOyRqpblCC+ehCfuMKzeUmTwB0V/+Auk=";
+      };
+      # The lisp/ files are not at the source root; copy them up so
+      # trivialBuild's batch-byte-compile *.el finds them.
+      preBuild = ''
+        cp lisp/*.el .
+      '';
+      packageRequires = [ ];
+    })
     # --- Prose rendering (emanix-prose.el) ---
-    visual-fill-column # centered reading column; markdown/org prose buffers
+    # Now org-only: markdown rendering is handled by markdown-modern.
+    visual-fill-column # centered reading column; org prose buffers
     org-modern # bullets, block framing, tag/timestamp styling for org
-    org-appear # reveal org emphasis markers at point (markdown's equivalent
-    # is hand-rolled in emanix-prose.el — no package provides it)
+    org-appear # reveal org emphasis markers at point
     weblorg # pure Emacs Lisp static site generator with org-roam support
 
     # --- Agent shell (ACP) ---
@@ -133,6 +153,9 @@ let
       g.tree-sitter-python
       g.tree-sitter-html
       g.tree-sitter-css
+      # markdown-modern requires both grammars for tree-sitter parsing.
+      g.tree-sitter-markdown
+      g."tree-sitter-markdown-inline"
     ]))
   ];
 in

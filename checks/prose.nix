@@ -1,22 +1,18 @@
-# The prose renderer's unit tests: the drawn markdown table, the reveal-at-
-# point round trip, and document magnification.
+# The prose renderer's unit tests: face remaps, the reading column,
+# document magnification, and org-appear/org-modern integration.
 #
-# Unlike org-modern and org-appear (soft, `skip-unless'), markdown-mode and
-# visual-fill-column are real test-time dependencies: the reading column and
-# the table renderer both read their variables.
+# emanix-prose-mode is now org-only.  Markdown rendering is handled by
+# markdown-modern.  The test depends on org, visual-fill-column,
+# org-modern and org-appear.
 #
 # `pkgs' HERE IS NOT THE FLAKE'S `pkgs'. As with checks/agent-shell-api.nix,
-# flake.nix passes it `pkgs.extend emacs-overlay.overlays.default', because the
-# table renderer reads markdown-mode internals -- markdown-table-colfmt,
-# markdown--is-delimiter-row, markdown--remove-invisible-markup -- and a bare
-# nixpkgs markdown-mode could differ from the one every host runs.
+# flake.nix passes it `pkgs.extend emacs-overlay.overlays.default'.
 { pkgs, ... }:
 let
   emacsPackages = pkgs.emacsPackagesFor pkgs.emacs-nox;
   emacsWithProseDeps =
     emacsPackages.emacsWithPackages
-      (epkgs: [ epkgs.markdown-mode
-                epkgs.visual-fill-column
+      (epkgs: [ epkgs.visual-fill-column
                 epkgs.org-modern
                 epkgs.org-appear ]);
 in
