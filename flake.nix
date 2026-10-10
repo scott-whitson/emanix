@@ -2,9 +2,14 @@
   description = "emanix — a NixOS distribution (Emacs + Linux + NixOS)";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # The base channel is STABLE. The AI harness moves far faster than a stable
+    # channel, so it is pulled per package from nixpkgs-unstable below rather
+    # than pinning the whole system to unstable.
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     home-manager = {
-      url = "github:nix-community/home-manager";
+      # Match the base channel: Home Manager's release branch for stable 26.05.
+      url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     emacs-overlay = {
@@ -69,6 +74,7 @@
   outputs =
     { self
     , nixpkgs
+    , nixpkgs-unstable
     , home-manager
     , emacs-overlay
     , ewm
@@ -94,71 +100,12 @@
         nixpkgs = {
           overlays = [
             emacs-overlay.overlays.default
-            (final: prev: {
-              pi-coding-agent = prev.pi-coding-agent.overrideAttrs (old: rec {
-                version = "0.99.1";
-
-                src = final.fetchFromGitHub {
-                  owner = "earendil-works";
-                  repo = "pi";
-                  tag = "v${version}";
-                  hash = "sha256-bLDEt1sKiS6ReQ6Uch0tOSLU8aykKl3UwN7WVkRE9Og=";
-                };
-
-                modelData = final.fetchurl {
-                  url = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-${version}.tgz";
-                  hash = "sha256-+fRGkhV9C/VnnEoXMEoxACgjHX2q6q6jtzJS9LeiZNM=";
-                };
-
-                # overrideAttrs does NOT recompute the `npmDeps` default baked
-                # into buildNpmPackage's extendDrvArgs, so it stays bound to the
-                # original 0.87.1 fetcher (verified: npmDeps resolved to the
-                # 0.87.1-npm-deps drv). Override it explicitly.
-                npmDeps = final.fetchNpmDeps {
-                  name = "pi-coding-agent-${version}-npm-deps";
-                  inherit src;
-                  hash = "sha256-eKtv1fN7X4ukuYbsj7hduGZ3W2FdmO/fAnoaWJp7MQQ=";
-                };
-
-                # 0.99.1 dropped `tsgo` (the native compiler was removed and
-                # upstream now builds with plain `tsc` from typescript 7.0.2 in
-                # the root devDeps). The nixpkgs buildPhase still calls npx
-                # tsgo, which tries to fetch it from the registry — and the
-                # offline npm cache rejects that. Same shape, tsc instead.
-                buildPhase = ''
-                  runHook preBuild
-
-                  npx tsc -p packages/chord/tsconfig.build.json
-                  npx tsc -p packages/tui/tsconfig.build.json
-                  npx tsc -p packages/telemetry/tsconfig.build.json
-                  npx tsc -p packages/ai/tsconfig.build.json
-                  npx tsc -p packages/agent/tsconfig.build.json
-                  npx tsc -p packages/protocol/tsconfig.build.json
-                  npx tsc -p packages/client/tsconfig.build.json
-                  npx tsc -p packages/server/tsconfig.build.json
-                  # 0.99.1: coding-agent also imports these two workspaces;
-                  # the nixpkgs buildPhase predates them.
-                  npx tsc -p packages/codemode/tsconfig.build.json
-                  npx tsc -p packages/mcp/tsconfig.build.json
-                  npm run build --workspace=packages/coding-agent
-
-                  runHook postBuild
-                '';
-
-                # 0.99.1: the GitHub source is an npm workspace tree, and
-                # `npm ci` links every @earendil-works/<pkg> in node_modules to
-                # ../../packages/<pkg>. buildNpmPackage copies only the root
-                # package into $out, so EVERY one of those links dangles
-                # (pi-ai, pi-client, chord, ... and the new codemode and mcp),
-                # and both the fixup noBrokenSymlinks check and runtime imports
-                # fail. Copy the built packages/ tree next to the links so they
-                # all resolve.
-                postInstall = ''
-                  dst="$out/lib/node_modules/pi-monorepo"
-                  rm -rf "$dst/packages"
-                  cp -r packages "$dst/packages"
-                '';
-              });
+            # Packages pulled from nixpkgs-unstable by name: the AI harness
+            # moves faster than a stable channel, and ibm-plex gained its Latin
+            # .sans/.serif sub-families upstream after stable 26.05.
+            (_final: _prev: {
+              pi-coding-agent = nixpkgs-unstable.legacyPackages.${system}.pi-coding-agent;
+              ibm-plex = nixpkgs-unstable.legacyPackages.${system}.ibm-plex;
             })
           ];
           config.allowUnfree = true;
@@ -185,7 +132,7 @@
           backupFileExtension = nixpkgs.lib.mkDefault "hm-bak";
           users.${username} = {
             imports = [ ./home ];
-            # The distribution tracks nixpkgs unstable; consumers pin their own
+            # The distribution tracks stable nixpkgs; consumers pin their own
             # stateVersion in personal config if they need a different one.
             home.stateVersion = nixpkgs.lib.mkDefault "26.05";
           };

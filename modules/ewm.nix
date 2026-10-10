@@ -1,22 +1,16 @@
 { config, lib, pkgs, ewm, ... }:
 
 let
-  # EWM builds on Smithay, whose libdisplay-info-sys 0.3.0 declares
-  # `libdisplay-info < 0.4.0` in its system-deps metadata. nixpkgs moved
-  # libdisplay-info 0.3.0 -> 0.4.0 on 2026-07-25 and added the
-  # libdisplay-info_0_3 compatibility attribute the day after, for exactly this
-  # case. Without it ewm-core dies at build time with pkg-config reporting the
-  # library as "not found" — it IS found, at /lib/pkgconfig/libdisplay-info.pc;
-  # what fails is the upper version bound, which `system-deps` reports as
-  # absence. Reading the truncated build log rather than the full one sends you
-  # looking for a missing file that is right there.
-  #
+  # EWM builds on Smithay, whose libdisplay-info-sys 0.3.0 requires
+  # libdisplay-info < 0.4.0. When the base channel's default libdisplay-info is
+  # already 0.3.x this needs no override; when the channel has moved to 0.4.0,
+  # the libdisplay-info_0_3 compatibility attribute pins the older soname.
   # Scoped to the compositor's own build, NOT a global overlay: mesa, wlroots
-  # and gamescope all want 0.4.0, so an overlay would rebuild the graphics
-  # stack against the older library. The closure carries both, which is
-  # unremarkable — distinct sonames, a few hundred KiB.
+  # and gamescope all want the default, so an overlay would rebuild the
+  # graphics stack against the older library.
   pkgsEwm = pkgs.extend (_final: prev: {
-    libdisplay-info = prev.libdisplay-info_0_3;
+    libdisplay-info = prev.libdisplay-info_0_3 or prev.libdisplay-info;
+    libdisplay-info_0_3 = prev.libdisplay-info_0_3 or prev.libdisplay-info;
   });
 
   # Built here rather than taken from programs.ewm.ewmPackage's default: that

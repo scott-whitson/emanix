@@ -49,9 +49,6 @@
     djlint
     prettier
 
-    # NOTE: nixpkgs#pi-coding-agent may lag npm latest. When it catches up,
-    # this is the canonical install path. For now, this pins to nixpkgs version.
-
     # Media (CLI)
     ffmpeg
     imagemagick
