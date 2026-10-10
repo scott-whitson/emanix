@@ -172,7 +172,7 @@ off — re-recording there would forget they had ever been on.")
       (when (fboundp 'org-appear-mode) (org-appear-mode -1)))
     (emanix-prose--teardown-column)
     (font-lock-flush)
-    (font-lock-ensure))))
+    (font-lock-ensure)))
 
 ;;;###autoload
 (defun emanix-prose-toggle ()
