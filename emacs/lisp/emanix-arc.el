@@ -16,13 +16,11 @@
 ;;      it.  Every path below is derived from $HOME, and checks/arc-glue.nix
 ;;      fails the build if one of them stops existing.
 ;;
-;;   2. arc's own upstream defaults still name the collection, and its
-;;      projects directory, after the distro's PRE-RENAME name -- a
-;;      directory that no longer exists on any host here.  Both the
-;;      directory alist and the index plan are therefore overridden below
-;;      rather than inherited.  checks/arc-glue.nix fails the build if that
-;;      old name reappears in this file, or if either override goes missing
-;;      and arc silently falls back to indexing nothing.
+;;   2. It enabled only what arc enables by default, so it indexed the
+;;      manuals and nothing of this machine.  Below, every collection the
+;;      plan builds is enabled, derived from the plan itself.
+;;      checks/arc-glue.nix fails the build if that line goes missing, or if
+;;      a collection arc has retired is named here again.
 ;;
 ;; arc is required eagerly, unlike elisa.  It is safe: `arc-db' opens the
 ;; database lazily on first query, and constructing the llm-ollama providers
@@ -56,25 +54,25 @@
 
 ;;; Corpus -------------------------------------------------------------------
 
+;; The directory alist and the index plan are arc's own, inherited.  They used
+;; to be overridden here with a dotfiles/emanix/vault split, back when arc's
+;; defaults carried the pre-rename distro name.  Upstream has since fixed the
+;; name and replaced the per-repo collections with `home' ($HOME, dotted
+;; directories excluded), and its "home" scope preset names that collection.
+;; An override that still built "dotfiles" left that preset matching nothing,
+;; silently -- the drift this file exists to stop.  So the plan is no longer
+;; restated here.
+;;
+;; `home' overlaps `vault' (~/docs/org).  The exclusion is ~/.arcignore, which
+;; lives in $HOME and so belongs to the consumer, not the distro; arc warns at
+;; reindex time when it is missing.
+
 (when (featurep 'arc)
-  (setq
-   ;; $HOME-derived, never an absolute home path.  The "emanix" entry
-   ;; replaces arc's stale pre-rename default.
-   arc-collection-directory-alist
-   `(("dotfiles" . ,(expand-file-name "dotfiles" (getenv "HOME")))
-     ("emanix"   . ,(expand-file-name "projects/emanix" (getenv "HOME")))
-     ("vault"    . ,(expand-file-name "docs/org" (getenv "HOME"))))
-
-   arc-index-plan
-   '(("dotfiles" . file) ("emanix" . file) ("vault" . org)
-     ("nix options" . nixopt) ("hm options" . hmopt)
-     ("builtin manuals" . info))
-
-   ;; arc ships with only ("builtin manuals") enabled, which would make
-   ;; `C-c i i' answer Emacs questions and know nothing about this machine --
-   ;; the whole point of the thing.  Enable the full corpus.
-   arc-enabled-collections
-   '("dotfiles" "emanix" "vault" "nix options" "hm options" "builtin manuals")))
+  ;; arc ships with only ("builtin manuals") enabled, which would make
+  ;; `C-c i i' know nothing about this machine -- the whole point of the
+  ;; thing.  Enable every collection the plan builds, derived from the plan
+  ;; so the two cannot disagree.
+  (setq arc-enabled-collections (mapcar #'car arc-index-plan)))
 
 ;; Deliberately NOT set, because arc's own defaults are already correct for
 ;; this machine and duplicating them here would just be somewhere else to
@@ -83,15 +81,11 @@
 ;;   arc-nixopt-flake / arc-hm-flake  -- both default to ~/dotfiles, which is
 ;;                                       the flake nixos-rebuild actually
 ;;                                       builds (#rafik lives there).
-;;   arc-vault-collections            -- ("vault")
-;;   arc-option-collections           -- ("nix options" "hm options")
-;;   arc-chat-models                  -- ("qwen2.5-coder:3b" "qwen2.5:7b"),
-;;                                       matching ollama.nix's loadModels in
-;;                                       the dotfiles flake.  Those two lists
-;;                                       are the one duplication left; if
-;;                                       they ever disagree, ollama.nix wins,
-;;                                       because it is what is actually
-;;                                       pulled.
+;;   arc-embeddings-provider          -- Ollama on localhost:11434 with
+;;                                       nomic-embed-text.  Each consumer host
+;;                                       that runs arc must serve that model
+;;                                       there; arc is retrieval-only and
+;;                                       needs no chat model.
 
 ;;; Capture ------------------------------------------------------------------
 
@@ -141,7 +135,7 @@ that one intercepted key can move to retrieval without changing again."
   (unless (fboundp 'arc-ask)
     (user-error "arc is not installed: `arc-ask' is not defined"))
   (unless (emanix/arc--ollama-running-p)
-    (user-error "Ollama is not running -- start it with `systemctl --user start ollama'"))
+    (user-error "Ollama is not running -- start it with `sudo systemctl start ollama'"))
   (arc-ask prompt))
 
 (defun emanix/arc-search (prompt)

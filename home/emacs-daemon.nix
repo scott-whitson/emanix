@@ -51,9 +51,20 @@ in
     };
 
     # arc's sqlite-vec extension path — set by ewm.nix on emanix workstations,
-    # and here for the non-EWM daemon hosts. Answering is non-functional until
-    # the node has an Ollama (deferred per the spec), but loading arc must not
-    # error, and arc signals at database-open time if this points nowhere.
+    # and here for the non-EWM daemon hosts. Search is non-functional until
+    # the node serves Ollama embeddings, but loading arc must not error, and
+    # arc signals at database-open time if this points nowhere.
+    #
+    # Twice, because the two reach different processes. sessionVariables
+    # reaches interactive shells. The daemon is a systemd user unit whose
+    # ExecStart is `bash -l -c', which sources no HM session file (there is no
+    # ~/.profile), so with sessionVariables alone the daemon ran with
+    # `arc-sqlite-vec-path' nil and arc could never open its database. On the
+    # unit itself rather than in environment.d: environment.d is read when the
+    # user manager starts, so a switch would not reach a restarted daemon
+    # until the next login, while the unit's Environment does.
     home.sessionVariables.ARC_VEC0_PATH = emacsPkgs.arcVecPath;
+    systemd.user.services.emacs.Service.Environment =
+      [ "ARC_VEC0_PATH=${emacsPkgs.arcVecPath}" ];
   };
 }
