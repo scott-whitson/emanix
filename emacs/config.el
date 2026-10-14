@@ -785,7 +785,12 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 (defun emanix/calendar-sync ()
   "Launch the Python calendar sync tool."
   (interactive)
-  (start-process-shell-command
+  ;; `start-process', not `start-process-shell-command': the latter takes
+  ;; exactly three arguments (name buffer command), so passing "sync"
+  ;; separately signalled wrong-number-of-arguments and C-c c never ran the
+  ;; tool. `start-process' takes the program plus its arguments directly, and
+  ;; needs no shell quoting for the bin-dir path.
+  (start-process
    "calendar-sync" nil
    (expand-file-name "calendar-sync" (or (getenv "EMANIX_BIN_DIR") "")) "sync"))
 
