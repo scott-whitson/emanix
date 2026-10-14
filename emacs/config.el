@@ -783,16 +783,20 @@ base name, hence the `file-name-nondirectory' before the prefix test."
 ;; Emacs should stay focused on editing Dates.org and launching the tool.
 
 (defun emanix/calendar-sync ()
-  "Launch the Python calendar sync tool."
+  "Launch the Python calendar sync tool, and show what it prints.
+
+`start-process', not `start-process-shell-command': the latter takes exactly
+three arguments (name buffer command), so passing \"sync\" separately
+signalled wrong-number-of-arguments and C-c c never ran the tool. The buffer
+is real, not nil: with nil the tool's output and any error went nowhere, so a
+failed sync looked like a keypress that did nothing."
   (interactive)
-  ;; `start-process', not `start-process-shell-command': the latter takes
-  ;; exactly three arguments (name buffer command), so passing "sync"
-  ;; separately signalled wrong-number-of-arguments and C-c c never ran the
-  ;; tool. `start-process' takes the program plus its arguments directly, and
-  ;; needs no shell quoting for the bin-dir path.
-  (start-process
-   "calendar-sync" nil
-   (expand-file-name "calendar-sync" (or (getenv "EMANIX_BIN_DIR") "")) "sync"))
+  (let ((buffer (get-buffer-create "*calendar-sync*")))
+    (with-current-buffer buffer (erase-buffer))
+    (display-buffer buffer)
+    (start-process
+     "calendar-sync" buffer
+     (expand-file-name "calendar-sync" (or (getenv "EMANIX_BIN_DIR") "")) "sync")))
 
 (global-set-key (kbd "C-c c") #'emanix/calendar-sync)
 
