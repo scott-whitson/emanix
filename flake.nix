@@ -115,11 +115,11 @@
 
       # Home Manager wiring: import the emanix HM modules for the given user.
       # The consuming flake adds personal home config via extraModules.
-      # mkDefault throughout, for the same reason as the role profiles: these
-      # are the distribution's opinions about how to wire Home Manager, not
-      # invariants. Until they were mkDefault the comment below was a lie —
-      # a consumer taking it up got "conflicting definition values" instead of
-      # their own stateVersion.
+      # mkDefault throughout: these are the distribution's opinions about how to
+      # wire Home Manager, not invariants, so a consumer can outrank them.
+      # Until they were mkDefault the comment below was a lie — a consumer
+      # taking it up got "conflicting definition values" instead of their own
+      # stateVersion.
       mkHmModule = username: {
         home-manager = {
           extraSpecialArgs = sharedSpecialArgs;
@@ -139,7 +139,7 @@
         };
       };
 
-      # Compose an emanix host: core + role + user + hardware + personal extras.
+      # Compose an emanix host: core + user + hardware + personal extras.
       mkHost = import ./lib/mkHost.nix {
         inherit nixpkgs home-manager ewm agenix nixos-wsl nixpkgsModule sharedSpecialArgs system;
         inherit mkHmModule;
@@ -192,9 +192,31 @@
         modules = [ ./installer/iso.nix ];
       };
 
-      # The installer ISO as a package (nix build .#installerIso).
-      packages.${system}.installerIso =
-        self.nixosConfigurations.installer.config.system.build.isoImage;
+      packages.${system} = {
+        # The installer ISO (nix build .#installerIso).
+        installerIso =
+          self.nixosConfigurations.installer.config.system.build.isoImage;
+
+        # The distribution's own Emacs, buildable without a host.
+        # emacs/packages.nix is the sole build site and mkEmacs its only entry
+        # point; the other two consumers are modules/ewm.nix (base + EWM) and
+        # home/emacs-daemon.nix (base). This is the BASE variant, which is what
+        # tests/init-guard.sh needs — it asserts the loader against a real
+        # config.el, and a stock emacs has none of the packages that file
+        # requires. Until this output existed the test silently depended on the
+        # machine running it already having emanix deployed.
+        #
+        # No second, headless variant: init-guard runs --batch, but a nox build
+        # would be a second Emacs to keep in step with this one.
+        #
+        # Overlay-extended pkgs, for the same reason agent-shell-api gets it
+        # below: `pkgs' above is bare nixpkgs, while every host's Emacs comes
+        # from the emacs-overlay build.
+        emacs =
+          (import ./emacs/packages.nix {
+            pkgs = pkgs.extend emacs-overlay.overlays.default;
+          }).mkEmacs { };
+      };
 
       # Disko configurations are defined by consumers (per-host disk layouts
       # are personal). The installer carries the disko INPUT so consuming
@@ -203,12 +225,11 @@
       # Evaluation checks — the distro validating ITSELF.
       #
       # nix flake check otherwise touches almost nothing here: it does not
-      # reach lib.mkHost, the role profiles, or any of the Home Manager
-      # modules under home/, so a broken option or a renamed
-      # upstream setting stays green until a CONSUMER's rebuild trips over
-      # it. Each check below composes a throwaway host through the real
-      # mkHost and forces its toplevel, which drags in the role profile, the
-      # NixOS tier, every HM module and NixOS's own assertions.
+      # reach lib.mkHost or any of the Home Manager modules under home/, so a
+      # broken option or a renamed upstream setting stays green until a
+      # CONSUMER's rebuild trips over it. Each check below composes a throwaway
+      # host through the real mkHost and forces its toplevel, which drags in
+      # the NixOS tier, every HM module and NixOS's own assertions.
       #
       # EVALUATED, NEVER BUILT. unsafeDiscardStringContext drops the
       # derivation dependency, so the drvPath is computed (that is the whole
@@ -327,6 +348,23 @@
           # The welcome buffer's claims, checked against the bindings that
           # back them. See checks/welcome-keys.nix.
           welcome-keys = import ./checks/welcome-keys.nix { inherit pkgs; };
+
+          # The 2026-08-30 rename, enforced rather than remembered. The README
+          # says of the naming it replaced that it "was a boundary nothing
+          # enforced"; nine comments in live files proved the replacement had
+          # the same hole. See checks/retired-names.nix.
+          retired-names = import ./checks/retired-names.nix { inherit pkgs; };
+
+          # The documentation's two pointers, checked rather than trusted:
+          # every check named in WALKTHROUGH.md's table, and every decision
+          # record linked from docs/decisions/README.md.
+          check-index = import ./checks/check-index.nix { inherit pkgs; };
+          decisions-index = import ./checks/decisions-index.nix { inherit pkgs; };
+
+          # No comment block runs past 30 consecutive lines. The budgets are in
+          # docs/decisions/README.md; this enforces the one ceiling that is
+          # unambiguously over. See checks/comment-budget.nix.
+          comment-budget = import ./checks/comment-budget.nix { inherit pkgs; };
         };
 
       # Builder dev shell.

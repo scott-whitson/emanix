@@ -1,0 +1,87 @@
+name: CI
+
+# emanix's validation used to be entirely voluntary: the README says to run
+# `nix flake check`, and nothing ran it for you. This file is the floor.
+#
+# Two jobs, split by COST, not by kind. Ten of the distribution's checks drive
+# an Emacs build (agent-acp-wrapper, agent-shell-{api,glue,sync}, arc-{bridge,
+# glue}, modeline-segments, prose, theme-switch, welcome-keys), and a cold
+# runner pays full price for those. The three `role-*` checks and the
+# fixture-only ones are cheap and run on every PR.
+#
+# What this deliberately does NOT do: build a workstation closure. Every
+# `role-*` check computes a drvPath under `unsafeDiscardStringContext` and
+# realizes nothing (see flake.nix). CI must not become the thing that starts
+# realizing them — that rule is the reason the checks are safe to run on a
+# machine you are using.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Static checks and shell tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+
+      # `nix develop -c`, not `nix run nixpkgs#...`: the devShell already
+      # declares these four tools and takes them from the flake's pinned
+      # nixpkgs, so the gate cannot drift from what a contributor runs by
+      # hand.
+      - name: Formatting (nixpkgs-fmt --check)
+        run: nix develop -c nixpkgs-fmt --check .
+      - name: deadnix
+        run: nix develop -c deadnix .
+      - name: statix
+        run: nix develop -c statix check .
+
+      # The 2026-08-30 rename. Cheap (a trivial derivation over an eval-time
+      # scan), and the only guard against comments that name directories which
+      # no longer exist.
+      - name: Retired directory names
+        run: nix build .#checks.x86_64-linux.retired-names
+
+      # No flake inputs required: lib/disk.nix is a pure generator, and the
+      # script only runs `nix eval --impure` against it.
+      - name: Disk layout (golden fixtures)
+        run: ./tests/disk-layout.sh
+
+      # Exercises the pre-staged vs interactive mode boundary on the real
+      # installer. `--check-only`, so it never touches a disk.
+      - name: Installer mode boundary
+        run: ./tests/installer-modes.sh
+
+  emacs:
+    name: Full flake check and the init guard
+    # Not on pull requests: this job builds Emacs packages. Add a Cachix cache
+    # (and its auth token as a secret) if the runtime becomes the reason you
+    # skip it locally. Note `nix flake check` does NOT cover tests/init-guard.sh
+    # by design — it wants a live filesystem and real subprocess I/O — which is
+    # exactly what a runner has and a build sandbox does not, so it runs here.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+
+      - name: nix flake check
+        run: nix flake check -L
+
+      # The guard asserts the loader's behaviour against a real config.el, so
+      # it needs the distribution's own Emacs — a stock one lacks the packages
+      # that file requires. `.#emacs` is that build; before it existed the test
+      # silently depended on the machine running it already having emanix
+      # deployed.
+      - name: init guard
+        run: |
+          emacs=$(nix build --no-link --print-out-paths .#emacs)
+          EMACS="$emacs/bin/emacs" ./tests/init-guard.sh

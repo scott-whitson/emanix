@@ -78,8 +78,8 @@ home/       the Home Manager tier: the settings of one user
 modules/    the NixOS tier: the settings of the machine
 ```
 
-**`home/`** holds 15 modules and one aggregate. The aggregate is
-`home/default.nix`. The aggregate imports the other 15 modules. The file
+**`home/`** holds 14 modules and one aggregate. The aggregate is
+`home/default.nix`. The aggregate imports the other 14 modules. The file
 `flake.nix` gives the aggregate to Home Manager.
 
 **`modules/`** holds six modules:
@@ -270,9 +270,11 @@ read a screen.
 
 ## 11. The checks
 
-The command `nix flake check` reads every machine and runs 16 checks. The
-checks test the distribution against itself. Most checks read a recorded file.
-No check needs the network.
+The command `nix flake check` composes one throwaway machine three times — once
+for each role label — and runs every check below. The checks test the
+distribution against itself. Most read a recorded file. No check reaches a
+network service. The three `role-*` checks compute a derivation path and build
+nothing. `checks/check-index.nix` asserts this table names every check.
 
 | Check | What it finds |
 | --- | --- |
@@ -282,16 +284,33 @@ No check needs the network.
 | `disk-layout` | The disk layout agrees with the recorded layout |
 | `hardware-gpu` | The GPU option reaches the kernel modules |
 | `theme-switch` | The theme switch works |
+| `prose` | The prose renderer works, including the drawn markdown table |
 | `arc-glue`, `arc-bridge` | The assistant holds its interface |
 | `agent-shell-api` | The upstream interface of the agent shell |
 | `agent-shell-glue`, `agent-shell-sync` | The agent wiring and the buffer sync |
 | `agent-acp-wrapper` | The adapter runs with a small PATH |
 | `modeline-segments` | The extension point for the consumer works |
 | `welcome-keys` | Every key in the welcome text is a real key |
+| `retired-names` | No live `.nix` file names a directory that was renamed on 2026-08-30 |
+| `check-index` | Every check is named in this table |
+| `decisions-index` | Every decision record is linked from its index |
+| `comment-budget` | No comment block runs past 30 consecutive lines |
 
-The directory `tests/` holds the shell and Python tests. The checks call these
-tests. The checks do not call two files: `installer-modes.sh` and
-`init-guard.sh`. Run these two files by hand.
+The directory `tests/` holds the shell and Python tests. Some are called by a
+check. Three are not, and cannot be: they want a live filesystem, a real
+subprocess, or a nested `nix eval`.
+
+- `disk-layout.sh` — `checks/disk-layout.nix` covers the same fixture diff, so
+  this file holds only the cases a build sandbox cannot have.
+- `installer-modes.sh` — it runs the real installer script with `--check-only`.
+- `init-guard.sh` — it runs Emacs in batch mode. It needs the distribution's own
+  Emacs, because it tests the loader against a real `config.el`:
+  `EMACS=$(nix build --no-link --print-out-paths .#emacs)/bin/emacs ./tests/init-guard.sh`
+
+The file `.github/workflows/ci.yml` runs all of them. A cheap job runs on every
+pull request: it evaluates every check with `nix flake check --no-build` and
+builds nothing. A slow job runs on `main` and builds all 18 checks, because six
+of them build Emacs.
 
 ## 12. How to change the distribution
 
@@ -300,14 +319,16 @@ Use this sequence.
 1. Read the file that you will change.
 2. Change the file.
 3. Run `nix flake check`. This step finds most errors.
-4. If the change removes a module or moves a module, update the consumer. The
+4. Run the linters and the shell tests. The commands are in `CONTRIBUTING.md`.
+   CI runs the same commands.
+5. If the change removes a module or moves a module, update the consumer. The
    consumer names paths in this repository.
-5. Commit the change. Push it.
-6. In the consumer, update the input:
+6. Commit the change. Push it.
+7. In the consumer, update the input:
    `nix flake lock --update-input emanix`.
-7. Apply the change to the machines.
+8. Apply the change to the machines.
 
-Step 4 is the step that is easy to forget. The consumer holds the paths of this
+Step 5 is the step that is easy to forget. The consumer holds the paths of this
 repository in its comments and in its checks. A move in this repository without
 a change in the consumer breaks the consumer.
 
