@@ -15,9 +15,8 @@
     };
   };
 
-  outputs = { self, nixpkgs, emanix, disko, ... }:
+  outputs = { nixpkgs, emanix, disko, ... }:
     let
-      system = "x86_64-linux";
       host = import ./host.nix;
     in
     {

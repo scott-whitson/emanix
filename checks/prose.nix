@@ -12,9 +12,11 @@ let
   emacsPackages = pkgs.emacsPackagesFor pkgs.emacs-nox;
   emacsWithProseDeps =
     emacsPackages.emacsWithPackages
-      (epkgs: [ epkgs.visual-fill-column
-                epkgs.org-modern
-                epkgs.org-appear ]);
+      (epkgs: [
+        epkgs.visual-fill-column
+        epkgs.org-modern
+        epkgs.org-appear
+      ]);
 in
 pkgs.runCommand "emanix-prose-tests" { } ''
   export HOME=$(mktemp -d)

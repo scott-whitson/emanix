@@ -163,7 +163,7 @@ in
   # The sole build site. `extraPackages` carries the caller's difference —
   # ewm.nix appends EWM's own package, which this file cannot know about, so
   # the seam takes a value rather than naming a variant.
-  mkEmacs = { extraPackages ? (epkgs: [ ]) }:
+  mkEmacs = { extraPackages ? (_: [ ]) }:
     (pkgs.emacsPackagesFor pkgs.emacs-pgtk).emacsWithPackages
       (epkgs: list epkgs ++ extraPackages epkgs);
 
