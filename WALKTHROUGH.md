@@ -309,7 +309,7 @@ subprocess, or a nested `nix eval`.
 
 The file `.github/workflows/ci.yml` runs all of them. A cheap job runs on every
 pull request: it evaluates every check with `nix flake check --no-build` and
-builds nothing. A slow job runs on `main` and builds all 18 checks, because six
+builds nothing. A slow job runs on `main` and builds every check, because six
 of them build Emacs.
 
 ## 12. How to change the distribution

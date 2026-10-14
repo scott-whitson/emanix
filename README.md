@@ -102,11 +102,11 @@ lib/{themes,theme-tree}.nix       # palettes, and the rendered runtime theme tre
 lib/gen-pi-theme.py               # renders the pi agent theme into that tree
 installer/                        # ISO module, fresh-emanix-install, emanix-init.sh
 templates/default/                # `nix flake init` host template
-checks/                           # eval/derivation checks run by `nix flake check`
+checks/                           # one file per check; `nix flake check` runs them
 tests/                            # shell and python tests the checks call
 patches/                          # ewm patches, applied by modules/ewm.nix
-checks/retired-names.nix          # the 2026-08-30 rename, enforced rather than remembered
-docs/                             # frozen design records
+docs/decisions/                   # maintained: why a value is what it is
+docs/superpowers/                 # frozen design records, never edited to match the present
 .github/workflows/ci.yml          # static checks on every PR, full flake check on main
 CONTRIBUTING.md                   # where a file goes, and the rules that are not obvious
 ```
@@ -235,5 +235,5 @@ EMACS=$(nix build --no-link --print-out-paths .#emacs)/bin/emacs ./tests/init-gu
 
 `.github/workflows/ci.yml` runs all of it. A cheap job runs on every pull
 request: the linters, a build-free `nix flake check --no-build`, the retired-name
-check, and the three shell tests below. A slow job runs on `main`, builds all 18
-checks (six of them build Emacs), and then runs the init guard.
+check, and the three shell tests below. A slow job runs on `main`, builds every
+check (six of them build Emacs), and then runs the init guard.
