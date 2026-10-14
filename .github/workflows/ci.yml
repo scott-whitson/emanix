@@ -3,11 +3,13 @@ name: CI
 # emanix's validation used to be entirely voluntary: the README says to run
 # `nix flake check`, and nothing ran it for you. This file is the floor.
 #
-# Two jobs, split by COST, not by kind. Ten of the distribution's checks drive
-# an Emacs build (agent-acp-wrapper, agent-shell-{api,glue,sync}, arc-{bridge,
-# glue}, modeline-segments, prose, theme-switch, welcome-keys), and a cold
-# runner pays full price for those. The three `role-*` checks and the
-# fixture-only ones are cheap and run on every PR.
+# Two jobs, split by COST. `nix flake check` builds all 18 checks, and six of
+# them build Emacs (agent-shell-api, agent-shell-sync, arc-bridge,
+# modeline-segments, prose, theme-switch). Four more run as shell greps during
+# the build (agent-acp-wrapper, agent-shell-glue, arc-glue, welcome-keys). Only
+# the three `role-*` checks are genuinely cheap, and only because they compute
+# a derivation path instead of building one. So the PR job EVALUATES every
+# check with `--no-build` and builds nothing; the main job builds them.
 #
 # What this deliberately does NOT do: build a workstation closure. Every
 # `role-*` check computes a drvPath under `unsafeDiscardStringContext` and
@@ -44,9 +46,18 @@ jobs:
       - name: statix
         run: nix develop -c statix check .
 
+      # Evaluate every check and every package, and build none of them. This is
+      # where most errors surface — a broken Home Manager module, a renamed
+      # upstream option, a template that no longer evaluates — at a fraction of
+      # the main job's cost. `nix flake check` evaluates `packages.*` too, and
+      # does not build them; only `checks.*` are built.
+      - name: Evaluate every check (build nothing)
+        run: nix flake check --no-build -L
+
       # The 2026-08-30 rename. Cheap (a trivial derivation over an eval-time
       # scan), and the only guard against comments that name directories which
-      # no longer exist.
+      # no longer exist. Kept as its own step so that removing the check from
+      # flake.nix fails here rather than silently reducing coverage.
       - name: Retired directory names
         run: nix build .#checks.x86_64-linux.retired-names
 
@@ -64,8 +75,8 @@ jobs:
     name: Full flake check and the init guard
     # Not on pull requests: this job builds Emacs packages. Add a Cachix cache
     # (and its auth token as a secret) if the runtime becomes the reason you
-    # skip it locally. Note `nix flake check` does NOT cover tests/init-guard.sh
-    # by design — it wants a live filesystem and real subprocess I/O — which is
+    # skip it. Note `nix flake check` does NOT cover tests/init-guard.sh by
+    # design — it wants a live filesystem and real subprocess I/O — which is
     # exactly what a runner has and a build sandbox does not, so it runs here.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
