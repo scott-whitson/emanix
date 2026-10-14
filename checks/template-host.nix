@@ -1,39 +1,30 @@
-# The template is the ONLY thing a stranger's machine is built from, and a
-# template that does not evaluate produces a failure on someone else's console
-# with no context to debug it. So it is evaluated here, on every flake check,
-# against fixture host.nix values.
+# The template is the ONLY thing a stranger's machine is built from, and one that
+# does not evaluate fails on someone else's console with no context to debug it.
+# So it is evaluated here, on every flake check, against fixture host.nix values.
 #
-# It deliberately does NOT go through the template's own flake.nix: that
-# declares `emanix` as a github input, which the build sandbox cannot fetch.
-# The modules are evaluated against THIS tree instead, which is the thing that
-# actually drifts.
-# NOTE (deviations required to make this evaluate, from what a naive
-# transcription of templates/default/flake.nix's module list would do):
+# It deliberately does NOT go through the template's own flake.nix: that declares
+# `emanix` as a github input, which the build sandbox cannot fetch. The modules are
+# evaluated against THIS tree instead, which is the thing that drifts.
 #
-# 1. mkHost's own module list never includes disko.nixosModules.disko — the
-#    distro's role checks never set disko.devices, so they never needed it.
-#    The template's OWN flake.nix adds it explicitly alongside disko.nix (see
-#    templates/default/flake.nix), and this check must do the same or
-#    disko.nix's `disko.devices.disk.main` definition has no matching option.
-#    This is also written down in flake.nix's `lib` comment, where a consumer
-#    reading mkDisk's signature will actually see it.
+# Two deviations from a naive transcription of templates/default/flake.nix:
 #
-# 2. checks/stub-hardware.nix defines fileSystems."/" (for the role checks,
-#    which never touch disko) at normal priority, which collides with the
-#    real fileSystems."/" disko.nix's module produces here. Rather than
-#    change that shared fixture's priority for every other check, this check
-#    supplies its own minimal hardware stub with only what disko does not
-#    already cover: the bootloader assertion. fileSystems."/" comes from
-#    disko; system.stateVersion comes from configuration.nix.
+# 1. mkHost never includes disko.nixosModules.disko — the role checks never set
+#    disko.devices, so they never needed it. The template's flake.nix adds it
+#    explicitly, and this must too, or `disko.devices.disk.main` has no matching
+#    option. Also in flake.nix's `lib` comment, where a consumer sees it.
 #
-# TWO fixtures, because `hardwareModule` has two code paths and Nix is lazy.
-# The template appends `nixos-hardware.nixosModules.${host.hardwareModule}`
-# only when the field is non-null; with a single null fixture that expression
-# — the entire reason the nixos-hardware input exists — was never forced by
-# any check, so a typo in the attribute path or a vanished upstream module
-# would first surface on a stranger's console mid-install. The named module is
-# `lenovo-thinkpad-t14-amd-gen5`: it exists upstream and is the one the fleet
-# actually uses, so this is not a synthetic name that could quietly rot.
+# 2. checks/stub-hardware.nix defines fileSystems."/" at normal priority, which
+#    collides with disko's real one here. Rather than change that shared fixture
+#    for every other check, this supplies its own stub: the bootloader assertion.
+#
+# TWO fixtures, because `hardwareModule` has two code paths and Nix is lazy. The
+# template appends `nixos-hardware.nixosModules.${host.hardwareModule}` only when
+# the field is non-null; with a single null fixture that expression — the entire
+# reason the nixos-hardware input exists — was never forced, so a typo in the
+# attribute path would first surface on a stranger's console mid-install. The
+# named module is `lenovo-thinkpad-t14-amd-gen5`, which exists upstream and is the
+# one the fleet actually uses, so it is not a synthetic name that could quietly
+# rot.
 { pkgs, mkHost, disko, nixos-hardware, ... }:
 let
   baseFixture = {

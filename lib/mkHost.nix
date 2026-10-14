@@ -22,16 +22,16 @@
 # A label the distro records and the consumer interprets — not a dispatch.
 let
   # emanix.username is a NixOS-level option (declared in emanix.nix),
-  # read by os-system/base.nix and i-intelligence/ewm.nix
+  # read by modules/base.nix and modules/ewm.nix
   # to address home-manager.users.<username>. Set it from the mkHost argument.
   #
-  # emanix.role is an HM-level option (declared in i-intelligence/theme.nix),
+  # emanix.role is an HM-level option (declared in home/theme.nix),
   # read by HM modules (e.g. zsh.nix). It is set inside the user's HM config.
   #
   # NOT mkDefault, unlike the HM wiring block. Those
   # carry the distribution's OPINIONS, which a consumer may outrank. These two
   # are the ARGUMENTS mkHost was called with: overriding `role` to something
-  # other than the profile mkHost actually imported yields an incoherent host,
+  # other than the role mkHost was told to record yields an incoherent host,
   # with the HM modules branching on one role while the NixOS tier composed
   # another. Role output is an opinion; mkHost input is an invariant.
   emanixCoreModule = {

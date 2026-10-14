@@ -30,64 +30,23 @@ pkgs.runCommand "emanix-welcome-keys" { } ''
     exit 1
   fi
 
-  # 3. Every Emacs binding the buffer advertises must be bound somewhere in the
-  #    shipped elisp. EWM's own super-keys are NOT checked here -- they live in
-  #    the ewm input and this repo cannot see them -- so only C-* claims are
-  #    verified, which is exactly the set this repo is responsible for.
+  # 3. Every C-* key the buffer advertises must be bound by a LIVE binding form
+  #    in the shipped elisp. EWM's own super-keys are not checked: they live in
+  #    the ewm input, which this repo cannot see.
   #
-  #    The brief this check was written from used a narrower extraction
-  #    regex, requiring either surrounding double quotes or a `C-c' prefix.
-  #    Neither branch matches the buffer's own `C-x g' row, so it would never
-  #    have been checked. This pattern matches any `C-<letter> <char>' pair
-  #    regardless of quoting or prefix letter.
+  #    The extraction pattern reaches a lowercase prefix plus one
+  #    lowercase-or-`?' token and no further — a digit, an uppercase letter or a
+  #    chord like `C-c C-i' is not extracted and will not be seen. Widen it, and
+  #    re-run the fail/pass drill, before trusting it on such a row.
   #
-  #    Reach of this pattern: it only extracts a single lowercase prefix key
-  #    ([a-z]) followed by exactly one lowercase-or-`?' second token. A future
-  #    row using a digit, an uppercase letter, or a chord like `C-c C-i' will
-  #    NOT be extracted at all, and this guard will not see it. Widen the
-  #    pattern (and re-run the fail/pass drill below) before trusting it on
-  #    such a row.
+  #    KNOWN RESIDUAL GAP: a real code line whose own trailing comment contains a
+  #    complete binding shape still matches, because grep cannot tell where a
+  #    line's code ends and its comment begins. Nothing in this tree does that
+  #    today; closing it needs parsing, not grep.
   #
-  #    `C-c i' is genuinely bound, but only in emanix-arc.el (guarded behind
-  #    `(featurep 'arc)'), not in config.el or fallback.el -- so arc.el is
-  #    checked too, alongside the two files the brief named.
-  #
-  #    The brief's loop was `for key in $(... | sort -u)': unquoted command
-  #    substitution word-splits on whitespace, so a two-token key like
-  #    "C-c i" arrives as two separate words, "C-c" and "i". Both are
-  #    near-universal substrings of any real elisp file (a lone letter like
-  #    `i' or `j' matches almost anywhere), so that form of the loop passes
-  #    no matter what the buffer advertises -- verified: it let a deliberately
-  #    wrong "C-c j" through. Reading keys line-by-line keeps each one whole.
-  #
-  #    Membership itself was also too weak: `grep -qF "$key"' matches the key
-  #    string anywhere in the file, including comment prose that mentions a
-  #    key without binding it (e.g. config.el's own "C-u C-c t = new
-  #    terminal" and "C-c z toggles back to raw monospace" remarks). Deleting
-  #    the real `(global-set-key (kbd "C-c t") ...)' line left such a comment
-  #    behind and the check kept passing -- verified. A key now has to appear
-  #    inside an actual binding call, not merely somewhere in the file.
-  #
-  #    That binding-form pattern alone still let a *commented-out* binding
-  #    satisfy the check, e.g. `;; (global-set-key (kbd "C-c t") #'ghostel)':
-  #    the pattern has no start-of-line anchor, so the function name and the
-  #    quoted key merely have to co-occur on a line with no intervening `"',
-  #    which a `;;'-prefixed copy of a real line still does -- verified.
-  #    Commenting a binding out is the likeliest way one of these actually
-  #    disappears, more likely than deleting the line outright, so lines
-  #    whose first non-blank character is `;' are dropped before matching.
-  #    A trailing comment on a real binding (checked: none of config.el's,
-  #    fallback.el's, or emanix-arc.el's C-* bindings has one today) would
-  #    still match, since only a line *starting* as a comment is excluded.
-  #
-  #    KNOWN RESIDUAL GAP, left deliberately rather than papered over: a real
-  #    code line whose OWN trailing comment happens to contain a complete
-  #    binding shape -- e.g. `(setq x t) ;; (global-set-key (kbd "C-c t") ...)`
-  #    -- still matches, because the grep pattern has no notion of where a
-  #    line's code ends and its trailing comment begins. Nothing in this tree
-  #    does this today. Narrowing further would need parsing, not grep; if
-  #    this ever needs closing, that is the point at which it stops being
-  #    cheap.
+  #    The four traps found while writing this — the brief's regex, the
+  #    word-splitting loop, substring membership, and a commented-out binding —
+  #    are in docs/decisions/welcome-keys-check.md.
   keys=$(grep -oE 'C-[a-z] [a-z?]' "$welcome" | sort -u)
 
   # An empty extraction is a guard that has stopped seeing its subject, not a
@@ -100,15 +59,10 @@ pkgs.runCommand "emanix-welcome-keys" { } ''
   fi
 
   fails=0
-  # Emacs's own default bindings are exempt. The buffer legitimately points at
-  # built-ins -- `C-h i' IS how you reach the info directory, and a guide that
-  # cannot name it is not a guide. emanix does not bind these and never should,
-  # so demanding a binding form for them would fail on correct code.
-  #
-  # Deliberately tiny, and NOT an escape hatch: a key belongs here only if stock
-  # Emacs binds it with no configuration at all. Anything emanix itself provides
-  # must still prove a live binding form below. A future entry being tempting to
-  # add here is the signal that it ought to be bound instead.
+  # Emacs's own default bindings are exempt: the buffer legitimately points at
+  # built-ins, and emanix does not bind these and never should, so demanding a
+  # binding form for them would fail on correct code. Deliberately tiny, and NOT
+  # an escape hatch — see docs/decisions/welcome-keys-check.md.
   builtin_key() {
     case "$1" in
     "C-h i" | "C-h b" | "C-h k" | "C-h f" | "C-h v" | "C-h m") return 0 ;;

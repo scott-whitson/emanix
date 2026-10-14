@@ -1,39 +1,24 @@
 # The emanix disk layout, parameterized.
 #
-# Promoted out of templates/default/disko.nix, which is where it lived while
-# the only consumer was a generated host. It is the DISTRIBUTION's opinion
-# about how a disk should be laid out — an ESP at /boot, optional swap, one
-# root partition, btrfs subvolumes, optionally wrapped in LUKS. What machine
-# it is applied to stays the consumer's fact: this function takes `device`
-# rather than knowing one.
+# The DISTRIBUTION's opinion about how a disk should be laid out — an ESP at
+# /boot, optional swap, one root partition, btrfs subvolumes, optionally wrapped
+# in LUKS. Which machine it is applied to stays the consumer's fact: this takes
+# `device` rather than knowing one.
 #
-# Returns a NixOS MODULE (a function ignoring its argument), so a consumer can
-# drop the result straight into a module list beside disko.nixosModules.disko.
+# Returns a NixOS MODULE (a function ignoring its argument), so a consumer drops
+# the result straight into a module list beside disko.nixosModules.disko.
 #
 # LUKS wraps the filesystem rather than replacing it, so the two knobs are
 # independent: ext4-on-LUKS and bare btrfs are both reachable.
 #
-# The two asserts below the `let` validate the arguments HERE, at evaluation,
-# rather than leaving it to the installer prompt. fresh-emanix-install
-# validates its own answers, but it is not the only caller: the template tells
-# the operator to edit host.nix by hand, and a consuming flake calls mkDisk
-# directly with no prompt in sight. disko runs destroy BEFORE format, so
-# anything that only fails at format time fails with the disk already wiped --
-# which is the whole difference between a typo and an unbootable machine.
-# (`|| throw` rather than a bare assert: a bare assert prints the failing
-# expression, and for builtins.match that is unreadable. The throw names the
-# bad value.)
-#
-# swapSize: "0" is the no-swap sentinel and is the ONLY spelling of it this
-# function understands, so anything else must be a POSITIVE number of M or G.
-# "0G" is the case the assert exists for. It passed the installer's old
-# `^(0|[0-9]+[MG])$`, then took the swap branch here -- the sentinel comparison
-# is against the exact string "0" -- and emitted `size = "0G"`, a zero-length
-# partition, discovered after destroy.
-#
-# filesystem: without the assert, "brtfs", "xfs" and "BTRFS" all fall through
-# the `if` below into the ext4 branch and quietly produce an ext4 root on a
-# machine whose owner asked for btrfs.
+# The two asserts below validate the arguments at EVALUATION rather than leaving
+# it to the installer prompt. fresh-emanix-install validates its own answers, but
+# it is not the only caller: the template tells the operator to edit host.nix by
+# hand, and a consuming flake calls mkDisk directly with no prompt in sight. disko
+# runs destroy BEFORE format, so anything that only fails at format time fails
+# with the disk already wiped — the difference between a typo and an unbootable
+# machine. `|| throw` rather than a bare assert, because a bare assert prints the
+# failing expression and for builtins.match that is unreadable.
 { device
 , luks ? false
 , filesystem ? "btrfs"
@@ -100,12 +85,18 @@ let
     } else rootContent;
 in
 
-# "0", or a positive size. See the header: "0G" is the case this exists for.
+# "0" is the no-swap sentinel and the ONLY spelling of it this function
+  # understands; anything else must be a positive number of M or G. "0G" is the case
+  # this exists for: it passed the installer's old `^(0|[0-9]+[MG])$`, then took the
+  # swap branch — the sentinel comparison is against the exact string "0" — and
+  # emitted a zero-length partition, found after destroy.
 assert swapSize == "0"
   || builtins.match "[1-9][0-9]*[MG]" swapSize != null
   || throw ''mkDisk: swapSize must be "0" (no swap) or a positive size such as "8G" or "512M"; got "${toString swapSize}".'';
 
-# btrfs or ext4, nothing else. See the header: the `if` below has no third arm.
+# btrfs or ext4, nothing else. Without this, "brtfs", "xfs" and "BTRFS" all fall
+# through the `if` below into the ext4 branch and quietly produce an ext4 root on a
+# machine whose owner asked for btrfs.
 assert builtins.elem filesystem [ "btrfs" "ext4" ]
   || throw ''mkDisk: filesystem must be "btrfs" or "ext4"; got "${toString filesystem}".'';
 

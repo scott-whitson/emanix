@@ -16,13 +16,14 @@ patch, but one of them will answer the question that brought you here.
 - Nothing else. The dev shell carries the linters:
 
 ```bash
-nix develop          # nixd, nixpkgs-fmt, deadnix, statix
-nix flake check      # evaluate every host, run every check
-nix fmt              # formatter.${system} == nixpkgs-fmt
+nix develop                  # nixd, nixpkgs-fmt, deadnix, statix
+nix flake check              # compose a throwaway host per role label; run every check
+nix flake check --no-build   # the same evaluation, building nothing
+nix fmt                      # formatter.${system} == nixpkgs-fmt
 ```
 
-You do not need to be running emanix, or NixOS, to work on it. Everything the
-distribution validates is validated by evaluation.
+You do not need to be running emanix, or NixOS, to work on it: no check ever
+builds a host closure.
 
 ## Where a file goes
 
@@ -100,13 +101,35 @@ already shipped one guard that was passing on a mistranscribed layout
 length-preserving edits). If you add a check, add its negative control, or say
 in the header why one is impossible.
 
-### 5. Comments carry the measurement and the rejected alternative
+### 5. A comment states the decision; the working-out lives in `docs/decisions/`
 
 A comment that restates the code is noise. A comment that records *why this
-value* — a closure delta, a byte count, the upstream bug, the alternative that
-was tried and failed — is the most valuable thing in the file. `emacs/packages.nix`
-(an ELPA pin that became the outage), `emanix.nix` (645 MiB of voice data) and
-`tests/init-guard.sh` (two real faults on 2026-08-10) are the standard.
+value* is the most valuable thing in the file — but past a few lines it stops
+being a comment and starts being an essay, and the essay belongs in a record.
+
+The budgets ([`docs/decisions/README.md`](docs/decisions/README.md)):
+
+| Where | Budget |
+| --- | --- |
+| File header comment | 12 lines |
+| Comment on one binding or attribute | 6 lines |
+| Link from code to a record | 2 lines |
+
+Over budget means relocate, never delete. A measurement, a rejected alternative
+or a verified claim moves to `docs/decisions/<slug>.md`, and the comment keeps
+the decision plus one link. `emanix.nix` (645 MiB of voice data, now
+`decisions/speechd.md`) and `modules/ewm.nix` (the two EWM patches, now
+`decisions/ewm-patches.md`) are the worked examples.
+
+What stays inline, and why: `emacs/packages.nix` (an ELPA pin that became the
+outage) and `tests/init-guard.sh` (two real faults on 2026-08-10) are short
+enough to read where they sit.
+
+The consuming repository makes the other choice, deliberately. dotfiles keeps the
+measurement and the rejected alternative inline, because it deleted its own
+`docs/` archive on 2026-09-20 and committed to reasoning living next to the code
+it applies to. A rule that differs between the two repositories is fine; one that
+differs silently is not.
 
 ### 6. Naming is enforced, not remembered
 
@@ -168,9 +191,10 @@ EMACS=$(nix build --no-link --print-out-paths .#emacs)/bin/emacs \
   ./tests/init-guard.sh
 ```
 
-`.github/workflows/ci.yml` runs exactly these, split into a cheap job that runs
-on every pull request and an Emacs-building job that runs on `main`. If you
-change what CI runs, change this list too.
+`.github/workflows/ci.yml` runs these, split into a cheap job that runs on every
+pull request (which adds a build-free `nix flake check --no-build`) and an
+Emacs-building job that runs on `main`. If you change what CI runs, change this
+list too.
 
 State in the PR what you measured, and what you rejected. "It works" is not a
 description; a `nix store diff-closures` line is.
@@ -180,6 +204,9 @@ description; a `nix store diff-closures` line is.
 - `README.md` — the reference contract. It states what the distribution refuses
   to do, which is the most useful part for a stranger.
 - `WALKTHROUGH.md` — one read, Simplified Technical English.
-- `docs/` — frozen design records. **History, not instructions.** Do not edit
-  them to match the present; that destroys the record of what was decided and
-  why. `checks/retired-names.nix` exempts `docs/` for this reason.
+- `docs/decisions/` — **maintained.** One record per decision that needs more
+  room than a comment can carry: measurements, rejected alternatives, exit
+  conditions. If a decision changes, its record changes with it.
+- `docs/superpowers/` — **frozen.** History, not instructions. Do not edit these
+  to match the present; that destroys the record of what was decided and why.
+  `checks/retired-names.nix` exempts them for that reason.

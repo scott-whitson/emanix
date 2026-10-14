@@ -158,7 +158,7 @@ in
       diskoPkg
       (pkgs.writeShellScriptBin "fresh-emanix-install" (builtins.readFile ./fresh-emanix-install))
       # emanix-firstboot is deliberately NOT here. It runs on the INSTALLED
-      # system after reboot, where os-system/firstboot.nix puts it on PATH with
+      # system after reboot, where modules/firstboot.nix puts it on PATH with
       # the consumer's content — running it inside the live ISO would act on the
       # installer environment, not the machine being built. Its body also left
       # the distribution entirely (it was one deployment's tailnet join), so

@@ -43,3 +43,4 @@ relocated.
 | [`speechd.md`](speechd.md) | The distribution does not ship text-to-speech |
 | [`firmware-default.md`](firmware-default.md) | Redistributable firmware is on for every host |
 | [`ewm-patches.md`](ewm-patches.md) | The two EWM patches, and when to drop them |
+| [`welcome-keys-check.md`](welcome-keys-check.md) | What the welcome-key check verifies, and the reach of its extraction pattern |

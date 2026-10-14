@@ -34,6 +34,33 @@ not read as a leak: `arc`, the distribution's bundled offline assistant, is
 pinned to `scott-whitson/arc`. That is a public repository belonging to the same
 author. It is a distribution capability, not a personal preference.
 
+## Non-goals
+
+Stated as a list, because each one has been asked for at least once and the
+answer is the same every time. Every entry is a capability the distribution
+refuses, not an omission — the file named in brackets holds the reasoning.
+
+- **No host shape.** No role profiles, no "headless" or "laptop" mode, no
+  hardware selections. Emanix ships one shape; the consumer composes the rest
+  from `extraModules`. What a machine *is* is a fact about that machine.
+- **No hostnames, usernames, keys, or secrets.** `emanix.username` has no
+  default and fails loudly rather than creating an account. A distribution that
+  hardcodes a name is one deployment's dotfiles wearing a distribution's
+  clothes. (`emanix.nix`.)
+- **No disk layouts.** `mkDisk` encodes the distribution's opinion about disk
+  *shape*; the device, the LUKS decision and the filesystem are the consumer's,
+  because only the consumer knows the machine. (`lib/disk.nix`.)
+- **No hardware auto-detection.** `nixos-hardware` is carried as an input but
+  never auto-selected: its module names are not a convention, and guessing wrong
+  before a disk is wiped is worse than not guessing. Hardware discovery is
+  `nixos-generate-config`. (`flake.nix`.)
+- **No service that belongs to one deployment.** The first-boot ritual is an
+  option the consumer fills in (`emanix.firstboot`); the distribution ships no
+  tailnet join, no backup daemon, no monitoring agent, no fleet tooling.
+- **No text-to-speech in the closure, and no screen reader.** Enabling it on a
+  graphical host drags in 645 MiB of voice data alone. `emanix.nix` records the
+  measurement and the `mkOverride 500` that a host can still outrank.
+
 ## How the config is organised
 
 Two tiers, split by **module system** — the one fact that decides how a file is
@@ -63,7 +90,7 @@ ambiguous. So it is prose now rather than directories.
 ## Layout
 
 ```text
-emanix.nix                        # the distribution — one profile, imported by mkHost
+emanix.nix                        # the distribution — the single common core, imported by mkHost
 home/                             # Home Manager tier: theme, emacs, zsh, git, terminal, agent-acp
 home/default.nix                  # the Home Manager aggregate
 modules/                          # NixOS tier: base, init, firstboot, gpu, firmware, ewm
@@ -78,7 +105,10 @@ templates/default/                # `nix flake init` host template
 checks/                           # eval/derivation checks run by `nix flake check`
 tests/                            # shell and python tests the checks call
 patches/                          # ewm patches, applied by modules/ewm.nix
+checks/retired-names.nix          # the 2026-08-30 rename, enforced rather than remembered
 docs/                             # frozen design records
+.github/workflows/ci.yml          # static checks on every PR, full flake check on main
+CONTRIBUTING.md                   # where a file goes, and the rules that are not obvious
 ```
 
 ## There are no roles
@@ -86,7 +116,7 @@ docs/                             # frozen design records
 `profiles/roles/{workstation,server,wsl}.nix` existed until 2026-08-30, selected
 by `mkHost`'s `role` argument. They were deleted.
 
-By the end they differed in almost nothing: which `os-system` file they imported,
+By the end they differed in almost nothing: which module file they imported,
 and whether they set `emanix.gui`. What they carried was not distribution policy
 but **host shape** — whether a machine has speakers, a touchpad, a printer, a
 bootloader. A distribution should know *how* to enable those. It cannot know
@@ -171,14 +201,39 @@ renders it into one directory per palette at build time. A consumer sets
 ## Validation
 
 ```bash
-nix flake check
+nix flake check              # compose a throwaway host per role label; run every check
+nix flake check --no-build   # the same evaluation, building nothing (what CI's PR job runs)
+nix build .#emacs            # the distribution's own Emacs, without a host
 ```
 
-This evaluates every host and runs the distribution's 13 checks: the
-disk-layout literals, palette contrast, the theme switch, ARC's glue and
-bridge, agent-shell's API, sync and glue, the ACP wrapper, the modeline
-segments, the welcome keybindings, the template host, and the GPU option.
-Most are pure over recorded fixtures — no network, no running services.
+`nix flake check` composes a throwaway host three times — once per `role` label,
+through the real `mkHost`, with a stub hardware file and a username that is
+intentionally not the author's — and runs every check. [`WALKTHROUGH.md`](WALKTHROUGH.md)
+lists them one row each, and `checks/check-index.nix` asserts that list covers
+every check, because a check nobody can find is a check nobody runs.
 
-The shell tests under `tests/` (installer modes, the `init.el` guard) are NOT
-wired into `nix flake check`. Run them directly.
+Those checks are EVALUATED, never built: the `role-*` checks take a
+`toplevel.drvPath` under `unsafeDiscardStringContext`, so the path is computed
+and no closure is realized. Almost all the rest are pure over recorded fixtures
+— no network, no running services.
+
+Three tests under `tests/` are deliberately not checks, and cannot be: they want
+a live filesystem, real subprocess I/O, or a nested `nix eval`.
+
+| Test | Needs | Where it runs |
+| --- | --- | --- |
+| `tests/disk-layout.sh` | `nix eval --impure` | CI, and by hand. `checks/disk-layout.nix` covers the fixture diff |
+| `tests/installer-modes.sh` | the installer script, `nix eval` | CI, and by hand |
+| `tests/init-guard.sh` | the distribution's Emacs | CI, and by hand — see below |
+
+The init guard asserts the loader's behaviour against a real `config.el`, so a
+stock Emacs fails it. Run it against the distribution's own build:
+
+```bash
+EMACS=$(nix build --no-link --print-out-paths .#emacs)/bin/emacs ./tests/init-guard.sh
+```
+
+`.github/workflows/ci.yml` runs all of it. A cheap job runs on every pull
+request: the linters, a build-free `nix flake check --no-build`, the retired-name
+check, and the three shell tests below. A slow job runs on `main`, builds all 18
+checks (six of them build Emacs), and then runs the init guard.

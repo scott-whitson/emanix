@@ -12,10 +12,12 @@
 # system level throws, because NixOS has no `programs.*` of the shape these
 # modules set.
 #
-# This directory used to be `ioshi/i-intelligence/`, and `modules/` used to be
-# `ioshi/os-system/` plus `ioshi/hi-hardware/`. The ioshi three-concern story is
-# still how the distribution is reasoned about; it is just no longer a directory
-# contract. See README.
+# This directory and `modules/` were renamed on 2026-08-30, out of a
+# three-concern scheme whose names made every path ambiguous across both repos.
+# README.md, "How the config is organised", records what the old names were
+# and why the scheme was dropped. They are deliberately not repeated here, so
+# there is one place that can be right — and checks/retired-names.nix holds it
+# to that.
 {
   imports = [
     # Core — always enabled
