@@ -118,8 +118,8 @@ The budgets ([`docs/decisions/README.md`](docs/decisions/README.md)):
 Over budget means relocate, never delete. A measurement, a rejected alternative
 or a verified claim moves to `docs/decisions/<slug>.md`, and the comment keeps
 the decision plus one link. `emanix.nix` (645 MiB of voice data, now
-`decisions/speechd.md`) and `modules/ewm.nix` (the two EWM patches, now
-`decisions/ewm-patches.md`) are the worked examples.
+`decisions/speechd.md`) and `modules/ewm.nix` (EWM's patches and their exit
+conditions, now `decisions/ewm-patches.md`) are the worked examples.
 
 What stays inline, and why: `emacs/packages.nix` (an ELPA pin that became the
 outage) and `tests/init-guard.sh` (two real faults on 2026-08-10) are short

@@ -1,7 +1,7 @@
-# The two EWM patches
+# The EWM patch
 
-`modules/ewm.nix` applies both through `pkgs.applyPatches`. Each is an upstream
-bug, so each one's exit condition is the upstream fix.
+`modules/ewm.nix` applies it through `pkgs.applyPatches`. It is an upstream bug,
+so its exit condition is the upstream fix.
 
 ## 1. `patches/ewm-keysym-hex.patch` — a key name reported only by number
 
@@ -20,15 +20,36 @@ an XF86 prefix and a lossy-name table — but never parses hex.
 
 **Exit condition.** Upstream gains a hex parse in `resolve_keysym_from_name`.
 
-## 2. `patches/ewm-intercept-type.patch` — the default fails the declared type
+## Retired: `patches/ewm-intercept-type.patch`
 
-`ewm-intercept-prefixes` declares `:type` as `character`, but its own default
-holds `?\M-x` (134217848) and `?\s-f` (8388710) — both above `max-char`
+`ewm-intercept-prefixes` declared `:type` as `character` while its own default
+held `?\M-x` (134217848) and `?\s-f` (8388710) — both above `max-char`
 (4194303), because a key event carrying a modifier bit is an integer, not a
-character.
-
-Nothing validated the list until the personal layer called `setopt` on it to add
-the dictation key, at which point the upstream default failed its own declared
+character. Nothing validated the list until the personal layer called `setopt` to
+add the dictation key, at which point the upstream default failed its own declared
 type on every startup.
 
-**Exit condition.** Upstream widens the type, or corrects the default.
+The patch widened the inline `:type` to accept `integer`.
+
+**Retired 2026-10-14, on the exit condition its own entry named.** Upstream fixed
+it in `e43ecc5 fix(input): accept modified key events in Customize` and
+`c67705c fix(input): type key options by what the parser accepts`, introducing a
+dedicated `ewm-key` widget:
+
+```elisp
+(define-widget 'ewm-key 'lazy
+  "A single key, as an integer event or a key description."
+  :tag "Key"
+  :type '(choice character integer string)
+  :match (lambda (_ key) (ewm--key-event key)))
+```
+
+That is a wider fix than the patch was — it validates the parser's own contract
+rather than widening one option's type — so the patch was deleted rather than
+rebased. The file is gone; `modules/ewm.nix` no longer names it.
+
+This is why the patch set is now one rather than two, and it is worth noting what
+it cost to find out: the patch had been silently inapplicable since the upstream
+fix landed, so `nix flake update ewm` could not be run at all without first
+noticing the hunk failure. Any future ewm patch should be checked with
+`patch -p1 --dry-run` against the candidate rev before the lock is moved.

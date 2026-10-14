@@ -68,11 +68,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1790588140,
-        "narHash": "sha256-Ev3Sbdk9udGABVBtM9gaIcMHL4q+kYWNBjKz/VHrfj0=",
-        "rev": "b175b96c496dbeb90881f94c200887b2b00cd48c",
+        "lastModified": 1791963223,
+        "narHash": "sha256-QJUkiRBKFgeFsi8JuGwIs5HUFSbMEF65hayBa0luTis=",
+        "rev": "a26d17f885f86b3e3adde7315c9720283820286f",
         "type": "tarball",
-        "url": "https://codeberg.org/api/v1/repos/ezemtsov/ewm/archive/b175b96c496dbeb90881f94c200887b2b00cd48c.tar.gz"
+        "url": "https://codeberg.org/api/v1/repos/ezemtsov/ewm/archive/a26d17f885f86b3e3adde7315c9720283820286f.tar.gz"
       },
       "original": {
         "type": "tarball",

@@ -24,14 +24,19 @@ let
   # elisp; it breaks the loop that would otherwise exist between theEmacs and
   # the option it feeds.
   #
-  # TWO PATCHES, both for upstream bugs. See docs/decisions/ewm-patches.md for
-  # the mechanism, the keysym numbers, and each patch's exit condition.
+  # ONE PATCH, for an upstream bug. See docs/decisions/ewm-patches.md for the
+  # mechanism, the keysym numbers, and the exit condition.
+  #
+  # The second patch that lived here widened `ewm-intercept-prefixes' :type so
+  # its own default passed validation. It was RETIRED on 2026-10-14, exactly on
+  # the exit condition its own entry named: upstream fixed it in e43ecc5 and
+  # c67705c by introducing the `ewm-key' widget, which is a wider fix than the
+  # patch was, and the patch stopped applying.
   ewmSrc = pkgs.applyPatches {
     name = "ewm-patched";
     src = ewm;
     patches = [
       ../patches/ewm-keysym-hex.patch
-      ../patches/ewm-intercept-type.patch
     ];
   };
 
