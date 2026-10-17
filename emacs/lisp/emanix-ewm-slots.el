@@ -31,13 +31,31 @@
 ;; No auto-close: under EWM a new frame inherits the current buffer (a
 ;; terminal surface, not *scratch*), and focus is async/compositor-owned, so
 ;; "reap the blank slot I just left" has no reliable trigger. Slots close
-;; explicitly via `emanix/ewm-close-slot' (s-w); apps that exit are cleaned up
+;; explicitly via `emanix/ewm-close-slot' (s-q); apps that exit are cleaned up
 ;; by EWM's own close handler.
 
+(defun emanix/ewm--adopt-slots (output)
+  "Tag each untagged frame on OUTPUT with the number the tab bar shows.
+The bar numbers an untagged frame by its strip position. Adopting those
+numbers on first use keeps `s-N' selecting the tab the user can see
+instead of creating a duplicate, including after a session restart when
+no frame carries a slot parameter yet."
+  (let ((pos 0))
+    (dolist (frame (ewm--strip-frames output))
+      (setq pos (1+ pos))
+      (unless (frame-parameter frame 'emanix/ewm-slot)
+        (set-frame-parameter frame 'emanix/ewm-slot pos)))))
+
 (defun emanix/ewm--slot-frame (slot output)
-  "Return the frame keyed to SLOT on OUTPUT, or nil."
-  (seq-find (lambda (f) (eql slot (frame-parameter f 'emanix/ewm-slot)))
-            (ewm--strip-frames output)))
+  "Return the frame keyed to SLOT on OUTPUT, or nil.
+Search `frame-list', not the strip: EWM now asks the compositor for the
+strip, so a frame created this instant is absent from it until the map
+round-trip. Its `ewm-output' parameter is set synchronously by
+`make-frame' and is enough to scope the search."
+  (seq-find (lambda (f)
+              (and (eql slot (frame-parameter f 'emanix/ewm-slot))
+                   (equal output (frame-parameter f 'ewm-output))))
+            (frame-list)))
 
 (defun emanix/ewm--goto (target)
   "Focus TARGET and refresh the bar.
@@ -73,20 +91,18 @@ never creates 1 and 2."
          (output (frame-parameter frame 'ewm-output)))
     (unless output
       (user-error "Current frame has no EWM output"))
-    ;; Adopt the leftmost frame as slot 1 (home) the first time, so it shows
-    ;; in the bar as a numbered slot.
-    (unless (emanix/ewm--slot-frame 1 output)
-      (when-let* ((home (car (ewm--strip-frames output))))
-        (set-frame-parameter home 'emanix/ewm-slot 1)))
+    (emanix/ewm--adopt-slots output)
     (if-let* ((existing (emanix/ewm--slot-frame slot output)))
         (emanix/ewm--goto existing)
-      (let ((before (ewm--strip-frames output)))
-        (ewm-frame-new)
-        (let ((new (car (seq-difference (ewm--strip-frames output) before))))
-          (unless new
-            (user-error "Slot %d creation failed" slot))
-          (set-frame-parameter new 'emanix/ewm-slot slot)
-          (emanix/ewm--goto new))))))
+      ;; `ewm-frame-new' returns the frame it made. Do not diff the strip for
+      ;; it: the compositor has not reported the new frame yet, so the
+      ;; difference is empty and the frame would never get its slot number.
+      ;; EWM focuses it on map via `ewm-focus-on-create'.
+      (let ((new (ewm-frame-new)))
+        (unless new
+          (user-error "Slot %d creation failed" slot))
+        (set-frame-parameter new 'emanix/ewm-slot slot)
+        (force-mode-line-update t)))))
 
 (defun emanix/ewm-rename-workspace (name)
   "Rename the current EWM workspace/slot to NAME (shown in the tab bar).
