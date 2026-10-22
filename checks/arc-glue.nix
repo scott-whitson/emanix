@@ -25,12 +25,10 @@ pkgs.runCommand "arc-glue-sane" { } ''
     exit 1
   fi
 
-  # 3. The overrides must still be there. Drop one and arc quietly inherits a
-  #    default pointing at a directory that does not exist -- no error, no
-  #    warning, an empty collection, and an oracle that sounds fine.
+  # 3. The full corpus must still be enabled. Drop that line and arc quietly
+  #    enables only the Emacs manuals -- no error, no warning, and an oracle
+  #    that knows nothing about this machine and sounds fine.
   for required in \
-    arc-collection-directory-alist \
-    arc-index-plan \
     arc-enabled-collections \
     arc-ui-capture-function
   do
@@ -39,6 +37,14 @@ pkgs.runCommand "arc-glue-sane" { } ''
       exit 1
     fi
   done
+
+  # 3b. The plan is arc's own now. A collection upstream retired (dotfiles,
+  #     emanix: both folded into `home') named here again would build a
+  #     corpus arc's scope presets do not reach, and they would match nothing.
+  if grep -nE '\("(dotfiles|emanix)" *\.' "$src"; then
+    echo "emanix-arc.el names a collection arc retired; it is \`home' now" >&2
+    exit 1
+  fi
 
   # 4. The distro owns the ARC key contract. The old package's command map
   # disappears with the prose-answer layer, so Emanix must bind its own map
