@@ -17,8 +17,9 @@ in
       build, as a function of the package set: `epkgs: [ epkgs.s ]'.
 
       Takes the package set rather than a plain list so the consumer never
-      names the Emacs variant — `pkgs.emacs-pgtk' is the distribution's choice
-      and stays its choice. It exists because a consumer's own elisp may need a
+      names the Emacs variant — which base a host runs is the distribution's
+      choice and stays its choice (the EWM tier gets the pwayl/Skia build, the
+      rest a pgtk one). It exists because a consumer's own elisp may need a
       package the distribution cannot justify shipping to everyone.
     '';
   };

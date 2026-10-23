@@ -18,11 +18,15 @@ let
   # the library via `inherit (pkgs)`, so there is no per-package seam to
   # override — the scoped pkgs has to go in at the call.
   #
-  # emacsPackage is passed explicitly as emacs-pgtk, which is what service.nix's
-  # default already resolves to (`cfg.emacsPackage.emacs or ...`, and
-  # theEmacs.emacs IS emacs-pgtk). Nothing changes about which Emacs builds the
-  # elisp; it breaks the loop that would otherwise exist between theEmacs and
-  # the option it feeds.
+  # emacsPackage is passed explicitly as the GPU base — the same derivation
+  # theEmacs is built from — which is what service.nix's default resolves to
+  # anyway (`cfg.emacsPackage.emacs or ...`, and theEmacs.emacs IS that base).
+  # It breaks the loop that would otherwise exist between theEmacs and the
+  # option it feeds. It is also what compiles ewm.el (`default.nix`'s
+  # `emacsPackage.pkgs.trivialBuild`), so it has to be the GPU build too:
+  # byte-code from a pgtk Emacs would load, but the package set would drag a
+  # second Emacs into the closure and the elisp would no longer be built by the
+  # Emacs that loads it.
   #
   # ONE PATCH, for an upstream bug. See docs/decisions/ewm-patches.md for the
   # mechanism, the keysym numbers, and the exit condition.
@@ -40,21 +44,27 @@ let
     ];
   };
 
+  # The compositor's Emacs. emacs/pwayl.nix carries the whole argument for how
+  # it is built: emacs31 from emacs-overlay, the passthru reconnect, and why
+  # upstream's withSkia is not used.
+  pwaylEmacs = import ../emacs/pwayl.nix { inherit pkgs ewm; };
+
   ewmPkg = import "${ewmSrc}/nix/default.nix" {
     pkgs = pkgsEwm;
     withScreencastSupport = config.programs.ewm.screencast.enable;
-    emacsPackage = pkgs.emacs-pgtk;
+    emacsPackage = pwaylEmacs;
   };
 
   emacsPkgs = import ../emacs/packages.nix { inherit pkgs; };
   # The EWM variant of the emanix Emacs: the shared build (emacs/packages.nix,
-  # which owns the package set) plus EWM's own package. The non-EWM variant is
-  # emacs-daemon.nix, which calls the same builder with no extras — so "sole
-  # build" is not this file's claim to make; the two differ only by what is
-  # passed here. Home Manager delivers config only (emacs.nix). Exposed on the
-  # system PATH below so emacsclient is available (EDITOR/VISUAL point at it
-  # via zsh.nix).
+  # which owns the package set) on the GPU base, plus EWM's own package. The
+  # non-EWM variant is emacs-daemon.nix, which calls the same builder on a pgtk
+  # base with no extras — so "sole build" is not this file's claim to make; the
+  # two differ by what is passed here and nothing else. Home Manager delivers
+  # config only (emacs.nix). Exposed on the system PATH below so emacsclient is
+  # available (EDITOR/VISUAL point at it via zsh.nix).
   theEmacs = emacsPkgs.mkEmacs {
+    base = pwaylEmacs;
     # A function of the package set, not a list: the consumer's extras take the
     # same shape. Read from the HM submodule because the option is declared
     # there (home/emacs.nix) — see the hmCfg note below for why the
@@ -85,8 +95,9 @@ in
 
   # The EWM switch, stated ONCE. Importing this module means the system owns
   # the Emacs build, so the home layer must not also install the non-EWM pgtk
-  # Emacs and start a user daemon — that would build two full emacs-pgtk
-  # derivations and start the very daemon the tty1 launch hook below pkills.
+  # Emacs and start a user daemon — that would build two full Emacs
+  # derivations (one pwayl, one pgtk) and start the very daemon the tty1 launch
+  # hook below pkills.
   #
   # Set here rather than by hand in a consumer's host config (where it
   # lived until 2026-08-18, alongside the role's imports of this file) so the

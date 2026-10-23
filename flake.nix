@@ -209,13 +209,21 @@
         # No second, headless variant: init-guard runs --batch, but a nox build
         # would be a second Emacs to keep in step with this one.
         #
+        # The base is the pgtk build, not the EWM tier's pwayl one: this output
+        # has to be buildable without a host, and pwayl is a client of an EWM
+        # compositor. Same 31.1 either way — emacs/pwayl.nix owns the other
+        # base, modules/ewm.nix builds it, and nox is what the checks use.
+        #
         # Overlay-extended pkgs, for the same reason agent-shell-api gets it
         # below: `pkgs' above is bare nixpkgs, while every host's Emacs comes
         # from the emacs-overlay build.
         emacs =
+          let
+            pkgsEmacs = pkgs.extend emacs-overlay.overlays.default;
+          in
           (import ./emacs/packages.nix {
-            pkgs = pkgs.extend emacs-overlay.overlays.default;
-          }).mkEmacs { };
+            pkgs = pkgsEmacs;
+          }).mkEmacs { base = pkgsEmacs.emacs-unstable-pgtk; };
       };
 
       # Disko configurations are defined by consumers (per-host disk layouts

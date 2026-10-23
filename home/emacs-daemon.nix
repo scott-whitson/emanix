@@ -8,7 +8,13 @@ let
   emacsPkgs = import ../emacs/packages.nix { inherit pkgs; };
   # extraPackages is a function of the package set (see emanix.nix's option):
   # pass it straight through so a consumer's packages reach this build too.
+  #
+  # The base is the pgtk 31.1 build, not the EWM tier's pwayl one: pwayl is a
+  # client of an EWM compositor, and this module exists for the hosts that have
+  # none. Same Emacs version either way, so one package list and one set of
+  # checks still describe every host — emacs/pwayl.nix owns the other base.
   standaloneEmacs = emacsPkgs.mkEmacs {
+    base = pkgs.emacs-unstable-pgtk;
     extraPackages = config.emanix.emacs.extraPackages;
   };
 in

@@ -1,5 +1,9 @@
-# The ONE emanix Emacs build. Owns the package set and the derivation itself —
-# mkEmacs is the only way to build it.
+# The ONE emanix Emacs build SITE. Owns the package set and the derivation —
+# mkEmacs is the only way to build it. Which base it builds on is the caller's
+# choice because it is the host's: the EWM tier runs the GPU build
+# (emacs/pwayl.nix), the rest of the fleet a pgtk one, and both are the same
+# Emacs version so that one package list and one set of checks describe every
+# host.
 #
 # It used to also own an org ELPA pin, working around an emacs-overlay snapshot
 # that resolved org with a stale hash. That override said "until inputs are
@@ -160,11 +164,21 @@ let
   ];
 in
 {
-  # The sole build site. `extraPackages` carries the caller's difference —
-  # ewm.nix appends EWM's own package, which this file cannot know about, so
-  # the seam takes a value rather than naming a variant.
-  mkEmacs = { extraPackages ? (_: [ ]) }:
-    (pkgs.emacsPackagesFor pkgs.emacs-pgtk).emacsWithPackages
+  # The sole build site. Both arguments are the caller's difference, and
+  # neither has a default:
+  #
+  #   base           this host's Emacs — emacs/pwayl.nix on EWM hosts, a pgtk
+  #                  build elsewhere. Required, because a default here is a
+  #                  variant decision made by accident: this used to hardcode
+  #                  pkgs.emacs-pgtk, so a caller that wanted the GPU build had
+  #                  no way to ask for it and no way to notice it did not get
+  #                  it.
+  #   extraPackages  what the caller adds on top of the shared list. ewm.nix
+  #                  appends EWM's own package, which this file cannot know
+  #                  about, so the seam takes a value rather than naming a
+  #                  variant.
+  mkEmacs = { base, extraPackages ? (_: [ ]) }:
+    (pkgs.emacsPackagesFor base).emacsWithPackages
       (epkgs: list epkgs ++ extraPackages epkgs);
 
   # arc's sqlite-vec extension. Exported because arc is in `list` above, so
