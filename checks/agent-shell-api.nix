@@ -5,10 +5,12 @@
 # nixpkgs.legacyPackages and applies the emacs-overlay only inside a NixOS
 # module, which `checks' never evaluates -- so for its first life this check
 # silently asserted against nixpkgs' own agent-shell (20260807.941) while every
-# emanix host ran the overlay's (20260901.930). flake.nix now passes
-# `pkgs.extend emacs-overlay.overlays.default' to THIS check specifically; if
-# that ever reverts to a plain `inherit pkgs', the guard goes back to
-# describing a version nobody runs.
+# emanix host ran the overlay's (20260901.930). flake.nix now passes every
+# check that runs an Emacs or reads the emacs package set the shared,
+# overlay-extended `emacsPkgs' -- see its definition in the checks `let' -- so
+# this one gets it by construction rather than by exception. If that ever
+# reverts to a plain `inherit pkgs', the guard goes back to describing a
+# version nobody runs.
 #
 # agent-shell's author describes the API as unstable and acp.el as not yet
 # API-stable, and emanix-agent-shell.el reads an undocumented event payload.
@@ -16,7 +18,7 @@
 # otherwise surface as a keybinding that errors when pressed, weeks later.
 { pkgs, ... }:
 let
-  emacsPackages = pkgs.emacsPackagesFor pkgs.emacs-nox;
+  emacsPackages = pkgs.emacsPackagesFor pkgs.emacs-unstable-nox;
   agentShellPkg = emacsPackages.agent-shell;
   emacsWithAgentShell =
     emacsPackages.emacsWithPackages

@@ -906,9 +906,10 @@ fi
 # desktop host needs, 295 (1.82 GiB) come from cache.nixos.org but 51 must be
 # COMPILED locally. That is ewm-core -- Rust, via Smithay -- and ~50 elisp
 # packages. The elisp is uncacheable for a structural reason worth knowing:
-# every package is rebuilt against emanix's own emacs-pgtk from emacs-overlay,
-# so even wholly ordinary ones (emacs-xref, emacs-project, emacs-eldoc) exist
-# in the public cache only as builds against a DIFFERENT Emacs.
+# every package is rebuilt against the host's OWN Emacs -- the pwayl/Skia fork
+# on EWM hosts, emacs-unstable-pgtk elsewhere -- so even wholly ordinary ones
+# (emacs-xref, emacs-project, emacs-eldoc) exist in the public cache only as
+# builds against a DIFFERENT Emacs.
 #
 # The output is small -- ~81 MiB -- so the cost is CPU time, not bandwidth, and
 # it scales with core count. No time estimate is printed on purpose: the only

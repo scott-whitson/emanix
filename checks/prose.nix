@@ -6,10 +6,11 @@
 # org-modern and org-appear.
 #
 # `pkgs' HERE IS NOT THE FLAKE'S `pkgs'. As with checks/agent-shell-api.nix,
-# flake.nix passes it `pkgs.extend emacs-overlay.overlays.default'.
+# flake.nix passes it the shared overlay-extended `emacsPkgs', defined in the
+# checks `let'.
 { pkgs, ... }:
 let
-  emacsPackages = pkgs.emacsPackagesFor pkgs.emacs-nox;
+  emacsPackages = pkgs.emacsPackagesFor pkgs.emacs-unstable-nox;
   emacsWithProseDeps =
     emacsPackages.emacsWithPackages
       (epkgs: [

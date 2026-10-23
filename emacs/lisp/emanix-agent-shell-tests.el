@@ -63,7 +63,7 @@
       (emanix/agent-shell--sync-from-disk f)
       (with-current-buffer buf (should (= (point) 4))))))
 
-;; The reason this uses `replace-buffer-contents' and not `revert-buffer':
+;; The reason this uses `replace-region-contents' and not `revert-buffer':
 ;; an agent's edit must be undoable like any other edit.
 (ert-deftest emanix/agent-shell-sync-preserves-undo ()
   (emanix/agent-shell-test--with-file f "line1\nline2\n"

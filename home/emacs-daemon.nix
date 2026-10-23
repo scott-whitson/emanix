@@ -42,6 +42,15 @@ in
   };
 
   config = lib.mkIf (!config.emanix.ewm.enable) {
+    # The base a consumer's own Emacs packages are compiled against
+    # (emanix.emacs.base, declared in emacs.nix). Set here rather than left to
+    # the consumer so the variant stays the distribution's choice, and on this
+    # side of the switch it is the pgtk build: pwayl is a client of an EWM
+    # compositor, and these are the hosts that have none. Same Emacs version as
+    # the EWM tier, which is what lets one package list and one set of checks
+    # still describe every host — emacs/pwayl.nix owns the other base.
+    emanix.emacs.base = pkgs.emacs-unstable-pgtk;
+
     # On EWM machines the Emacs build is system-owned (ewm.nix). Non-EWM
     # machines install it user-side and run the daemon as a systemd user
     # service.

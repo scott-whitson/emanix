@@ -24,6 +24,27 @@ in
     '';
   };
 
+  # The base those packages are compiled against, for a consumer that has to
+  # build something from the package set itself — dotfiles' ement, mu4e and kkp
+  # land in the PROFILE (their elisp arrives through personal.el's load-path
+  # bridge, not through extraPackages), so they had to name a variant to be
+  # built at all, and named `pkgs.emacs-pgtk' while the EWM tier was moving to
+  # pwayl 31.1. That is byte-code compiled by one Emacs and loaded by another.
+  #
+  # Set by whichever module owns this host's Emacs — modules/ewm.nix for the EWM
+  # tier, home/emacs-daemon.nix for the rest — and deliberately WITHOUT a
+  # default: a default here is a variant decision nobody made, which is how the
+  # mismatch above survived, and a host that sets neither now fails to evaluate
+  # instead of quietly building the wrong Emacs.
+  options.emanix.emacs.base = lib.mkOption {
+    type = lib.types.package;
+    description = ''
+      The Emacs derivation this host's Emacs packages are built from. Set by
+      modules/ewm.nix (the pwayl/Skia build) on EWM hosts, and by
+      home/emacs-daemon.nix (pgtk) everywhere else.
+    '';
+  };
+
   config = {
     # liveElisp: symlink into the checkout for live editing; otherwise copy the
     # elisp (which lives in-repo next to this module) into the store so hosts

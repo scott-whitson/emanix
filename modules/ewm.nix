@@ -103,8 +103,24 @@ in
   # lived until 2026-08-18, alongside the role's imports of this file) so the
   # two cannot disagree: the import IS the switch. A hard definition, not
   # mkDefault — this is an invariant of importing ewm.nix, not an opinion.
-  home-manager.users.${config.emanix.username}.emanix.ewm.enable = true;
+  #
+  # One statement rather than two dotted ones: the module system refuses a
+  # second definition of the same dynamic key (`users.${config.emanix.username}')
+  # from a single module, and that is the right shape here anyway — the two
+  # settings below are one decision about which Emacs this host has.
+  home-manager.users.${config.emanix.username} = {
+    emanix.ewm.enable = true;
 
+    # ...and the base a consumer's own Emacs packages are compiled against, so
+    # it never names the variant itself (emanix.emacs.base, declared in
+    # home/emacs.nix). Same hard-definition reasoning as the switch above: on
+    # this host the GPU build IS the Emacs, and byte-code compiled against
+    # anything else is byte-code for an interpreter that never loads it — which
+    # is what dotfiles' profile-installed ement/mu4e/kkp were doing.
+    # emacs-daemon.nix sets the pgtk base on hosts that do not import this
+    # module.
+    emanix.emacs.base = pwaylEmacs;
+  };
   # Autologin is OPT-IN, and defaults OFF.
   #
   # It used to be unconditional here, justified by "LUKS already gates the
@@ -175,8 +191,9 @@ in
           echo "EWM flapped ($(cat "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap" 2>/dev/null)) — normal shell (rm \"''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap\" and log out to re-arm)"
         else
           # One EWM per boot-session: a stale daemon holds DRM master and
-          # starves every new launch. NB: the nix wrapper truncates comm to
-          # '.emacs-30.2-wra', so match the full command line, never -x emacs.
+          # starves every new launch. NB: the nix wrapper truncates comm to 15
+          # characters (it used to read '.emacs-30.2-wra'), so match the full
+          # command line, never `pkill -x emacs'.
           pkill -u "$USER" -f "bin/emacs --fg-daemon" 2>/dev/null && sleep 1
           _t0=$(date +%s)
           # XKB_DEFAULT_OPTIONS: wlroots reads this when it builds the keymap at

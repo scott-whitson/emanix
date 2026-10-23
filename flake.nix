@@ -273,6 +273,21 @@
           # build time and piped in.
           palettesJson = pkgs.writeText "emanix-palettes.json"
             (builtins.toJSON (emanixLib.theme { inherit pkgs; }).palettes);
+
+          # The pkgs every Emacs check builds and runs against, defined once.
+          #
+          # `pkgs' above is bare nixpkgs.legacyPackages: the emacs-overlay is
+          # applied inside nixpkgsModule, which is a NixOS module and therefore
+          # unreachable from `checks'. The overlay is what supplies the Emacs
+          # the fleet actually runs -- `emacs-unstable-nox' (31.1) exists only
+          # once it is applied, while the channel's own emacs-nox is 30.2 -- so
+          # every check that launches an Emacs or reads the emacs package set
+          # must take this, not plain pkgs. Until 2026-10-23 only agent-shell-api
+          # and prose did, because they were the only two reading overlay
+          # packages; the four that merely RAN an Emacs kept the channel's
+          # emacs-nox, so they validated a version nobody runs. One binding, so
+          # a new Emacs check cannot forget it.
+          emacsPkgs = pkgs.extend emacs-overlay.overlays.default;
         in
         {
           role-workstation = evalRole "workstation";
@@ -297,18 +312,18 @@
 
           # The ARC compatibility bridge's dispatch and key contracts, tested
           # without ARC, Ollama or a live database. See checks/arc-bridge.nix.
-          arc-bridge = import ./checks/arc-bridge.nix { inherit pkgs; };
+          arc-bridge = import ./checks/arc-bridge.nix { pkgs = emacsPkgs; };
 
           # The buffer-sync patch's unit tests. See checks/agent-shell-sync.nix.
-          agent-shell-sync = import ./checks/agent-shell-sync.nix { inherit pkgs; };
+          agent-shell-sync = import ./checks/agent-shell-sync.nix { pkgs = emacsPkgs; };
 
           # The tab-bar status bar's consumer extension point. Nothing in the
           # distribution registers a segment, so this is the only thing that
           # holds the seam. See checks/modeline-segments.nix.
-          modeline-segments = import ./checks/modeline-segments.nix { inherit pkgs; };
+          modeline-segments = import ./checks/modeline-segments.nix { pkgs = emacsPkgs; };
 
           # The theme switch's unit tests. See checks/theme-switch.nix.
-          theme-switch = import ./checks/theme-switch.nix { inherit pkgs; };
+          theme-switch = import ./checks/theme-switch.nix { pkgs = emacsPkgs; };
 
           # The agent-shell glue's autoloads and payload parsing. See
           # checks/agent-shell-glue.nix.
@@ -316,28 +331,17 @@
 
           # The upstream agent-shell API this integration depends on, asserted
           # against the emacs-overlay build the hosts actually run. See
-          # checks/agent-shell-api.nix.
-          #
-          # `pkgs' above is bare nixpkgs.legacyPackages -- the emacs-overlay is
-          # applied inside nixpkgsModule, which is a NixOS module and therefore
-          # unreachable from `checks'. So this check, and only this check, gets
-          # an overlay-extended pkgs. Without it the assertions resolved
-          # nixpkgs' own agent-shell (20260807.941) while every host ran the
-          # overlay's (20260901.930), i.e. the guard against this branch's
-          # stated top risk pointed at a version nobody runs. The other two
-          # agent-shell checks touch no emacs packages, so they keep plain
-          # pkgs.
-          agent-shell-api = import ./checks/agent-shell-api.nix {
-            pkgs = pkgs.extend emacs-overlay.overlays.default;
-          };
+          # checks/agent-shell-api.nix. Without overlay-extended pkgs the
+          # assertions resolved nixpkgs' own agent-shell (20260807.941) while
+          # every host ran the overlay's (20260901.930), i.e. the guard against
+          # this branch's stated top risk pointed at a version nobody runs.
+          agent-shell-api = import ./checks/agent-shell-api.nix { pkgs = emacsPkgs; };
 
           # The prose renderer's unit tests, including the drawn markdown
           # table and document magnification. See checks/prose.nix. Like
           # agent-shell-api, it reads emacs package internals, so it needs the
           # overlay-extended pkgs rather than bare nixpkgs.
-          prose = import ./checks/prose.nix {
-            pkgs = pkgs.extend emacs-overlay.overlays.default;
-          };
+          prose = import ./checks/prose.nix { pkgs = emacsPkgs; };
 
           palette-contrast = pkgs.runCommand "emanix-palette-contrast" { } ''
             ${pkgs.python3}/bin/python3 ${./tests/contrast-check.py} < ${palettesJson} > $out

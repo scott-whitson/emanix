@@ -5,7 +5,7 @@
 pkgs.runCommand "emanix-arc-bridge-tests" { } ''
   export HOME=$(mktemp -d)
   export EMANIX_ARC_CONFIG=${../emacs/config.el}
-  ${pkgs.emacs-nox}/bin/emacs -Q --batch \
+  ${pkgs.emacs-unstable-nox}/bin/emacs -Q --batch \
     -L ${../emacs/lisp} \
     -L ${../emacs/test} \
     -l ert \

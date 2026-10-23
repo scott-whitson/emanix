@@ -100,10 +100,10 @@ is bound for the same reason -- `view-mode', \\[read-only-mode] and an
 unwritable file would each signal here, and the agent has ALREADY changed the
 file on disk, so refusing to show that is not protecting anything.
 
-`replace-buffer-contents', never `revert-buffer'.  A revert would work and
+`replace-region-contents', never `revert-buffer'.  A revert would work and
 would discard undo history, point and markers.  The minimal diff is the whole
 reason an agent's edit is still undoable with \\[undo].  Note the 1.0-second
-cap: on a large or heavily rewritten file `replace-buffer-contents' gives up
+cap: on a large or heavily rewritten file `replace-region-contents' gives up
 on diffing and falls back to a wholesale delete-and-insert, which does move
 point and does invalidate markers.  Point preservation is the common case,
 not a guarantee."
@@ -130,7 +130,13 @@ not a guarantee."
                       (let ((inhibit-read-only t))
                         (save-restriction
                           (widen)
-                          (replace-buffer-contents tmp 1.0))
+                          ;; replace-buffer-contents was obsoleted in 31.1;
+                          ;; replace-region-contents is its replacement.  The
+                          ;; widened region is the whole buffer, so
+                          ;; point-min/point-max reproduce the old call's
+                          ;; whole-buffer resync from tmp exactly, and 1.0 is
+                          ;; still MAX-SECS.
+                          (replace-region-contents (point-min) (point-max) tmp 1.0))
                         (set-buffer-modified-p nil))
                     (error
                      (set-visited-file-modtime previous)

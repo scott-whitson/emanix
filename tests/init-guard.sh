@@ -40,8 +40,25 @@ probe() {   # $1 = init dir
   # (see startup.el), so Emacs never auto-loads init.el the way it does
   # in a real interactive/daemon start. --init-directory alone doesn't
   # change that. Load it explicitly with -l to exercise the real loader.
+  #
+  # The match is anchored to the PAYLOAD, not to the start of the line. Under
+  # a native-comp 31.1 build Emacs interleaves compilation progress
+  # ("Processing modified files...NN%") and the pwayl backend emits cursor-shape
+  # escapes (ESC[2 q), neither with a trailing newline -- so the PROBE message
+  # can arrive with that text prepended, and the old `^PROBE' anchor then
+  # matched nothing. Every assertion saw an empty "got:" and reported a total
+  # config failure for a config that was fine. `PROBE fellback=' is the
+  # message's own first token, so matching it anywhere on the line still finds
+  # the payload.
+  #
+  # It does not make the payload whole: anything written BETWEEN the message and
+  # its newline (an escape emitted mid-print) lands inside the match, and a
+  # truncated line yields a short payload that the field assertions below read as
+  # a failure — loud, not silent. The failure cases therefore assert that the
+  # LAST field arrived (`theme='), so a cut-off payload cannot pass them by
+  # checking only the fields it happens to contain.
   timeout 240 "$EMACS" --batch --init-directory "$1" -l "$1/init.el" --eval "$PROBE" 2>&1 \
-    | grep '^PROBE' | tail -1
+    | grep -o 'PROBE fellback=.*' | tail -1
 }
 
 check() {   # $1 = label, $2 = expected substring, $3 = actual
@@ -78,6 +95,7 @@ check "paren: fallback loaded" "fallbackloaded=yes" "$R"
 check "paren: modeline"        "modeline=t"   "$R"
 check "paren: launcher"        "launch=t"     "$R"
 check "paren: ewm commands"    "ewmgoto=t"    "$R"
+check "paren: payload intact"  "theme="       "$R"
 
 echo "3. load-time failure — a require that signals (the evening fault)"
 D=$(mktemp -d); layout "$D"
@@ -93,6 +111,7 @@ check "require: fallback loaded" "fallbackloaded=yes" "$R"
 check "require: modeline"      "modeline=t"   "$R"
 check "require: launcher"      "launch=t"     "$R"
 check "require: ewm commands"  "ewmgoto=t"    "$R"
+check "require: payload intact" "theme="      "$R"
 
 echo "4. missing config.el — a deploy failure, the one case where NOERROR nil matters"
 # load's NOERROR only suppresses file-not-found; it does nothing for the
@@ -107,6 +126,7 @@ rm "$D/config.el"
 R=$(probe "$D")
 check "missing: fell back"      "fellback=yes" "$R"
 check "missing: fallback loaded" "fallbackloaded=yes" "$R"
+check "missing: payload intact"  "theme="       "$R"
 check "missing: modeline"       "modeline=t"   "$R"
 check "missing: launcher"       "launch=t"     "$R"
 check "missing: ewm commands"   "ewmgoto=t"    "$R"

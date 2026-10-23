@@ -5,7 +5,7 @@
 { pkgs, ... }:
 pkgs.runCommand "agent-shell-sync-tests" { } ''
   export HOME=$(mktemp -d)
-  ${pkgs.emacs-nox}/bin/emacs -Q --batch \
+  ${pkgs.emacs-unstable-nox}/bin/emacs -Q --batch \
     -L ${../emacs/lisp} \
     -l ert \
     -l emanix-agent-shell \

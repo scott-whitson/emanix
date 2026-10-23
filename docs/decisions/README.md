@@ -44,3 +44,4 @@ relocated.
 | [`firmware-default.md`](firmware-default.md) | Redistributable firmware is on for every host |
 | [`ewm-patches.md`](ewm-patches.md) | The EWM patches: what is carried, and each one's exit condition |
 | [`welcome-keys-check.md`](welcome-keys-check.md) | What the welcome-key check verifies, and the reach of its extraction pattern |
+| [`gpu-emacs.md`](gpu-emacs.md) | The GPU Emacs: EWM's pwayl/Skia fork, emacs-overlay as its vehicle, and three exit conditions |
