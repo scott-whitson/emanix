@@ -21,9 +21,8 @@ let
   #
   # `keys` is NOT filtered out: the committed `keys/<host>_host_ed25519.pub`
   # halves are the ONLY reference fresh-emanix-install has for verifying a
-  # staged private key against the actual agenix recipient
-  # (`age.rekey.hostPubkey`). Excluding them made that check unsatisfiable on
-  # the ISO — it warned "cannot verify" and the preflight failed closed on
+  # staged private key against the actual agenix recipient. Excluding them
+  # made that check unsatisfiable on the ISO — it warned "cannot verify" and the preflight failed closed on
   # `keys` no matter what was baked. The private halves are gitignored in the
   # consuming flake, so a git-source `flake` path cannot leak them here.
   stagedRepo = builtins.path {
@@ -44,7 +43,7 @@ let
   # was not. A string is resolved here by `builtins.path`, which reads the
   # real working tree, so the privates actually land in the image. That read
   # is forbidden under pure evaluation — a keys-carrying ISO must be built
-  # with `--impure` (bin/emanix-iso does this).
+  # with `--impure`.
   hasKeys = cfg.keysDir != null && builtins.pathExists cfg.keysDir;
 
   stagedKeys = builtins.path {

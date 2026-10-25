@@ -3,14 +3,9 @@
 (require 'org)
 (require 'emanix-prose)
 
-(ert-deftest emanix-prose-palette-color-known-key ()
-  "A key present in the active theme's palette returns a hex colour."
-  (let ((c (emanix/theme-palette-color "surface0")))
-    (should (or (null c) (string-match-p "\\`#[0-9a-fA-F]\\{6\\}\\'" c)))))
-
-(ert-deftest emanix-prose-palette-color-unknown-key ()
-  "An absent key returns nil rather than signalling."
-  (should (null (emanix/theme-palette-color "no-such-palette-key"))))
+;; `emanix/theme-palette-color' is tested against fixture colors.toml files in
+;; emanix-theme-test.el: this check sets no EMANIX_THEMES_DIR, so a call here
+;; could only ever see a missing theme tree.
 
 (ert-deftest emanix-prose-remaps-cover-org-faces ()
   "Every org face the design names is in the remap table."

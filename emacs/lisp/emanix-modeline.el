@@ -1,6 +1,5 @@
 ;;; emanix-modeline.el --- system status for the EWM tab-bar panel -*- lexical-binding: t; -*-
 
-(require 'subr-x)
 
 ;; EWM has no status bar; these segments replace the old desktop status bar:
 ;; volume/mute, wifi, cpu%, ram%, gpu%, clock, battery.
@@ -10,7 +9,7 @@
 ;; state is one sysfs read.
 ;;
 ;; The status is rendered in the frame-global TAB-BAR (see
-;; `emanix/tab-bar-status', wired into `tab-bar-format' in init.el), not the
+;; `emanix/tab-bar-status', wired into `tab-bar-format' in config.el), not the
 ;; per-window mode-line — so it shows once, not once per buffer/split.
 
 (defgroup emanix/modeline nil
@@ -239,7 +238,7 @@ resize, on a timer."
           (delq nil
                 (append
                  (list (emanix/modeline--volume-segment)
-                       (when-let* ((w (emanix/modeline--wifi))) w)
+                       emanix/modeline--wifi-status
                        (let ((cpu (emanix/modeline--cpu)))
                          (when (> cpu emanix/modeline-threshold)
                            (format "cpu %d%%" cpu)))
@@ -297,12 +296,6 @@ everything but `connected'."
                (insert-file-contents file)
                (buffer-string)))))))
 
-(defun emanix/modeline--wifi ()
-  "Wireless status, or nil when connected or absent.
-A plain read of `emanix/modeline--wifi-status'; `emanix/modeline--poll-wifi'
-refreshes it from sysfs at the start of each render."
-  emanix/modeline--wifi-status)
-
 (defun emanix/modeline--update ()
   "Render-cadence refresh: sysfs and procfs only, never a subprocess."
   (emanix/modeline--poll-wifi)
@@ -318,7 +311,7 @@ anything.  `emanix/modeline--poll-volume' renders when its reply lands."
 (defun emanix/tab-bar-status ()
   "Right-aligned tab-bar item: system stats + clock + battery.
 Frame-global — rendered once, unlike the per-window mode-line.
-Add to `tab-bar-format' (see init.el)."
+Add to `tab-bar-format' (see config.el)."
   `((global menu-item
             ,(if (equal emanix/modeline-status "")
                  " "

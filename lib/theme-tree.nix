@@ -1,5 +1,5 @@
 # The runtime theme tree — one directory per palette, containing every file
-# dot-theme-set and the elisp read at switch time.
+# the elisp theme switcher reads at switch time.
 #
 # Until 2026-08-18 this tree was 32 files committed in the CONSUMER repo,
 # produced by bin/gen-theme-dir.py which read this flake's palettes over

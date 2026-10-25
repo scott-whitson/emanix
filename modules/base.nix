@@ -42,7 +42,7 @@
     auto-optimise-store = true;
 
     # Emergency valve. When a build drives free space below min-free, nix
-    # collects garbage mid-build until max-free is available again. The weekly
+    # collects garbage mid-build until max-free is available again. The daily
     # timer alone is not enough on a churning host: a WSL host piled up 15.3 GiB of
     # dead paths in the 36 hours after its 2026-08-10 GC run.
     min-free = 5368709120; #  5 GiB
@@ -64,5 +64,5 @@
 
   # NOTE: system.stateVersion is per-host — it records the release a machine was
   # first installed under and must NOT be shared or bumped on an existing host.
-  # Set it in each hosts/<name>/configuration.nix.
+  # Set it in the consumer's host config.
 }

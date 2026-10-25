@@ -1,9 +1,9 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, emanixLib, ... }:
 
 let
   # The palette set is the real constraint on emanix.theme, so the option's
   # type is derived from it rather than restating it in prose.
-  inherit (import ../lib/themes.nix { inherit pkgs; }) palettes;
+  inherit (emanixLib.theme { inherit pkgs; }) palettes;
 in
 {
   options.emanix = {
@@ -34,7 +34,7 @@ in
     gui = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Machine has a graphical session. Gates cursor theme, Wayland tools, GUI apps, swaylock, and ghostty config.";
+      description = "Machine has a graphical session. Gates cursor theme, Wayland tools, GUI apps, and ghostty config.";
     };
 
     role = lib.mkOption {
@@ -110,5 +110,5 @@ in
   };
 
   # Theme options are consumed by other modules via `config.emanix.theme`.
-  # The theme library functions are passed via `dotfilesLib.theme` (set in flake.nix).
+  # The theme library comes in as `emanixLib.theme` (specialArgs, set in flake.nix).
 }

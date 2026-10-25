@@ -88,7 +88,7 @@ Returns nil if the directory, the file, the [palette] section, or KEY within
 it is missing — this is deliberately defensive rather than signalling, since
 it feeds emanix/theme-set, which must never error out to its caller.
 
-This is a narrow regexp over one TOML section, not a general parser: Emacs 30
+This is a narrow regexp over one TOML section, not a general parser: Emacs 31
 has no built-in TOML reader, and colors.toml's own header says not to
 hand-edit it, so the format here is exactly what lib/themes.nix's colorsToml
 emits — one `key = \"value\"` pair per line inside [palette]."

@@ -1,5 +1,6 @@
-;;; config.el --- managed in dotfiles repo: modules/home-manager/emacs/ -*- lexical-binding: t; -*-
-;; Packages are installed by Nix (modules/home-manager/emacs.nix).
+;;; config.el --- the emanix Emacs configuration (deployed by home/emacs.nix) -*- lexical-binding: t; -*-
+;; Packages are installed by Nix (emacs/packages.nix, built by modules/ewm.nix
+;; or home/emacs-daemon.nix).
 ;; This file only configures them.
 
 (eval-and-compile
@@ -21,11 +22,6 @@
   (defvar winner-dont-bind-my-keys)
   (defvar aw-keys)
   (defvar aw-scope)
-  (declare-function ewm--focused-frame "ewm")
-  (declare-function ewm--strip-frames "ewm")
-  (declare-function ewm-frame-new "ewm")
-  (declare-function ewm-workspace-rename "ewm")
-  (declare-function ewm--strip-frames "ewm")
   (declare-function ewm--send-intercept-keys "ewm-input")
   (declare-function org-roam-capture "org-roam")
   (declare-function org-roam-node-find "org-roam")
@@ -151,15 +147,12 @@ Accepts and ignores FRAME so this can sit on `after-make-frame-functions'."
 (global-set-key (kbd "C-c w") emanix/window-map)
 
 ;; ace-window replaces other-window: identical with two windows, but overlays
-;; a home-row letter on each when there are three or more. Guarded because
-;; config.el is a live checkout -- it is read by an Emacs whose store may
-;; predate the packages.nix entry, and must stay loadable there. Until the pin
-;; bump lands, C-x o remains other-window and C-c w m is simply absent.
-(when (require 'ace-window nil :no-error)
-  (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)
-        aw-scope 'frame)
-  (global-set-key (kbd "C-x o") #'ace-window)
-  (keymap-set emanix/window-map "m" #'ace-swap-window))
+;; a home-row letter on each when there are three or more.
+(require 'ace-window)
+(setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)
+      aw-scope 'frame)
+(global-set-key (kbd "C-x o") #'ace-window)
+(keymap-set emanix/window-map "m" #'ace-swap-window)
 
 ;; Directional window motion. `C-x o' is fine with two windows and ace-window
 ;; carries it to three or four, but both are "jump to a label" -- neither
@@ -278,11 +271,6 @@ ever disturbs the window manager on rafik, add its buffers here."
       (minibufferp buf)
       (string-prefix-p " " (buffer-name buf))
       (member (buffer-name buf) emanix/buffer-protect-names)))
-
-(defun emanix/buffer-under-p (buf dir)
-  "Non-nil if BUF visits a file under DIR."
-  (when-let* ((f (buffer-file-name buf)))
-    (string-prefix-p (expand-file-name dir) (file-truename f))))
 
 (defvar emanix/buffer-group-alist
   (list
@@ -454,15 +442,14 @@ path-specific groups from the personal layer.")
 
 (meow-global-mode 1)
 
-;; Line movement (global bindings, works with Meow selections)
 ;; System commands
-(defun emanix-reboot ()
+(defun emanix/reboot ()
   "Reboot the system."
   (interactive)
   (when (yes-or-no-p "Reboot now? ")
     (start-process "reboot" nil "sudo" "reboot")))
 
-(defun emanix-shutdown ()
+(defun emanix/shutdown ()
   "Shut down the system."
   (interactive)
   (when (yes-or-no-p "Shut down now? ")
@@ -486,7 +473,7 @@ path-specific groups from the personal layer.")
 (global-set-key (kbd "C-x g") #'magit-status)
 
 ;; --- Code: navigation, LSP, formatting (added 2026-08-07) ---
-;; Emacs 30 ships nearly all of this: project.el (C-x p), xref (M-. / M-,),
+;; Emacs 31 ships nearly all of this: project.el (C-x p), xref (M-. / M-,),
 ;; eglot (LSP client), flymake (diagnostics) and python-ts-mode are built in.
 ;; Only nix-ts-mode, apheleia and the tree-sitter grammars come from Nix —
 ;; see ../emacs/packages.nix.
@@ -878,8 +865,9 @@ failed sync looked like a keypress that did nothing."
 ;; several symbols that render 11-14px wide, shoving the rest of the line right:
 ;; the media-control block (⏵ ⏸ ⏺ — mode indicators), ⎿ (tool-result corner),
 ;; ✔ ✘, ◻ ◼, and the dingbat + braille spinner frames. No available font fixes
-;; this: nothing in nixpkgs draws that block at cell width, set-fontset-font is
-;; inert on this pgtk/ftcrhb build, and a proportional fallback cannot be
+;; this: nothing in nixpkgs draws that block at cell width, set-fontset-font fixes
+;; coverage rather than advance width (see the fontset section above), and a
+;; proportional fallback cannot be
 ;; rescaled to a fixed advance (one factor that fits ⏺ shrinks ⏵ to 5px).
 ;; A display table sidesteps fonts entirely — redisplay substitutes a glyph
 ;; JetBrains already draws at exactly 9px. Buffer text is untouched (copy/paste
@@ -939,8 +927,7 @@ Each cdr is verified to render at the default face's cell width.")
 (global-set-key (kbd "C-c C-'") #'emanix/agent-shell-claude)
 ;; C-c p (pi) is bound in lisp/emanix-agent-shell.el, not here: it needs the
 ;; adapter-present guard that lives with the rest of the agent-shell glue.
-;; C-c r was force-unset by emanix-pi.el, which reserved it for
-;; emanix/pi-send-region and never bound it. It does that job now.
+;; C-c r sends the active region to the agent shell.
 (global-set-key (kbd "C-c r") #'agent-shell-send-region)
 
 ;; Frame title must ALWAYS contain "emacs": GlazeWM's ignore rule on the
@@ -1009,30 +996,10 @@ Each cdr is verified to render at the default face's cell width.")
   ;; emacs which is not a compositor.
   (global-set-key (kbd "C-c R") #'emanix/ewm-restart)
   (when (boundp 'ewm-mode-map)
-    ;; Super+number restores the old workspace-switch rhythm, but in EWM frame
-    ;; slots. Slots create on demand: super-3 opens/switches to slot 3.
-    (dotimes (i 9)
-      (let ((slot (1+ i)))
-        (define-key ewm-mode-map (kbd (format "s-%d" slot))
-          (lambda ()
-            (interactive)
-            (emanix/ewm-select-slot slot)))))
-    (define-key ewm-mode-map (kbd "s-0")
-      (lambda ()
-        (interactive)
-        (emanix/ewm-select-slot 10)))
-    ;; Rename the current frame/slot in the top bar.
-    (define-key ewm-mode-map (kbd "s-r") #'emanix/ewm-rename-workspace)
-    ;; Close the current slot (manual lifecycle; no auto-close under EWM).
-    ;; s-q mirrors Hyprland's `$mod, Q, killactive' muscle memory.
-    (define-key ewm-mode-map (kbd "s-q") #'emanix/ewm-close-slot)
-    ;; Launch Firefox into the current slot (was s-w under Hyprland).
-    (define-key ewm-mode-map (kbd "s-w") #'emanix/ewm-launch-firefox)
-    ;; Super+Enter: open Ghostty terminal (muscle memory from Hyprland).
-    (define-key ewm-mode-map (kbd "s-<return>")
-      (lambda ()
-        (interactive)
-        (start-process "ghostty" nil "ghostty")))
+    ;; Slot keys (s-1..s-0 select a slot, creating it on demand; s-r, s-q, s-w
+    ;; and s-<return> manage it), shared with fallback.el. See
+    ;; `emanix/ewm-bind-slot-keys'.
+    (emanix/ewm-bind-slot-keys ewm-mode-map)
     ;; Super+Shift+Enter: the Claude agent shell, from any slot. Was pi in a
     ;; Ghostty window until 2026-09-07 — the agent is a buffer now, so this
     ;; summons a buffer.

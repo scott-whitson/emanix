@@ -9,7 +9,9 @@
 ;; directory: these tests must never read the real $EMANIX_THEMES_DIR nor write
 ;; the real ~/.config/dotfiles.
 
-(defvar emanix-theme-test--dirs nil)
+(defvar emanix-theme-test--dirs nil
+  "Temp directories made by the current `emanix-theme-test--with-tree'.
+Rebound per use, and deleted when it exits.")
 
 (defun emanix-theme-test--make-tree ()
   "Return a temp themes dir holding `duskthorn' (dark) and `dawnthorn' (light)."
@@ -51,13 +53,17 @@ HOME is bound through `process-environment' because the link plan uses
 `getenv' -- so without this the tests would read and assert against the
 real home directory."
   (declare (indent 0))
-  `(let* ((emanix-theme--themes-dir (emanix-theme-test--make-tree))
-          (emanix/theme-state-dir (make-temp-file "emanix-theme-test-state" t))
-          (process-environment
-           (cons (concat "HOME=" (emanix-theme-test--make-home))
-                 process-environment)))
-     (push emanix/theme-state-dir emanix-theme-test--dirs)
-     ,@body))
+  `(let ((emanix-theme-test--dirs nil))
+     (unwind-protect
+         (let* ((emanix-theme--themes-dir (emanix-theme-test--make-tree))
+                (emanix/theme-state-dir (make-temp-file "emanix-theme-test-state" t))
+                (process-environment
+                 (cons (concat "HOME=" (emanix-theme-test--make-home))
+                       process-environment)))
+           (push emanix/theme-state-dir emanix-theme-test--dirs)
+           ,@body)
+       (dolist (dir emanix-theme-test--dirs)
+         (ignore-errors (delete-directory dir t))))))
 
 ;;; The state directory.
 
@@ -457,3 +463,121 @@ the other side with something enabled."
         (mapc #'disable-theme custom-enabled-themes)
         (dolist (theme (reverse enabled-before))
           (ignore-errors (enable-theme theme)))))))
+;;; Palette, flavour and loadable-theme logic, against fixture colors.toml files.
+;;
+;; `emanix-theme--apply-emacs' is stubbed everywhere above, so these are the
+;; only tests that exercise what it calls.
+
+(defconst emanix-theme-test--colors-toml
+  "# GENERATED -- fixture\n[meta]\nbase = \"#ffffff\"\nmeta-only = \"nope\"\n\n[palette]\nbase = \"#101010\"\nbase2 = \"#111111\"\ntext = \"#eeeeee\"\nsurface0 = \"#202020\"\nsurface1 = \"#303030\"\nsubtext0 = \"#aaaaaa\"\n\n[tail]\ntail-only = \"nope\"\n"
+  "A colors.toml in the shape lib/themes.nix's colorsToml emits.
+The same key sits in [meta] with a different value, and other keys sit outside
+[palette], so a reader that ignores section boundaries returns the wrong hex.")
+
+(defun emanix-theme-test--write-colors (name content)
+  "Write CONTENT as NAME's colors.toml in the fixture themes dir."
+  (let ((dir (expand-file-name name emanix-theme--themes-dir)))
+    (make-directory dir t)
+    (write-region content nil (expand-file-name "colors.toml" dir))))
+
+(ert-deftest emanix-theme-read-palette-value-reads-the-palette-section ()
+  (emanix-theme-test--with-tree
+    (emanix-theme-test--write-colors "duskthorn" emanix-theme-test--colors-toml)
+    (should (equal "#101010" (emanix-theme--read-palette-value "duskthorn" "base")))
+    (should (equal "#202020" (emanix-theme--read-palette-value "duskthorn" "surface0")))
+    ;; `base2' must not be read for `base', nor the reverse.
+    (should (equal "#111111" (emanix-theme--read-palette-value "duskthorn" "base2")))))
+
+(ert-deftest emanix-theme-read-palette-value-is-nil-outside-the-palette-section ()
+  (emanix-theme-test--with-tree
+    (emanix-theme-test--write-colors "duskthorn" emanix-theme-test--colors-toml)
+    (should-not (emanix-theme--read-palette-value "duskthorn" "meta-only"))
+    (should-not (emanix-theme--read-palette-value "duskthorn" "tail-only"))
+    (should-not (emanix-theme--read-palette-value "duskthorn" "no-such-key"))))
+
+(ert-deftest emanix-theme-read-palette-value-is-nil-for-a-missing-theme-or-section ()
+  (emanix-theme-test--with-tree
+    (emanix-theme-test--write-colors "nopalette" "[meta]\nbase = \"#ffffff\"\n")
+    (should-not (emanix-theme--read-palette-value "nosuchtheme" "base"))
+    (should-not (emanix-theme--read-palette-value "nopalette" "base"))))
+
+(ert-deftest emanix-theme-palette-color-reads-the-active-theme ()
+  "`emanix/theme-palette-color' returns the exact hex of the ACTIVE theme."
+  (emanix-theme-test--with-tree
+    (emanix-theme-test--write-colors "duskthorn" emanix-theme-test--colors-toml)
+    (write-region "duskthorn\n" nil (emanix-theme--state-file))
+    (should (equal "#202020" (emanix/theme-palette-color "surface0")))
+    (should (equal "#eeeeee" (emanix/theme-palette-color "text")))))
+
+(ert-deftest emanix-theme-palette-color-unknown-key-is-nil ()
+  "An absent key returns nil rather than signalling."
+  (emanix-theme-test--with-tree
+    (emanix-theme-test--write-colors "duskthorn" emanix-theme-test--colors-toml)
+    (write-region "duskthorn\n" nil (emanix-theme--state-file))
+    (should (null (emanix/theme-palette-color "no-such-palette-key")))))
+
+(ert-deftest emanix-theme-modus-overrides-take-every-colour-from-the-palette ()
+  (emanix-theme-test--with-tree
+    (emanix-theme-test--write-colors "duskthorn" emanix-theme-test--colors-toml)
+    (should (equal (emanix-theme--modus-overrides "duskthorn")
+                   '((bg-main "#101010")
+                     (fg-main "#eeeeee")
+                     (bg-tab-bar "#202020")
+                     (bg-tab-current "#303030")
+                     (bg-tab-other "#202020")
+                     (bg-mode-line-active "#202020")
+                     (fg-mode-line-active "#eeeeee")
+                     (border-mode-line-active "#eeeeee")
+                     (bg-mode-line-inactive "#202020")
+                     (fg-mode-line-inactive "#aaaaaa")
+                     (border-mode-line-inactive "#202020"))))))
+
+(ert-deftest emanix-theme-modus-overrides-without-bar-colours-sets-only-main ()
+  "A palette with base and text but no bar colours must not half-style the bars."
+  (emanix-theme-test--with-tree
+    (emanix-theme-test--write-colors
+     "partial" "[palette]\nbase = \"#101010\"\ntext = \"#eeeeee\"\n")
+    (should (equal (emanix-theme--modus-overrides "partial")
+                   '((bg-main "#101010") (fg-main "#eeeeee"))))))
+
+(ert-deftest emanix-theme-modus-overrides-fall-back-when-colors-toml-is-unreadable ()
+  (emanix-theme-test--with-tree
+    (should (equal (emanix-theme--modus-overrides "high-contrast-dark")
+                   '((bg-main "#0a0a0a") (fg-main "#e8e8e8"))))
+    (should (equal (emanix-theme--modus-overrides "high-contrast-light")
+                   '((bg-main "#f2f2f2") (fg-main "#111111"))))
+    (should-not (emanix-theme--modus-overrides "no-such-theme"))))
+
+(ert-deftest emanix-theme-catppuccin-flavor-follows-the-variant-file ()
+  (emanix-theme-test--with-tree
+    (should (eq 'mocha (emanix-theme--catppuccin-flavor "duskthorn")))
+    (should (eq 'latte (emanix-theme--catppuccin-flavor "dawnthorn")))))
+
+(ert-deftest emanix-theme-catppuccin-flavor-ignores-the-name-when-variant-is-readable ()
+  "A dark theme whose NAME contains \"latte\" is still mocha."
+  (emanix-theme-test--with-tree
+    (let ((dir (expand-file-name "lattecino" emanix-theme--themes-dir)))
+      (make-directory dir)
+      (write-region "dark\n" nil (expand-file-name "variant" dir)))
+    (should (eq 'mocha (emanix-theme--catppuccin-flavor "lattecino")))))
+
+(ert-deftest emanix-theme-catppuccin-flavor-falls-back-to-the-name-without-a-variant ()
+  (emanix-theme-test--with-tree
+    (should (eq 'latte (emanix-theme--catppuccin-flavor "catppuccin-latte")))
+    (should (eq 'mocha (emanix-theme--catppuccin-flavor "no-such-theme")))))
+
+(ert-deftest emanix-theme-pick-loadable-keeps-an-available-theme ()
+  (cl-letf (((symbol-function 'emanix-theme--available-p) (lambda (_) t)))
+    (should (eq 'wanted (emanix-theme--pick-loadable 'wanted "x")))))
+
+(ert-deftest emanix-theme-pick-loadable-falls-back-ladder ()
+  "Unavailable -> catppuccin -> the built-in Modus fallback -> nil."
+  (let ((available nil))
+    (cl-letf (((symbol-function 'emanix-theme--available-p)
+               (lambda (theme) (memq theme available))))
+      (setq available '(catppuccin modus-vivendi))
+      (should (eq 'catppuccin (emanix-theme--pick-loadable 'typo "x")))
+      (setq available '(modus-vivendi))
+      (should (eq 'modus-vivendi (emanix-theme--pick-loadable 'typo "x")))
+      (setq available nil)
+      (should-not (emanix-theme--pick-loadable 'typo "x")))))

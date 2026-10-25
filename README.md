@@ -58,8 +58,9 @@ refuses, not an omission — the file named in brackets holds the reasoning.
   option the consumer fills in (`emanix.firstboot`); the distribution ships no
   tailnet join, no backup daemon, no monitoring agent, no fleet tooling.
 - **No text-to-speech in the closure, and no screen reader.** Enabling it on a
-  graphical host drags in 645 MiB of voice data alone. `emanix.nix` records the
-  measurement and the `mkOverride 500` that a host can still outrank.
+  graphical host drags in 645 MiB of voice data alone. `docs/decisions/speechd.md`
+  records the measurement; `emanix.nix` sets the `mkOverride 500` that a host can
+  still outrank.
 
 ## How the config is organised
 
@@ -235,5 +236,6 @@ EMACS=$(nix build --no-link --print-out-paths .#emacs)/bin/emacs ./tests/init-gu
 
 `.github/workflows/ci.yml` runs all of it. A cheap job runs on every pull
 request: the linters, a build-free `nix flake check --no-build`, the retired-name
-check, and the three shell tests below. A slow job runs on `main`, builds every
-check (six of them build Emacs), and then runs the init guard.
+check, and the two shell tests `disk-layout.sh` and `installer-modes.sh`. A slow
+job runs on `main`, builds every check (eight of them build Emacs), and then
+runs the init guard.

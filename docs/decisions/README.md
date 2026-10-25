@@ -24,7 +24,10 @@ that no longer exists is a bug.
 
 ## Budgets
 
-The point of this directory is that code comments stay readable.
+The point of this directory is that code comments stay readable. These are
+guidance for authors. Only the 30-line ceiling on one comment block is enforced
+(`checks/comment-budget.nix`); the shorter budgets are not, and several files
+exceed them.
 
 | Where | Budget |
 | --- | --- |

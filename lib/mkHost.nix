@@ -12,7 +12,7 @@
 # user's secrets, keys, or home-manager config. Personal modules (secrets,
 # SSH keys, home-manager imports) arrive via `extraModules` from the consuming
 # flake (e.g. dotfiles).
-{ nixpkgs, home-manager, ewm, agenix, nixos-wsl, nixpkgsModule, mkHmModule, sharedSpecialArgs, system }:
+{ nixpkgs, home-manager, ewm, agenix, nixpkgsModule, mkHmModule, sharedSpecialArgs, system }:
 { hostName, role, username, hardware ? null, extraModules ? [ ], homeModules ? [ ] }:
 # `role` no longer selects a profile — the roles are gone. emanix ships ONE
 # shape; what a host IS (headless, laptop, WSL) is the consumer's to compose from
@@ -49,7 +49,7 @@ let
 in
 nixpkgs.lib.nixosSystem {
   inherit system;
-  specialArgs = sharedSpecialArgs // { inherit ewm nixos-wsl; };
+  specialArgs = sharedSpecialArgs // { inherit ewm; };
   modules = [
     ../emanix.nix
     # mkDefault: NixOS-WSL needs to force this empty (setting the hostname at

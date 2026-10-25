@@ -28,13 +28,16 @@
                 (push (cons name exec) entries)))))))
     (nreverse entries)))
 
-(defun emanix/launch-app (name)
-  "Launch the desktop application NAME (the s-d launcher, sans EWM)."
+(defun emanix/launch-app (name &optional entries)
+  "Launch the desktop application NAME (the s-d launcher, sans EWM).
+ENTRIES is the `emanix/launcher--entries' alist; the interactive call passes
+the one it already scanned for completion, so each launch reads the desktop
+files once."
   (interactive
-   (list (completing-read "Launch: "
-                          (mapcar #'car (emanix/launcher--entries))
-                          nil t)))
-  (let* ((exec (cdr (assoc name (emanix/launcher--entries))))
+   (let ((entries (emanix/launcher--entries)))
+     (list (completing-read "Launch: " (mapcar #'car entries) nil t)
+           entries)))
+  (let* ((exec (cdr (assoc name (or entries (emanix/launcher--entries)))))
          ;; Drop desktop-spec field codes (%u, %F, ...) — we pass no files.
          (cmd (string-trim (replace-regexp-in-string "%[a-zA-Z]" "" exec)))
          (process-environment

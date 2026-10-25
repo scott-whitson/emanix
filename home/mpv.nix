@@ -2,13 +2,12 @@
 
 {
   # GUI-only: programs.mpv.enable unconditionally pulls in the mpv package,
-  # which would otherwise defeat packages.nix's `lib.optional config.emanix.gui
-  # mpv` gate on headless hosts.
+  # which would put it on headless hosts.
   config = lib.mkIf config.emanix.gui {
     programs.mpv = {
       enable = true;
       config = {
-        # base/mpv/.config/mpv/mpv.conf's one line — carried over verbatim.
+        # The distribution's one mpv.conf line.
         ytdl-format = "bestvideo[height<=?1080][vcodec!=?vp9]+bestaudio/best";
 
         volume = 60;

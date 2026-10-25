@@ -11,17 +11,14 @@ Reads a catppuccin colors.toml (single source of truth) and emits a pi-agent
 theme JSON that matches the installed schema. Every pi agent color token is
 mapped from the catppuccin semantic names in the TOML.
 
-Run by dot-theme-set on theme switch. Also safe to run by hand to verify.
+Run at build time by lib/theme-tree.nix. Also safe to run by hand to verify.
 """
 
 import json
 import sys
 from pathlib import Path
 
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # Python < 3.11 fallback
+import tomllib
 
 SCHEMA_URL = (
     "https://raw.githubusercontent.com/earendil-works/pi/main/"

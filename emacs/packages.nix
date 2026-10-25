@@ -37,7 +37,7 @@ let
     consult
     marginalia
     embark
-    embark-consult
+    embark-consult # embark.el requires it itself once consult is loaded, and warns if absent
     corfu
     dirvish
     magit
@@ -105,7 +105,6 @@ let
     visual-fill-column # centered reading column; org prose buffers
     org-modern # bullets, block framing, tag/timestamp styling for org
     org-appear # reveal org emphasis markers at point
-    weblorg # pure Emacs Lisp static site generator with org-roam support
 
     # --- Agent shell (ACP) ---
     # Claude Code and pi as Emacs buffers rather than terminals. agent-shell
@@ -135,7 +134,7 @@ let
     transient # magit needs it; listed since ghostel's menu uses it directly
 
     # --- Code editing ---
-    # Emacs 30 already ships the hard parts: project.el, eglot (LSP client),
+    # Emacs 31 already ships the hard parts: project.el, eglot (LSP client),
     # flymake, xref, python-ts-mode, html-ts-mode and css-ts-mode are all
     # built in — the last two only ever looked absent because this list
     # shipped no grammars for them.

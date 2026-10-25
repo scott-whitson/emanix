@@ -6,8 +6,7 @@
   # splices sit exactly where those packages originally were. Reordering (or
   # merging the gui blocks) changes the emanix system drv and forces a
   # rebuild; re-check the toplevel drvPath if you restructure.
-  # System-level packages (Hyprland, Docker, etc.) stay under apt for Phase 1
-  # and move to the NixOS layer in Phase 2.
+  # System-level packages (Docker, etc.) live in the NixOS layer.
   home.packages = with pkgs; [
     # CLI essentials
     ripgrep
@@ -34,9 +33,8 @@
     statix
 
     # Python toolchain. Nothing Python-shaped was installed on this box before
-    # 2026-08-07 — not even an interpreter. basedpyright is the LSP server
-    # (eglot talks to it); ruff does lint + format. Both are also what the
-    # Emacs config drives, so editor and CLI agree.
+    # 2026-08-07 — not even an interpreter. ruff does lint + format, and is
+    # also what the Emacs config drives, so editor and CLI agree.
     python3
     ruff
 
@@ -77,9 +75,8 @@
     # No notifications: libnotify was dropped 2026-08-08. There is no daemon to
     # receive them — mako went with the Hyprland stack and EWM implements no
     # org.freedesktop.Notifications service — so notify-send had nothing to talk
-    # to. Its one remaining caller, tools/stt/push-to-talk.sh, guards on
-    # `command -v notify-send`, so it skips cleanly rather than silently no-op. Reinstate libnotify AND a
-    # daemon together if desktop notifications are ever wanted back.
+    # to. Reinstate libnotify AND a daemon together if desktop notifications
+    # are ever wanted back.
 
     # Terminal — config lives in ghostty.nix; the package (and its XDG
     # desktop entry, which EWM's s-d launcher needs) is installed here.
@@ -120,6 +117,6 @@
   ]
   # ghostty for non-gui hosts that opt in (non-GUI hosts (WSLg)). gui hosts already
   # get it from the gui block above — appended HERE so their list is
-  # byte-identical (order is derivation-load-bearing, see Task-1 gate).
+  # byte-identical (order is derivation-load-bearing, see the note at the top).
   ++ lib.optional (config.emanix.ghostty.enable && !config.emanix.gui) pkgs.ghostty;
 }

@@ -17,7 +17,7 @@
 
 (defgroup emanix-welcome nil
   "First-run orientation buffer."
-  :group 'emanix)
+  :group 'tools)
 
 (defcustom emanix-welcome-repo-candidates
   (list (getenv "EMANIX_DOTFILES")

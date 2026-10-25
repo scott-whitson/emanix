@@ -2,9 +2,9 @@
   description = "emanix — a NixOS distribution (Emacs + Linux + NixOS)";
 
   inputs = {
-    # The base channel is STABLE. The AI harness moves far faster than a stable
-    # channel, so it is pulled per package from nixpkgs-unstable below rather
-    # than pinning the whole system to unstable.
+    # The base channel is STABLE. Packages that outrun it are pulled one by one
+    # from nixpkgs-unstable (see nixpkgsModule) rather than pinning the whole
+    # system to unstable.
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     home-manager = {
@@ -15,6 +15,7 @@
     emacs-overlay = {
       url = "github:nix-community/emacs-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs-stable.follows = "nixpkgs";
     };
     ewm = {
       url = "https://codeberg.org/ezemtsov/ewm/archive/master.tar.gz";
@@ -42,10 +43,6 @@
     };
     agenix = {
       url = "github:ryantm/agenix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    nixos-wsl = {
-      url = "github:nix-community/NixOS-WSL";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     # The machine database — over 400 per-model modules. Carried by the
@@ -80,7 +77,6 @@
     , ewm
     , disko
     , agenix
-    , nixos-wsl
       # Not used by the distro's own module list -- consumers reach it as
       # `emanix.inputs.nixos-hardware`. Named here so checks/template-host.nix
       # can force the template's optional hardwareModule path.
@@ -91,6 +87,17 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
 
+      # The pkgs every Emacs build and check runs against, defined once.
+      #
+      # `pkgs' above is bare nixpkgs.legacyPackages: the emacs-overlay is
+      # applied inside nixpkgsModule, which is a NixOS module and therefore
+      # unreachable from `packages' and `checks'. The overlay is what supplies
+      # the Emacs the fleet actually runs -- `emacs-unstable-nox' (31.1) exists
+      # only once it is applied, while the channel's own emacs-nox is 30.2 -- so
+      # anything that launches an Emacs or reads the emacs package set must take
+      # this, not plain pkgs.
+      emacsPkgs = pkgs.extend emacs-overlay.overlays.default;
+
       emanixLib = import ./lib;
       sharedSpecialArgs = { inherit emanixLib; };
 
@@ -100,16 +107,13 @@
         nixpkgs = {
           overlays = [
             emacs-overlay.overlays.default
-            # Packages pulled from nixpkgs-unstable by name: the AI harness
-            # moves faster than a stable channel, and ibm-plex gained its Latin
-            # .sans/.serif sub-families upstream after stable 26.05.
+            # Packages pulled from nixpkgs-unstable by name: ibm-plex gained its
+            # Latin .sans/.serif sub-families upstream after stable 26.05.
             (_final: _prev: {
-              pi-coding-agent = nixpkgs-unstable.legacyPackages.${system}.pi-coding-agent;
               ibm-plex = nixpkgs-unstable.legacyPackages.${system}.ibm-plex;
             })
           ];
           config.allowUnfree = true;
-          config.permittedInsecurePackages = [ "electron-39.8.10" ];
         };
       };
 
@@ -141,7 +145,7 @@
 
       # Compose an emanix host: core + user + hardware + personal extras.
       mkHost = import ./lib/mkHost.nix {
-        inherit nixpkgs home-manager ewm agenix nixos-wsl nixpkgsModule sharedSpecialArgs system;
+        inherit nixpkgs home-manager ewm agenix nixpkgsModule sharedSpecialArgs system;
         inherit mkHmModule;
       };
 
@@ -214,16 +218,12 @@
         # compositor. Same 31.1 either way — emacs/pwayl.nix owns the other
         # base, modules/ewm.nix builds it, and nox is what the checks use.
         #
-        # Overlay-extended pkgs, for the same reason agent-shell-api gets it
-        # below: `pkgs' above is bare nixpkgs, while every host's Emacs comes
-        # from the emacs-overlay build.
+        # Takes emacsPkgs, not `pkgs': every host's Emacs comes from the
+        # emacs-overlay build.
         emacs =
-          let
-            pkgsEmacs = pkgs.extend emacs-overlay.overlays.default;
-          in
           (import ./emacs/packages.nix {
-            pkgs = pkgsEmacs;
-          }).mkEmacs { base = pkgsEmacs.emacs-unstable-pgtk; };
+            pkgs = emacsPkgs;
+          }).mkEmacs { base = emacsPkgs.emacs-unstable-pgtk; };
       };
 
       # Disko configurations are defined by consumers (per-host disk layouts
@@ -241,10 +241,11 @@
       #
       # EVALUATED, NEVER BUILT. unsafeDiscardStringContext drops the
       # derivation dependency, so the drvPath is computed (that is the whole
-      # point) but no closure is realized. Deliberate: the workstation role
-      # pulls EWM, whose closure source-compiles and can take down a WSL host
+      # point) but no closure is realized. Deliberate: a host that imports
+      # EWM has a closure that source-compiles and can take down a WSL host
       # — a check that cannot be run safely on the machine you have is not a
-      # check.
+      # check. The role-* checks import no EWM module; template-host is the
+      # one that evaluates modules/ewm.nix.
       #
       # The username is intentionally NOT the author's. Any module that
       # hardcodes a real one fails here rather than in a stranger's rebuild.
@@ -273,21 +274,6 @@
           # build time and piped in.
           palettesJson = pkgs.writeText "emanix-palettes.json"
             (builtins.toJSON (emanixLib.theme { inherit pkgs; }).palettes);
-
-          # The pkgs every Emacs check builds and runs against, defined once.
-          #
-          # `pkgs' above is bare nixpkgs.legacyPackages: the emacs-overlay is
-          # applied inside nixpkgsModule, which is a NixOS module and therefore
-          # unreachable from `checks'. The overlay is what supplies the Emacs
-          # the fleet actually runs -- `emacs-unstable-nox' (31.1) exists only
-          # once it is applied, while the channel's own emacs-nox is 30.2 -- so
-          # every check that launches an Emacs or reads the emacs package set
-          # must take this, not plain pkgs. Until 2026-10-23 only agent-shell-api
-          # and prose did, because they were the only two reading overlay
-          # packages; the four that merely RAN an Emacs kept the channel's
-          # emacs-nox, so they validated a version nobody runs. One binding, so
-          # a new Emacs check cannot forget it.
-          emacsPkgs = pkgs.extend emacs-overlay.overlays.default;
         in
         {
           role-workstation = evalRole "workstation";
@@ -356,6 +342,14 @@
           # emanix.hardware.gpu's effect on the initrd, checked per value.
           # See checks/hardware-gpu.nix.
           hardware-gpu = import ./checks/hardware-gpu.nix { inherit pkgs mkHost; };
+
+          # The web layer's template detection, mode dispatch and formatter
+          # choice. See checks/web.nix.
+          web = import ./checks/web.nix { pkgs = emacsPkgs; };
+
+          # The welcome buffer's dismissal marker and config-repo detection.
+          # See checks/welcome.nix.
+          welcome = import ./checks/welcome.nix { pkgs = emacsPkgs; };
 
           # The welcome buffer's claims, checked against the bindings that
           # back them. See checks/welcome-keys.nix.

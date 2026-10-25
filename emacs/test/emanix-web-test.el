@@ -243,7 +243,7 @@ fundamental-mode with no error to explain why."
 ;; `apheleia-skip-functions', and four mode hooks.  Every test that calls
 ;; it must let-bind all of that, or its `add-to-list'/`add-hook' calls
 ;; leak into the real global and contaminate every later test in the same
-;; batch run.  Fix round 2 found exactly this: an injected mutation to
+;; batch run.  A review found exactly this: an injected mutation to
 ;; `apheleia-mode-alist' inside `emanix-web-setup' passed the guard test
 ;; silently when the full suite ran, because an earlier setup-calling test
 ;; had already leaked that mutation into the real global before the guard
@@ -510,34 +510,21 @@ anyway; see `emanix-web-unconfigured-repo-is-never-formatted'."
       (emanix-web--set-djlint-formatter)
       (should (eq 'djlint apheleia-formatter)))))
 
-(ert-deftest emanix-web-gate-open-sets-djlint ()
-  "A repo declaring djlint config gets djlint on its templates."
-  (emanix-web-test--with-tree
-      '((".djlintrc" . "profile=jinja\n")
-        ("app/templates/base.html" . "<div></div>\n"))
-    (with-temp-buffer
-      (setq buffer-file-name (expand-file-name "app/templates/base.html" root))
-      (emanix-web--set-djlint-formatter)
-      (should (eq 'djlint apheleia-formatter)))))
+(ert-deftest emanix-web-set-prettier-formatter-picks-css-parser-for-css ()
+  "CSS buffers get the css parser, not the html one.
+Like the djlint half, the choice does not consult any repo config."
+  (with-temp-buffer
+    (setq buffer-file-name "/tmp/p/static/style.css")
+    (css-mode)
+    (emanix-web--set-prettier-formatter)
+    (should (eq 'prettier-css apheleia-formatter))))
 
-(ert-deftest emanix-web-gate-open-sets-prettier-css ()
-  "CSS buffers get the css parser, not the html one."
-  (emanix-web-test--with-tree
-      '((".prettierrc" . "{}\n") ("style.css" . "a{color:red}\n"))
-    (with-temp-buffer
-      (setq buffer-file-name (expand-file-name "style.css" root))
-      (css-mode)
-      (emanix-web--set-prettier-formatter)
-      (should (eq 'prettier-css apheleia-formatter)))))
-
-(ert-deftest emanix-web-gate-open-sets-prettier-html ()
+(ert-deftest emanix-web-set-prettier-formatter-picks-html-parser-for-html ()
   "Non-CSS buffers get the html parser."
-  (emanix-web-test--with-tree
-      '((".prettierrc" . "{}\n") ("page.html" . "<div></div>\n"))
-    (with-temp-buffer
-      (setq buffer-file-name (expand-file-name "page.html" root))
-      (emanix-web--set-prettier-formatter)
-      (should (eq 'prettier-html apheleia-formatter)))))
+  (with-temp-buffer
+    (setq buffer-file-name "/tmp/p/static/page.html")
+    (emanix-web--set-prettier-formatter)
+    (should (eq 'prettier-html apheleia-formatter))))
 
 (ert-deftest emanix-web-gate-tolerates-a-buffer-with-no-file ()
   "A hook must not signal in a buffer that has no file yet."

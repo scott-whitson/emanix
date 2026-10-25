@@ -1,7 +1,8 @@
 # The Emacs daemon runs under systemd with a minimal PATH. An adapter that
 # resolves `node' through PATH -- or relies on the payload's own
 # `#!/usr/bin/env node' shebang -- works in a terminal and dies in the daemon.
-# That is the same trap emacs/config.el:786 documents for ~/.local/bin/claude,
+# That is the same trap that hides ~/.local/bin/claude from the daemon
+# (see the adapter lookup in emacs/lisp/emanix-agent-shell.el),
 # and it is invisible until the day you need the agent.
 #
 # So this check does not read the wrapper, it RUNS it. Both wrappers: they come

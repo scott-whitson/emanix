@@ -1,20 +1,19 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, emanixLib, ... }:
 
 let
-  themeLib = import ../lib/themes.nix { inherit pkgs; };
+  themeLib = emanixLib.theme { inherit pkgs; };
   inherit (themeLib) palettes;
   # Resolved once, from config.emanix.theme, at rebuild time — NOT what
-  # `dot-theme-set` changes. Unlike ghostty (which pre-renders all four
+  # `emanix/theme-set` changes. Unlike ghostty (which pre-renders all four
   # palettes so the runtime switcher can pick one), Firefox renders exactly
   # this one palette and the switcher never touches it. Running
-  # `dot-theme-set` does not change Firefox at all, on restart or ever;
+  # `emanix/theme-set` does not change Firefox at all, on restart or ever;
   # only editing emanix.theme and rebuilding does. See https://emanix.net/docs/theming.html
   activePalette = palettes.${config.emanix.theme} or palettes.catppuccin-mocha;
 in
 {
-  # Gated on emanix.gui. The ibgateway branch imported this unconditionally,
-  # which put a browser on the headless server and on WSL. programs.firefox
-  # installs the package itself, so packages.nix must NOT also list `firefox` —
+  # Gated on emanix.gui, so no browser lands on a headless server or on WSL.
+  # programs.firefox installs the package itself, so packages.nix must NOT also list `firefox` —
   # doing both gives two identical firefox entries in home.packages.
   config = lib.mkIf config.emanix.gui {
     # Firefox, following the active palette's variant via the

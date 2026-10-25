@@ -460,21 +460,17 @@ Emacs (or set the variable back to t) to pick the feature up again."
   (add-hook 'agent-shell-mode-hook #'emanix/agent-shell--install)
   (advice-add 'agent-shell-submit :before #'emanix/agent-shell--submit-advice)
   ;; `system-sleep' is a built-in that agent-shell loads lazily, on its first
-  ;; inhibit attempt. Requiring it HERE is what lets the advice be guarded by
-  ;; `fboundp': advising a void symbol would define its function cell, and
-  ;; agent-shell's own `agent-shell--system-sleep-available-p' probes exactly
-  ;; that -- so on an Emacs too old to have the library, a bare `advice-add'
-  ;; would talk it into calling an API that does not exist.
-  (when (and (require 'system-sleep nil t)
-             (fboundp 'system-sleep-block-sleep))
-    (advice-add 'system-sleep-block-sleep :around
-                #'emanix/agent-shell--sleep-block-latch)))
+  ;; inhibit attempt. Requiring it HERE defines the function before it is
+  ;; advised, so the advice wraps the real `system-sleep-block-sleep'.
+  (require 'system-sleep)
+  (advice-add 'system-sleep-block-sleep :around
+              #'emanix/agent-shell--sleep-block-latch))
 
 (with-eval-after-load 'agent-shell-anthropic
   ;; `executable-find', not a store path: this file is out-of-store live elisp
   ;; and cannot interpolate nix. The wrapper arrives through home.packages, so
   ;; it lands on the profile PATH the daemon does have -- unlike ~/.local/bin,
-  ;; which is the gap config.el:786 documents for the claude CLI itself.
+  ;; which the daemon's minimal PATH lacks (where the claude CLI itself lives).
   ;; Absent adapter = the command errors when pressed, not a broken config.
   (when-let* ((adapter (executable-find "claude-agent-acp")))
     (setq agent-shell-anthropic-claude-acp-command (list adapter))))

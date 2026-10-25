@@ -35,7 +35,7 @@ let
     (builtins.toJSON (devicesFor args));
 
   # The same two layouts tests/disk-layout.sh pins, and for the same reason:
-  # Gate 1 proved them byte-identical to two hand-written disko files.
+  # they were proven byte-identical to two hand-written disko files.
   rafik = json "rafik" {
     device = "/dev/nvme0n1";
     luks = true;

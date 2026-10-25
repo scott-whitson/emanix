@@ -1,6 +1,6 @@
 # Minimal host config. Everything opinionated is the distribution's job; this
 # file holds only what emanix cannot know.
-{ config, lib, ... }:
+{ config, ... }:
 {
   # emanix.gui and emanix.src.liveElisp are Home Manager options
   # (home/theme.nix), not NixOS ones — this module is spliced
@@ -45,6 +45,5 @@
   boot.loader.efi.canTouchEfiVariables = true;
 
   networking.networkmanager.enable = true;
-  time.timeZone = lib.mkDefault "UTC";
-  system.stateVersion = "26.11";
+  system.stateVersion = "26.05";
 }

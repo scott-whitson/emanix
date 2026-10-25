@@ -1,12 +1,13 @@
-_:
+{ pkgs, ... }:
 
 {
+  home.packages = [ pkgs.yt-dlp ];
+
   home.file.".config/yt-dlp/config" = {
     text = ''
       # yt-dlp config — managed by Home Manager
       --embed-metadata
       --embed-thumbnail
-      --add-metadata
       --metadata-from-title "%(title)s"
       --output "%(title)s.%(ext)s"
       --restrict-filenames

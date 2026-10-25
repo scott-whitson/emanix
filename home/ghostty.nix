@@ -1,7 +1,7 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, emanixLib, ... }:
 
 let
-  themeLib = import ../lib/themes.nix { inherit pkgs; };
+  themeLib = emanixLib.theme { inherit pkgs; };
   inherit (themeLib) palettes ghostty;
 in
 {
@@ -14,8 +14,8 @@ in
 
   config = lib.mkIf config.emanix.ghostty.enable {
     # Every palette is pre-rendered here; the runtime switcher picks one.
-    # theme.conf is deliberately NOT declared as home.file: bin/dot-theme-set
-    # owns that path, and two owners means Home Manager renames the runtime
+    # theme.conf is deliberately NOT declared as home.file: Emacs's
+    # `emanix/theme-set' owns that path, and two owners means Home Manager renames the runtime
     # symlink to theme.conf.hm-bak at every activation — silently reverting
     # the active theme on the next rebuild.
     home.file = lib.mapAttrs'
@@ -30,7 +30,7 @@ in
           # Ghostty Configuration — managed by Home Manager
           # -----------------------------------------------
 
-          # --- Theme (swapped by theme-switch script) ---
+          # --- Theme (swapped by emanix/theme-set) ---
           config-file = theme.conf
 
           # --- Font ---

@@ -29,13 +29,8 @@ let
   # Emacs that loads it.
   #
   # ONE PATCH, for an upstream bug. See docs/decisions/ewm-patches.md for the
-  # mechanism, the keysym numbers, and the exit condition.
-  #
-  # The second patch that lived here widened `ewm-intercept-prefixes' :type so
-  # its own default passed validation. It was RETIRED on 2026-10-14, exactly on
-  # the exit condition its own entry named: upstream fixed it in e43ecc5 and
-  # c67705c by introducing the `ewm-key' widget, which is a wider fix than the
-  # patch was, and the patch stopped applying.
+  # mechanism, the keysym numbers, the exit condition, and the second patch
+  # that was retired.
   ewmSrc = pkgs.applyPatches {
     name = "ewm-patched";
     src = ewm;
@@ -100,7 +95,7 @@ in
   # hook below pkills.
   #
   # Set here rather than by hand in a consumer's host config (where it
-  # lived until 2026-08-18, alongside the role's imports of this file) so the
+  # lived until 2026-08-18, next to its import of this file) so the
   # two cannot disagree: the import IS the switch. A hard definition, not
   # mkDefault — this is an invariant of importing ewm.nix, not an opinion.
   #
@@ -184,7 +179,8 @@ in
     # acquire DRM master without a display manager (verified on zord-old:
     # direct ewm-launch works, unit path gets EACCES / instant seat drop).
     # LIBSEAT_BACKEND=logind pinned so a stray seatd can never steal the pick.
-    # EWM exit/crash ends the login; getty + autologin restart it.
+    # EWM exit/crash ends the login; with autologin on, getty restarts it,
+    # otherwise the login prompt returns.
     loginShellInit = ''
       if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
         if [ -e "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap" ]; then
@@ -192,10 +188,9 @@ in
         else
           # One EWM per boot-session: a stale daemon holds DRM master and
           # starves every new launch. NB: the nix wrapper truncates comm to 15
-          # characters (it used to read '.emacs-30.2-wra'), so match the full
-          # command line, never `pkill -x emacs'.
+          # characters (it reads '.emacs-31.1-wra'), so match the full command
+          # line, never `pkill -x emacs'.
           pkill -u "$USER" -f "bin/emacs --fg-daemon" 2>/dev/null && sleep 1
-          _t0=$(date +%s)
           # XKB_DEFAULT_OPTIONS: wlroots reads this when it builds the keymap at
           # compositor start, so keyboard xkb opts (CapsLock->Control) apply
           # reliably — ewm-input-config's :xkb-options loads too late (after the
@@ -238,8 +233,8 @@ in
             echo "daemon never started (30s poll timed out)" > "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap"
           else
             # Daemon is up — wait for it to exit, then judge by how long it
-            # lived from when it APPEARED (the poll no longer blocks on the
-            # launcher, so `_t0' at launch would over-count a slow start).
+            # lived from when it APPEARED, not from launch (which would
+            # over-count a slow start).
             _ewm_appear=$(date +%s)
             while pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1; do sleep 3; done
             if [ $(( $(date +%s) - _ewm_appear )) -lt 15 ]; then
@@ -253,7 +248,7 @@ in
           # across a logout and the next session inherits units that think a
           # compositor is running.
           systemctl --user start ewm-shutdown.target 2>/dev/null || true
-          exit 0                   # end session; autologin relaunches
+          exit 0                   # end session; autologin (if on) relaunches
         fi
       fi
     '';
@@ -302,15 +297,15 @@ in
       # repo yet" even on hosts that have one. See zsh.nix's EMANIX_DOTFILES.
       EMANIX_DOTFILES = hmCfg.emanix.src.dotfilesPath;
 
-      # X11 apps (Steam, etc.) use this to find XWayland, which loginShellInit
-      # above starts once the compositor is up.
+      # X11 apps (Steam, etc.) use this to find XWayland, which EWM serves
+      # through xwayland-satellite (see systemPackages below).
       DISPLAY = ":0";
     };
 
     # EWM runtime deps + the single Emacs (gives emacsclient on the system PATH).
+    # wl-clipboard comes from home/packages.nix's gui block.
     systemPackages = with pkgs; [
       theEmacs
-      wl-clipboard
       brightnessctl
       # Screen lock (ext-session-lock). swayidle fires swaylock on logind's
       # before-sleep (lid close → suspend) and on loginctl lock-session; it is

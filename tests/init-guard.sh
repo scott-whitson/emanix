@@ -31,7 +31,7 @@ PROBE='(message "PROBE fellback=%s fallbackloaded=%s modeline=%s launch=%s ewmgo
 
 layout() {  # $1 = destination dir; build a deployed-shaped config tree
   mkdir -p "$1"
-  cp "$SRC/init.el" "$SRC/config.el" "$SRC/fallback.el" "$1/"
+  cp "$SRC/early-init.el" "$SRC/init.el" "$SRC/config.el" "$SRC/fallback.el" "$1/"
   cp -r "$SRC/lisp" "$1/lisp"
 }
 

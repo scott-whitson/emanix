@@ -2,7 +2,8 @@
 
 ;; Local, offline, config-aware oracle for Emacs, Elisp, Linux, NixOS and the
 ;; org-roam vault.  RAG over this machine's own configuration through
-;; sqlite-vec, answered by a local Ollama.  arc itself lives in its own repo
+;; sqlite-vec, retrieval only (an Ollama answer path survives as a fallback).
+;; arc itself lives in its own repo
 ;; (scott-whitson/arc) and is packaged by emacs/packages.nix; this file is
 ;; only the distro glue that points arc at THIS machine.
 

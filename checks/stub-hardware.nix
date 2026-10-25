@@ -12,8 +12,8 @@ _:
     fsType = "ext4";
   };
 
-  # Off rather than a device: the roles already enable systemd-boot, and a
-  # grub device would only add a second, contradictory loader.
+  # Off rather than a device: this satisfies NixOS's boot-loader assertion
+  # without naming a grub device or adding a loader of any kind.
   boot.loader.grub.enable = false;
 
   # Per-host in a real deployment (see modules/base.nix); pinned here

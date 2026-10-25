@@ -4,9 +4,9 @@ let
   # This host's Emacs is not the system-owned EWM build (ewm.nix); instead we
   # install the non-EWM pgtk Emacs user-side and run it as a systemd user
   # daemon (services.emacs below). Same package set as the emanix system
-  # build, minus the EWM package — non-EWM machines have no compositor role.
+  # build, minus the EWM package — non-EWM machines run no EWM compositor.
   emacsPkgs = import ../emacs/packages.nix { inherit pkgs; };
-  # extraPackages is a function of the package set (see emanix.nix's option):
+  # extraPackages is a function of the package set (see the option in emacs.nix):
   # pass it straight through so a consumer's packages reach this build too.
   #
   # The base is the pgtk 31.1 build, not the EWM tier's pwayl one: pwayl is a
@@ -22,8 +22,8 @@ in
   # Declared HERE rather than in ewm.nix, which is where the name points. This
   # module is the option's only reader: ewm.nix is a NixOS module and cannot
   # declare a Home Manager option, and it does not consult this one anyway —
-  # whether the system-owned EWM Emacs gets built is decided by the workstation
-  # role's imports. The two tiers are nonetheless TIED, and nothing here needs
+  # whether the system-owned EWM Emacs gets built is decided by whether the host
+  # imports ewm.nix. The two tiers are nonetheless TIED, and nothing here needs
   # hand-maintaining: ewm.nix sets this option itself, as a hard definition
   # rather than mkDefault (447c467, "the import IS the switch"). Importing
   # ewm.nix therefore builds the system Emacs and disables the user daemon

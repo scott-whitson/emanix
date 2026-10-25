@@ -13,14 +13,14 @@ The render path reads /proc and /sys, and the nix build sandbox this
 runs in has neither -- but the composition under test does not depend
 on any of it, so pin them and assert the whole string exactly."
   (declare (indent 0))
-  `(cl-letf (((symbol-function 'emanix/modeline--volume-segment) (lambda () "vol"))
-             ((symbol-function 'emanix/modeline--wifi)           (lambda () nil))
-             ((symbol-function 'emanix/modeline--cpu)            (lambda () 0))
-             ((symbol-function 'emanix/modeline--ram)            (lambda () 0))
-             ((symbol-function 'emanix/modeline--gpu)            (lambda () nil))
-             ((symbol-function 'emanix/modeline--clock)          (lambda () "CLOCK"))
-             ((symbol-function 'emanix/modeline--battery)        (lambda () nil)))
-     ,@body))
+  `(let ((emanix/modeline--wifi-status nil))
+     (cl-letf (((symbol-function 'emanix/modeline--volume-segment) (lambda () "vol"))
+               ((symbol-function 'emanix/modeline--cpu)            (lambda () 0))
+               ((symbol-function 'emanix/modeline--ram)            (lambda () 0))
+               ((symbol-function 'emanix/modeline--gpu)            (lambda () nil))
+               ((symbol-function 'emanix/modeline--clock)          (lambda () "CLOCK"))
+               ((symbol-function 'emanix/modeline--battery)        (lambda () nil)))
+       ,@body)))
 
 (ert-deftest emanix-modeline-renders-extra-segments ()
   "A function on `emanix/modeline-extra-segments' contributes its string."
@@ -91,20 +91,22 @@ flags; redisplay paints nothing when no glyph moved."
       (should (= repaints 3)))))
 
 (ert-deftest emanix-modeline-wifi-segment-is-a-cache-read ()
-  "The wifi segment reads a variable and runs no subprocess.
+  "The rendered wifi segment reads a variable and runs no subprocess.
 
 The value comes from one sysfs read in `emanix/modeline--poll-wifi', not
 from `nmcli' -- which was a fork, an exec and a D-Bus round trip on
 NetworkManager, on the render timer, in the process that is also the
 compositor."
-  (let ((emanix/modeline--wifi-status "wifi✗"))
-    (cl-letf (((symbol-function 'shell-command-to-string)
-               (lambda (&rest _) (error "render shelled out")))
-              ((symbol-function 'call-process)
-               (lambda (&rest _) (error "render shelled out")))
-              ((symbol-function 'make-process)
-               (lambda (&rest _) (error "render forked"))))
-      (should (equal (emanix/modeline--wifi) "wifi✗")))))
+  (emanix-modeline-test--rendering
+    (let ((emanix/modeline--wifi-status "wifi✗"))
+      (cl-letf (((symbol-function 'shell-command-to-string)
+                 (lambda (&rest _) (error "render shelled out")))
+                ((symbol-function 'call-process)
+                 (lambda (&rest _) (error "render shelled out")))
+                ((symbol-function 'make-process)
+                 (lambda (&rest _) (error "render forked"))))
+        (emanix/modeline--render)
+        (should (equal emanix/modeline-status "vol   wifi✗   CLOCK"))))))
 
 (ert-deftest emanix-modeline-wifi-segment-maps-operstate ()
   "Associated renders nothing; anything else renders the marker.

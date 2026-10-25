@@ -14,8 +14,7 @@
 (defconst emanix-arc-test--root
   (expand-file-name ".." (file-name-directory
                            (or load-file-name buffer-file-name))))
-(add-to-list 'load-path emanix-arc-test--root)
-(add-to-list 'load-path (file-name-directory (or load-file-name buffer-file-name)))
+(add-to-list 'load-path (expand-file-name "lisp" emanix-arc-test--root))
 ;; These are normally declared by ARC. Declaring them here makes the test's
 ;; dynamic `let' bindings work even when no ARC package is installed.
 (defvar arc-scope-presets nil)

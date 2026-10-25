@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Guards lib/disk.nix against drift. The fixtures are the layouts Gate 1
-# proved byte-identical to the two hand-written disko files in the consuming
+# Guards lib/disk.nix against drift. The fixtures are the layouts proven byte-identical to the two hand-written disko files in the consuming
 # flake (see docs/superpowers/specs/2026-09-04-hardware-layer-design.md).
 # They are golden files: a diff here means the generator changed, which for a
 # disk layout means every future install partitions differently.
@@ -19,8 +18,8 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DISK="$SELF_DIR/../lib/disk.nix"
 fails=0
 
-# The fixtures below are pinned to these exact byte counts. Step 4 of the
-# task brief generates both fixtures FROM lib/disk.nix, and the checks below
+# The fixtures below are pinned to these exact byte counts. Both fixtures were
+# generated FROM lib/disk.nix, and the checks below
 # compare lib/disk.nix against those same fixtures -- which on its own would
 # be circular: a mistranscribed layout would produce a self-consistent wrong
 # fixture that still passes. These two counts are the guard against that.

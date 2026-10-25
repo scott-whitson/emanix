@@ -88,10 +88,11 @@ still loses to a plain definition in a consumer's config. `services.speechd` in
 
 `role-workstation`, `role-server` and `role-wsl` each compose a throwaway host
 through the real `mkHost` and take its `toplevel.drvPath` under
-`builtins.unsafeDiscardStringContext`. The derivation is computed; the closure is
-never realized. This is deliberate — a workstation closure source-compiles EWM,
-and a check that cannot be run safely on the machine you are using is not a
-check. Do not "fix" it into a build so it can test more.
+`builtins.unsafeDiscardStringContext`; `template-host` does the same with the
+template's module list, including `modules/ewm.nix`. The derivation is computed;
+the closure is never realized. This is deliberate — a workstation closure
+source-compiles EWM, and a check that cannot be run safely on the machine you
+are using is not a check. Do not "fix" it into a build so it can test more.
 
 ### 4. Every check must be capable of failing
 
@@ -107,7 +108,8 @@ A comment that restates the code is noise. A comment that records *why this
 value* is the most valuable thing in the file — but past a few lines it stops
 being a comment and starts being an essay, and the essay belongs in a record.
 
-The budgets ([`docs/decisions/README.md`](docs/decisions/README.md)):
+The budgets ([`docs/decisions/README.md`](docs/decisions/README.md)) are
+guidance, and only the 30-line ceiling is enforced (`checks/comment-budget.nix`):
 
 | Where | Budget |
 | --- | --- |

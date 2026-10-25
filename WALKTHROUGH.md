@@ -86,8 +86,8 @@ modules/    the NixOS tier: the settings of the machine
 
 | Module | Function |
 | --- | --- |
-| `base.nix` | The base system: users, the shell, the network |
-| `init.nix` | The first system generation |
+| `base.nix` | The base system: the user, the shell, Docker, the Nix settings, and garbage collection. It does not set the network |
+| `init.nix` | The `emanix-init` command. The command adopts a generated configuration into a repository |
 | `firstboot.nix` | The first-boot convention |
 | `gpu.nix` | One option for the graphics hardware. The default is `null` |
 | `firmware.nix` | The default for the redistributable firmware |
@@ -159,10 +159,12 @@ holds the option. `emanix.*` is in this repository.
 | `emanix.git.userName`, `emanix.git.userEmail` | The git identity |
 | `emanix.ghostty.enable` | Use Ghostty as the terminal |
 | `emanix.emacs.extraPackages` | The Emacs packages of the consumer |
+| `emanix.emacs.base` | The Emacs build that those packages compile against. The distribution sets it. Do not set it by hand |
 | `emanix.hardware.gpu` | The graphics option. The default is `null` |
 | `emanix.firstboot.runtimeInputs`, `emanix.firstboot.text` | The first-boot script |
 | `emanix.src.*` | The paths of the two checkouts |
 | `emanix.ewm.enable` | Set by the distribution. Do not set it by hand |
+| `emanix.installer.flake`, `emanix.installer.keysDir` | The flake and the host keys of an installer image |
 
 ## 6. The directory tree
 
@@ -280,11 +282,13 @@ nothing. `checks/check-index.nix` asserts this table names every check.
 | --- | --- |
 | `role-workstation`, `role-server`, `role-wsl` | Each role evaluates. The `homeModules` seam is exercised too |
 | `palette-contrast` | The colors of every palette have enough contrast |
-| `template-host` | The template builds. The template is the only thing a new user has |
+| `template-host` | The template evaluates, with the compositor module. The template is the only thing a new user has |
 | `disk-layout` | The disk layout agrees with the recorded layout |
 | `hardware-gpu` | The GPU option reaches the kernel modules |
 | `theme-switch` | The theme switch works |
 | `prose` | The prose renderer works, including the drawn markdown table |
+| `web` | The web layer detects templates, picks the right mode, and picks the right formatter |
+| `welcome` | The welcome buffer finds its dismissal marker and its configuration repository |
 | `arc-glue`, `arc-bridge` | The assistant holds its interface |
 | `agent-shell-api` | The upstream interface of the agent shell |
 | `agent-shell-glue`, `agent-shell-sync` | The agent wiring and the buffer sync |
@@ -309,7 +313,7 @@ subprocess, or a nested `nix eval`.
 
 The file `.github/workflows/ci.yml` runs all of them. A cheap job runs on every
 pull request: it evaluates every check with `nix flake check --no-build` and
-builds nothing. A slow job runs on `main` and builds every check, because six
+builds nothing. A slow job runs on `main` and builds every check, because eight
 of them build Emacs.
 
 ## 12. How to change the distribution

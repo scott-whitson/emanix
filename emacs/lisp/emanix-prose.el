@@ -20,8 +20,6 @@
 (require 'emanix-theme nil :no-error)
 (require 'org nil :no-error)
 
-(eval-when-compile (require 'subr-x))
-
 (declare-function emanix/theme-palette-color "emanix-theme" (key))
 (declare-function visual-fill-column-mode "visual-fill-column" (&optional arg))
 (declare-function org-modern-mode "org-modern" (&optional arg))

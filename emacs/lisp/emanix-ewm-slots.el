@@ -12,8 +12,14 @@
 ;; and Emacs processes --eval arguments AFTER loading init, so `ewm' does not
 ;; exist while this file loads. The ewm--focused-frame / ewm-frame-new /
 ;; ewm--strip-frames / ewm-workspace-rename references below are resolved at
-;; CALL time, guarded by fboundp / bound-and-true-p. Adding a require here
-;; would break startup on every host.
+;; CALL time, guarded by `ewm--module-mode' (or fboundp, in the tab-bar
+;; segment). Adding a require here would break startup on every host.
+
+(declare-function ewm--focused-frame "ewm")
+(declare-function ewm--strip-frames "ewm")
+(declare-function ewm-frame-new "ewm")
+(declare-function ewm-workspace-rename "ewm")
+(defvar ewm--module-mode)
 
 (defun emanix/ewm-launch-firefox ()
   "Launch Firefox in the current EWM session."
@@ -71,9 +77,7 @@ the frame from the strip; its advice refuses to close the last frame."
   (interactive)
   (unless (bound-and-true-p ewm--module-mode)
     (user-error "EWM is not active"))
-  (delete-frame (if (fboundp 'ewm--focused-frame)
-                    (ewm--focused-frame)
-                  (selected-frame)))
+  (delete-frame (ewm--focused-frame))
   (force-mode-line-update t))
 
 (defun emanix/ewm-select-slot (slot)
@@ -85,9 +89,7 @@ never creates 1 and 2."
     (user-error "Slot must be a positive integer"))
   (unless (bound-and-true-p ewm--module-mode)
     (user-error "EWM is not active"))
-  (let* ((frame (if (fboundp 'ewm--focused-frame)
-                    (ewm--focused-frame)
-                  (selected-frame)))
+  (let* ((frame (ewm--focused-frame))
          (output (frame-parameter frame 'ewm-output)))
     (unless output
       (user-error "Current frame has no EWM output"))
@@ -110,13 +112,36 @@ An empty NAME clears the custom label, falling back to the frame name."
   (interactive "sWorkspace name: ")
   (unless (bound-and-true-p ewm--module-mode)
     (user-error "EWM is not active"))
-  (let ((frame (if (fboundp 'ewm--focused-frame)
-                   (ewm--focused-frame)
-                 (selected-frame))))
+  (let ((frame (ewm--focused-frame)))
     (ewm-workspace-rename name frame)
     (set-frame-parameter frame 'ewm-workspace-name
                          (unless (string-empty-p name) name))
     (force-mode-line-update t)))
+
+;; The slot key block, shared by config.el and fallback.el so the two cannot
+;; drift: fallback.el existed as a hand-copied subset of config.el's bindings.
+(defun emanix/ewm-bind-slot-keys (map)
+  "Bind the EWM slot keys on MAP (normally `ewm-mode-map').
+s-1 .. s-9 and s-0 (slot 10) select a slot, creating it once; s-r renames the
+current slot; s-q closes it (mirrors Hyprland's `$mod, Q, killactive'); s-w
+launches Firefox into it; s-<return> opens a Ghostty terminal."
+  (dotimes (i 9)
+    (let ((slot (1+ i)))
+      (define-key map (kbd (format "s-%d" slot))
+        (lambda ()
+          (interactive)
+          (emanix/ewm-select-slot slot)))))
+  (define-key map (kbd "s-0")
+    (lambda ()
+      (interactive)
+      (emanix/ewm-select-slot 10)))
+  (define-key map (kbd "s-r") #'emanix/ewm-rename-workspace)
+  (define-key map (kbd "s-q") #'emanix/ewm-close-slot)
+  (define-key map (kbd "s-w") #'emanix/ewm-launch-firefox)
+  (define-key map (kbd "s-<return>")
+    (lambda ()
+      (interactive)
+      (start-process "ghostty" nil "ghostty"))))
 
 (defun emanix/ewm--slot-label (frame)
   "Short display label for FRAME's slot.

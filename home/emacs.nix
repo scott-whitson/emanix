@@ -84,12 +84,14 @@ in
     # both exist, splitting runtime state (a second org-roam.db). ~/.config/emacs
     # is the only config path; ~/.emacs.d must not exist.
 
-    # Launcher entry: terminal-backed client, not the pgtk/X11 frame path.
+    # Launcher entry: a graphical frame (-c) on the running daemon, pinned to
+    # the Wayland GDK backend. `emacsclient' resolves through PATH -- NixOS has
+    # no /usr/bin/emacsclient.
     home.file.".local/share/applications/emacsclient.desktop".text = ''
       [Desktop Entry]
       Categories=Development;TextEditor;
       Comment=Edit text
-      Exec=/usr/bin/env GDK_BACKEND=wayland /usr/bin/emacsclient -c %F
+      Exec=env GDK_BACKEND=wayland emacsclient -c %F
       GenericName=Text Editor
       Icon=emacs
       Keywords=Text;Editor;

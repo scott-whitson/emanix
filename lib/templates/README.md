@@ -10,5 +10,5 @@ produce.
 
 btop's theme format has 42 `theme[...]="#rrggbb"` entries. `lib/themes.nix`'s
 `btop` renderer replaces every `@slot@` placeholder with the matching palette
-colour (`builtins.replaceStrings`); see that file's own comment for how the
+colour (`builtins.replaceStrings`); see the header of `btop.theme.in` for how the
 placeholders were derived from the previously-committed theme.
