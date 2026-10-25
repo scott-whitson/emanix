@@ -1,8 +1,6 @@
-{ pkgs, ... }:
+_:
 
 {
-  home.packages = [ pkgs.yt-dlp ];
-
   home.file.".config/yt-dlp/config" = {
     text = ''
       # yt-dlp config — managed by Home Manager

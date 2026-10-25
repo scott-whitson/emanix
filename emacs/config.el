@@ -272,6 +272,13 @@ ever disturbs the window manager on rafik, add its buffers here."
       (string-prefix-p " " (buffer-name buf))
       (member (buffer-name buf) emanix/buffer-protect-names)))
 
+(defun emanix/buffer-under-p (buf dir)
+  "Non-nil if BUF visits a file under DIR.
+Helper for path-specific groups in `emanix/buffer-group-alist'; the personal
+layer uses it."
+  (when-let* ((f (buffer-file-name buf)))
+    (string-prefix-p (expand-file-name dir) (file-truename f))))
+
 (defvar emanix/buffer-group-alist
   (list
    ;; The precise one: only what the last agenda run had to open.
@@ -999,7 +1006,8 @@ Each cdr is verified to render at the default face's cell width.")
     ;; Slot keys (s-1..s-0 select a slot, creating it on demand; s-r, s-q, s-w
     ;; and s-<return> manage it), shared with fallback.el. See
     ;; `emanix/ewm-bind-slot-keys'.
-    (emanix/ewm-bind-slot-keys ewm-mode-map)
+    (when (fboundp 'emanix/ewm-bind-slot-keys)
+      (emanix/ewm-bind-slot-keys ewm-mode-map))
     ;; Super+Shift+Enter: the Claude agent shell, from any slot. Was pi in a
     ;; Ghostty window until 2026-09-07 — the agent is a buffer now, so this
     ;; summons a buffer.
