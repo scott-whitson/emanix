@@ -200,16 +200,22 @@ in
           # compositor start, so keyboard xkb opts (CapsLock->Control) apply
           # reliably — ewm-input-config's :xkb-options loads too late (after the
           # keymap is already built) to take effect.
-          env LIBSEAT_BACKEND=logind XKB_DEFAULT_OPTIONS=ctrl:nocaps /run/current-system/sw/bin/ewm-launch
-          # pgtk emacs DETACHES from the wrapper on daemon start, so wait for the
-          # daemon rather than sleeping a fixed time. A cold first boot is the
-          # slowest the machine will ever be, and a fixed sleep there reads a
-          # healthy-but-slow start as a flap, writes the marker, and leaves the
-          # desktop shell-only until someone deletes it by hand. Bounded so a
-          # real crash-loop times out instead of hanging the login. Session env
-          # vars are imported unconditionally — a no-op `|| true` if the daemon
-          # never appeared — so user services (xdg-desktop-portal, etc.) inherit
-          # DISPLAY/WAYLAND_DISPLAY.
+          # Launch in the BACKGROUND so the poll below runs WHILE the daemon
+          # comes up. `--fg-daemon' does NOT detach (measured on rafik
+          # 2026-10-24: the launcher stays in the foreground for the daemon's
+          # whole life), so a foreground call only returns after Emacs has
+          # already exited — every poll was a post-mortem that always read
+          # "never started", even for a daemon that came up and died in 2s.
+          env LIBSEAT_BACKEND=logind XKB_DEFAULT_OPTIONS=ctrl:nocaps /run/current-system/sw/bin/ewm-launch &
+          _ewm_launcher=$!
+          # Wait for the daemon rather than sleeping a fixed time: a cold first
+          # boot is the slowest the machine will ever be, and a fixed sleep
+          # there reads a healthy-but-slow start as a flap, writes the marker,
+          # and leaves the desktop shell-only until someone deletes it by hand.
+          # Bounded so a real crash-loop times out instead of hanging the login.
+          # Session env vars are imported unconditionally — a no-op `|| true' if
+          # the daemon never appeared — so user services (xdg-desktop-portal,
+          # etc.) inherit DISPLAY/WAYLAND_DISPLAY.
           _ewm_started=0
           for _ in $(seq 1 30); do
             pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1 && { _ewm_started=1; break; }
@@ -226,23 +232,21 @@ in
           # for why that target cannot simply be started here.
           systemctl --user start ewm-session.target 2>/dev/null || true
           if [ "$_ewm_started" = 0 ]; then
-            # The daemon never showed up inside the 30s poll above -- that IS
-            # the failure this marker exists to record. Elapsed time is the
-            # wrong signal here (the poll's own worst-case duration already
-            # exceeds the 15s threshold below), so write the marker
-            # unconditionally instead of trying to infer this case from a
-            # stopwatch. Distinct wording so tty1 tells this apart from a
-            # daemon that came up and died quickly.
+            # Never appeared inside the 30s poll. Kill the launcher so `wait'
+            # below does not hang the login, then record the failure.
+            kill "$_ewm_launcher" 2>/dev/null
             echo "daemon never started (30s poll timed out)" > "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap"
           else
-            # Daemon appeared at least once — the elapsed-time check is still
-            # the right instrument for "came up and died quickly", so keep it
-            # exactly as it was.
+            # Daemon is up — wait for it to exit, then judge by how long it
+            # lived from when it APPEARED (the poll no longer blocks on the
+            # launcher, so `_t0' at launch would over-count a slow start).
+            _ewm_appear=$(date +%s)
             while pgrep -u "$USER" -f "bin/emacs --fg-daemon" >/dev/null 2>&1; do sleep 3; done
-            if [ $(( $(date +%s) - _t0 )) -lt 15 ]; then
+            if [ $(( $(date +%s) - _ewm_appear )) -lt 15 ]; then
               echo "daemon started then died within 15s" > "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/ewm-flap"   # died fast — next login gets a shell
             fi
           fi
+          wait "$_ewm_launcher" 2>/dev/null
           # Tear the session targets down again. ewm-shutdown.target
           # Conflicts with both and is StopWhenUnneeded, so starting it stops
           # them and then goes away by itself. Without this they stay active

@@ -49,14 +49,17 @@
     max-free = 21474836480; # 20 GiB
   };
 
-  # Daily GC keeps the store lean. --delete-generations +3 retains the current
-  # generation and the two before it, which gives a safe rollback window without
+  # Daily GC keeps the store lean. --delete-older-than 3d prunes generations
+  # older than three days, which gives a safe rollback window without
   # accumulating weeks of dead paths. On a WSL host the vhdx never shrinks below
   # its high-water mark, so the daily cadence still matters.
+  #
+  # nix-collect-garbage takes --delete-older-than; --delete-generations is a
+  # nix-env flag and is not accepted here.
   nix.gc = {
     automatic = true;
     dates = "daily";
-    options = "--delete-generations +3";
+    options = "--delete-older-than 3d";
   };
 
   # NOTE: system.stateVersion is per-host — it records the release a machine was
