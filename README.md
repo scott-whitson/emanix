@@ -203,6 +203,12 @@ keys can be staged into it. Host-specific install runbooks live in the
 consuming flake, because they are about that user's machines, disks and keys —
 not about the distribution.
 
+An interactive install pins the host it writes to the distribution inside the
+image: the image's own tree is vendored as `emanix-distro/` beside the generated
+flake and the `emanix` input points at it by relative path. The machine you get
+is the image you booted — rebuildable offline from it — rather than whatever
+upstream `main` happens to be that day.
+
 ## Themes
 
 The Catppuccin palette is defined once in `lib/themes.nix` and consumed by every

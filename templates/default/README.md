@@ -8,6 +8,16 @@ skip straight to the rebuild command below. If you started from
 `nix flake init -t github:scott-whitson/emanix`, set `username` in
 `flake.nix` yourself before rebuilding.
 
+One difference between the two, and it is the point of the first: a repo
+`fresh-emanix-install` generated carries `emanix-distro/`, the distribution
+itself, and its `emanix` input is `path:./emanix-distro` rather than the
+github URL. That is what makes this machine rebuild from the image it was
+installed with, offline, and it is why `nix flake update` will never move
+`emanix` on its own. To track upstream instead, change that input back to
+`github:scott-whitson/emanix` and run `nix flake lock --update-input emanix`.
+A repo from `nix flake init` has no `emanix-distro/` and already tracks
+upstream.
+
 `host.nix` has two fields worth a second look:
 
 - `gpu` — `"amd"`, `"intel"` or `null`. Forces the graphics driver to load in

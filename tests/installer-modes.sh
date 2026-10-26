@@ -408,6 +408,12 @@ csf_dir="$(mktemp -d)"
 trap 'rm -rf "$stubdir"; chmod -R u+w "$csf_dir" 2>/dev/null; rm -rf "$csf_dir"' EXIT
 
 extract_fn copy_staged_flake "$SCRIPT" > "$csf_dir/csf.sh"
+# copy_staged_flake now delegates its distro guard to repo_is_distro, and this
+# harness extracts function BY function -- so the predicate has to come along or
+# the call is "command not found", the guard silently does not fire, and the
+# distro-shaped assertion below fails for the wrong reason. It did exactly that
+# when the guard was extracted (2026-10-26).
+extract_fn repo_is_distro "$SCRIPT" >> "$csf_dir/csf.sh"
 if [ "$(grep -c . "$csf_dir/csf.sh")" -ge 10 ] && [ "$(tail -1 "$csf_dir/csf.sh")" = "}" ]; then
   echo "ok   copy_staged_flake extracts cleanly (brace-balanced, not over-captured)"
 else
@@ -521,6 +527,91 @@ fi
 # That is asserted by the symlink fixture above, whose tree carries no
 # templates/ at all and does get copied -- if the content check ever widened
 # into "any flake", that assertion goes red rather than this one.
+
+# --- a generated host is pinned to the distribution IN THE IMAGE -------------
+# templates/default/flake.nix names github:scott-whitson/emanix, and the lock is
+# resolved at install time -- so an ISO built from commit X used to install
+# whatever upstream main was that day. Measured on 2026-10-26: a VM install from
+# an ISO built out of this working tree installed rev 97617b8, which was NOT the
+# rev the image was built from, and nothing in the machine said so.
+# vendor_distro_into copies the carried tree in and repoints the input at it by
+# RELATIVE path, because `nix flake lock` records a relative path input verbatim
+# ("path": "./emanix-distro") while an absolute one is frozen to the path it was
+# locked at -- /tmp during the install -- and would dangle at reboot.
+vd="$csf_dir/vendor"
+mkdir -p "$vd/distro/templates/default" "$vd/distro/lib" "$vd/distro/.git" "$vd/out"
+echo '{ }' > "$vd/distro/lib/disk.nix"
+echo 'MARKER' > "$vd/distro/templates/default/MARKER"
+printf 'tracked' > "$vd/distro/.git/config"
+cat > "$vd/distro/templates/default/flake.nix" <<'VDFLAKE'
+{
+  inputs.emanix = {
+    url = "github:scott-whitson/emanix";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+}
+VDFLAKE
+cp "$vd/distro/templates/default/flake.nix" "$vd/out/flake.nix"
+
+extract_fn repo_is_distro "$SCRIPT" > "$vd/fns.sh"
+extract_fn vendor_distro_into "$SCRIPT" >> "$vd/fns.sh"
+if [ "$(grep -c . "$vd/fns.sh")" -ge 20 ] && [ "$(tail -1 "$vd/fns.sh")" = "}" ]; then
+  printf '  ok   repo_is_distro and vendor_distro_into extract cleanly\n'
+else
+  printf '  FAIL could not extract the vendoring functions (renamed?)\n'
+  fails=$((fails + 1))
+fi
+
+# shellcheck disable=SC1091,SC2329  # fns.sh is generated above; its symbols are read by the sourced file
+if ( . "$vd/fns.sh"; REPO="$vd/distro"; repo_is_distro ); then
+  printf '  ok   a tree with templates/default + lib/disk.nix is the distribution\n'
+else
+  printf '  FAIL repo_is_distro said no to a distro-shaped tree\n'
+  fails=$((fails + 1))
+fi
+
+mkdir -p "$vd/consumer/templates/default"
+echo '{ }' > "$vd/consumer/flake.nix"
+# shellcheck disable=SC1091,SC2329  # fns.sh is generated above; its symbols are read by the sourced file
+if ( . "$vd/fns.sh"; REPO="$vd/consumer"; repo_is_distro ); then
+  printf '  FAIL repo_is_distro called a consumer flake the distribution\n'
+  fails=$((fails + 1))
+else
+  printf '  ok   a consumer-shaped tree is not the distribution\n'
+fi
+
+# shellcheck disable=SC1091,SC2329  # fns.sh is generated above; its symbols are read by the sourced file
+if ( . "$vd/fns.sh"; REPO="$vd/distro"; die() { printf 'DIE %s\n' "$*"; exit 1; }; say() { :; }; vendor_distro_into "$vd/out" ) > "$vd/out.log" 2>&1; then
+  if [ "$(cat "$vd/out/emanix-distro/templates/default/MARKER" 2>/dev/null)" = MARKER ] &&
+     [ ! -e "$vd/out/emanix-distro/.git" ] &&
+     grep -qF 'path:./emanix-distro' "$vd/out/flake.nix" &&
+     ! grep -q 'github:scott-whitson/emanix' "$vd/out/flake.nix"; then
+    printf '  ok   the carried tree is vendored and the emanix input is repointed at it\n'
+  else
+    printf '  FAIL vendoring produced the wrong tree or the wrong flake.nix:\n%s\n' \
+      "$(cat "$vd/out/flake.nix")"
+    fails=$((fails + 1))
+  fi
+else
+  printf '  FAIL vendor_distro_into failed on a distro-shaped $REPO:\n%s\n' "$(cat "$vd/out.log")"
+  fails=$((fails + 1))
+fi
+
+# The drift case. sed exits 0 whether or not it matched anything, so without the
+# check inside vendor_distro_into a renamed URL would install upstream main on a
+# machine whose installer said the image was pinned.
+mkdir -p "$vd/drift/templates/default" "$vd/drift/lib" "$vd/drift-out"
+echo '{ }' > "$vd/drift/lib/disk.nix"
+echo '{ }' > "$vd/drift/templates/default/MARKER"
+echo '{ }' > "$vd/drift/templates/default/flake.nix"
+cp "$vd/drift/templates/default/flake.nix" "$vd/drift-out/flake.nix"
+# shellcheck disable=SC1091,SC2329  # fns.sh is generated above; its symbols are read by the sourced file
+if ( . "$vd/fns.sh"; REPO="$vd/drift"; die() { printf 'DIE %s\n' "$*"; exit 1; }; say() { :; }; vendor_distro_into "$vd/drift-out" ) > "$vd/drift.log" 2>&1; then
+  printf '  FAIL a template with no emanix URL was vendored without complaint\n'
+  fails=$((fails + 1))
+else
+  printf '  ok   a template whose emanix URL has drifted fails loudly\n'
+fi
 
 # --- passwd must be RETRIED, not run once ------------------------------------
 # The empty-username guard asserted above closes the path INTO passwd. This

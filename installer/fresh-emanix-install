@@ -356,6 +356,76 @@ detect_gpu_default() {
   fi
 }
 
+# Is $REPO the emanix distribution itself, rather than a consuming flake?
+#
+# The ISO stages the distro at /etc/emanix/flake, and interactive mode REQUIRES
+# a tree carrying templates/default -- which in practice only the distribution
+# has -- so on a distribution ISO this is true and on a consumer's ISO it is
+# not. Two callers depend on the answer for opposite reasons: copy_staged_flake
+# must NOT plant the distro's own tree where a personal config belongs, and
+# write_generated_flake MUST find it to vendor the distribution the image
+# carries. Content is checked before provenance, because provenance misses the
+# case that actually ships: on an ISO this script lives in /nix/store/.../bin,
+# so a realpath comparison against $REPO can never match.
+repo_is_distro() {
+  local self_repo repo_rp self_rp
+  self_repo="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}" 2>/dev/null)")")"
+  repo_rp="$(realpath "$REPO" 2>/dev/null || true)"
+  self_rp="$(realpath "$self_repo" 2>/dev/null || true)"
+  { [ -d "$REPO/templates/default" ] &&
+    { [ -f "$REPO/lib/disk.nix" ] ||
+      [ -f "$REPO/installer/fresh-emanix-install" ]; }; } ||
+    { [ -n "$repo_rp" ] && [ "$repo_rp" = "$self_rp" ]; }
+}
+
+# Vendor the distribution this image carries beside a generated flake, and point
+# that flake's emanix input at it.
+#
+# templates/default/flake.nix names github:scott-whitson/emanix, which is right
+# for `nix flake init` -- a human wants upstream. It is wrong for an install:
+# the lock is resolved at install time, so an ISO built from commit X installs
+# whatever main is that day. Nothing in the resulting machine then records which
+# distribution it came from, and a test of an ISO proves nothing about the image
+# either, because the image is not what ran.
+#
+# The relative path is the load-bearing part. `nix flake lock` records a
+# relative path input verbatim as "path": "./emanix-distro" (measured, 2026-10-26),
+# where an absolute one is frozen to the path it was locked at -- /tmp during
+# the install -- and dangles the moment the machine reboots. Relative, the same
+# string resolves under /tmp before the copy, under /mnt/etc/nixos during
+# nixos-install, and under /etc/nixos forever after.
+#
+# Its own function rather than inline in write_generated_flake so it can be
+# driven against a fixture: write_generated_flake refuses to run without a real
+# block device, which a test sandbox does not have, and this is the part with
+# logic worth testing (a substitution that can silently miss).
+vendor_distro_into() {
+  dest="$1"
+  # `cp -r "$REPO/."`, not `cp -r "$REPO"`: on the ISO $REPO is a symlink
+  # (/etc/emanix/flake -> /etc/static/emanix/flake) and cp -a never
+  # dereferences, so the copy would be a symlink into a path the installed
+  # system does not have. See copy_staged_flake, which lost an install to
+  # exactly that.
+  install -d -m 755 "$dest/emanix-distro"
+  cp -r "$REPO/." "$dest/emanix-distro/"
+  # .git is not part of the distribution and a git tree inside a path input
+  # makes nix read it as a dirty source; .superpowers is a frozen archive.
+  # Both are absent from the ISO's filtered copy already, so this is for the
+  # maintainer running the installer out of a clone.
+  rm -rf "$dest/emanix-distro/.git" "$dest/emanix-distro/.superpowers"
+  sed -i 's|github:scott-whitson/emanix|path:./emanix-distro|' "$dest/flake.nix"
+  # sed exits 0 whether or not it matched. If the template's URL ever drifts,
+  # this would otherwise install upstream main while the installer's output
+  # claims the image is pinned -- the same silent substitution failure the
+  # username check in write_generated_flake exists to prevent, one input over.
+  grep -qF 'path:./emanix-distro' "$dest/flake.nix" ||
+    die "failed to point $dest/flake.nix at the vendored distribution --
+'github:scott-whitson/emanix' was not found to replace. templates/default/flake.nix
+has drifted from what this installer expects, and installing it as-is would
+track upstream main instead of this image."
+  say "Pinning this host to the distribution in this image ($dest/emanix-distro)"
+}
+
 write_generated_flake() {
   # Copied rather than `nix flake init -t`, which wants to run in a git repo
   # and writes into the current directory; inside a live ISO a copy is simpler
@@ -435,6 +505,21 @@ EOF
 ('username = \"youruser\";') was not found to replace. templates/default/flake.nix
 has drifted from what this installer expects; fix the template before
 installing anything with it."
+
+  # The generated host is pinned to the distribution THIS IMAGE CARRIES, so the
+  # machine it becomes is the image it came from. See vendor_distro_into for the
+  # mechanism and why the path is relative.
+  #
+  # A consumer's ISO has no distribution to vendor (their flake IS the
+  # distribution to them), so it keeps the github input and is warned: it will
+  # track upstream, which is the honest thing to say about it.
+  if repo_is_distro; then
+    vendor_distro_into "$dest"
+  else
+    warn "$REPO is not the emanix distribution, so there is nothing to vendor:
+$dest/flake.nix keeps its github emanix input, and this machine will install
+whatever upstream main is at lock time -- not the distribution in this image."
+  fi
 }
 
 # Put the flake this machine was installed FROM into the new user's home.
@@ -459,31 +544,13 @@ copy_staged_flake() {
   # $REPO can be the emanix distro's OWN tree rather than a consuming flake.
   # That repo BUILDS the installer, it does not consume it, and it holds no
   # dotfiles for any user -- copying it into $dest would silently plant the
-  # distro's source tree where a personal config belongs.
+  # distro's source tree where a personal config belongs. The stock-ISO
+  # interactive install, the only mode a stranger can use, is precisely where
+  # $REPO IS the distro, so this is not a corner case.
   #
-  # Detected by CONTENT first, because provenance misses the case that
-  # actually ships. The realpath comparison below only fires for a maintainer
-  # running this script straight out of a clone: on an ISO the script lives in
-  # /nix/store/.../bin, so $self_repo is a store path that can never equal
-  # $REPO. But installer/iso.nix declares emanix.installer.flake with a
-  # default of `../.` -- the distro itself -- and interactive mode REQUIRES a
-  # flake carrying templates/default, which in practice only the distro has.
-  # So the stock-ISO interactive install, the only mode a stranger can use, is
-  # precisely where $REPO IS the distro, and it walked straight past a
-  # provenance check.
-  #
-  # templates/default alone is not enough (a consuming flake could ship
-  # templates of its own), so it must be paired with a file only the tree that
-  # BUILDS this installer has. The realpath check is kept as well: it costs
-  # nothing and still catches a distro clone whose layout has drifted.
-  local self_repo repo_rp self_rp
-  self_repo="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}" 2>/dev/null)")")"
-  repo_rp="$(realpath "$REPO" 2>/dev/null || true)"
-  self_rp="$(realpath "$self_repo" 2>/dev/null || true)"
-  if { [ -d "$REPO/templates/default" ] &&
-       { [ -f "$REPO/lib/disk.nix" ] ||
-         [ -f "$REPO/installer/fresh-emanix-install" ]; }; } ||
-     { [ -n "$repo_rp" ] && [ "$repo_rp" = "$self_rp" ]; }; then
+  # The detection lives above write_generated_flake, which needs the same
+  # answer for the opposite reason (it must find the distribution to vendor it).
+  if repo_is_distro; then
     warn "$REPO is the emanix distro itself, not a consuming flake -- nothing to stage into $dest."
     return 0
   fi

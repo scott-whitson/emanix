@@ -252,6 +252,13 @@ consumer sets two options:
 | `emanix.installer.flake` | The consumer flake that the image carries |
 | `emanix.installer.keysDir` | The directory that holds the host keys |
 
+An interactive install writes a new host, and the flake it writes is pinned to
+the distribution in the image: the image's own tree is copied in as
+`emanix-distro/` and the `emanix` input points at it by relative path. The
+installed machine therefore rebuilds from the distribution it was installed
+with, offline, whatever upstream main has moved on to since. A declared host is
+unaffected — its flake is the consumer's, and the image carries it as it is.
+
 Start THAT image on the target machine. Then run this command:
 
 ```bash
