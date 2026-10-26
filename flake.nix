@@ -186,9 +186,12 @@
       # re-export it.
       lib = { inherit mkHost; mkDisk = import ./lib/disk.nix; };
 
-      # A generic installer ISO — stages the distro flake, no keys. The
-      # distro ships a DEBUG/rescue ISO; real installs are built by consuming
-      # flakes (dotfiles) via nixosModules.installer with
+      # The distro's installer ISO — keyless, staging the distro flake only.
+      # A machine installed from the distribution alone uses this image and
+      # `sudo fresh-emanix-install` with no host argument; the host key is
+      # minted on the target, so carrying no key is correct for that path. A
+      # keys-carrying image is the FLEET path, not the default: a consumer
+      # flake builds it via nixosModules.installer with
       # emanix.installer.{flake,keysDir} set.
       nixosConfigurations.installer = nixpkgs.lib.nixosSystem {
         inherit system;
@@ -200,6 +203,18 @@
         # The installer ISO (nix build .#installerIso).
         installerIso =
           self.nixosConfigurations.installer.config.system.build.isoImage;
+
+        # The standalone entry point (nix run .#iso): build the keyless image,
+        # or build then flash it to a device. Bakes THIS flake's store path in
+        # as the reference to build, so the script builds a fixed, pure
+        # reference and works from anywhere — including
+        # `nix run github:scott-whitson/emanix#iso` — without --impure.
+        emanix-iso = pkgs.writeShellApplication {
+          name = "emanix-iso";
+          runtimeInputs = [ pkgs.nix pkgs.findutils pkgs.coreutils ];
+          text = builtins.replaceStrings [ "@FLAKE@" ] [ "${self.outPath}" ]
+            (builtins.readFile ./installer/emanix-iso);
+        };
 
         # The distribution's own Emacs, buildable without a host.
         # emacs/packages.nix is the sole build site and mkEmacs its only entry
@@ -224,6 +239,16 @@
           (import ./emacs/packages.nix {
             pkgs = emacsPkgs;
           }).mkEmacs { base = emacsPkgs.emacs-unstable-pgtk; };
+      };
+
+      # The standalone ISO entry point (nix run .#iso): build the keyless image,
+      # or build then flash it to a device. Bakes THIS flake's store path in as
+      # the reference to build, so the script builds a fixed, pure reference and
+      # works from anywhere — including `nix run github:scott-whitson/emanix#iso`
+      # — without --impure.
+      apps.${system}.iso = {
+        type = "app";
+        program = "${self.packages.${system}.emanix-iso}/bin/emanix-iso";
       };
 
       # Disko configurations are defined by consumers (per-host disk layouts

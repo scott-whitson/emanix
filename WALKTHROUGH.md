@@ -203,8 +203,9 @@ palettes overrides this path.
 The distribution reads two checkouts. The two paths have different jobs, and
 the difference is easy to lose.
 
-**`emanix.src.path`** is the checkout of the DISTRIBUTION. The default is
-`~/projects/emanix`.
+**`emanix.src.path`** is the checkout of the DISTRIBUTION. Under `liveElisp`
+the default is `~/projects/emanix`; otherwise it is the distribution's own repo
+as a store path, so a host with no checkout still names something that exists.
 
 The Emacs Lisp files in `emacs/` are delivered from this checkout through a
 symbolic link. The option is `emanix.src.liveElisp`, and the default is `true`.
@@ -219,28 +220,39 @@ and update the input in the consumer.
 > The screen shows nothing about this. The command `dot-drift-check` in the
 > consumer reports the difference.
 
-**`emanix.src.dotfilesPath`** is the checkout of the CONSUMER. The default is
-`~/dotfiles`. The distribution ships no `bin/` directory, so
-`emanix.src.binDir` points into this checkout.
+**`emanix.src.dotfilesPath`** is the checkout of the CONSUMER, WHEN the
+consumer keeps one: it is null on a host built from the distribution alone, and
+nothing requires it. The distribution ships no `bin/` directory, so a consumer
+with helper scripts sets `emanix.src.binDir`.
 
 ## 9. The installer
 
-The distribution builds a rescue image. The rescue image holds no key.
+The distribution builds a keyless image. The image holds no key.
 
 ```bash
-nix build .#nixosConfigurations.installer.config.system.build.isoImage
+nix run github:scott-whitson/emanix#iso
 ```
 
-A real install uses the image of the CONSUMER. The consumer builds its own
-image, because the image must hold the keys of the target machine. The consumer
-sets two options:
+Boot it and install a machine straight from `templates/default`, with no
+consumer flake involved:
+
+```bash
+sudo fresh-emanix-install
+```
+
+No host argument is needed: the target's host key is minted on the target,
+which is why carrying no key is correct for this path.
+
+A keys-carrying image is the fleet path, not the default. The consumer builds
+its own image, because that image must hold the keys of the target machine. The
+consumer sets two options:
 
 | Option | Function |
 | --- | --- |
 | `emanix.installer.flake` | The consumer flake that the image carries |
 | `emanix.installer.keysDir` | The directory that holds the host keys |
 
-Start the image on the target machine. Then run this command:
+Start THAT image on the target machine. Then run this command:
 
 ```bash
 sudo fresh-emanix-install <machine>
@@ -282,7 +294,7 @@ nothing. `checks/check-index.nix` asserts this table names every check.
 | --- | --- |
 | `role-workstation`, `role-server`, `role-wsl` | Each role evaluates. The `homeModules` seam is exercised too |
 | `palette-contrast` | The colors of every palette have enough contrast |
-| `template-host` | The template evaluates, with the compositor module. The template is the only thing a new user has |
+| `template-host` | The template evaluates, with the compositor module, and a host built from the distribution alone names no consumer `bin/` or checkout. The template is the only thing a new user has |
 | `disk-layout` | The disk layout agrees with the recorded layout |
 | `hardware-gpu` | The GPU option reaches the kernel modules |
 | `theme-switch` | The theme switch works |

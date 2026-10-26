@@ -772,28 +772,6 @@ base name, hence the `file-name-nondirectory' before the prefix test."
          ((agenda ""))
          ((org-agenda-files (list (expand-file-name "Dates.org" org-directory)))))))
 
-;; --- Calendar sync (Python tool) ---
-;; The Google Calendar sync will be handled by a small Python tool.
-;; Emacs should stay focused on editing Dates.org and launching the tool.
-
-(defun emanix/calendar-sync ()
-  "Launch the Python calendar sync tool, and show what it prints.
-
-`start-process', not `start-process-shell-command': the latter takes exactly
-three arguments (name buffer command), so passing \"sync\" separately
-signalled wrong-number-of-arguments and C-c c never ran the tool. The buffer
-is real, not nil: with nil the tool's output and any error went nowhere, so a
-failed sync looked like a keypress that did nothing."
-  (interactive)
-  (let ((buffer (get-buffer-create "*calendar-sync*")))
-    (with-current-buffer buffer (erase-buffer))
-    (display-buffer buffer)
-    (start-process
-     "calendar-sync" buffer
-     (expand-file-name "calendar-sync" (or (getenv "EMANIX_BIN_DIR") "")) "sync")))
-
-(global-set-key (kbd "C-c c") #'emanix/calendar-sync)
-
 ;; --- Google Docs sync moved to the consumer (2026-09-20) ---
 ;; The org <-> Google Docs workflow is rafik-only and names the author's own
 ;; org tree, OAuth credentials and hostname, so it belongs to the consuming

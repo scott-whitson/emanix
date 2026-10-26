@@ -286,20 +286,26 @@ in
       # failure this variable exists to make possible.
       ARC_VEC0_PATH = emacsPkgs.arcVecPath;
 
-      # Helper-script dir. Read by emanix-ewm-slots.el's Firefox slot, config.el's
-      # calendar-sync binding, and a consuming flake's personal.el for its own
-      # scripts; each falls back to a bare relative path when it is missing,
-      # which resolves nowhere.
-      EMANIX_BIN_DIR = hmCfg.emanix.src.binDir;
-
-      # The consumer's checkout (~/dotfiles). emanix-welcome.el reads it; without
-      # it the welcome buffer falls through to /etc/nixos and reports "no config
-      # repo yet" even on hosts that have one. See zsh.nix's EMANIX_DOTFILES.
-      EMANIX_DOTFILES = hmCfg.emanix.src.dotfilesPath;
-
       # X11 apps (Steam, etc.) use this to find XWayland, which EWM serves
       # through xwayland-satellite (see systemPackages below).
       DISPLAY = ":0";
+    }
+    # Helper-script dir. This block only EXPORTS the variable; it does not put
+    # binDir on the EWM session's PATH, which never carries it — the launcher
+    # runs from environment.loginShellInit (installed into /etc/zprofile), and
+    # the only PATH prepend is Home Manager's zsh initContent, which only
+    # interactive shells read. Elisp reaches helper scripts through
+    # $EMANIX_BIN_DIR instead. UNSET on a host built from the distribution
+    # alone; a consumer that keeps helper scripts sets emanix.src.binDir.
+    // lib.optionalAttrs (hmCfg.emanix.src.binDir != null) {
+      EMANIX_BIN_DIR = hmCfg.emanix.src.binDir;
+    }
+    # The consumer's checkout (~/dotfiles). emanix-welcome.el reads it; UNSET
+    # on a host built from the distribution alone, and without it the welcome
+    # buffer falls through to /etc/nixos and reports "no config repo yet" even
+    # on hosts that have one. See zsh.nix's EMANIX_DOTFILES.
+    // lib.optionalAttrs (hmCfg.emanix.src.dotfilesPath != null) {
+      EMANIX_DOTFILES = hmCfg.emanix.src.dotfilesPath;
     };
 
     # EWM runtime deps + the single Emacs (gives emacsclient on the system PATH).

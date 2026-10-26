@@ -24,11 +24,15 @@
 (defun emanix/ewm-launch-firefox ()
   "Launch Firefox in the current EWM session."
   (interactive)
-  (start-process-shell-command
-   "firefox" nil
-   (or (executable-find "firefox")
-       (executable-find "firefox-esr")
-       (expand-file-name "firefox" (or (getenv "EMANIX_BIN_DIR") "")))))
+  ;; The old third `or' branch, $EMANIX_BIN_DIR/firefox, could never help:
+  ;; that shim is exactly what already failed the identical PATH lookup, the
+  ;; variable is unset on a host built from the distribution alone, and Home
+  ;; Manager installs firefox into the user profile, which is on PATH.
+  (let ((firefox (or (executable-find "firefox")
+                     (executable-find "firefox-esr"))))
+    (unless firefox
+      (user-error "firefox not found on PATH (tried firefox, then firefox-esr)"))
+    (start-process-shell-command "firefox" nil firefox)))
 
 ;; Keyed slots: each frame carries its slot NUMBER in the `emanix/ewm-slot'
 ;; frame parameter, so `s-3' owns one specific frame rather than "the 3rd

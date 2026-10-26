@@ -3,13 +3,16 @@
 # carries a flake + optional host keys so a bare-metal install is:
 # boot -> one command.
 #
-# The distribution is generic: it carries no user keys or secrets. By default
-# it stages the emanix distro flake with NO keys (debug/rescue ISO). A
-# consuming flake (e.g. the user's dotfiles, which holds the real hosts and
-# keys) builds its own installer by importing this module and setting
+# The distribution builds a KEYLESS image: it stages only the distro flake, and
+# `sudo fresh-emanix-install` with NO host argument installs a machine from
+# templates/default with no consumer flake at all. The target's host key is
+# minted on the target, which is why carrying no key is correct for this path.
+# A keys-carrying image is the FLEET path, not the default: a consuming flake
+# (the user's dotfiles, which holds the real hosts and keys) imports this
+# module and sets
 #   emanix.installer.flake    = <path to their flake repo>
 #   emanix.installer.keysDir  = "<absolute path to their keys dir>"  (optional)
-# and re-exporting the resulting `config.system.build.isoImage`. A
+# and re-exports the resulting `config.system.build.isoImage`. A
 # keys-carrying build must be `nix build --impure` — see keysDir below.
 { pkgs, lib, nixpkgs, disko, config, ... }:
 
@@ -117,7 +120,7 @@ in
         fresh-emanix-install would fail its keys preflight on the target.
         Stage a private half, e.g.
           sudo cp /etc/ssh/ssh_host_ed25519_key keys/<host>_host_ed25519
-        or set emanix.installer.keysDir = null for a keyless rescue ISO.
+        or set emanix.installer.keysDir = null for the distro's keyless ISO.
       '';
     };
 

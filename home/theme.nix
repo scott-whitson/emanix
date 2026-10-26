@@ -63,23 +63,35 @@ in
     src = {
       path = lib.mkOption {
         type = lib.types.str;
-        default = "${config.home.homeDirectory}/projects/emanix";
+        # The default MUST follow liveElisp, because the option's only reader
+        # (home/emacs.nix's emacsDir) is liveElisp-dependent. Under liveElisp
+        # the elisp is symlinked OUT of the checkout, so the checkout path is
+        # the only truthful value; otherwise the config is delivered as store
+        # copies, and a default of ~/projects/emanix would name a directory a
+        # base install never created. That branch is the repository ITSELF as
+        # a store path, which always exists. Safe because emacsDir is read
+        # only on the liveElisp branch, never here.
+        default =
+          if config.emanix.src.liveElisp
+          then "${config.home.homeDirectory}/projects/emanix"
+          else toString ../.;
         description = "Path to the emanix source checkout (used for live-editable config).";
       };
       dotfilesPath = lib.mkOption {
-        type = lib.types.str;
-        default = "${config.home.homeDirectory}/dotfiles";
+        # Null is the value a BASE install has: a host built from this
+        # distribution alone keeps no consumer checkout, and nothing here
+        # requires one. It names where the CONSUMER's flake lives when the
+        # consumer keeps a checkout; emanix-welcome.el reaches it only through
+        # EMANIX_DOTFILES, which is unset when this is null.
+        type = lib.types.nullOr lib.types.str;
+        default = null;
         example = "/home/alice/projects/dotfiles";
         description = ''
           Path to the CONSUMER's checkout — the flake that imports emanix and
-          supplies the personal layer. Distinct from src.path, which is the
-          distro's own checkout.
-
-          binDir derives from this, because the distro ships no bin/: helper
-          scripts are consumer-supplied. themesDir no longer derives from
-          this — the distro now generates the theme tree itself (see
-          themesDir below); consumers with their own tree still override it.
-          Override this on a host whose consumer checkout is not ~/dotfiles.
+          supplies the personal layer — when the consumer keeps one. Distinct
+          from src.path, which is the distro's own checkout. Null is the value
+          a host built from the distribution alone has; nothing in the
+          distribution requires a consumer checkout to exist.
         '';
       };
       themesDir = lib.mkOption {
@@ -94,12 +106,15 @@ in
         description = "Path to the themes directory the active-theme tooling reads from.";
       };
       binDir = lib.mkOption {
-        type = lib.types.str;
-        # Same reasoning as themesDir. The helper scripts (dot-theme-set,
-        # calendar-sync, the firefox and pi wrappers) live in the consumer's
-        # checkout; the distro ships no bin/.
-        default = "${config.emanix.src.dotfilesPath}/bin";
-        description = "Path to the helper-script directory put on PATH and resolved from elisp.";
+        # Null on a host with no consumer checkout. The helper scripts
+        # (dot-theme-set, the firefox and pi wrappers) live in the consumer's
+        # checkout, because the distro ships no bin/; a consumer that keeps
+        # helper scripts sets this. NOT derived from dotfilesPath, which is
+        # nullable and defaults null — the distro cannot assume a consumer
+        # keeps a checkout there.
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = "Path to the helper-script directory put first on PATH by the shell, and resolved from elisp through $EMANIX_BIN_DIR.";
       };
       liveElisp = lib.mkOption {
         type = lib.types.bool;

@@ -181,16 +181,27 @@ to it.
 ## The installer ISO
 
 ```bash
+nix run github:scott-whitson/emanix#iso              # build; print the ISO path
+nix run github:scott-whitson/emanix#iso -- /dev/sdX  # build, then flash it
+```
+
+The distribution builds a keyless image, and booting it installs a machine
+from `templates/default` with no consumer flake at all: run
+`sudo fresh-emanix-install` with no host argument. The target's host key is
+minted on the target, which is why carrying no key is correct for this path.
+
+The direct build path also exists:
+
+```bash
 nix build .#nixosConfigurations.installer.config.system.build.isoImage
 ```
 
-Boot it, then run `sudo fresh-emanix-install <host>`.
-
-A consuming flake builds its own ISO, so that the target's host keys can be
-staged into it; `emanix.installer.flake` and `emanix.installer.keysDir` are the
-two knobs. Host-specific install runbooks live in the consuming flake, because
-they are about that user's machines, disks and keys — not about the
-distribution.
+A keys-carrying image is the fleet path, not the default. A consuming flake
+builds one by importing `nixosModules.installer` and setting
+`emanix.installer.flake` and `emanix.installer.keysDir`, so the target's host
+keys can be staged into it. Host-specific install runbooks live in the
+consuming flake, because they are about that user's machines, disks and keys —
+not about the distribution.
 
 ## Themes
 

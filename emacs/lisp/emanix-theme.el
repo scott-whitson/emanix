@@ -52,13 +52,13 @@ change -- see the 2026-09-11 theme-authority-inversion spec."
 (defun emanix-theme--last-file (variant)
   "Path of the last-VARIANT marker."
   (expand-file-name (concat "last-" variant) emanix/theme-state-dir))
-;; Fallback matters only if the daemon starts before EMANIX_THEMES_DIR is in
-;; its environment. The distro generates the theme tree itself now (see
-;; lib/theme-tree.nix); this ~/dotfiles hardcode is a stale last resort, not
-;; the source of truth.
-(defconst emanix-theme--themes-dir
-  (or (getenv "EMANIX_THEMES_DIR")
-      (expand-file-name "themes" "~/dotfiles")))
+;; The distro generates the theme tree itself (see lib/theme-tree.nix) and
+;; exports its path, so there is no fallback here: an unset EMANIX_THEMES_DIR is
+;; a MISSING value, not a cue to guess at one. It used to fall back to
+;; ~/dotfiles/themes -- the reference consumer's checkout, hardcoded into
+;; distribution elisp. Every reader below treats an absent tree as "no themes",
+;; so nil is the honest value.
+(defconst emanix-theme--themes-dir (getenv "EMANIX_THEMES_DIR"))
 (defconst emanix-theme--default "catppuccin-mocha")
 
 ;; Last-resort bg-main/fg-main pairs, used only when a theme's own
@@ -349,7 +349,8 @@ read-only btop directory must not look like a failed theme switch."
   (interactive
    (list (completing-read
           "Theme: "
-          (and (file-directory-p emanix-theme--themes-dir)
+          (and emanix-theme--themes-dir
+               (file-directory-p emanix-theme--themes-dir)
                (directory-files emanix-theme--themes-dir nil "\\`[^.]"))
           nil t)))
   (if-let* ((plan (emanix-theme--plan name)))
@@ -445,7 +446,10 @@ describes colours and nothing else."
 
 (defun emanix-theme--themes-of-variant (variant)
   "Names of every theme in the tree whose variant is VARIANT."
-  (when (file-directory-p emanix-theme--themes-dir)
+  ;; the nil guard is what makes an unset EMANIX_THEMES_DIR read as an absent
+  ;; tree rather than signalling out of `file-directory-p'.
+  (when (and emanix-theme--themes-dir
+             (file-directory-p emanix-theme--themes-dir))
     (seq-filter
      (lambda (name)
        (equal variant (emanix-theme--read

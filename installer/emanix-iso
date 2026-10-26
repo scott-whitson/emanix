@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# emanix-iso — build the distribution's keyless installer ISO, optionally
+# flashing it to a device.
+#
+# Usage:
+#   emanix-iso               # build; print the ISO path
+#   emanix-iso /dev/sdX      # build, then write the image to the device
+#
+# The distribution builds a KEYLESS ISO. Booting it and running
+#   sudo fresh-emanix-install
+# with NO host argument installs a machine from templates/default with no
+# consumer flake at all, and the target's host key is minted on the target —
+# which is why carrying no key is correct for this path. A keys-carrying
+# image is the FLEET path: a consumer flake builds one (emanix.installer.flake
+# plus emanix.installer.keysDir), and that script — the keys carrier — owns the
+# --impure build and the store cleanup this one deliberately does not.
+set -euo pipefail
+
+die() { printf '\n\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
+say() { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
+
+# Baked in at build time: the flake this script was built from, as a store path
+# (see flake.nix's apps.iso). A FIXED, pure reference — it does not depend on
+# the working directory or the flake registry, so the script works from
+# anywhere, including `nix run github:scott-whitson/emanix#iso`, and never
+# needs --impure.
+FLAKE="@FLAKE@"
+
+# Refuse to run from the repository copy. This file is only the SOURCE the
+# flake builds the wrapper from; run straight from a checkout the placeholder
+# above is never substituted, and the build below dies deep inside nix with an
+# unresolvable-flake error that names nothing. The placeholder is split across
+# two words so this comparison survives the substitution, which rewrites EVERY
+# occurrence, this line included.
+if [ "$FLAKE" = "@""FLAKE@" ]; then
+  die "not built: run this through the flake instead — nix run .#iso [-- /dev/sdX]. The copy in the repository is only the source the wrapper is built from."
+fi
+
+DEV="${1:-}"
+
+say "Building the keyless installer ISO from $FLAKE"
+# --no-link leaves no ./result behind; --print-out-paths prints the store path
+# so the caller gets the image without guessing where it landed.
+ISO_DIR="$(nix build --no-link --print-out-paths \
+  "$FLAKE#nixosConfigurations.installer.config.system.build.isoImage")"
+# isoImage's output is a directory; the image is under its iso/ subdir.
+ISO="$(find "$ISO_DIR/iso" -maxdepth 1 -name '*.iso' -print -quit 2>/dev/null || true)"
+[ -n "$ISO" ] || die "no .iso under $ISO_DIR/iso — see the build log above."
+say "Built: $ISO"
+
+if [ -z "$DEV" ]; then
+  printf '\nFlash it:  nix run %s#iso -- /dev/sdX\n' "$FLAKE"
+  exit 0
+fi
+
+[ -b "$DEV" ] || die "$DEV is not a block device."
+
+# The typed confirmation below is the real gate; these are cheap refusals for
+# obviously-wrong answers, each naming the failure it prevents.
+#
+# Resolve to the kernel name so a /dev/disk/by-id/... path is checked like the
+# /dev/sda it points at.
+dev_name="$(basename "$(readlink -f "$DEV")")"
+
+# a) a PARTITION. `/sys/class/block/<name>/partition' exists only for one, and
+# flashing it writes the whole image over a slice, destroying whatever the
+# operator meant to keep beside it.
+if [ -e "/sys/class/block/$dev_name/partition" ]; then
+  die "$DEV is a partition, not a whole disk; name the disk it belongs to."
+fi
+
+# b) a device or any of its partitions currently mounted. dd over a mounted
+# filesystem corrupts it, and the write outruns the page cache, so the damage
+# shows up after the fact rather than here. `/proc/mounts' names the device it
+# was mounted from, which is why this reads that rather than running `findmnt'.
+mounted_at=""
+while read -r _src _mnt _rest; do
+  case "$_src" in
+    "/dev/$dev_name" | "/dev/$dev_name"[0-9]* | "/dev/$dev_name"p[0-9]*)
+      mounted_at="$_mnt"; break ;;
+  esac
+done < /proc/mounts
+if [ -n "$mounted_at" ]; then
+  die "$DEV (or one of its partitions) is mounted at $mounted_at; unmount it before flashing."
+fi
+
+# c) the disk backing the running system's root. Flashing it destroys the
+# machine running this command. A LUKS or LVM layer above root is invisible
+# here, so this refuses the plain case -- root on a partition of DEV -- which is
+# the one a mistyped device path hits.
+root_src=""
+while read -r _src _mnt _rest; do
+  if [ "$_mnt" = "/" ]; then root_src="$_src"; break; fi
+done < /proc/mounts
+if [ -b "$root_src" ]; then
+  root_name="$(basename "$(readlink -f "$root_src")")"
+  # walk from the mount to its disk, whether root is a partition or a whole disk
+  if [ -e "/sys/class/block/$root_name/partition" ]; then
+    root_name="$(basename "$(dirname "$(readlink -f "/sys/class/block/$root_name")")")"
+  fi
+  if [ "$root_name" = "$dev_name" ]; then
+    die "$DEV backs the running system's root; refusing to overwrite the disk this machine runs from."
+  fi
+fi
+
+echo
+echo "This ERASES $DEV entirely."
+read -rp "Type the device path to confirm ($DEV): " confirm
+[ "$confirm" = "$DEV" ] || die "aborted."
+
+say "Flashing $ISO to $DEV"
+sudo dd if="$ISO" of="$DEV" bs=4M status=progress conv=fsync
+sync
+say "Done. Remove the stick and boot the target from it."

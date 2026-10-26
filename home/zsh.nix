@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, lib, ... }:
 
 {
   programs.zsh = {
@@ -33,15 +33,6 @@
       # (lib/theme-tree.nix) into the store; consumers may override to point
       # elsewhere.
       EMANIX_THEMES_DIR = config.emanix.src.themesDir;
-      # Helper-script dir — likewise consumer-controlled (no bin/ in the
-      # distro). Read from elisp too, so it must be a session variable and
-      # not merely a PATH entry.
-      EMANIX_BIN_DIR = config.emanix.src.binDir;
-      # The consumer's own checkout (e.g. ~/dotfiles) — emanix-welcome.el
-      # reads this to find the config repo. Unexported until now, so
-      # rafik/whistle/datacore all fell through to /etc/nixos (or nothing),
-      # and the welcome buffer wrongly reported "no config repo yet".
-      EMANIX_DOTFILES = config.emanix.src.dotfilesPath;
       # Interactive convenience only — nothing in the repo reads it.
       EMANIX_ROLE = config.emanix.role;
       # The host's BUILD-TIME theme, as distinct from EMANIX_THEMES_DIR (the
@@ -51,6 +42,23 @@
       # distro default — which is the only moment this value is consulted, so
       # it never overrides a theme the user has switched to.
       EMANIX_THEME = config.emanix.theme;
+    }
+    # Helper-script dir — consumer-controlled, because the distro ships no
+    # bin/. UNSET on a host built from the distribution alone; a consumer
+    # that keeps helper scripts sets emanix.src.binDir and gets them first
+    # on PATH. Read from elisp too, so it is a session variable and not
+    # merely a PATH entry.
+    // lib.optionalAttrs (config.emanix.src.binDir != null) {
+      EMANIX_BIN_DIR = config.emanix.src.binDir;
+    }
+    # The consumer's own checkout — emanix-welcome.el reads this to find the
+    # config repo. UNSET on a host built from the distribution alone; a
+    # consumer that keeps a checkout sets emanix.src.dotfilesPath. Before
+    # this it defaulted to ~/dotfiles, so rafik/whistle/datacore fell
+    # through to /etc/nixos (or nothing), and the welcome buffer wrongly
+    # reported "no config repo yet".
+    // lib.optionalAttrs (config.emanix.src.dotfilesPath != null) {
+      EMANIX_DOTFILES = config.emanix.src.dotfilesPath;
     };
 
     initContent = ''
@@ -61,8 +69,12 @@
       fi
 
       # Helper scripts live in the CONSUMER's checkout, not the distro's —
-      # $EMANIX/bin was always a path that did not exist.
-      export PATH="$EMANIX_BIN_DIR:$PATH"
+      # the distro ships no bin/. UNSET on a host built from the
+      # distribution alone; a consumer that keeps helper scripts sets
+      # emanix.src.binDir and gets them first on PATH.
+      ${lib.optionalString (config.emanix.src.binDir != null) ''
+        export PATH="$EMANIX_BIN_DIR:$PATH"
+      ''}
 
       # Local bin
       export PATH="$HOME/.local/bin:$PATH"
@@ -128,19 +140,19 @@
     '';
   };
 
-  # The same five values, exported to the SYSTEMD USER MANAGER as well as the
+  # The same values, exported to the SYSTEMD USER MANAGER as well as the
   # shell. A systemd user service does not start from a login shell, so
   # programs.zsh.sessionVariables above never reaches one — and the Emacs
   # daemon is exactly such a service. Without this, elisp that resolves
-  # $EMANIX_BIN_DIR (the calendar-sync binding, the EWM firefox slot) gets an
-  # empty string and expands to a bare relative path — and
-  # emanix-welcome.el's $EMANIX_DOTFILES read (see the matching entry above)
+  # $EMANIX_BIN_DIR (the EWM firefox slot) gets an empty string and expands
+  # to a bare relative path — and emanix-welcome.el's $EMANIX_DOTFILES read
   # would go the same way for a daemon-only session.
   #
-  # The calendar-sync binding documents the daemon as its reason for existing,
-  # so the daemon is the case that must work, not the one that may be missed.
-  # (emanix-pi.el used to make this point; it retired with the pi launcher on
-  # 2026-09-07, but the reasoning is a property of the daemon, not that file.)
+  # The daemon is the case that must work, not the one that may be missed, so
+  # the reason is a property of the daemon rather than of any one reader. Both
+  # EMANIX_BIN_DIR and EMANIX_DOTFILES are UNSET when their option is null —
+  # a host built from the distribution alone — and a consumer that keeps
+  # helper scripts sets emanix.src.binDir to get them first on PATH.
   #
   # Landing these here rather than in theme.nix, next to the shell exports
   # they mirror, so the two lists cannot drift apart.
@@ -151,8 +163,12 @@
   systemd.user.sessionVariables = {
     EMANIX = config.emanix.src.path;
     EMANIX_THEMES_DIR = config.emanix.src.themesDir;
-    EMANIX_BIN_DIR = config.emanix.src.binDir;
-    EMANIX_DOTFILES = config.emanix.src.dotfilesPath;
     EMANIX_THEME = config.emanix.theme;
+  }
+  // lib.optionalAttrs (config.emanix.src.binDir != null) {
+    EMANIX_BIN_DIR = config.emanix.src.binDir;
+  }
+  // lib.optionalAttrs (config.emanix.src.dotfilesPath != null) {
+    EMANIX_DOTFILES = config.emanix.src.dotfilesPath;
   };
 }
