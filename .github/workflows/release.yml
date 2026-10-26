@@ -1,0 +1,198 @@
+name: Release installer ISO
+
+# A published installer image, so that installing Emanix does not begin with
+# building one. `nix run .#iso` stays the from-source path; this is the path for
+# someone who has never installed Nix.
+#
+# The distribution's ISO carries NO keys (emanix.installer.keysDir is null by
+# default), and that is what makes it publishable at all: a keys-carrying image
+# IS somebody's identity, decrypts their secrets, and must never leave their
+# machine. There is deliberately no input here that could produce one -- see
+# installer/iso.nix, where a keys-carrying build requires --impure and an
+# absolute path to a working tree.
+#
+# This job builds the image and nothing else. The checks that gate main live in
+# ci.yml, and duplicating them here would put eight Emacs builds on the release
+# path for no gain: the ISO closure is installation-cd-minimal plus disko,
+# exfatprogs, dosfstools, the install script and the staged flake source, so it
+# substitutes from cache.nixos.org instead of compiling.
+#
+# Manual dispatch, not a tag push, because a rolling distribution has no version
+# number to tag with. The tag is created HERE, at the commit the image was built
+# from, so the artifact and its source stay tied together.
+#
+# The ISO is attached to a RELEASE and never uploaded as an Actions artifact:
+# artifact storage is metered against the plan's allowance (500 MB on Free),
+# while release assets are unlimited in total and in bandwidth, up to 1000
+# assets and under 2 GiB per file. That last number is asserted below, before
+# anything is published.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag. Leave empty for installer-YYYY-MM-DD."
+        required: false
+        default: ""
+
+permissions:
+  contents: write # create the release, its tag and its assets
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  iso:
+    name: Build and publish the keyless installer ISO
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to a commit, unlike ci.yml's tags. This job is the only one
+      # holding a token that can write to the repository, so a retargeted tag on
+      # another account's action would be a write primitive; the tag is in the
+      # comment for whoever updates the pin. persist-credentials is off because
+      # nothing here pushes with git -- the release goes through GH_TOKEN.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      # A NixOS ISO needs more of / than a runner has to spare: ubuntu-latest
+      # ships about 14 GB free, with the Android SDK, the .NET runtime and the
+      # hosted toolcache holding most of it. Deleting them is the documented
+      # remedy, and this job builds no Android or .NET code. Nothing here comes
+      # from a third-party action: the whole remedy is four rm -rf's, and a
+      # release job holding a write token should widen its supply chain as
+      # little as possible.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost "${AGENT_TOOLSDIRECTORY:-/opt/hostedtoolcache}"
+          df -h /
+
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
+
+      # A release published from a branch is a release nobody reviewed, and
+      # this job holds a token that can write releases. workflow_dispatch lets
+      # the operator pick any ref, so the ref is checked rather than assumed.
+      - name: Refuse to publish from anywhere but main
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "ERROR: dispatch this workflow from main, not from $GITHUB_REF." >&2
+            exit 1
+          fi
+
+      # No --impure, and no keys to stage: the same command a stranger runs with
+      # `nix run .#iso`, which is the point of publishing it.
+      - name: Build the ISO
+        run: |
+          iso_dir=$(nix build --no-link --print-out-paths .#installerIso)
+          iso=$(find "$iso_dir/iso" -maxdepth 1 -name '*.iso' -print -quit)
+          if [ -z "$iso" ]; then
+            echo "ERROR: no .iso under $iso_dir/iso." >&2
+            exit 1
+          fi
+          # nixpkgs names the file from the nixpkgs revision
+          # (nixos-minimal-26.05.<date>.<rev>-x86_64-linux.iso), which is not a
+          # name to hand anyone. The assets are named below instead.
+          echo "built: $iso"
+          echo "ISO=$iso" >> "$GITHUB_ENV"
+          echo "ISO_DIR=$iso_dir" >> "$GITHUB_ENV"
+
+      - name: Name the tag
+        # Through env, never interpolated into the script: an input spliced into
+        # a run: block is a shell injection, and this job can publish releases.
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          tag="$INPUT_TAG"
+          [ -n "$tag" ] || tag="installer-$(date -u +%F)"
+          # The tag becomes a filename and an API path, so it is constrained to
+          # what those accept rather than trusted.
+          case "$tag" in
+            *[!A-Za-z0-9._-]*)
+              echo "ERROR: '$tag' is not a usable tag; use letters, digits, dot, dash, underscore." >&2
+              exit 1
+              ;;
+          esac
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "releasing as $tag"
+
+      # Assert BEFORE publishing. Discovering a 2 GiB asset limit from a failed
+      # upload wastes the whole build, and a size that jumps is worth knowing
+      # about on its own: it means the closure grew.
+      - name: Assert the artifact
+        run: |
+          size=$(stat -c%s "$ISO")
+          printf 'size: %s bytes (%s MiB)\n' "$size" "$((size / 1048576))"
+          if [ "$size" -ge 2147483648 ]; then
+            echo "ERROR: the image is 2 GiB or larger, which GitHub rejects as a" >&2
+            echo "release asset. Something has grown the live closure." >&2
+            exit 1
+          fi
+          sha256sum "$ISO" > SHA256SUMS
+          cat SHA256SUMS
+
+      # Two names on purpose. The versioned one is the record; the stable one is
+      # what the manual can link to forever:
+      #   https://github.com/scott-whitson/emanix/releases/latest/download/emanix-installer.iso
+      # Duplicating ~1.5 GB per release costs nothing: release storage is not
+      # metered, only Actions artifact storage is.
+      - name: Name the assets
+        run: |
+          cp "$ISO" "emanix-installer-${TAG}.iso"
+          cp "$ISO" emanix-installer.iso
+          ls -l emanix-installer*.iso SHA256SUMS
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'NOTES'
+          The Emanix installer image, built from the distribution alone.
+
+          It carries **no host keys**, and that is correct for this image: an
+          interactive install mints the host key on the target. A key-carrying
+          image is the fleet path, built by a consumer flake from its own repo,
+          and it must never be published here.
+
+          ```
+          boot the image, then:  sudo fresh-emanix-install
+          ```
+
+          With no host name the installer asks for the machine's name, user,
+          disk, encryption, filesystem, swap and graphics driver, then installs.
+          Expect the nixos-install step to compile Emacs on the target.
+
+          Verify the download before writing it to a stick:
+
+          ```
+          sha256sum -c SHA256SUMS
+          ```
+          NOTES
+          {
+            echo
+            echo "Built from \`$GITHUB_SHA\` on $(date -u +%F)."
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| commit | \`$GITHUB_SHA\` |"
+            echo "| store path | \`$ISO_DIR\` |"
+            echo "| size | $(( $(stat -c%s "$ISO") / 1048576 )) MiB |"
+            echo
+            echo '```'
+            cat SHA256SUMS
+            echo '```'
+          } >> notes.md
+
+          # Re-running the same tag must update the assets rather than fail:
+          # a rebuild of the same commit should be able to replace a bad upload.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" --clobber \
+              "emanix-installer-${TAG}.iso" emanix-installer.iso SHA256SUMS
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" \
+              --title "Emanix installer $TAG" --notes-file notes.md \
+              "emanix-installer-${TAG}.iso" emanix-installer.iso SHA256SUMS
+          fi
+          gh release view "$TAG" --json url,assets \
+            --template '{{.url}}{{"\n"}}{{range .assets}}{{.name}} {{.size}}{{"\n"}}{{end}}'
