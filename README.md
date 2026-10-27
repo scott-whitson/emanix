@@ -209,6 +209,19 @@ flake and the `emanix` input points at it by relative path. The machine you get
 is the image you booted — rebuildable offline from it — rather than whatever
 upstream `main` happens to be that day.
 
+The install also runs unattended, with no terminal anywhere in the loop:
+
+```bash
+printf 'myhost\nalice\nn\n\n\n\nyes\n' | \
+  EMANIX_USER_PASSWORD=secret sudo -E fresh-emanix-install
+```
+
+The prompts read stdin, and the password comes from `EMANIX_USER_PASSWORD`
+consumed on a pipe by `chpasswd` — never as an argument, which would be
+world-readable in `/proc`. `EMANIX_USER_PASSWORD` is read by the installer only
+and unset before any child runs. LUKS still prompts (disko asks for the
+passphrase), so an unattended install answers `n` there.
+
 ## Themes
 
 The Catppuccin palette is defined once in `lib/themes.nix` and consumed by every

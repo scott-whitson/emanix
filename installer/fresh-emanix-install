@@ -4,6 +4,14 @@
 # Usage (in the emanix installer ISO, or any NixOS live ISO):
 #   sudo fresh-emanix-install [host] [--disk /dev/X] [--check-only]
 #
+# Unattended: the prompts read stdin, and the password step takes its password
+# from the environment, so a whole install can run with no terminal at all:
+#   printf 'host\nuser\nn\n\n\n\nyes\n' | \
+#     EMANIX_USER_PASSWORD=secret sudo -E fresh-emanix-install
+# The environment is read by THIS script only, never passed to a child, and the
+# secret reaches chpasswd on a pipe rather than in argv. LUKS=yes still prompts
+# (disko asks for the passphrase), so an unattended install answers n there.
+#
 # The host is required. The repo is located automatically (EMANIX_REPO, the
 # script's parent, /etc/emanix/flake on the ISO, or common mounts); the
 # host key comes from the baked ISO keys, a staged <host>-keys/ dir beside the
@@ -107,7 +115,26 @@ run 'umount -R /mnt' by hand (fuser -m /mnt finds the holder), or reboot the
 ISO."
   fi
 }
+# A signal must clean up AND STOP. `trap cleanup_target HUP INT TERM` on its own
+# would unmount /mnt and then RESUME the install it had just detached from -- a
+# trap for these signals returns to where it was -- so the install would carry
+# on writing into a target that is no longer mounted, which is worse than the
+# bug being fixed. The handler exits instead; the EXIT trap then runs
+# cleanup_target a second time, which is harmless because it returns at once
+# when /mnt is gone.
+#
+# Measured 2026-10-26: a run killed with SIGHUP left /mnt mounted, and the next
+# run's disk auto-detection skips devices with mounted partitions, so the target
+# went invisible and the retry died at "preflight failed: disk".
+# Written as a multi-line function, not a one-liner: the test harness extracts
+# functions by brace depth, and a one-liner never closes the range, so it would
+# swallow the rest of the script (the file's own comment on extract_fn says so).
+on_signal() {
+  cleanup_target
+  exit 1
+}
 trap cleanup_target EXIT
+trap on_signal HUP INT TERM
 
 # --- Args: [host] [--disk /dev/X | positional] [--check-only] ----------------
 FLAKE_HOST=""
@@ -613,6 +640,119 @@ Log in and run: sudo chown -R $1:users ~/dotfiles"
   fi
 }
 
+# --- The password step, in three pieces ---------------------------------------
+#
+# Split because the three cases are mutually exclusive and each has a distinct
+# failure mode, and because the test harness drives them one at a time.
+#
+# Why the interactive case cannot be scripted at all: `passwd` reads /dev/tty
+# and FLUSHES pending input at every prompt, so queued answers are discarded one
+# prompt at a time. And because it blocks rather than failing, the retry-and-die
+# net never fires -- measured 2026-10-26, an install driven over a FIFO sat at
+# 5/5 with the system installed and `scott L` in /mnt/etc/shadow, which is the
+# exact end state the retry exists to prevent.
+
+# Non-interactive: the password came from the environment.
+#
+# chpasswd is the counterpart that needs no tty. The secret arrives on STDIN,
+# not in argv -- an argument is world-readable in /proc/<pid>/cmdline and lands
+# in shell history, and a pipe does neither.
+set_password_from_env() {
+  local pw="$EMANIX_USER_PASSWORD"
+  local user="$1"
+  # Out of the environment before any child runs, so nothing downstream
+  # inherits it. The value lives on in $pw, which is this process's memory and
+  # not a child's environment.
+  unset EMANIX_USER_PASSWORD
+
+  # chpasswd reads one user:password per line, split at the FIRST colon, so a
+  # colon inside the password is fine. A newline is not: it would be read as a
+  # second, nonexistent user and the real account would silently get no
+  # password at all.
+  case "$pw" in
+    *$'\n'*)
+      die "EMANIX_USER_PASSWORD must not contain a newline (chpasswd reads one
+user:password per line), and $user now has no password. Re-run with a password
+that has no newline in it."
+      ;;
+  esac
+
+  step "Set a password for $user (from EMANIX_USER_PASSWORD)"
+  printf '%s:%s\n' "$user" "$pw" |
+    nixos-enter --root /mnt -c chpasswd ||
+    die "chpasswd failed, so $user has NO password.
+$FLAKE_HOST IS INSTALLED — do NOT re-run this installer, it would repartition a
+working machine. Nothing can log in yet. To fix this without reinstalling, mount
+the target from this ISO (disko --mode mount against this host's flake, or mount
+the root filesystem by hand), then run
+  nixos-enter --root /mnt -c \"echo '$user:NEWPASSWORD' | chpasswd\""
+
+  # Verified, not assumed. The failure this whole step exists to prevent is an
+  # installed machine whose only account has no password and whose root is
+  # locked (the system is installed with --no-root-password), and chpasswd's own
+  # exit status is not enough to rule that out: a username that does not exist
+  # there is not an error to chpasswd.
+  nixos-enter --root /mnt -c "passwd -S '$user'" | grep -q "^$user P " ||
+    die "$user's password is still not set after chpasswd (passwd -S does not
+report it as usable). $FLAKE_HOST IS INSTALLED — do NOT re-run this installer.
+Mount the target and set it by hand:
+  nixos-enter --root /mnt -c \"echo '$user:NEWPASSWORD' | chpasswd\""
+}
+
+# Interactive: a terminal, and no password in the environment.
+set_password_interactively() {
+  local user="$1"
+  local tries=0
+
+  # `timeout --foreground`, not plain `timeout`: without --foreground the child
+  # is put in its own process group, and a read from the controlling terminal by
+  # a background process group stops on SIGTTIN -- so the wrapped passwd would
+  # never see a keystroke and every attempt would die of the timeout instead.
+  # --foreground keeps it in the foreground group, which is what the tty
+  # interaction needs, while still bounding a wedged passwd.
+  #
+  # Retried, not run once: an empty or malformed username is guarded before this
+  # point, and this closes the OUTCOME. A passwd that fails (mismatched
+  # confirmations, Ctrl-D, a chroot problem) must not leave a machine whose only
+  # account has no password and whose root is locked.
+  step "Set a password for $user"
+  until timeout --foreground 120 nixos-enter --root /mnt -c "passwd '$user'"; do
+    tries=$((tries + 1))
+    if [ "$tries" -ge 3 ]; then
+      die "could not set a password for $user after $tries attempts.
+$FLAKE_HOST IS INSTALLED — do NOT re-run this installer, it would repartition a
+working machine. But the account has NO password and root is locked (the system
+was installed with --no-root-password), so nothing can log in yet.
+/mnt is about to be unmounted. To fix this without reinstalling: mount the
+target again from this ISO (disko --mode mount against this host's flake, or
+mount the root filesystem by hand), then run
+  nixos-enter --root /mnt -c \"passwd '$user'\""
+    fi
+    warn "passwd failed — attempt $tries of 3. Trying again."
+  done
+}
+
+# The chooser. No tty and no password in the environment cannot be answered
+# interactively at all, so it says so at once rather than blocking at 5/5 with
+# the machine already installed and nothing on screen to say why.
+set_password() {
+  local user="$1"
+  if [ -n "${EMANIX_USER_PASSWORD:-}" ]; then
+    set_password_from_env "$user"
+  elif [ ! -t 0 ]; then
+    die "stdin is not a terminal, so the password for $user cannot be typed.
+$FLAKE_HOST IS INSTALLED — do NOT re-run this installer, it would repartition a
+working machine. But the account has NO password and root is locked (the system
+was installed with --no-root-password), so nothing can log in yet.
+To finish without a terminal, re-run with the password in the environment:
+  EMANIX_USER_PASSWORD=... sudo -E fresh-emanix-install <same arguments>
+Or mount the target from this ISO and set it by hand:
+  nixos-enter --root /mnt -c \"passwd '$user'\""
+  else
+    set_password_interactively "$user"
+  fi
+}
+
 # --- Preflight ----------------------------------------------------------------
 banner
 resolve_repo
@@ -1000,33 +1140,11 @@ validate_username "$USERNAME" ||
 An empty or malformed name here would set ROOT's password in the chroot while
 the real account stays passwordless."
 
-# Retried, not run once. The empty-username guard above closed the path INTO
-# passwd; this closes its OUTCOME. The account was created under
-# --no-root-password, so root is locked -- if passwd itself fails (mismatched
-# confirmations, Ctrl-D, a chroot problem) set -e aborts and the machine boots
-# with a passwordless account and no root login. That is the same end state the
-# guard above exists to prevent, reached through a different door. Every other
-# user-input step in this file re-prompts; this one did not.
-#
-# Bounded at 3: an unattended console that keeps failing must eventually stop
-# and say something actionable rather than loop forever, and the generic trap
-# message is not actionable for this.
-step "Set a password for $USERNAME"
-passwd_tries=0
-until nixos-enter --root /mnt -c "passwd '$USERNAME'"; do
-  passwd_tries=$((passwd_tries + 1))
-  if [ "$passwd_tries" -ge 3 ]; then
-    die "could not set a password for $USERNAME after $passwd_tries attempts.
-$FLAKE_HOST IS INSTALLED — do NOT re-run this installer, it would repartition a
-working machine. But the account has NO password and root is locked (the system
-was installed with --no-root-password), so nothing can log in yet.
-/mnt is about to be unmounted. To fix this without reinstalling: mount the
-target again from this ISO (disko --mode mount against this host's flake, or
-mount the root filesystem by hand), then run
-  nixos-enter --root /mnt -c \"passwd '$USERNAME'\""
-  fi
-  warn "passwd failed — attempt $passwd_tries of 3. Trying again."
-done
+# Retried and bounded inside set_password_interactively; the empty-username
+# guard above closed the path INTO passwd, and that function closes its OUTCOME.
+# An unattended console that keeps failing must eventually stop and say something
+# actionable rather than loop forever.
+set_password "$USERNAME"
 
 say "$FLAKE_HOST installed."
 copy_staged_flake "$USERNAME"
@@ -1061,5 +1179,9 @@ else
 fi
 # [Y/n]: after a successful install rebooting is what essentially everyone
 # wants next, and defaulting to No reads as though something is still wrong.
-read -rp "Reboot now? [Y/n] " r
+# `|| r=n` for the unattended run. Its stdin ends at the last answer, so this
+# read hits EOF: under set -e that would end a SUCCESSFUL install with a non-zero
+# status, and without set -e the case below would default to rebooting a machine
+# with nobody there to remove the stick.
+read -rp "Reboot now? [Y/n] " r || r=n
 case "$r" in [Nn]*) : ;; *) reboot ;; esac

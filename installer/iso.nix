@@ -147,6 +147,9 @@ in
             tailnet: /etc/emanix/tailscale-authkey (only when the keys dir
                      carried a reusable preauthkey)
             install a host:  sudo fresh-emanix-install <host> [--disk /dev/X]
+            new machine:     sudo fresh-emanix-install        (asks, then installs)
+            unattended:      EMANIX_USER_PASSWORD=... sudo -E fresh-emanix-install
+                             (answers from stdin; LUKS must be answered 'n')
             check only:      sudo fresh-emanix-install <host> --check-only
             remote access:   boot with live.nixos.passwd=<pw> on the kernel
                              cmdline, then ssh nixos@<ip>

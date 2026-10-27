@@ -562,7 +562,7 @@ else
   fails=$((fails + 1))
 fi
 
-# shellcheck disable=SC1091,SC2329  # fns.sh is generated above; its symbols are read by the sourced file
+# shellcheck disable=SC1091,SC2034,SC2329  # fns.sh is generated above; its symbols and REPO are read by it
 if ( . "$vd/fns.sh"; REPO="$vd/distro"; repo_is_distro ); then
   printf '  ok   a tree with templates/default + lib/disk.nix is the distribution\n'
 else
@@ -572,7 +572,7 @@ fi
 
 mkdir -p "$vd/consumer/templates/default"
 echo '{ }' > "$vd/consumer/flake.nix"
-# shellcheck disable=SC1091,SC2329  # fns.sh is generated above; its symbols are read by the sourced file
+# shellcheck disable=SC1091,SC2034,SC2329  # fns.sh is generated above; its symbols and REPO are read by it
 if ( . "$vd/fns.sh"; REPO="$vd/consumer"; repo_is_distro ); then
   printf '  FAIL repo_is_distro called a consumer flake the distribution\n'
   fails=$((fails + 1))
@@ -580,7 +580,7 @@ else
   printf '  ok   a consumer-shaped tree is not the distribution\n'
 fi
 
-# shellcheck disable=SC1091,SC2329  # fns.sh is generated above; its symbols are read by the sourced file
+# shellcheck disable=SC1091,SC2034,SC2329  # fns.sh is generated above; its symbols and REPO are read by it
 if ( . "$vd/fns.sh"; REPO="$vd/distro"; die() { printf 'DIE %s\n' "$*"; exit 1; }; say() { :; }; vendor_distro_into "$vd/out" ) > "$vd/out.log" 2>&1; then
   if [ "$(cat "$vd/out/emanix-distro/templates/default/MARKER" 2>/dev/null)" = MARKER ] &&
      [ ! -e "$vd/out/emanix-distro/.git" ] &&
@@ -605,7 +605,7 @@ echo '{ }' > "$vd/drift/lib/disk.nix"
 echo '{ }' > "$vd/drift/templates/default/MARKER"
 echo '{ }' > "$vd/drift/templates/default/flake.nix"
 cp "$vd/drift/templates/default/flake.nix" "$vd/drift-out/flake.nix"
-# shellcheck disable=SC1091,SC2329  # fns.sh is generated above; its symbols are read by the sourced file
+# shellcheck disable=SC1091,SC2034,SC2329  # fns.sh is generated above; its symbols and REPO are read by it
 if ( . "$vd/fns.sh"; REPO="$vd/drift"; die() { printf 'DIE %s\n' "$*"; exit 1; }; say() { :; }; vendor_distro_into "$vd/drift-out" ) > "$vd/drift.log" 2>&1; then
   printf '  FAIL a template with no emanix URL was vendored without complaint\n'
   fails=$((fails + 1))
@@ -621,46 +621,63 @@ fi
 # whose only account has no password -- the same end state, through a different
 # door. Behavioural, not a grep: the block is extracted and driven against a
 # stub nixos-enter that fails a controlled number of times.
-# Anchor accepts `say` OR `step`: the stage announcers are interchangeable and
-# renaming one broke this extraction silently once (2026-09-05) -- the block
-# came out empty and every assertion below it "passed" vacuously until the
-# brace/`done` check caught it.
-sed -n '/^\(say\|step\) "Set a password/,/^done$/p' "$SCRIPT" > "$csf_dir/passwd-block.sh"
+# The block is a FUNCTION now (set_password_interactively), extracted by name.
+# The old anchor -- a `sed` range from the "Set a password" announcer to the
+# next `done` -- had already broken silently once when the announcer was renamed
+# say -> step (2026-09-05), and it could not survive the split into an
+# interactive path, an environment path and a chooser.
+extract_fn set_password_interactively "$SCRIPT" > "$csf_dir/passwd-block.sh"
 pw_extracted=0
-if grep -q 'passwd_tries' "$csf_dir/passwd-block.sh" &&
-   [ "$(tail -1 "$csf_dir/passwd-block.sh")" = "done" ]; then
+if grep -q 'tries' "$csf_dir/passwd-block.sh" &&
+   [ "$(tail -1 "$csf_dir/passwd-block.sh")" = "}" ]; then
   pw_extracted=1
-  echo "ok   the passwd block extracts cleanly and is a loop"
+  echo "ok   set_password_interactively extracts cleanly and is a retry loop"
 else
-  echo "FAIL passwd is still a single un-retried command (or could not be extracted)"
+  echo "FAIL set_password_interactively is no longer a bounded retry loop (or could not be extracted)"
   fails=$((fails + 1))
 fi
 
-# GATED on a clean extraction, and not merely for tidiness: if the block ever
-# stops ending in `done`, the sed range above runs to EOF and drags in the tail
-# of the installer -- including its `reboot`. The harness stubs reboot as well,
-# but a range that did not close is not something to execute at all.
+# GATED on a clean extraction: an empty extraction would make every assertion
+# below pass vacuously.
+#
+# The stub has to be a PROGRAM, not a shell function. The block calls
+# `timeout ... nixos-enter ...`, and timeout execs a file -- a function is
+# invisible to it, so the call would fall through to whatever nixos-enter is on
+# PATH, which this harness has already set to a stub that always exits 0. That
+# made all three assertions below report "SURVIVED attempts=0": the loop never
+# ran, and the extraction they were meant to test was never exercised
+# (2026-10-26). State lives in a counter file for the same reason -- a new
+# process cannot remember anything.
+pwbin="$csf_dir/pwbin"
+mkdir -p "$pwbin"
+cat > "$pwbin/nixos-enter" <<'PWSTUB'
+#!/bin/sh
+n=$(cat "${NI_COUNTER:-/dev/null}" 2>/dev/null || echo 0)
+n=$((n + 1))
+printf '%s\n' "$n" > "$NI_COUNTER"
+[ "$n" -ge "${SUCCEED_ON:-1}" ]
+PWSTUB
+chmod +x "$pwbin/nixos-enter"
+
 pw_harness="$csf_dir/passwd-harness.sh"
 {
   echo 'set -euo pipefail'
+  echo "PATH=\"$pwbin:\$PATH\""
   echo 'say()  { :; }'
-  # `step` is the numbered variant of `say`; an extracted block may use either.
-  # Stub both, or the harness dies "step: command not found" and every
-  # assertion below reads as a defect in the code under test. That happened on
-  # 2026-09-05 when the passwd stage was renamed say -> step.
+  # `step` is the numbered variant of `say`.
   echo 'step() { :; }'
   echo 'warn() { printf "WARN %s\n" "$*"; }'
   echo 'die()  { printf "DIE %s\n" "$*"; exit 1; }'
-  echo 'USERNAME=testuser; FLAKE_HOST=testbox; n=0'
-  # Shadows the real nixos-enter: fails until the n-th call.
-  echo 'nixos-enter() { n=$((n + 1)); [ "$n" -ge "$SUCCEED_ON" ]; }'
+  echo 'FLAKE_HOST=testbox'
   echo 'reboot() { printf "REFUSED-REBOOT\n"; exit 90; }'
   cat "$csf_dir/passwd-block.sh"
-  echo 'printf "SURVIVED attempts=%s\n" "$n"'
+  echo 'set_password_interactively testuser'
+  echo 'printf "SURVIVED attempts=%s\n" "$(cat "$NI_COUNTER" 2>/dev/null || echo 0)"'
 } > "$pw_harness"
 
 pw_out=""; pw_rc=0
-[ "$pw_extracted" = 1 ] && { pw_out="$(SUCCEED_ON=1 bash "$pw_harness" 2>&1)"; pw_rc=$?; }
+rm -f "$csf_dir/pwcount1"
+[ "$pw_extracted" = 1 ] && { pw_out="$(SUCCEED_ON=1 NI_COUNTER="$csf_dir/pwcount1" bash "$pw_harness" 2>&1)"; pw_rc=$?; }
 if [ "$pw_extracted" = 1 ] && [ "$pw_rc" = 0 ] && grep -q 'SURVIVED attempts=1' <<<"$pw_out" &&
    ! grep -q WARN <<<"$pw_out"; then
   echo "  ok   passwd succeeding first time neither warns nor re-prompts"
@@ -670,7 +687,8 @@ else
 fi
 
 pw_out=""; pw_rc=0
-[ "$pw_extracted" = 1 ] && { pw_out="$(SUCCEED_ON=2 bash "$pw_harness" 2>&1)"; pw_rc=$?; }
+rm -f "$csf_dir/pwcount2"
+[ "$pw_extracted" = 1 ] && { pw_out="$(SUCCEED_ON=2 NI_COUNTER="$csf_dir/pwcount2" bash "$pw_harness" 2>&1)"; pw_rc=$?; }
 if [ "$pw_extracted" = 1 ] && [ "$pw_rc" = 0 ] && grep -q 'SURVIVED attempts=2' <<<"$pw_out"; then
   echo "  ok   a failed passwd re-prompts instead of aborting an installed machine"
 else
@@ -682,7 +700,8 @@ fi
 # trap message: an unattended console that keeps failing has to stop and say
 # something the operator can act on.
 pw_out=""; pw_rc=0
-[ "$pw_extracted" = 1 ] && { pw_out="$(SUCCEED_ON=99 bash "$pw_harness" 2>&1)"; pw_rc=$?; }
+rm -f "$csf_dir/pwcount3"
+[ "$pw_extracted" = 1 ] && { pw_out="$(SUCCEED_ON=99 NI_COUNTER="$csf_dir/pwcount3" bash "$pw_harness" 2>&1)"; pw_rc=$?; }
 if [ "$pw_extracted" = 1 ] && [ "$pw_rc" = 1 ] && grep -q 'SURVIVED' <<<"$pw_out"; then
   echo "  FAIL passwd retries are unbounded"
   fails=$((fails + 1))
@@ -692,6 +711,167 @@ elif [ "$pw_extracted" = 1 ] && [ "$pw_rc" = 1 ] && grep -q 'IS INSTALLED' <<<"$
 else
   printf '  FAIL exhausted passwd retries gave no actionable recovery (rc %s):\n%s\n' \
     "$pw_rc" "$pw_out"
+  fails=$((fails + 1))
+fi
+
+# --- the non-interactive password path ---------------------------------------
+# passwd reads /dev/tty and flushes pending input at EVERY prompt, so no pipe or
+# FIFO can drive it: measured 2026-10-26, an install driven over a FIFO that
+# waited for the first prompt still blocked at the second, and because passwd
+# BLOCKS rather than failing, the retry net above never fires -- the system sat
+# installed with `scott L` in /mnt/etc/shadow. chpasswd needs no tty, which is
+# what makes an unattended install possible at all.
+ep_harness="$csf_dir/passwd-env-harness.sh"
+extract_fn set_password_from_env "$SCRIPT" > "$csf_dir/pw-env.sh"
+{
+  echo 'set -euo pipefail'
+  echo 'say()  { :; }'
+  echo 'step() { :; }'
+  echo 'warn() { printf "WARN %s\n" "$*"; }'
+  echo 'die()  { printf "DIE %s\n" "$*"; exit 1; }'
+  echo 'FLAKE_HOST=testbox'
+  echo ': > "$NI_LOG"'
+  cat <<'STUB'
+nixos-enter() {
+  printf '%s\n' "$*" >> "$NI_LOG"
+  case "$*" in
+    *chpasswd*) cat > "$NI_STDIN"; return "${NI_CHPASSWD_RC:-0}" ;;
+    *"passwd -S"*) printf 'testuser %s 2026-10-26 -1 -1 -1 -1\n' "${NI_SYMBOL:-P}"; return 0 ;;
+  esac
+  return 0
+}
+STUB
+  cat "$csf_dir/pw-env.sh"
+  echo 'set_password_from_env testuser'
+  echo 'printf "SURVIVED\n"'
+  echo '[ -z "${EMANIX_USER_PASSWORD:-}" ] && printf "ENV-UNSET\n"'
+} > "$ep_harness"
+
+ep_out=""; ep_rc=0
+ep_out="$(EMANIX_USER_PASSWORD=secret NI_LOG="$csf_dir/ep1.log" NI_STDIN="$csf_dir/ep1.stdin" bash "$ep_harness" 2>&1)"; ep_rc=$?
+if [ "$ep_rc" = 0 ] && grep -qxF 'testuser:secret' "$csf_dir/ep1.stdin" &&
+   grep -q 'chpasswd' "$csf_dir/ep1.log" &&
+   ! grep -v 'passwd -S' "$csf_dir/ep1.log" | grep -q "passwd 'testuser'" &&
+   grep -q 'ENV-UNSET' <<<"$ep_out"; then
+  echo "  ok   a password in the environment goes to chpasswd on stdin, never to passwd, and is unset after"
+else
+  printf '  FAIL the environment password path misbehaved (rc %s):\n%s\nlog:%s\n' \
+    "$ep_rc" "$ep_out" "$(cat "$csf_dir/ep1.log" 2>/dev/null)"
+  fails=$((fails + 1))
+fi
+
+# chpasswd reads one user:password per line, so a newline in the value would be
+# read as a second, nonexistent user -- and the real account would silently get
+# no password. Refused before chpasswd runs, not after.
+ep_out=""; ep_rc=0
+ep_out="$(EMANIX_USER_PASSWORD=$'a\nb' NI_LOG="$csf_dir/ep2.log" NI_STDIN="$csf_dir/ep2.stdin" bash "$ep_harness" 2>&1)"; ep_rc=$?
+if [ "$ep_rc" = 1 ] && grep -q 'EMANIX_USER_PASSWORD must not contain a newline' <<<"$ep_out" &&
+   ! grep -q chpasswd "$csf_dir/ep2.log" 2>/dev/null; then
+  echo "  ok   a password containing a newline is refused before chpasswd sees it"
+else
+  printf '  FAIL a newline in EMANIX_USER_PASSWORD was not refused (rc %s):\n%s\n' "$ep_rc" "$ep_out"
+  fails=$((fails + 1))
+fi
+
+# chpasswd's exit status is not proof: a username that does not exist there is
+# not an error to it, and the end state this step exists to prevent is an
+# installed machine whose only account has no password.
+ep_out=""; ep_rc=0
+ep_out="$(EMANIX_USER_PASSWORD=secret NI_SYMBOL=L NI_LOG="$csf_dir/ep3.log" NI_STDIN="$csf_dir/ep3.stdin" bash "$ep_harness" 2>&1)"; ep_rc=$?
+if [ "$ep_rc" = 1 ] && grep -q 'still not set' <<<"$ep_out" && grep -q 'IS INSTALLED' <<<"$ep_out"; then
+  echo "  ok   a chpasswd that ran but did not take effect is caught by passwd -S"
+else
+  printf '  FAIL an ineffective chpasswd was accepted (rc %s):\n%s\n' "$ep_rc" "$ep_out"
+  fails=$((fails + 1))
+fi
+
+# --- the chooser, and the hang it exists to prevent ---------------------------
+# No tty and no password in the environment cannot be answered interactively at
+# all. Before this, the install blocked at 5/5 with the machine already
+# installed, nothing on screen to explain it, and the retry net unable to fire
+# because passwd was not failing -- it was waiting. It must instead say so at
+# once, and name the way out.
+ch_harness="$csf_dir/passwd-choose-harness.sh"
+extract_fn set_password "$SCRIPT" > "$csf_dir/pw-choose.sh"
+{
+  echo 'set -euo pipefail'
+  echo 'die()  { printf "DIE %s\n" "$*"; exit 1; }'
+  echo 'FLAKE_HOST=testbox'
+  echo 'set_password_from_env()   { printf "CHOSE-ENV\n"; }'
+  echo 'set_password_interactively() { printf "CHOSE-INTERACTIVE\n"; }'
+  cat "$csf_dir/pw-choose.sh"
+  echo 'set_password testuser'
+} > "$ch_harness"
+
+ch_out=""; ch_rc=0
+ch_out="$(EMANIX_USER_PASSWORD=secret bash "$ch_harness" 2>&1)"; ch_rc=$?
+if [ "$ch_rc" = 0 ] && grep -q 'CHOSE-ENV' <<<"$ch_out" && ! grep -q CHOSE-INTERACTIVE <<<"$ch_out"; then
+  echo "  ok   the chooser prefers the environment when a password is supplied"
+else
+  printf '  FAIL the chooser did not take the environment path (rc %s):\n%s\n' "$ch_rc" "$ch_out"
+  fails=$((fails + 1))
+fi
+
+# The harness itself runs with stdin not a terminal, which is the case under
+# test: no tty, no password, so nothing can be typed.
+ch_out=""; ch_rc=0
+ch_out="$(env -u EMANIX_USER_PASSWORD bash "$ch_harness" 2>&1) < /dev/null"; ch_rc=$?
+if [ "$ch_rc" = 1 ] && grep -q 'stdin is not a terminal' <<<"$ch_out" &&
+   grep -q 'EMANIX_USER_PASSWORD' <<<"$ch_out" && ! grep -q CHOSE-INTERACTIVE <<<"$ch_out"; then
+  echo "  ok   no tty and no environment password fails at once, naming the way out"
+else
+  printf '  FAIL a non-tty install without a password did not fail fast (rc %s):\n%s\n' "$ch_rc" "$ch_out"
+  fails=$((fails + 1))
+fi
+
+# --- a signal must clean up AND STOP ------------------------------------------
+# `trap cleanup_target HUP INT TERM` on its own would unmount /mnt and then
+# resume the install it had just detached from, writing into a target that is no
+# longer mounted -- worse than the bug it fixes. The handler therefore exits.
+if grep -qE '^trap on_signal (HUP|INT|TERM)' "$SCRIPT" &&
+   grep -qE '^trap on_signal HUP INT TERM' "$SCRIPT"; then
+  echo "  ok   the installer traps HUP, INT and TERM as well as EXIT"
+else
+  echo "FAIL signals are not trapped -- a killed install leaves /mnt mounted"
+  fails=$((fails + 1))
+fi
+
+sg_harness="$csf_dir/signal-harness.sh"
+{
+  echo 'set -euo pipefail'
+  echo 'cleanup_target() { printf "CLEANED\n"; }'
+  extract_fn on_signal "$SCRIPT"
+  echo '( on_signal; printf "RESUMED\n" )'
+  echo 'printf "REACHED-THE-END\n"'
+} > "$sg_harness"
+sg_out=""; sg_rc=0
+sg_out="$(bash "$sg_harness" 2>&1)"; sg_rc=$?
+if [ "$sg_rc" = 1 ] && grep -q CLEANED <<<"$sg_out" && ! grep -q RESUMED <<<"$sg_out"; then
+  echo "  ok   the signal handler cleans up and exits instead of resuming the install"
+else
+  printf '  FAIL the signal handler resumed instead of exiting (rc %s):\n%s\n' "$sg_rc" "$sg_out"
+  fails=$((fails + 1))
+fi
+
+# An unattended run's stdin ends at the last answer, so the reboot prompt reads
+# EOF. Without `|| r=n` that either ends a successful install non-zero (set -e)
+# or defaults into rebooting a machine nobody is standing next to.
+if grep -q 'read -rp "Reboot now? \[Y/n\] " r || r=n' "$SCRIPT"; then
+  echo "  ok   the reboot prompt treats EOF as 'no' instead of rebooting or failing"
+else
+  echo "FAIL the reboot prompt is not EOF-safe, so an unattended install ends badly"
+  fails=$((fails + 1))
+fi
+
+# The interactive attempt is wrapped in `timeout --foreground`, not plain
+# `timeout`: without --foreground the child lands in its own process group and a
+# read from the controlling terminal stops on SIGTTIN, so passwd would never see
+# a keystroke and every attempt would die of the timeout instead. Behavioural
+# proof needs a real tty and is asserted in the VM; this pins the flag.
+if grep -q 'timeout --foreground 120 nixos-enter --root /mnt -c "passwd' "$SCRIPT"; then
+  echo "  ok   the interactive password attempt is bounded, and keeps the tty in the foreground"
+else
+  echo "FAIL the interactive passwd attempt is unbounded, or --foreground was dropped"
   fails=$((fails + 1))
 fi
 

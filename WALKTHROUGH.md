@@ -259,6 +259,14 @@ installed machine therefore rebuilds from the distribution it was installed
 with, offline, whatever upstream main has moved on to since. A declared host is
 unaffected — its flake is the consumer's, and the image carries it as it is.
 
+An install can also run with no terminal at all. The prompts read stdin, and the
+password step takes its password from `EMANIX_USER_PASSWORD`, which is fed to
+`chpasswd` on a pipe rather than as an argument. It has to work that way: the
+interactive step runs `passwd`, which reads /dev/tty and discards queued input at
+every prompt, so a scripted run cannot answer it and would block at the final
+step — with the machine already installed and nothing on screen to say why.
+LUKS still prompts, so an unattended install answers `n` there.
+
 Start THAT image on the target machine. Then run this command:
 
 ```bash
