@@ -180,6 +180,19 @@ to it.
 
 ## The installer ISO
 
+Download it, or build it:
+
+```bash
+curl -LO https://github.com/scott-whitson/emanix/releases/latest/download/emanix-installer.iso
+```
+
+Releases are date-tagged (`installer-YYYY-MM-DD`) rather than versioned, and the
+asset name does not change, so the URL above always names the current image.
+`SHA256SUMS` sits beside it. About 1.4 GiB: write it to a stick and install with
+one command and six questions.
+
+To build the same image instead:
+
 ```bash
 nix run github:scott-whitson/emanix#iso              # build; print the ISO path
 nix run github:scott-whitson/emanix#iso -- /dev/sdX  # build, then flash it
