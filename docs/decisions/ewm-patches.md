@@ -1,7 +1,7 @@
 # The EWM patch
 
-`modules/ewm.nix` applies it through `pkgs.applyPatches`. It is an upstream bug,
-so its exit condition is the upstream fix.
+`modules/ewm.nix` applies it to `ewm-core`'s own source, inside the derivation
+that builds it. It is an upstream bug, so its exit condition is the upstream fix.
 
 ## 1. `patches/ewm-keysym-hex.patch` — a key name reported only by number
 
@@ -52,36 +52,50 @@ This is why the patch set is now one rather than two, and it is worth noting wha
 it cost to find out: the patch had been silently inapplicable since the upstream
 fix landed, so `nix flake update ewm` could not be run at all without first
 noticing the hunk failure. Any future ewm patch should be checked with
-`patch -p1 --dry-run` against the candidate rev before the lock is moved.
+`patch -p2 --dry-run` from inside the compositor subtree (see the last section)
+before the lock is moved.
 
-## Why evaluation depends on a build
+## Why the patch is applied inside the derivation
 
-Patching the tree before importing it costs something the intro does not spell
-out: `pkgs.applyPatches` returns a DERIVATION, and `import "${ewmSrc}/nix/
-default.nix"` reads the tree it builds. Evaluation therefore builds it, through
-import-from-derivation. `nix flake check --no-build` still builds this one
-derivation on a cold store (unpack and patch, seconds — the "builds nothing"
-claim in the CI job is about system closures, not this), and evaluation needs
-the derivation to be realisable.
+`pkgs.applyPatches` returns a DERIVATION. The first version of this patch applied
+it to a copy of the whole tree and then imported upstream's `nix/default.nix`
+from that copy — and reading a file out of a derivation is
+import-from-derivation, so evaluating any host required a build.
 
-That last part has a sharp edge. Nix collects `.drv` files while their outputs
-stay alive whenever a root holds the output but not the derivation — an installed
-system generation is exactly that. Evaluate the flake in that state and it fails
-at the import, with the patch itself innocent:
+That is not a cost CI can absorb. `nix flake check --no-build` is the gate that
+runs on every pull request, precisely so the expensive Emacs builds stay in the
+other job, and it cannot evaluate a flake whose evaluation builds something:
 
 ```console
 error: path '...-ewm-patched.drv' is not valid
 ```
 
-Measured 2026-10-27 on rafik, whose running generation roots the patched tree:
-`nix flake check` red, `nix build .#installerIso` unaffected (it never evaluates
-a host), and the same failure from a clean `git archive HEAD` export. Nothing
-needs repairing — the state is inherent to IFD plus garbage collection, and a
-rebuild re-instantiates the derivation.
+The message is about validating a reference, not about anything being wrong with
+the patch: with building disallowed, that reference cannot be satisfied. A
+three-line flake whose check is `import (derivation { ... } + "/v")` reproduces
+it exactly, and passes the moment `--no-build` is dropped. Measured 2026-10-27,
+where the static CI job had been red on `main` for that reason alone while the
+building job (`nix flake check`, no flag) stayed green. It was first read here as
+a garbage-collection artefact of one machine, because the same message appears
+locally on a machine whose store lacks the derivation; the reproduction above is
+what corrected that reading.
 
-The exit is to drop the IFD: patch the package's own `src` instead of the tree
-under it. `nix/default.nix` builds `ewm-core` from a source rooted at
-`compositor/`, so that way the patch's paths move from `a/compositor/src/…` to
-`a/src/…` — a second patch format to keep in step with upstream, bought with a
-local-only failure that a rebuild clears. Not worth paying until something else
-forces it.
+So the patch is applied to `ewm-core`'s source inside its own derivation, which
+keeps evaluation pure and needs no build to understand the flake. Upstream's
+`nix/default.nix` returns the ELISP package and reaches the compositor only
+through `packageRequires`, so the patch is threaded through that list, and the
+elisp package is re-pointed at the patched build. Overriding only the Rust side
+would compile the patch and then load the old library: `emacsWithPackages`
+assembles the load path by walking `packageRequires`, and ewm-core's own output
+is where `libewm_core.so` is symlinked.
+
+One consequence matters when editing the patch. It is written the way a
+maintainer generates one — `git diff` from the repository root, so
+`a/compositor/src/module.rs` — while `ewm-core`'s source is rooted at
+`compositor/`, because `nix/default.nix` filters it out of the tree. The
+derivation therefore strips one component more than the default, through
+`patchFlags = [ "-p2" ]`. Check a candidate patch the same way:
+
+```console
+cd <ewm>/compositor && patch -p2 --dry-run < patches/ewm-keysym-hex.patch
+```

@@ -52,6 +52,12 @@ jobs:
       # upstream option, a template that no longer evaluates — at a fraction of
       # the main job's cost. `nix flake check` evaluates `packages.*` too, and
       # does not build them; only `checks.*` are built.
+      #
+      # The flake has to stay free of import-from-derivation for that to hold.
+      # Evaluation that reads a file out of a derivation cannot be satisfied
+      # when building is forbidden, and it fails as
+      # "path '...-ewm-patched.drv' is not valid" -- which is what this job did
+      # until modules/ewm.nix stopped patching ewm before importing it.
       - name: Evaluate every check (build nothing)
         run: nix flake check --no-build -L
 

@@ -29,26 +29,53 @@ let
   # Emacs that loads it.
   #
   # ONE PATCH, for an upstream bug. See docs/decisions/ewm-patches.md for the
-  # mechanism, the keysym numbers, the exit condition, and the second patch
-  # that was retired.
-  ewmSrc = pkgs.applyPatches {
-    name = "ewm-patched";
-    src = ewm;
-    patches = [
-      ../patches/ewm-keysym-hex.patch
-    ];
-  };
+  # mechanism, the keysym numbers, the measurement and the exit condition.
+  #
+  # Applied to ewm-core's own source inside its derivation, not to a copy of the
+  # tree as a step before importing it: `pkgs.applyPatches` returns a
+  # DERIVATION, so importing from it put evaluation through
+  # import-from-derivation -- which `nix flake check --no-build`, the gate CI
+  # runs on every pull request, cannot do.
 
   # The compositor's Emacs. emacs/pwayl.nix carries the whole argument for how
   # it is built: emacs31 from emacs-overlay, the passthru reconnect, and why
   # upstream's withSkia is not used.
   pwaylEmacs = import ../emacs/pwayl.nix { inherit pkgs ewm; };
 
-  ewmPkg = import "${ewmSrc}/nix/default.nix" {
+  ewmPkgUnpatched = import "${ewm}/nix/default.nix" {
     pkgs = pkgsEwm;
     withScreencastSupport = config.programs.ewm.screencast.enable;
     emacsPackage = pwaylEmacs;
   };
+
+  ewmCore = lib.findFirst (p: (p.pname or "") == "ewm-core")
+    (throw ''
+      ewm: upstream's nix/default.nix no longer lists ewm-core in
+      packageRequires, and modules/ewm.nix applies the keysym patch to
+      ewm-core's source. Point this at whatever replaced it: until then the
+      patch is NOT applied and the media/dictation keys stay broken.
+    '')
+    ewmPkgUnpatched.packageRequires;
+
+  ewmCorePatched = ewmCore.overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [ ../patches/ewm-keysym-hex.patch ];
+    # The patch is written the way a maintainer generates one -- `git diff`
+    # from the repository root, so a/compositor/src/module.rs. ewm-core's
+    # source is rooted at compositor/ (nix/default.nix filters it out of the
+    # tree), so one component MORE than the default -p1 has to come off.
+    patchFlags = [ "-p2" ];
+  });
+
+  # The elisp package has to reference the PATCHED ewm-core, because that is
+  # how the compositor reaches a session: emacsWithPackages walks
+  # packageRequires to assemble the load path, and ewm-core's own output is
+  # where libewm_core.so is symlinked. Overriding only the Rust side would
+  # build the patch and then load the old library.
+  ewmPkg = ewmPkgUnpatched.overrideAttrs (old: {
+    packageRequires = map
+      (p: if (p.pname or "") == "ewm-core" then ewmCorePatched else p)
+      (old.packageRequires or [ ]);
+  });
 
   emacsPkgs = import ../emacs/packages.nix { inherit pkgs; };
   # The EWM variant of the emanix Emacs: the shared build (emacs/packages.nix,
