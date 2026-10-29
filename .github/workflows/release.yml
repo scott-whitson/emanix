@@ -129,8 +129,6 @@ jobs:
             echo "release asset. Something has grown the live closure." >&2
             exit 1
           fi
-          sha256sum "$ISO" > SHA256SUMS
-          cat SHA256SUMS
 
       # Two names on purpose. The versioned one is the record; the stable one is
       # what the manual can link to forever:
@@ -139,8 +137,25 @@ jobs:
       # metered, only Actions artifact storage is.
       - name: Name the assets
         run: |
-          cp "$ISO" "emanix-installer-${TAG}.iso"
+          # The versioned name must not repeat the tag's own prefix: the default
+          # tag is already `installer-<date>`, so `emanix-installer-${TAG}.iso`
+          # reads `emanix-installer-installer-2026-10-29.iso`. It did, once.
+          stem="${TAG#installer-}"
+          echo "VERSIONED=emanix-installer-${stem}.iso" >> "$GITHUB_ENV"
+          cp "$ISO" "emanix-installer-${stem}.iso"
           cp "$ISO" emanix-installer.iso
+
+          # SHA256SUMS must name a PUBLISHED asset, never the store path the
+          # image was built at: `sha256sum -c` is run by whoever downloaded it,
+          # and a /nix/store path is a file that is not on their disk. The
+          # first release shipped it wrong exactly that way (installer-2026-10-29
+          # recorded /nix/store/...-nixos-minimal-...iso/iso/...), so the line is
+          # written for the stable asset name and then verified against the copy
+          # about to be uploaded -- the check that would have caught it.
+          digest=$(sha256sum "$ISO" | cut -d' ' -f1)
+          printf '%s  %s\n' "$digest" emanix-installer.iso > SHA256SUMS
+          sha256sum -c SHA256SUMS
+          cat SHA256SUMS
           ls -l emanix-installer*.iso SHA256SUMS
 
       - name: Publish
@@ -188,11 +203,28 @@ jobs:
           # a rebuild of the same commit should be able to replace a bad upload.
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" --clobber \
-              "emanix-installer-${TAG}.iso" emanix-installer.iso SHA256SUMS
+              "$VERSIONED" emanix-installer.iso SHA256SUMS
+            # The notes are part of the release too, and they embed the checksum
+            # block: uploading assets alone would leave the old text -- including
+            # the store-path line this step exists to stop shipping -- sitting on
+            # the page under a corrected file.
+            gh release edit "$TAG" --notes-file notes.md
+            # `--clobber` only replaces the same NAME, so an asset this workflow
+            # no longer publishes survives a rename and sits on the release
+            # looking current. Drop anything outside the set above.
+            for name in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+              case " $VERSIONED emanix-installer.iso SHA256SUMS " in
+                *" $name "*) ;;
+                *)
+                  echo "removing stale asset $name"
+                  gh release delete-asset "$TAG" "$name" -y
+                  ;;
+              esac
+            done
           else
             gh release create "$TAG" --target "$GITHUB_SHA" \
               --title "Emanix installer $TAG" --notes-file notes.md \
-              "emanix-installer-${TAG}.iso" emanix-installer.iso SHA256SUMS
+              "$VERSIONED" emanix-installer.iso SHA256SUMS
           fi
           gh release view "$TAG" --json url,assets \
             --template '{{.url}}{{"\n"}}{{range .assets}}{{.name}} {{.size}}{{"\n"}}{{end}}'
