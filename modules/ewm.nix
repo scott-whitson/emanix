@@ -111,6 +111,11 @@ let
   # derivation would silently disagree with the one the shell and the daemon
   # both export.
   hmCfg = config.home-manager.users.${config.emanix.username};
+
+  # The environment every emanix surface exports. Defined once in
+  # lib/emanix-env.nix, which carries the reasoning: three hand-copied lists had
+  # already drifted apart.
+  inherit (import ../lib/emanix-env.nix { inherit lib; }) mkEmanixEnv;
 in
 {
   imports = [ "${ewm}/nix/service.nix" ];
@@ -280,33 +285,23 @@ in
       fi
     '';
 
-    sessionVariables = {
-      # Why these are here and not in zsh.nix.
-      #
-      # The EWM Emacs is started by the login shell, not by the user manager, so
-      # neither Home Manager's `programs.zsh.sessionVariables' (~/.zprofile,
-      # read after the /etc/zprofile snippet above) nor its
-      # `systemd.user.sessionVariables' reach it. Measured on the live session
-      # 2026-09-11:
-      #   (getenv "EMANIX_THEMES_DIR")  => nil
-      #   emanix-theme--themes-dir      => "~/dotfiles/themes"  (absent)
-      # Every theme file read silently missed; the desktop had been running the
-      # wrong colours. `environment.sessionVariables' works because of WHERE
-      # NixOS puts it: it merges into `environment.variables' ->
-      # /etc/set-environment, which /etc/zshenv sources, and zshenv runs before
-      # zprofile — so the values exist by the time the snippet above runs
-      # `ewm-launch'.
-      #
-      # Every variable below is read by Emacs through `getenv', so all of them
-      # fail in the same silent way when unset. Only what is unique to each is
-      # noted.
-      EMANIX_THEMES_DIR = hmCfg.emanix.src.themesDir;
-
-      # The host's build-time theme. `emanix-theme--seed-name' reads it to
-      # converge a machine with no runtime state on the theme its flake
-      # configures rather than on the distro default.
-      EMANIX_THEME = hmCfg.emanix.theme;
-
+    # The EWM Emacs is started by the login shell, not by the user manager, so
+    # neither programs.zsh.sessionVariables nor systemd.user.sessionVariables
+    # reaches it — measured on the live session 2026-09-11: both getenv calls
+    # for EMANIX_THEMES_DIR returned nil, every theme file read silently missed,
+    # and the desktop had been running the wrong colours. NixOS's
+    # environment.sessionVariables works because of WHERE NixOS puts it: into
+    # environment.variables -> /etc/set-environment, which /etc/zshenv sources
+    # before the /etc/zprofile snippet that runs ewm-launch.
+    #
+    # The list itself is in lib/emanix-env.nix, shared with the two Home Manager
+    # surfaces — which this third copy had already drifted from: it was missing
+    # EMANIX and EMANIX_ROLE.
+    sessionVariables = (mkEmanixEnv {
+      src = hmCfg.emanix.src;
+      role = hmCfg.emanix.role;
+      theme = hmCfg.emanix.theme;
+    }) // {
       # Loads the sqlite-vec (vec0) extension into arc's DB. Kept in Nix so the
       # liveElisp emanix-arc.el stays store-path-free; arc errors at
       # database-open time if it is unset or points nowhere, which is the loud
@@ -316,23 +311,12 @@ in
       # X11 apps (Steam, etc.) use this to find XWayland, which EWM serves
       # through xwayland-satellite (see systemPackages below).
       DISPLAY = ":0";
-    }
-    # Helper-script dir. This block only EXPORTS the variable; it does not put
-    # binDir on the EWM session's PATH, which never carries it — the launcher
-    # runs from environment.loginShellInit (installed into /etc/zprofile), and
-    # the only PATH prepend is Home Manager's zsh initContent, which only
-    # interactive shells read. Elisp reaches helper scripts through
-    # $EMANIX_BIN_DIR instead. UNSET on a host built from the distribution
-    # alone; a consumer that keeps helper scripts sets emanix.src.binDir.
-    // lib.optionalAttrs (hmCfg.emanix.src.binDir != null) {
-      EMANIX_BIN_DIR = hmCfg.emanix.src.binDir;
-    }
-    # The consumer's checkout (~/dotfiles). emanix-welcome.el reads it; UNSET
-    # on a host built from the distribution alone, and without it the welcome
-    # buffer falls through to /etc/nixos and reports "no config repo yet" even
-    # on hosts that have one. See zsh.nix's EMANIX_DOTFILES.
-    // lib.optionalAttrs (hmCfg.emanix.src.dotfilesPath != null) {
-      EMANIX_DOTFILES = hmCfg.emanix.src.dotfilesPath;
+
+      # EMANIX_BIN_DIR is exported above but deliberately NOT put on this
+      # session's PATH: the launcher runs from environment.loginShellInit, and
+      # the only PATH prepend is Home Manager's zsh initContent, which only
+      # interactive shells read. Elisp reaches helper scripts through the
+      # variable instead.
     };
 
     # EWM runtime deps + the single Emacs (gives emacsclient on the system PATH).
