@@ -49,17 +49,19 @@
     max-free = 21474836480; # 20 GiB
   };
 
-  # Daily GC keeps the store lean. --delete-older-than 3d prunes generations
-  # older than three days, which gives a safe rollback window without
-  # accumulating weeks of dead paths. On a WSL host the vhdx never shrinks below
-  # its high-water mark, so the daily cadence still matters.
+  # Daily GC keeps the store lean, with a rollback window wide enough to use.
+  # It was 3d, which is not: a bad update, or a distribution regression you only
+  # notice when you reach for the thing that broke, could not be rolled back by
+  # the time you knew. Generations are the only safety net a NixOS user has, and
+  # `nixos-rebuild switch --rollback` needs one that still exists. Two weeks
+  # costs disk, not correctness.
   #
   # nix-collect-garbage takes --delete-older-than; --delete-generations is a
   # nix-env flag and is not accepted here.
   nix.gc = {
     automatic = true;
     dates = "daily";
-    options = "--delete-older-than 3d";
+    options = "--delete-older-than 14d";
   };
 
   # NOTE: system.stateVersion is per-host — it records the release a machine was

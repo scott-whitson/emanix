@@ -151,8 +151,9 @@ in
             unattended:      EMANIX_USER_PASSWORD=... sudo -E fresh-emanix-install
                              (answers from stdin; LUKS must be answered 'n')
             check only:      sudo fresh-emanix-install <host> --check-only
-            remote access:   boot with live.nixos.passwd=<pw> on the kernel
-                             cmdline, then ssh nixos@<ip>
+            remote access:   set one at the console, then ssh nixos@<ip>
+                             (sudo passwd nixos -- the kernel cmdline is
+                             world-readable, so it is not offered here)
           ═════════════════════════════════════════════════════════════════
         '';
       };

@@ -188,8 +188,18 @@ curl -LO https://github.com/scott-whitson/emanix/releases/latest/download/emanix
 
 Releases are date-tagged (`installer-YYYY-MM-DD`) rather than versioned, and the
 asset name does not change, so the URL above always names the current image.
-`SHA256SUMS` sits beside it. About 1.4 GiB: write it to a stick and install with
-one command and six questions.
+`SHA256SUMS` sits beside it, and the image carries a build provenance
+attestation:
+
+```bash
+sha256sum -c SHA256SUMS
+gh attestation verify emanix-installer.iso --repo scott-whitson/emanix
+```
+
+The checksum catches a corrupted download. It cannot tell you who built the
+image, because the same job produces both — the attestation is what records the
+repository, workflow and commit. About 1.4 GiB: write it to a stick and install
+with one command and six questions.
 
 To build the same image instead:
 

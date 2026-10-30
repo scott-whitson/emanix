@@ -37,6 +37,8 @@ on:
 
 permissions:
   contents: write # create the release, its tag and its assets
+  id-token: write # OIDC, for the build provenance attestation
+  attestations: write # record that attestation against this repository
 
 concurrency:
   group: release
@@ -158,6 +160,19 @@ jobs:
           cat SHA256SUMS
           ls -l emanix-installer*.iso SHA256SUMS
 
+      - name: Attest the image
+        # Provenance without a long-lived key: this records, verifiably, which
+        # repository, workflow and commit produced this exact file. It closes a
+        # gap the checksum cannot: SHA256SUMS is produced by the same job that
+        # produces the image, so it detects a corrupted download and says nothing
+        # about authorship -- whoever can publish the release can publish a
+        # matching checksum. A stranger verifies with:
+        #   gh attestation verify emanix-installer.iso --repo scott-whitson/emanix
+        # Runs BEFORE publishing, so an unattested image is never released.
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: emanix-installer.iso
+
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -182,6 +197,15 @@ jobs:
 
           ```
           sha256sum -c SHA256SUMS
+          ```
+
+          That checksum detects a corrupted download; it cannot tell you who
+          built the image, because the same job produces both. The image also
+          carries a build provenance attestation, which records the repository,
+          workflow and commit it came from:
+
+          ```
+          gh attestation verify emanix-installer.iso --repo scott-whitson/emanix
           ```
           NOTES
           {

@@ -6,7 +6,13 @@
 {
   hostName = "emanix";
   device = "/dev/vda";
-  luks = false;
+  # ON by default, matching the installer's own default. This template is the
+  # documented hand-edit path, and an unencrypted root is the wrong thing for a
+  # stranger to get by not reading a line: emanix offers opt-in autologin, and
+  # the docs warn that autologin without encryption means physical access is a
+  # logged-in session with the age identities that decrypt every secret. Turn it
+  # off deliberately for a machine where that does not matter, not by omission.
+  luks = true;
   filesystem = "btrfs";
   swapSize = "0";
 
