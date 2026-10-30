@@ -300,20 +300,23 @@ read a screen.
 ## 11. The checks
 
 The command `nix flake check` composes one throwaway machine three times — once
-for each role label — and runs every check below. The checks test the
+for each role label — and runs every check below. The three differ only in that
+label: `role` selects no modules, so all three evaluate the same system. What
+they assert is that the enum accepts its three values, that the host evaluates,
+and that the `homeModules` seam is exercised. The checks test the
 distribution against itself. Most read a recorded file. No check reaches a
 network service. The three `role-*` checks compute a derivation path and build
 nothing. `checks/check-index.nix` asserts this table names every check.
 
 | Check | What it finds |
 | --- | --- |
-| `role-workstation`, `role-server`, `role-wsl` | Each role evaluates. The `homeModules` seam is exercised too |
+| `role-workstation`, `role-server`, `role-wsl` | The enum accepts its three values and the host evaluates (all three are one composition — `role` selects no modules); the `homeModules` seam is exercised too |
 | `palette-contrast` | The colors of every palette have enough contrast |
 | `template-host` | The template evaluates, with the compositor module, and a host built from the distribution alone names no consumer `bin/` or checkout. The template is the only thing a new user has |
 | `disk-layout` | The disk layout agrees with the recorded layout |
 | `hardware-gpu` | The GPU option reaches the kernel modules |
 | `theme-switch` | The theme switch works |
-| `prose` | The prose renderer works, including the drawn markdown table |
+| `prose` | The prose renderer works, including the drawn org table (markdown rendering belongs to `markdown-modern`, which `checks/prose.nix` does not claim) |
 | `web` | The web layer detects templates, picks the right mode, and picks the right formatter |
 | `welcome` | The welcome buffer finds its dismissal marker and its configuration repository |
 | `arc-glue`, `arc-bridge` | The assistant holds its interface |
@@ -339,9 +342,9 @@ subprocess, or a nested `nix eval`.
   `EMACS=$(nix build --no-link --print-out-paths .#emacs)/bin/emacs ./tests/init-guard.sh`
 
 The file `.github/workflows/ci.yml` runs all of them. A cheap job runs on every
-pull request: it evaluates every check with `nix flake check --no-build` and
-builds nothing. A slow job runs on `main` and builds every check, because eight
-of them build Emacs.
+pull request: it evaluates every check with `nix flake check --no-build`, builds
+the one check it names (`retired-names`), and builds no closure. A slow job runs
+on `main` and builds every check, because eight of them build Emacs.
 
 ## 12. How to change the distribution
 

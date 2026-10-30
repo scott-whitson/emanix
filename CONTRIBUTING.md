@@ -89,7 +89,10 @@ still loses to a plain definition in a consumer's config. `services.speechd` in
 `role-workstation`, `role-server` and `role-wsl` each compose a throwaway host
 through the real `mkHost` and take its `toplevel.drvPath` under
 `builtins.unsafeDiscardStringContext`; `template-host` does the same with the
-template's module list, including `modules/ewm.nix`. The derivation is computed;
+template's module list, including `modules/ewm.nix`. All three role checks
+evaluate the same system — `role` is a label no module reads — so the label is
+what the enum is being asked to accept, and the `homeModules` seam is what the
+composition actually exercises. The derivation is computed;
 the closure is never realized. This is deliberate — a workstation closure
 source-compiles EWM, and a check that cannot be run safely on the machine you
 are using is not a check. Do not "fix" it into a build so it can test more.
@@ -137,7 +140,8 @@ differs silently is not.
 
 `i-intelligence/`, `os-system/` and `hi-hardware/` were renamed on 2026-08-30.
 `checks/retired-names.nix` fails the build if a live `.nix` file names one as if
-it were a current path. `README.md` is the one place that spells the old names,
+it were a current path. `README.md` and `WALKTHROUGH.md` are the two places that
+spell the old names,
 because it is the one place that explains why they are gone; other files point at
 it rather than restating it.
 

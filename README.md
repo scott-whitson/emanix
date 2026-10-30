@@ -248,14 +248,18 @@ renders it into one directory per palette at build time. A consumer sets
 ## Validation
 
 ```bash
-nix flake check              # compose a throwaway host per role label; run every check
+nix flake check              # compose a throwaway host three times, once per role label; run every check
 nix flake check --no-build   # the same evaluation, building nothing (what CI's PR job runs)
 nix build .#emacs            # the distribution's own Emacs, without a host
 ```
 
 `nix flake check` composes a throwaway host three times — once per `role` label,
 through the real `mkHost`, with a stub hardware file and a username that is
-intentionally not the author's — and runs every check. [`WALKTHROUGH.md`](WALKTHROUGH.md)
+intentionally not the author's — and runs every check. The three differ only in
+that label: `role` selects no modules, so what those checks assert is that the
+enum accepts its three values, that the host evaluates, and that the
+`homeModules` seam is exercised. Do not read them as three machines.
+[`WALKTHROUGH.md`](WALKTHROUGH.md)
 lists them one row each, and `checks/check-index.nix` asserts that list covers
 every check, because a check nobody can find is a check nobody runs.
 
