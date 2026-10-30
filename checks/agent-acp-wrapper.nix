@@ -36,7 +36,13 @@ let
 
   # `builtins.match' anchors its pattern at BOTH ends, so a search is written
   # `.*pattern.*' and an alternation must be parenthesised to stay a search.
-  lineMatches = re: s: builtins.match re s != null;
+  #
+  # Per LINE, not per script: in Nix a `.` matches a newline, so matching the
+  # whole file would let `/nix/store/' on one line and `/bin/node' on another
+  # satisfy a must-match assertion that the grep -q it replaces (which is
+  # line-based) could not. The name was copied from the three line-based checks;
+  # this is what makes it true here.
+  lineMatches = re: s: lib.any (l: builtins.match re l != null) (lib.splitString "\n" s);
 
   # check_adapter's two greps, run against both adapters.
   nodeProblems = name: script: [

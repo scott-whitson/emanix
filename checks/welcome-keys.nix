@@ -57,28 +57,23 @@ let
   #    word-splitting loop, substring membership, and a commented-out binding --
   #    are in docs/decisions/welcome-keys-check.md.
   #
-  #    grep -oE reimplemented: try the pattern at each position of the buffer
-  #    text, record a hit and resume past it, otherwise advance one character.
-  #    The trailing `.*' is what lets `builtins.match' anchor at the start of
-  #    the substring while its one capture group returns the key alone.
-  keyAt = s: i:
-    let
-      m = builtins.match "(C-[a-z] [a-z?]).*"
-        (builtins.substring i (builtins.stringLength s - i) s);
-    in
-    if m == null then null else builtins.head m;
-
+  #    grep -oE reimplemented WITHOUT a per-character recursion. Nix has no tail
+  #    calls, and one frame per character put this within ~1200 frames of
+  #    max-call-depth (10000) on an 8769-character buffer that is expected to
+  #    grow -- checks/agent-shell-glue.nix chose builtins.split over a character
+  #    walk for the same reason.
+  #
+  #    Splitting on `C-' is the same leftmost, non-overlapping scan: a key can
+  #    only begin where `C-' appears, the pattern is anchored at the start of
+  #    each segment, and no key contains a second `C-' to overlap. The trailing
+  #    `.*' is what lets `builtins.match' anchor at the start while its one
+  #    capture group returns the key alone.
   scanKeys = s:
-    let
-      n = builtins.stringLength s;
-      go = i: acc:
-        if i >= n then acc
-        else
-          let k = keyAt s i; in
-          if k == null then go (i + 1) acc
-          else go (i + builtins.stringLength k) (acc ++ [ k ]);
-    in
-    go 0 [ ];
+    lib.concatMap
+      (seg:
+        let m = builtins.match "(C-[a-z] [a-z?]).*" ("C-" + seg); in
+        lib.optional (m != null) (builtins.head m))
+      (lib.splitString "C-" s);
 
   keys = builtins.sort builtins.lessThan (lib.unique (scanKeys welcome));
 

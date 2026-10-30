@@ -19,8 +19,9 @@ let
   lines = lib.splitString "\n" text;
 
   # `builtins.match' anchors its pattern at BOTH ends, so an unanchored
-  # `grep -E' pattern is written `.*pattern.*' here, and one that began with
-  # `^' is written WITHOUT the leading `.*' -- the anchor is already there.
+  # `grep -E' pattern is written `.*pattern.*' here. (Where a pattern began with
+  # `^' it is written WITHOUT the leading `.*', since the anchor is already
+  # there — checks/agent-shell-glue.nix has such a case; this file does not.)
   # The result is null when the pattern does not match the line.
   lineMatches = re: line: builtins.match re line != null;
   anyLineMatches = re: lib.any (lineMatches re) lines;

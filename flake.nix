@@ -316,9 +316,12 @@
           # whenever someone remembers to look. See checks/arc-glue.nix.
           arc-glue = import ./checks/arc-glue.nix { inherit pkgs; };
 
-          # The ACP adapter wrapper, executed rather than read: the failure it
-          # guards (node resolved through PATH) only appears inside the
-          # systemd-run Emacs daemon. See checks/agent-acp-wrapper.nix.
+          # The ACP adapter wrapper. Half of it is decided at evaluation --
+          # which is what puts it in front of a pull request -- by reading the
+          # wrapper's own script text, and the other half still builds and RUNS
+          # it, because executing a script cannot happen at evaluation. The
+          # failure it guards (node resolved through PATH) only appears inside
+          # the systemd-run Emacs daemon. See checks/agent-acp-wrapper.nix.
           agent-acp-wrapper = import ./checks/agent-acp-wrapper.nix { inherit pkgs; };
 
           # The ARC compatibility bridge's dispatch and key contracts, tested

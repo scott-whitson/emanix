@@ -19,8 +19,13 @@ Checking is cheap and loses nothing.
 
 ## The extraction pattern, and what it cannot see
 
-`grep -oE 'C-[a-z] [a-z?]'` over the buffer text. It extracts a single lowercase
-prefix key followed by exactly one lowercase-or-`?` second token.
+A Nix scanner over the buffer text — `scanKeys` splits on `C-` and matches
+`(C-[a-z] [a-z?]).*` at the start of each segment. It extracts a single lowercase
+prefix key followed by exactly one lowercase-or-`?` second token. It replaced
+`grep -oE 'C-[a-z] [a-z?]'` when this check moved from build time to evaluation;
+the extracted set is identical (verified against grep's own output), and the
+split form avoids the per-character recursion the first version used, which sat
+about 1200 frames inside Nix's max-call-depth on an 8769-character buffer.
 
 **Reach:** a future row using a digit, an uppercase letter, or a chord like
 `C-c C-i` will not be extracted at all, and the guard will not see it. Widen the
@@ -61,9 +66,9 @@ to succeed by iterating zero times.
 
 A real code line whose *own trailing comment* contains a complete binding shape
 — `(setq x t) ;; (global-set-key (kbd "C-c t") ...)` — still matches, because
-the grep pattern has no notion of where a line's code ends and its comment
+the binding pattern has no notion of where a line's code ends and its comment
 begins. Nothing in the tree does this today. Narrowing further needs parsing, not
-grep; that is the point at which this stops being cheap.
+a regex; that is the point at which this stops being cheap.
 
 ## The built-in exemption
 
