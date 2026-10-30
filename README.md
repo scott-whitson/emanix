@@ -225,14 +225,17 @@ upstream `main` happens to be that day.
 The install also runs unattended, with no terminal anywhere in the loop:
 
 ```bash
-printf 'myhost\nalice\nn\n\n\n\nyes\n' | \
-  EMANIX_USER_PASSWORD=secret sudo -E fresh-emanix-install
+read -rsp 'password for the new user: ' EMANIX_USER_PASSWORD; echo
+export EMANIX_USER_PASSWORD
+printf 'myhost\nalice\nn\n\n\n\nyes\n' | sudo -E fresh-emanix-install
 ```
 
 The prompts read stdin, and the password comes from `EMANIX_USER_PASSWORD`
 consumed on a pipe by `chpasswd` — never as an argument, which would be
-world-readable in `/proc`. `EMANIX_USER_PASSWORD` is read by the installer only
-and unset before any child runs. LUKS still prompts (disko asks for the
+world-readable in `/proc`. The installer takes it out of the environment before
+the first child process starts, so no child — and none of the root children
+before the password step — can read it back from `/proc/<pid>/environ`. LUKS
+still prompts (disko asks for the
 passphrase), so an unattended install answers `n` there.
 
 ## Themes

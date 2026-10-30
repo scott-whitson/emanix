@@ -723,6 +723,7 @@ fi
 # what makes an unattended install possible at all.
 ep_harness="$csf_dir/passwd-env-harness.sh"
 extract_fn set_password_from_env "$SCRIPT" > "$csf_dir/pw-env.sh"
+extract_fn capture_password "$SCRIPT" > "$csf_dir/pw-capture.sh"
 {
   echo 'set -euo pipefail'
   echo 'say()  { :; }'
@@ -741,19 +742,25 @@ nixos-enter() {
   return 0
 }
 STUB
+  cat "$csf_dir/pw-capture.sh"
   cat "$csf_dir/pw-env.sh"
+  echo 'capture_password'
+  # A CHILD process, spawned after the capture: this is the assertion that the
+  # password is out of the environment, not merely unset later in the shell.
+  echo 'env > "${NI_ENV_DUMP:-/dev/null}"'
   echo 'set_password_from_env testuser'
   echo 'printf "SURVIVED\n"'
   echo '[ -z "${EMANIX_USER_PASSWORD:-}" ] && printf "ENV-UNSET\n"'
 } > "$ep_harness"
 
 ep_out=""; ep_rc=0
-ep_out="$(EMANIX_USER_PASSWORD=secret NI_LOG="$csf_dir/ep1.log" NI_STDIN="$csf_dir/ep1.stdin" bash "$ep_harness" 2>&1)"; ep_rc=$?
+ep_out="$(EMANIX_USER_PASSWORD=secret NI_ENV_DUMP="$csf_dir/ep1.childenv" NI_LOG="$csf_dir/ep1.log" NI_STDIN="$csf_dir/ep1.stdin" bash "$ep_harness" 2>&1)"; ep_rc=$?
 if [ "$ep_rc" = 0 ] && grep -qxF 'testuser:secret' "$csf_dir/ep1.stdin" &&
    grep -q 'chpasswd' "$csf_dir/ep1.log" &&
    ! grep -v 'passwd -S' "$csf_dir/ep1.log" | grep -q "passwd 'testuser'" &&
-   grep -q 'ENV-UNSET' <<<"$ep_out"; then
-  echo "  ok   a password in the environment goes to chpasswd on stdin, never to passwd, and is unset after"
+   grep -q 'ENV-UNSET' <<<"$ep_out" &&
+   [ -s "$csf_dir/ep1.childenv" ] && ! grep -q '^EMANIX_USER_PASSWORD=' "$csf_dir/ep1.childenv"; then
+  echo "  ok   a password in the environment goes to chpasswd on stdin, never to passwd, is unset, and no child sees it"
 else
   printf '  FAIL the environment password path misbehaved (rc %s):\n%s\nlog:%s\n' \
     "$ep_rc" "$ep_out" "$(cat "$csf_dir/ep1.log" 2>/dev/null)"
@@ -799,7 +806,9 @@ extract_fn set_password "$SCRIPT" > "$csf_dir/pw-choose.sh"
   echo 'FLAKE_HOST=testbox'
   echo 'set_password_from_env()   { printf "CHOSE-ENV\n"; }'
   echo 'set_password_interactively() { printf "CHOSE-INTERACTIVE\n"; }'
+  cat "$csf_dir/pw-capture.sh"
   cat "$csf_dir/pw-choose.sh"
+  echo 'capture_password'
   echo 'set_password testuser'
 } > "$ch_harness"
 

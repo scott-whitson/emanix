@@ -6,10 +6,11 @@
 #
 # Unattended: the prompts read stdin, and the password step takes its password
 # from the environment, so a whole install can run with no terminal at all:
-#   printf 'host\nuser\nn\n\n\n\nyes\n' | \
-#     EMANIX_USER_PASSWORD=secret sudo -E fresh-emanix-install
-# The environment is read by THIS script only, never passed to a child, and the
-# secret reaches chpasswd on a pipe rather than in argv. LUKS=yes still prompts
+#   read -rsp 'password for the new user: ' EMANIX_USER_PASSWORD; echo
+#   export EMANIX_USER_PASSWORD
+#   printf 'host\nuser\nn\n\n\n\nyes\n' | sudo -E fresh-emanix-install
+# The password is moved out of the environment before the FIRST child starts,
+# and it reaches chpasswd on a pipe rather than in argv. LUKS=yes still prompts
 # (disko asks for the passphrase), so an unattended install answers n there.
 #
 # The host is required. The repo is located automatically (EMANIX_REPO, the
@@ -183,6 +184,23 @@ known_hosts() {
     --apply 'cfgs: builtins.concatStringsSep " " (builtins.attrNames cfgs)' \
     2>/dev/null
 }
+
+# --- The unattended password, out of the environment before any child ----------
+# `sudo -E` exports EMANIX_USER_PASSWORD into this process, so every child would
+# inherit it and any process could read it back from /proc/<pid>/environ. The
+# children here are root, and there are a lot of them before the password step:
+# lsblk, find, nix flake lock, disko, nixos-install, nixos-enter.
+#
+# So it is taken into a shell variable and unset HERE, at the top of the flow.
+# `pw_from_env` is a plain assignment, never exported, so the value stays in this
+# process's memory. Measured 2026-10-29 by an independent review: the first
+# version unset it inside the password step, which runs at 5 of 5, and the
+# promise in the comment there was false for every child that had already run.
+capture_password() {
+  pw_from_env="${EMANIX_USER_PASSWORD:-}"
+  unset EMANIX_USER_PASSWORD
+}
+capture_password
 
 # --- Locate the repo ----------------------------------------------------------
 resolve_repo() {
@@ -658,12 +676,11 @@ Log in and run: sudo chown -R $1:users ~/dotfiles"
 # not in argv -- an argument is world-readable in /proc/<pid>/cmdline and lands
 # in shell history, and a pipe does neither.
 set_password_from_env() {
-  local pw="$EMANIX_USER_PASSWORD"
+  local pw="$pw_from_env"
   local user="$1"
-  # Out of the environment before any child runs, so nothing downstream
-  # inherits it. The value lives on in $pw, which is this process's memory and
-  # not a child's environment.
-  unset EMANIX_USER_PASSWORD
+  # $pw_from_env was taken out of the environment before the first child started
+  # (capture_password, at the top of the flow), so nothing downstream can inherit
+  # it and nothing here has to unset anything.
 
   # chpasswd reads one user:password per line, split at the FIRST colon, so a
   # colon inside the password is fine. A newline is not: it would be read as a
@@ -737,7 +754,7 @@ mount the root filesystem by hand), then run
 # the machine already installed and nothing on screen to say why.
 set_password() {
   local user="$1"
-  if [ -n "${EMANIX_USER_PASSWORD:-}" ]; then
+  if [ -n "${pw_from_env:-}" ]; then
     set_password_from_env "$user"
   elif [ ! -t 0 ]; then
     die "stdin is not a terminal, so the password for $user cannot be typed.
