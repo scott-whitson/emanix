@@ -93,7 +93,7 @@ in
     keysDir = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
-      example = "/home/scott/dotfiles/keys";
+      example = "/home/alice/dotfiles/keys";
       description = ''
         Absolute path, as a STRING, to a keys/ dir (host_ed25519 key pairs) to
         stage at /etc/emanix/keys. Null stages no keys.

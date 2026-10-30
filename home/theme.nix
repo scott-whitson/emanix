@@ -34,7 +34,7 @@ in
     gui = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Machine has a graphical session. Gates cursor theme, Wayland tools, GUI apps, and ghostty config.";
+      description = "Machine has a graphical session. Gates Wayland tools, GUI apps, and ghostty config.";
     };
 
     role = lib.mkOption {

@@ -100,7 +100,9 @@
     # face — nor Nerd Font's symbol set — covers the media-control block
     # U+23F5/23F8/23FA, so emacs drew hex-tofu boxes. NotoSansSymbols2 (in
     # this package) is the only thing in nixpkgs checked that has them.
-    # Picked up by fontconfig fallback; set-fontset-font is inert here.
+    # Picked up by fontconfig fallback. Reaching the private-use glyphs needs
+    # the fontset wiring in emacs/config.el; a note here once claimed
+    # set-fontset-font was inert on this build, and config.el corrects that.
     noto-fonts
     # Prose faces for emanix-prose-mode (markdown/org rendered as documents).
     # Plex Sans for body, Plex Serif for headings — a designed companion to
