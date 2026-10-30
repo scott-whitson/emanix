@@ -11,98 +11,153 @@
 # site; and the manual's rows aggregate many bindings each while its prose
 # explains rather than lists. Generation would have to discard all of that.
 # Checking is cheap and loses nothing.
+#
+# Evaluated, never built. Every assertion is `throw'n at EVALUATION time so
+# `nix flake check --no-build' -- the gate that runs on every pull request --
+# reports it; an `exit 1' inside a build script could not. Same idiom as
+# checks/retired-names.nix. The extraction `grep -oE' is a scanner here
+# because Nix has no find-all regex.
 { pkgs, ... }:
-pkgs.runCommand "emanix-welcome-keys" { } ''
-  welcome=${../emacs/lisp/emanix-welcome.el}
-  config=${../emacs/config.el}
-  fallback=${../emacs/fallback.el}
-  arc=${../emacs/lisp/emanix-arc.el}
+let
+  inherit (pkgs) lib;
 
-  # 1. No absolute home path. Same rule as arc-glue.nix, same reason.
-  if grep -nE '"/home/[a-z]' "$welcome"; then
-    echo "emanix-welcome.el contains an absolute home path; derive it from \$HOME" >&2
-    exit 1
-  fi
+  welcomeSrc = ../emacs/lisp/emanix-welcome.el;
+  welcome = builtins.readFile welcomeSrc;
+  welcomeLines = lib.splitString "\n" welcome;
 
-  # 2. The pre-rename name must not reappear.
-  if grep -n 'eminix' "$welcome"; then
-    echo "emanix-welcome.el mentions the pre-rename distro name; it is emanix now" >&2
-    exit 1
-  fi
+  # The three files a live binding form may sit in. config.el is the distro's
+  # own, fallback.el is a second intentional definition site, and emanix-arc.el
+  # carries `C-c i' behind (featurep 'arc).
+  bindingTexts = [
+    (builtins.readFile ../emacs/config.el)
+    (builtins.readFile ../emacs/fallback.el)
+    (builtins.readFile ../emacs/lisp/emanix-arc.el)
+  ];
+
+  # `builtins.match' anchors its pattern at BOTH ends, so `.*pattern.*' is an
+  # unanchored search and the result is null when the line does not match.
+  lineMatches = re: line: builtins.match re line != null;
+  anyLineMatches = re: ls: lib.any (lineMatches re) ls;
 
   # 3. Every C-* key the buffer advertises must be bound by a LIVE binding form
   #    in the shipped elisp. EWM's own super-keys are not checked: they live in
   #    the ewm input, which this repo cannot see.
   #
   #    The extraction pattern reaches a lowercase prefix plus one
-  #    lowercase-or-`?' token and no further — a digit, an uppercase letter or a
-  #    chord like `C-c C-i' is not extracted and will not be seen. Widen it, and
-  #    re-run the fail/pass drill, before trusting it on such a row.
+  #    lowercase-or-`?' token and no further -- a digit, an uppercase letter or
+  #    a chord like `C-c C-i' is not extracted and will not be seen. Widen it,
+  #    and re-run the fail/pass drill, before trusting it on such a row.
   #
-  #    KNOWN RESIDUAL GAP: a real code line whose own trailing comment contains a
-  #    complete binding shape still matches, because grep cannot tell where a
-  #    line's code ends and its comment begins. Nothing in this tree does that
-  #    today; closing it needs parsing, not grep.
+  #    KNOWN RESIDUAL GAP: a real code line whose own trailing comment contains
+  #    a complete binding shape still matches, because nothing here can tell
+  #    where a line's code ends and its comment begins. Nothing in this tree
+  #    does that today; closing it needs parsing, not pattern matching.
   #
-  #    The four traps found while writing this — the brief's regex, the
-  #    word-splitting loop, substring membership, and a commented-out binding —
+  #    The four traps found while writing this -- the brief's regex, the
+  #    word-splitting loop, substring membership, and a commented-out binding --
   #    are in docs/decisions/welcome-keys-check.md.
-  keys=$(grep -oE 'C-[a-z] [a-z?]' "$welcome" | sort -u)
+  #
+  #    grep -oE reimplemented: try the pattern at each position of the buffer
+  #    text, record a hit and resume past it, otherwise advance one character.
+  #    The trailing `.*' is what lets `builtins.match' anchor at the start of
+  #    the substring while its one capture group returns the key alone.
+  keyAt = s: i:
+    let
+      m = builtins.match "(C-[a-z] [a-z?]).*"
+        (builtins.substring i (builtins.stringLength s - i) s);
+    in
+    if m == null then null else builtins.head m;
 
-  # An empty extraction is a guard that has stopped seeing its subject, not a
-  # clean bill of health -- if the buffer's render format ever changes so
-  # this pattern matches nothing, the loop below must not be allowed to pass
-  # by iterating zero times.
-  if [ -z "$keys" ]; then
-    echo "emanix-welcome.el: no C-* keys were extracted from the buffer text; the extraction pattern no longer matches this file's format" >&2
-    exit 1
-  fi
+  scanKeys = s:
+    let
+      n = builtins.stringLength s;
+      go = i: acc:
+        if i >= n then acc
+        else
+          let k = keyAt s i; in
+          if k == null then go (i + 1) acc
+          else go (i + builtins.stringLength k) (acc ++ [ k ]);
+    in
+    go 0 [ ];
 
-  fails=0
+  keys = builtins.sort builtins.lessThan (lib.unique (scanKeys welcome));
+
   # Emacs's own default bindings are exempt: the buffer legitimately points at
   # built-ins, and emanix does not bind these and never should, so demanding a
   # binding form for them would fail on correct code. Deliberately tiny, and NOT
-  # an escape hatch — see docs/decisions/welcome-keys-check.md.
-  builtin_key() {
-    case "$1" in
-    "C-h i" | "C-h b" | "C-h k" | "C-h f" | "C-h v" | "C-h m") return 0 ;;
-    *) return 1 ;;
-    esac
-  }
+  # an escape hatch -- see docs/decisions/welcome-keys-check.md.
+  builtinKeys = [ "C-h i" "C-h b" "C-h k" "C-h f" "C-h v" "C-h m" ];
+  advertisedKeys = lib.subtractLists builtinKeys keys;
 
-  while IFS= read -r key; do
-    [ -n "$key" ] || continue
-    if builtin_key "$key"; then continue; fi
-    bound=0
-    for src in "$config" "$fallback" "$arc"; do
-      if grep -vE '^[[:space:]]*;' "$src" \
-         | grep -qE '(global-set-key|keymap-global-set|keymap-set|define-key|bind-key)[^"]*"'"$key"'"'; then
-        bound=1
-        break
-      fi
-    done
-    if [ "$bound" -eq 0 ]; then
-      echo "emanix-welcome.el advertises '$key' but no live binding form in config.el, fallback.el, or emanix-arc.el sets it" >&2
-      fails=1
-    fi
-  done <<< "$keys"
-  [ "$fails" -eq 0 ] || exit 1
+  # The only regex metacharacter the extraction pattern can hand back is the
+  # `?' of a second-token `?', so escaping that one keeps the key literal
+  # inside the binding pattern below.
+  literalKey = key: lib.replaceStrings [ "?" ] [ "\\?" ] key;
 
-  # 4. The buffer must still name the site. It is the only manual there is, and
-  #    a welcome buffer that does not point at it orphans the reader.
-  if ! grep -q 'emanix.net' "$welcome"; then
-    echo "emanix-welcome.el no longer points at emanix.net" >&2
-    exit 1
-  fi
+  # Commenting a binding out is the likeliest way one disappears, so a line
+  # whose first non-blank character is `;' is dropped before matching, the way
+  # the shell's `grep -vE' dropped it. The remaining line must then carry both a
+  # binding form and the QUOTED key: a bare mention in prose -- "C-u C-c t =
+  # new terminal" -- does not count.
+  codeLines = t:
+    builtins.filter (l: !(lib.hasPrefix ";" (lib.trim l))) (lib.splitString "\n" t);
 
+  bindingPattern = key:
+    ''.*(global-set-key|keymap-global-set|keymap-set|define-key|bind-key)[^"]*"${literalKey key}".*'';
+
+  problems = [
+    # 1. No absolute home path. Same rule as arc-glue.nix, same reason.
+    {
+      ok = !(anyLineMatches ''.*"/home/[a-z].*'' welcomeLines);
+      message = ''emanix-welcome.el contains an absolute home path; derive it from $HOME'';
+    }
+
+    # 2. The pre-rename name must not reappear.
+    {
+      ok = !(lib.hasInfix "eminix" welcome);
+      message = "emanix-welcome.el mentions the pre-rename distro name; it is emanix now";
+    }
+  ]
+  # An empty extraction is a guard that has stopped seeing its subject, not a
+  # clean bill of health -- if the buffer's render format ever changes so the
+  # pattern matches nothing, the per-key assertions below must not be allowed
+  # to pass by iterating zero times.
+  ++ [
+    {
+      ok = keys != [ ];
+      message = "emanix-welcome.el: no C-* keys were extracted from the buffer text; the extraction pattern no longer matches this file's format";
+    }
+  ]
+  ++ map
+    (key: {
+      ok = lib.any (t: anyLineMatches (bindingPattern key) (codeLines t)) bindingTexts;
+      message = "emanix-welcome.el advertises '${key}' but no live binding form in config.el, fallback.el, or emanix-arc.el sets it";
+    })
+    advertisedKeys
+  ++ [
+    # 4. The buffer must still name the site. It is the only manual there is,
+    #    and a welcome buffer that does not point at it orphans the reader.
+    {
+      ok = lib.hasInfix "emanix.net" welcome;
+      message = "emanix-welcome.el no longer points at emanix.net";
+    }
+  ]
   # 5. The runtime probes must still be there. Replace either with a constant
   #    and the buffer starts telling a stranger about a path they do not have.
-  for required in emanix-welcome--config-repo emanix-welcome--dismissed-file; do
-    if ! grep -q "$required" "$welcome"; then
-      echo "emanix-welcome.el no longer defines $required" >&2
-      exit 1
-    fi
-  done
+  ++ (map
+    (name: {
+      ok = lib.hasInfix name welcome;
+      message = "emanix-welcome.el no longer defines ${name}";
+    })
+    [ "emanix-welcome--config-repo" "emanix-welcome--dismissed-file" ]);
 
-  touch $out
-''
+  failures = builtins.filter (p: !p.ok) problems;
+
+  message = ''
+    emanix-welcome-keys: ${toString (builtins.length failures)} assertion(s)
+    over emanix-welcome.el fail, so evaluation stops here rather than building:
+
+    ${lib.concatStringsSep "\n" (map (p: "  - ${p.message}") failures)}
+  '';
+in
+if failures != [ ] then throw message else pkgs.runCommand "emanix-welcome-keys" { } "touch $out"
