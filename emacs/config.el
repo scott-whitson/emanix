@@ -82,7 +82,7 @@
 ;; set above is realized into a fresh fontset that does NOT carry these
 ;; prepends, so a rule applied at load time reaches nothing.
 ;;
-;; Measured on rafik 2026-09-02, after a rebuild and reboot: U+F0079 gave
+;; Measured 2026-09-02 on the EWM reference host, after a rebuild and reboot: U+F0079 gave
 ;; `internal-char-font' => NO FONT and `fontset-font' => (nil . gb18030*-*),
 ;; while re-evaluating the IDENTICAL `set-fontset-font' calls in that same live
 ;; session resolved it to "Symbols Nerd Font Mono" immediately. The rule was
@@ -266,7 +266,7 @@ Nothing a user means by \"close my buffers\" lives in that namespace.
 NOT VERIFIED: whether EWM represents client windows as buffers on the
 graphical hosts. It appears to work in frames (`ewm-frame-new',
 `ewm--focused-frame'), which the \"*\" group does not touch, but if a wipe
-ever disturbs the window manager on rafik, add its buffers here."
+ever disturbs the window manager, add its buffers here."
   (or (eq buf (current-buffer))
       (minibufferp buf)
       (string-prefix-p " " (buffer-name buf))
@@ -773,15 +773,15 @@ base name, hence the `file-name-nondirectory' before the prefix test."
          ((org-agenda-files (list (expand-file-name "Dates.org" org-directory)))))))
 
 ;; --- Google Docs sync moved to the consumer (2026-09-20) ---
-;; The org <-> Google Docs workflow is rafik-only and names the author's own
-;; org tree, OAuth credentials and hostname, so it belongs to the consuming
-;; flake rather than to the distribution. It now lives in dotfiles'
-;; home/scott/emacs/personal.el, which this file loads LAST (see the bottom).
+;; The org <-> Google Docs workflow is host-specific and names the consumer's
+;; own org tree, OAuth credentials and hostname, so it belongs to the consuming
+;; flake rather than to the distribution. It now lives in the consumer's
+;; personal layer, which this file loads LAST (see the bottom).
 
 ;; --- Theme + custom surfaces (files appear as they are implemented) ---
 ;; This list is the DISTRIBUTION's surfaces. Personal ones (weather,
 ;; openrouter cost, the quarterly tracker) moved to the consumer on 2026-09-20;
-;; they ship in dotfiles/home/scott/emacs/personal-lisp and load from
+;; they ship in the consumer's personal-lisp layer and load from
 ;; personal.el, which config.el loads LAST at the bottom of this file.
 (dolist (feature '(emanix-theme emanix-modeline emanix-launcher emanix-agent-shell emanix-prose emanix-web))
   (require feature nil :no-error))
@@ -977,7 +977,7 @@ Each cdr is verified to render at the default face's cell width.")
   ;; Restart the compositor session. Global rather than in `ewm-mode-map': it
   ;; only needs to fire while emacs has focus, and it is deliberately a C-c
   ;; chord so a stray super key cannot end the session. Bound inside this
-  ;; block so non-EWM hosts (whistle) never get a key that would kill an
+  ;; block so non-EWM hosts never get a key that would kill an
   ;; emacs which is not a compositor.
   (global-set-key (kbd "C-c R") #'emanix/ewm-restart)
   (when (boundp 'ewm-mode-map)

@@ -36,13 +36,13 @@ let
 
   # The same two layouts tests/disk-layout.sh pins, and for the same reason:
   # they were proven byte-identical to two hand-written disko files.
-  rafik = json "rafik" {
+  workstation = json "workstation" {
     device = "/dev/nvme0n1";
     luks = true;
     filesystem = "btrfs";
     swapSize = "0";
   };
-  datacore = json "datacore" {
+  server = json "server" {
     device = "/dev/nvme0n1";
     luks = false;
     filesystem = "btrfs";
@@ -75,11 +75,11 @@ pkgs.runCommand "emanix-disk-layout" { } ''
   # comparison fails on key order and whitespace rather than on content.
   norm() { "$py" -m json.tool --sort-keys < "$1" > "$2"; }
 
-  norm ${rafik} rafik.json
-  norm ${datacore} datacore.json
+  norm ${workstation} workstation.json
+  norm ${server} server.json
   norm ${collision} collision.json
 
-  for c in rafik datacore; do
+  for c in workstation server; do
     if diff -u ${../tests/fixtures}/disk-$c.json $c.json; then
       echo "ok   fixture $c"
     else

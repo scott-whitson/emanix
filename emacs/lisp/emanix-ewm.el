@@ -40,7 +40,7 @@ Idempotent; safe to call from init on every start."
 ;; the compositor" — so the single load-time call started a process that died
 ;; at once, leaving NO lock on lid-close and none on `loginctl lock-session'.
 ;;
-;; Measured on rafik 2026-09-02, after a rebuild and reboot: swayidle absent
+;; Measured 2026-09-02 on the EWM reference host, after a rebuild and reboot: swayidle absent
 ;; from the process table entirely, while starting it by hand against the live
 ;; compositor worked first time (status=run). The `process-live-p' guard makes
 ;; every later rung a no-op once one has taken, and a rung that fires before
@@ -115,9 +115,9 @@ No-op (demoted) for an output that is not connected right now."
 ;; XDG_ACTIVATION_TOKEN into every spawned process, so a launched GUI app can
 ;; request focus, and it LOGS a line per token. The tab-bar modeline polls
 ;; volume through `make-process' -- a CLI poll, not an app launch. The token
-;; is meaningless for it, and one log line per poll is not: measured on rafik
-;; 2026-09-20 at 8 spawns per 12 seconds (the then-3s interval times two
-;; probes, volume and wifi), roughly 57,000 journal lines a day.
+;; is meaningless for it, and one log line per poll is not: measured 2026-09-20
+;; on the EWM reference host at 8 spawns per 12 seconds (the then-3s interval
+;; times two probes, volume and wifi), roughly 57,000 journal lines a day.
 ;;
 ;; Wifi no longer forks at all -- it reads sysfs -- and volume moved to its
 ;; own slower timer, so the modeline is quiet now. The mechanism stays because

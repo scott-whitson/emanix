@@ -1,7 +1,7 @@
 ;;; emanix-ewm-slots.el --- EWM slot navigation and the tab-bar slot list -*- lexical-binding: t; -*-
 
 ;; Extracted from init.el on 2026-08-10. These commands ARE the window
-;; management on rafik, where Emacs is the Wayland compositor, and they used to
+;; management on an EWM host, where Emacs is the Wayland compositor, and they used to
 ;; sit below every package `require' in init.el — so any package that failed to
 ;; load took them with it. They live here so both the normal path (config.el)
 ;; and the fallback (fallback.el) can require them instead of one duplicating

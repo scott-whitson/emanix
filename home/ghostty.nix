@@ -68,7 +68,7 @@ in
     };
 
     # NO seeding hook. `emanix/theme-init' converges the whole machine on the
-    # first Emacs start when ~/.config/dotfiles/active-theme is absent, which
+    # first Emacs start when ~/.config/emanix/active-theme is absent, which
     # is a fresh install -- and it seeds btop, swaylock, gtk and the
     # consumer's registrations too, not only this one symlink. Removed
     # 2026-09-11 with the theme-authority inversion.

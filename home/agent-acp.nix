@@ -6,7 +6,7 @@
 # used to wrap the claude-code-ide checkout.
 #
 # The pi pair ships even though pi itself lives in the PERSONAL layer
-# (dotfiles/home/scott/default.nix installs pi-coding-agent, because which AI
+# (the consumer's personal layer installs pi-coding-agent, because which AI
 # harness to run is a personal choice). That is deliberate and costs nothing: a
 # wrapper is a few hundred bytes, it refuses to run when `pi' is absent and
 # says why, and the alternative -- emanix pinning pi's store path -- would make

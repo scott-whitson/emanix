@@ -67,7 +67,7 @@ let
       # for exactly this.
       #
       # Identical to `//` when the keys are disjoint, which is why adding a
-      # fresh subvolume (the datacore fixture's "@srv-data") is byte-for-byte
+      # fresh subvolume (the server fixture's "@srv-data") is byte-for-byte
       # unchanged by this.
       subvolumes = recursiveUpdate baseSubvolumes extraSubvolumes;
     } else {

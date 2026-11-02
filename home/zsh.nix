@@ -69,9 +69,14 @@ in
       # set above: had it ever been installed, the last prompt assignment
       # would have won and the declared theme would have been a no-op.
 
-      # Dotfiles theme state markers
-      [[ -f "$HOME/.config/dotfiles/active-theme" ]] && \
+      # Theme state markers. The new path first, then the pre-rename one
+      # (migrated by emanix/theme-init) so a shell that starts before Emacs
+      # has migrated the marker does not lose the theme.
+      if [[ -f "$HOME/.config/emanix/active-theme" ]]; then
+        export ACTIVE_THEME="$(cat "$HOME/.config/emanix/active-theme")"
+      elif [[ -f "$HOME/.config/dotfiles/active-theme" ]]; then
         export ACTIVE_THEME="$(cat "$HOME/.config/dotfiles/active-theme")"
+      fi
 
       # Refresh PATH from Nix profiles on every shell
       if [[ -d /nix/var/nix/profiles/default/bin ]]; then

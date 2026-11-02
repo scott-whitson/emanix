@@ -583,7 +583,21 @@ copy_staged_flake() {
   # ${EMANIX_TARGET_ROOT:-/mnt} rather than a bare /mnt so this function can be
   # sourced out and exercised against a fixture. Nothing in the installer sets
   # it; the default IS the production path.
-  local dest="${EMANIX_TARGET_ROOT:-/mnt}/home/$1/dotfiles"
+  #
+  # The staged directory is named after $REPO's own basename, NOT a fixed
+  # `dotfiles': the reference consumer's repo happens to be ~/dotfiles, a
+  # stranger's lands at ~/<their-repo>, and the ISO's /etc/emanix/flake derives
+  # to ~/flake -- the same path emanix-init uses. A fixed name would collide
+  # with whatever the consumer already calls their checkout.
+  # Trailing slashes are stripped BEFORE the basename is taken. `EMANIX_REPO=path/`
+  # is a plausible typo, and `${REPO##*/}` on it yields the EMPTY string, which
+  # would make $dest the user's home directory -- and this function and its
+  # sibling both `rm -rf "$dest"`. An empty name is refused, not staged into.
+  local repo_name
+  repo_name="$(printf '%s' "$REPO" | sed -e 's:/*$::' -e 's:.*/::')"
+  [ -n "$repo_name" ] ||
+    die "cannot derive a directory name from \$REPO ('$REPO'), so there is nowhere safe to stage it."
+  local dest="${EMANIX_TARGET_ROOT:-/mnt}/home/$1/$repo_name"
   [ -d "$REPO" ] || return 0
 
   # $REPO can be the emanix distro's OWN tree rather than a consuming flake.
@@ -621,8 +635,8 @@ copy_staged_flake() {
   # /etc/dbus-1. `[ -d "$REPO" ]` follows it and passes; `cp -a` implies -d and
   # never dereferences, so it would reproduce the SYMLINK at $dest -- pointing
   # at /etc/static/emanix/flake, a path that does not exist on the INSTALLED
-  # system. The result is a dangling ~/dotfiles: EMANIX_BIN_DIR still broken,
-  # liveElisp's ~/.config/emacs still dangling, and -- worst of it -- ~/dotfiles
+  # system. The result is a dangling $dest: EMANIX_BIN_DIR still broken,
+  # liveElisp's ~/.config/emacs still dangling, and -- worst of it -- $dest
   # now "exists", so both the guard above and the deferred emanix-firstboot
   # clone skip it forever. `chown -R` over a dangling symlink even exits 0, so
   # the warning below would never fire either: silent, total failure of the
@@ -633,12 +647,12 @@ copy_staged_flake() {
   # tree and abort the whole copy on any dangling one -- an unfiltered working
   # tree (EMANIX_REPO, a USB mount) carries a gitignored `result` whose store
   # path does not exist here, and the abort lands AFTER nixos-install has
-  # succeeded, leaving a partial root-owned ~/dotfiles that "exists" and is
+  # succeeded, leaving a partial root-owned $dest that "exists" and is
   # therefore skipped forever. That is F1's own signature all over again.
   #
   # chmod -R u+w for the same reason write_generated_flake does it after its
   # own copy: a staged tree comes from the nix store, which is dr-xr-xr-x /
-  # -r--r--r--, so the user could not edit their own dotfiles or `git pull`.
+  # -r--r--r--, so the user could not edit their own checkout or `git pull`.
   # It is not optional here -- cp -a puts the SOURCE directory's mode on
   # $dest as well, so install -d's 755 does not survive the copy.
   install -d -m 755 "$dest"
@@ -651,10 +665,10 @@ copy_staged_flake() {
   # fix -- but it must not fail SILENTLY: an operator who never sees this
   # would be left with a checkout owned by root and no dotfiles they can
   # write, no reboot warning of why.
-  if ! nixos-enter --root "${EMANIX_TARGET_ROOT:-/mnt}" -c "chown -R '$1':users '/home/$1/dotfiles'"; then
+  if ! nixos-enter --root "${EMANIX_TARGET_ROOT:-/mnt}" -c "chown -R '$1':users '/home/$1/$repo_name'"; then
     warn "could not chown ${dest#"${EMANIX_TARGET_ROOT:-/mnt}"} to $1:users -- it is left owned by
-root, and $1 cannot write their own dotfiles checkout until this is fixed.
-Log in and run: sudo chown -R $1:users ~/dotfiles"
+root, and $1 cannot write their own checkout until this is fixed.
+Log in and run: sudo chown -R $1:users ~/$repo_name"
   fi
 }
 
@@ -667,7 +681,7 @@ Log in and run: sudo chown -R $1:users ~/dotfiles"
 # and FLUSHES pending input at every prompt, so queued answers are discarded one
 # prompt at a time. And because it blocks rather than failing, the retry-and-die
 # net never fires -- measured 2026-10-26, an install driven over a FIFO sat at
-# 5/5 with the system installed and `scott L` in /mnt/etc/shadow, which is the
+# 5/5 with the system installed and `alice L` in /mnt/etc/shadow, which is the
 # exact end state the retry exists to prevent.
 
 # Non-interactive: the password came from the environment.
@@ -1111,9 +1125,10 @@ fi
 # system's closure is present and nixos-install cannot simply copy it — that is
 # true of EVERY install here, pre-staged or interactive.
 #
-# Measured on rafik 2026-09-05: of the 346 store paths the Emacs/EWM half of a
-# desktop host needs, 295 (1.82 GiB) come from cache.nixos.org but 51 must be
-# COMPILED locally. That is ewm-core -- Rust, via Smithay -- and ~50 elisp
+# Measured 2026-09-05 on a reference desktop host: of the 346 store paths the
+# Emacs/EWM half of a desktop host needs, 295 (1.82 GiB) come from
+# cache.nixos.org, but 51 must be COMPILED locally. That is ewm-core -- Rust,
+# via Smithay -- and ~50 elisp
 # packages. The elisp is uncacheable for a structural reason worth knowing:
 # every package is rebuilt against the host's OWN Emacs -- the pwayl/Skia fork
 # on EWM hosts, emacs-unstable-pgtk elsewhere -- so even wholly ordinary ones

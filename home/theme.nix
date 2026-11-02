@@ -47,8 +47,8 @@ in
         It SELECTS NOTHING. profiles/roles/ was deleted on 2026-08-30 — emanix
         ships one shape and the consuming flake composes the rest — so this is
         purely a label the distro records and the consumer interprets. zsh.nix
-        exports it as EMANIX_ROLE, and a consumer can branch on it (the author's
-        dotfiles gate the pi agent, Claude settings and syncthing on it).
+        exports it as EMANIX_ROLE, and a consumer can branch on it (a
+        consumer's dotfiles gate the pi agent, Claude settings and syncthing on it).
 
         The enum is kept deliberately: with nothing dispatching on the value, a
         typo in a consumer's branch would otherwise fail silently as "not that

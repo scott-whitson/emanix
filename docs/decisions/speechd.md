@@ -14,7 +14,7 @@ for anything that declares itself a graphical desktop, which every EWM host now
 does. The chain is speech-dispatcher -> espeak-ng -> mbrola -> mbrola-voices,
 and **the voice data alone is 645 MiB**.
 
-Measured on datacore with `nix path-info --closure-size -h` on both toplevels:
+Measured on the reference server with `nix path-info --closure-size -h` on both toplevels:
 
 | State | Closure |
 | --- | --- |

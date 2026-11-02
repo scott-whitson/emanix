@@ -39,8 +39,8 @@ fails=0
 # drift, the second catches a re-baseline from a broken generator. The byte
 # counts stay because they remain the external evidence of faithful
 # transcription, which the literals are not.
-EXPECT_RAFIK_BYTES=2417
-EXPECT_DATACORE_BYTES=2522
+EXPECT_WORKSTATION_BYTES=2417
+EXPECT_SERVER_BYTES=2522
 
 check_fixture_size() {
   local path="$1" expect="$2" got
@@ -59,8 +59,8 @@ check_fixture_size() {
   fi
 }
 
-check_fixture_size "$SELF_DIR/fixtures/disk-rafik.json" "$EXPECT_RAFIK_BYTES"
-check_fixture_size "$SELF_DIR/fixtures/disk-datacore.json" "$EXPECT_DATACORE_BYTES"
+check_fixture_size "$SELF_DIR/fixtures/disk-workstation.json" "$EXPECT_WORKSTATION_BYTES"
+check_fixture_size "$SELF_DIR/fixtures/disk-server.json" "$EXPECT_SERVER_BYTES"
 
 # The committed fixtures, by name rather than by length. A fixture regenerated
 # from a broken lib/disk.nix passes every diff below (they are compared against
@@ -71,8 +71,8 @@ check_literals() { # label, json path
   fi
 }
 
-check_literals fixture-rafik "$SELF_DIR/fixtures/disk-rafik.json"
-check_literals fixture-datacore "$SELF_DIR/fixtures/disk-datacore.json"
+check_literals fixture-workstation "$SELF_DIR/fixtures/disk-workstation.json"
+check_literals fixture-server "$SELF_DIR/fixtures/disk-server.json"
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
@@ -107,17 +107,17 @@ check() {
 # LUKS + btrfs + no swap.
 check "luks-btrfs-noswap" \
   "((import $DISK { device = \"/dev/nvme0n1\"; luks = true; filesystem = \"btrfs\"; swapSize = \"0\"; }) {}).disko.devices" \
-  disk-rafik.json
+  disk-workstation.json
 
 # Plain btrfs + swap + an extra subvolume.
 check "btrfs-swap-extrasubvol" \
   "((import $DISK { device = \"/dev/nvme0n1\"; luks = false; filesystem = \"btrfs\"; swapSize = \"16G\"; extraSubvolumes.\"@srv-data\" = { mountpoint = \"/home/srv-data\"; mountOptions = [ \"compress=zstd\" ]; }; }) {}).disko.devices" \
-  disk-datacore.json
+  disk-server.json
 
 # Negative control: the comparison must be capable of failing. If flipping
 # luks still matches the LUKS fixture, the test proves nothing.
 neg="$(ev "((import $DISK { device = \"/dev/nvme0n1\"; luks = false; filesystem = \"btrfs\"; swapSize = \"0\"; }) {}).disko.devices")"
-if [ -n "$neg" ] && ! diff -q "$SELF_DIR/fixtures/disk-rafik.json" <(printf '%s\n' "$neg") > /dev/null; then
+if [ -n "$neg" ] && ! diff -q "$SELF_DIR/fixtures/disk-workstation.json" <(printf '%s\n' "$neg") > /dev/null; then
   echo "ok   negative-control (luks flip differs, as it must)"
 else
   echo "FAIL negative-control: comparison is vacuous"

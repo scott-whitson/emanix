@@ -179,7 +179,7 @@ in
     networking.networkmanager.wifi.backend = "iwd";
 
     # Start NetworkManager only after iwd. Neither nixpkgs module orders the
-    # pair, and on rafik's bare metal (ath11k, 2026-09-28) the live ISO came up
+    # pair, and on one bare-metal host (ath11k, 2026-09-28) the live ISO came up
     # with `wlan0` present but NM reporting it "unavailable" and
     # `iwctl station wlan0` saying "Device wlan0 not found". Stopping NM,
     # restarting iwd, then starting NM fixed it every time, which points at the

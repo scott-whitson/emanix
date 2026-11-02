@@ -22,7 +22,7 @@
 ;; knowing either number.
 ;;
 ;; web-mode is soft-required.  A missing package must cost template-aware
-;; editing and nothing else; on rafik this Emacs is the compositor.
+;; editing and nothing else; on an EWM host this Emacs is the compositor.
 
 (require 'treesit)
 (require 'seq)

@@ -13,30 +13,30 @@
 (ert-deftest emanix-web-template-file-p-direct ()
   "A file directly inside a templates/ directory is a template."
   (should (emanix-web-template-file-p
-           "/home/s/projects/pearl-platform/pearl/ui/templates/base.html")))
+           "/home/user/projects/acme-platform/acme/ui/templates/base.html")))
 
 (ert-deftest emanix-web-template-file-p-nested ()
   "Nesting below templates/ does not stop it being a template."
   (should (emanix-web-template-file-p
-           "/home/s/projects/pearl-platform/pearl/ui/templates/partials/row.html")))
+           "/home/user/projects/acme-platform/acme/ui/templates/partials/row.html")))
 
 (ert-deftest emanix-web-template-file-p-weblorg-layout ()
   "weblorg's theme/templates/ layout matches too."
   (should (emanix-web-template-file-p
-           "/home/s/docs/org/websites/emanix/theme/templates/layout.html")))
+           "/home/user/docs/org/websites/emanix/theme/templates/layout.html")))
 
 (ert-deftest emanix-web-template-file-p-no-templates-ancestor ()
   "Plain markup outside a templates/ tree is not a template."
   (should-not (emanix-web-template-file-p
-               "/home/s/projects/cd-audit-widgets/x/widget.component.html")))
+               "/home/user/projects/audit-widgets/x/widget.component.html")))
 
 (ert-deftest emanix-web-template-file-p-file-not-directory ()
   "A FILE named `templates' is not a templates DIRECTORY."
-  (should-not (emanix-web-template-file-p "/home/s/projects/pearl/templates")))
+  (should-not (emanix-web-template-file-p "/home/user/projects/acme/templates")))
 
 (ert-deftest emanix-web-template-file-p-similar-prefix ()
   "Only an exact `templates' component counts, not a prefix of one."
-  (should-not (emanix-web-template-file-p "/home/s/templatesx/y.html")))
+  (should-not (emanix-web-template-file-p "/home/user/templatesx/y.html")))
 
 (ert-deftest emanix-web-template-file-p-nil ()
   "A nil path answers nil rather than signalling."

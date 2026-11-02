@@ -1,6 +1,6 @@
 ;;; emanix-theme.el --- dotfiles theme control -*- lexical-binding: t; -*-
 
-;; The active theme is named in ~/.config/dotfiles/active-theme, and each
+;; The active theme is named in ~/.config/emanix/active-theme, and each
 ;; themes/<name>/ directory carries an `emacs-theme' file naming the Emacs
 ;; theme to load.
 ;;
@@ -32,16 +32,17 @@
   "The emanix distribution."
   :group 'environment)
 
-(defcustom emanix/theme-state-dir "~/.config/dotfiles"
+(defcustom emanix/theme-state-dir "~/.config/emanix"
   "Directory holding the runtime theme state markers.
 Contains `active-theme' and one `last-<variant>' per variant. A
 defcustom rather than a constant because Emacs now WRITES here: the
 tests bind it to a temp directory, which a hardcoded path made
 impossible without writing into the real state.
 
-The name is stow-era and predates Emacs owning what is inside it.
-Renaming it is worth doing and is deliberately not folded into this
-change -- see the 2026-09-11 theme-authority-inversion spec."
+The path was `~/.config/dotfiles' until the distribution dropped the
+reference consumer's repo name from it. `emanix-theme--read-state'
+migrates that file to here once, so an existing machine keeps its
+theme across the upgrade."
   :type 'directory
   :group 'emanix)
 
@@ -52,6 +53,29 @@ change -- see the 2026-09-11 theme-authority-inversion spec."
 (defun emanix-theme--last-file (variant)
   "Path of the last-VARIANT marker."
   (expand-file-name (concat "last-" variant) emanix/theme-state-dir))
+
+(defconst emanix-theme--legacy-state-dir "~/.config/dotfiles"
+  "The theme state directory before the distribution was renamed off
+it. Read only by `emanix-theme--read-state', and only while the new
+directory holds no marker.")
+
+(defun emanix-theme--read-state ()
+  "Return the active theme named in `emanix/theme-state-dir'.
+The new marker wins. When it is absent but the pre-rename directory
+still holds one, this returns that value and copies it to the new
+path, so a machine that upgrades keeps its theme. The write is silent,
+wrapped so it can never signal out of init, and idempotent: a second
+call finds the new marker first and leaves the legacy file untouched."
+  (or (emanix-theme--read (emanix-theme--state-file))
+      (when-let* ((legacy (emanix-theme--read
+                           (expand-file-name "active-theme"
+                                             emanix-theme--legacy-state-dir))))
+        (condition-case nil
+            (progn
+              (make-directory emanix/theme-state-dir t)
+              (write-region (concat legacy "\n") nil (emanix-theme--state-file)))
+          (error nil))
+        legacy)))
 ;; The distro generates the theme tree itself (see lib/theme-tree.nix) and
 ;; exports its path, so there is no fallback here: an unset EMANIX_THEMES_DIR is
 ;; a MISSING value, not a cue to guess at one. It used to fall back to
@@ -176,7 +200,7 @@ read, so behaviour is unchanged when the directory is missing or broken."
 
 (defun emanix-theme--active-name ()
   "Name of the active dotfiles theme."
-  (or (emanix-theme--read (emanix-theme--state-file)) emanix-theme--default))
+  (or (emanix-theme--read-state) emanix-theme--default))
 
 (defun emanix-theme--emacs-theme (name)
   "Emacs theme symbol for dotfiles theme NAME."
@@ -319,7 +343,7 @@ This is the CONSUMER extension point, and the distribution registers
 none of its own. Side effects for programs emanix does not install --
 the author's pi agent and Claude Code settings, for instance -- belong
 here rather than in `emanix/theme-set', which must stay ignorant of
-anything `scott.*' declares.
+anything the consumer's own extension declares.
 
 A function that signals is reported and skipped; the switch continues."
   :type '(repeat function)
@@ -429,7 +453,7 @@ the failure mode measured on the EWM host on 2026-09-11 when the
 variable never reached the login shell. A themeless desktop is a worse
 outcome than the wrong colours, so the last resort is a plan that
 describes colours and nothing else."
-  (let* ((recorded (emanix-theme--read (emanix-theme--state-file)))
+  (let* ((recorded (emanix-theme--read-state))
          (plan (and recorded (emanix-theme--plan recorded))))
     (if plan
         (emanix-theme--apply-emacs plan)

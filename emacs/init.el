@@ -12,7 +12,7 @@
 ;;   load-time  a bare (require 'gdocs) that signalled because
 ;;              ~/.config/emacs/elpa is not on load-path.
 ;;
-;; Both aborted every remaining form, and on rafik — where Emacs is the Wayland
+;; Both aborted every remaining form, and on an EWM host — where Emacs is the Wayland
 ;; compositor — that meant no top bar, no s-d and no window navigation. EWM
 ;; itself survived both times, because it is started from --eval on the command
 ;; line, which Emacs processes after init.

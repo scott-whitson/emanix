@@ -13,7 +13,7 @@
 ;; use `set-face-attribute': that is global, would leak into every other
 ;; buffer, and would fight emanix-theme.el.
 ;;
-;; Every optional dependency is soft-required.  On rafik this Emacs is the
+;; Every optional dependency is soft-required.  On an EWM host this Emacs is the
 ;; compositor; a missing package must cost the prose look and nothing else.
 
 (require 'face-remap)

@@ -7,7 +7,7 @@
 ;;
 ;; A theme tree exactly as lib/theme-tree.nix produces one. Built in a temp
 ;; directory: these tests must never read the real $EMANIX_THEMES_DIR nor write
-;; the real ~/.config/dotfiles.
+;; the real ~/.config/emanix.
 
 (defvar emanix-theme-test--dirs nil
   "Temp directories made by the current `emanix-theme-test--with-tree'.
@@ -67,9 +67,9 @@ real home directory."
 
 ;;; The state directory.
 
-(ert-deftest emanix-theme-state-dir-defaults-to-the-dotfiles-path ()
-  "The default is unchanged by this refactor; only its shape is."
-  (should (equal (default-value 'emanix/theme-state-dir) "~/.config/dotfiles")))
+(ert-deftest emanix-theme-state-dir-defaults-to-the-emanix-path ()
+  "The state dir names the distribution, not the reference consumer."
+  (should (equal (default-value 'emanix/theme-state-dir) "~/.config/emanix")))
 
 (ert-deftest emanix-theme-state-file-resolves-under-the-state-dir ()
   (let ((emanix/theme-state-dir "/tmp/whatever"))
@@ -77,6 +77,37 @@ real home directory."
                    (expand-file-name "active-theme" "/tmp/whatever")))
     (should (equal (emanix-theme--last-file "dark")
                    (expand-file-name "last-dark" "/tmp/whatever")))))
+
+(ert-deftest emanix-theme-read-state-migrates-the-legacy-marker ()
+  "A machine upgrading from ~/.config/dotfiles keeps its theme.
+The new marker is absent and the legacy one present, so the read
+returns the legacy value AND copies it to the new path; a second read
+finds the new marker and leaves the legacy file where it was."
+  (emanix-theme-test--with-tree
+    (let* ((legacy (make-temp-file "emanix-theme-test-legacy" t))
+           (emanix-theme--legacy-state-dir legacy))
+      (push legacy emanix-theme-test--dirs)
+      (write-region "duskthorn\n" nil (expand-file-name "active-theme" legacy))
+      (should (equal (emanix-theme--read-state) "duskthorn"))
+      (should (equal (emanix-theme--read (emanix-theme--state-file)) "duskthorn"))
+      ;; Idempotent, and one-time: the new marker now wins. Rewriting it here
+      ;; stands in for a later switch, and the legacy file must not follow.
+      (write-region "dawnthorn\n" nil (emanix-theme--state-file))
+      (should (equal (emanix-theme--read-state) "dawnthorn"))
+      (should (equal (emanix-theme--read (expand-file-name "active-theme" legacy))
+                     "duskthorn")))))
+
+(ert-deftest emanix-theme-read-state-prefers-the-new-marker ()
+  "With both files present the new one wins and nothing is rewritten."
+  (emanix-theme-test--with-tree
+    (let* ((legacy (make-temp-file "emanix-theme-test-legacy" t))
+           (emanix-theme--legacy-state-dir legacy))
+      (push legacy emanix-theme-test--dirs)
+      (write-region "duskthorn\n" nil (expand-file-name "active-theme" legacy))
+      (write-region "dawnthorn\n" nil (emanix-theme--state-file))
+      (should (equal (emanix-theme--read-state) "dawnthorn"))
+      (should (equal (emanix-theme--read (expand-file-name "active-theme" legacy))
+                     "duskthorn")))))
 
 ;;; The planner.
 

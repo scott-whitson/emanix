@@ -159,7 +159,7 @@ in
   #
   # Importing this module must not silently decide that for a host, so the
   # decision moves to the host. mkDefault, so opting in is one plain line:
-  #   services.getty.autologinUser = "scott";
+  #   services.getty.autologinUser = "alice";
   #
   # EWM still works fine without it: the tty1 launch hook below is
   # loginShellInit gated on tty1, so it fires on ANY tty1 login, not only an
@@ -228,7 +228,7 @@ in
           # reliably — ewm-input-config's :xkb-options loads too late (after the
           # keymap is already built) to take effect.
           # Launch in the BACKGROUND so the poll below runs WHILE the daemon
-          # comes up. `--fg-daemon' does NOT detach (measured on rafik
+          # comes up. `--fg-daemon' does NOT detach (measured on the EWM reference
           # 2026-10-24: the launcher stays in the foreground for the daemon's
           # whole life), so a foreground call only returns after Emacs has
           # already exited — every poll was a post-mortem that always read

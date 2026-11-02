@@ -91,7 +91,7 @@ else
   echo "FAIL copy_staged_flake is defined but never called"
   fails=$((fails + 1))
 fi
-# grep -qx treats the hostname as a regex: 'rafi.' matches 'rafik'.
+# grep -qx treats the hostname as a regex: 'node.' matches 'node1'.
 if grep -q 'grep -qxF' "$SCRIPT"; then
   echo "ok   host matching is fixed-string"
 else
@@ -434,6 +434,7 @@ echo 'marker' > "$csf_dir/store/emanix-flake/hosts/README"
 chmod -R a-w "$csf_dir/store/emanix-flake"
 ln -s store/emanix-flake "$csf_dir/etc-emanix-flake"
 
+csf_repo="$csf_dir/etc-emanix-flake"
 mkdir -p "$csf_dir/target/home/testuser"
 chmod 700 "$csf_dir/target/home/testuser"
 # shellcheck disable=SC1091,SC2034,SC2329  # all four are read by the sourced function
@@ -443,12 +444,16 @@ chmod 700 "$csf_dir/target/home/testuser"
   say()  { :; }
   step() { :; }
   warn() { printf 'WARN %s\n' "$*"; }
-  REPO="$csf_dir/etc-emanix-flake"
+  REPO="$csf_repo"
   EMANIX_TARGET_ROOT="$csf_dir/target"
   copy_staged_flake testuser
 ) > "$csf_dir/out.log" 2>&1
 
-csf_dest="$csf_dir/target/home/testuser/dotfiles"
+# copy_staged_flake stages into a directory named after $REPO's basename, NOT
+# a fixed `dotfiles': the reference consumer's repo happens to be ~/dotfiles, a
+# stranger's lands at ~/<their-repo>, and the ISO's /etc/emanix/flake derives to
+# ~/flake. The fixture's REPO is etc-emanix-flake, so that is the path.
+csf_dest="$csf_dir/target/home/testuser/${csf_repo##*/}"
 if [ -L "$csf_dest" ]; then
   printf '  FAIL copy_staged_flake staged a SYMLINK (-> %s), not a checkout\n' \
     "$(readlink "$csf_dest")"
@@ -471,6 +476,57 @@ if [ -w "$csf_dest" ] && [ -w "$csf_dest/flake.nix" ]; then
   printf '  ok   the staged checkout is writable by its owner\n'
 else
   printf '  FAIL the staged checkout is read-only -- store modes survived the copy\n'
+  fails=$((fails + 1))
+fi
+
+# A trailing slash must not empty the derived name. `EMANIX_REPO=path/' is a
+# plausible typo, and `${REPO##*/}' on it is the EMPTY string -- which would make
+# $dest the account's HOME, and this function (and its sibling) `rm -rf "$dest"'
+# before staging. A second target directory, so the first run cannot mask it.
+csf_ts="$csf_dir/trailing"
+mkdir -p "$csf_ts/target/home/testuser"
+(
+  # shellcheck disable=SC1090  # the "source" IS the thing under test
+  . "$csf_dir/csf.sh"
+  say()  { :; }
+  step() { :; }
+  warn() { printf 'WARN %s\n' "$*"; }
+  REPO="$csf_repo/"
+  EMANIX_TARGET_ROOT="$csf_ts/target"
+  copy_staged_flake testuser
+) > "$csf_ts/out.log" 2>&1
+
+if [ -f "$csf_ts/target/home/testuser/${csf_repo##*/}/flake.nix" ] &&
+   [ ! -e "$csf_ts/target/home/testuser/flake.nix" ]; then
+  printf '  ok   a $REPO with a trailing slash stages into the same directory, never into HOME\n'
+else
+  printf '  FAIL a trailing slash in $REPO emptied the derived name:\n%s\n' \
+    "$(cat "$csf_ts/out.log")"
+  fails=$((fails + 1))
+fi
+
+# And a $REPO that yields no name at all is refused rather than staged into.
+csf_bad="$csf_dir/noname"
+mkdir -p "$csf_bad/target/home/testuser"
+csf_rc=0
+(
+  # shellcheck disable=SC1090
+  . "$csf_dir/csf.sh"
+  die()  { printf 'DIE %s\n' "$*" >&2; exit 1; }
+  say()  { :; }
+  step() { :; }
+  warn() { :; }
+  REPO="///"
+  EMANIX_TARGET_ROOT="$csf_bad/target"
+  copy_staged_flake testuser
+) > "$csf_bad/out.log" 2>&1 || csf_rc=$?
+
+if [ "$csf_rc" -ne 0 ] && grep -q 'cannot derive a directory name' "$csf_bad/out.log" &&
+   [ -z "$(ls -A "$csf_bad/target/home/testuser")" ]; then
+  printf '  ok   a $REPO with no usable name is refused, and HOME is left untouched\n'
+else
+  printf '  FAIL a nameless $REPO was not refused (rc %s):\n%s\n' \
+    "$csf_rc" "$(cat "$csf_bad/out.log")"
   fails=$((fails + 1))
 fi
 
@@ -499,6 +555,7 @@ echo '{ }' > "$csf_dir/distro/flake.nix"
 echo '{ }' > "$csf_dir/distro/templates/default/flake.nix"
 echo '{ }' > "$csf_dir/distro/lib/disk.nix"
 echo '#!/usr/bin/env bash' > "$csf_dir/distro/installer/fresh-emanix-install"
+csf_distro="$csf_dir/distro"
 # shellcheck disable=SC1091,SC2034,SC2329  # all four are read by the sourced function
 (
   # shellcheck disable=SC1090  # the "source" IS the thing under test
@@ -506,14 +563,14 @@ echo '#!/usr/bin/env bash' > "$csf_dir/distro/installer/fresh-emanix-install"
   say()  { :; }
   step() { :; }
   warn() { printf 'WARN %s\n' "$*"; }
-  REPO="$csf_dir/distro"
+  REPO="$csf_distro"
   EMANIX_TARGET_ROOT="$csf_dir/target2"
   copy_staged_flake testuser
 ) > "$csf_dir/out2.log" 2>&1
 
-if [ -e "$csf_dir/target2/home/testuser/dotfiles" ] ||
-   [ -L "$csf_dir/target2/home/testuser/dotfiles" ]; then
-  printf '  FAIL a distro-shaped $REPO was staged into ~/dotfiles anyway\n'
+if [ -e "$csf_dir/target2/home/testuser/${csf_distro##*/}" ] ||
+   [ -L "$csf_dir/target2/home/testuser/${csf_distro##*/}" ]; then
+  printf '  FAIL a distro-shaped REPO was staged into ~/%s anyway\n' "${csf_distro##*/}"
   fails=$((fails + 1))
 elif grep -qi 'distro itself' "$csf_dir/out2.log"; then
   printf '  ok   a distro-shaped $REPO is detected by content and skipped, with a reason\n'
@@ -719,7 +776,7 @@ fi
 # FIFO can drive it: measured 2026-10-26, an install driven over a FIFO that
 # waited for the first prompt still blocked at the second, and because passwd
 # BLOCKS rather than failing, the retry net above never fires -- the system sat
-# installed with `scott L` in /mnt/etc/shadow. chpasswd needs no tty, which is
+# installed with `alice L` in /mnt/etc/shadow. chpasswd needs no tty, which is
 # what makes an unattended install possible at all.
 ep_harness="$csf_dir/passwd-env-harness.sh"
 extract_fn set_password_from_env "$SCRIPT" > "$csf_dir/pw-env.sh"

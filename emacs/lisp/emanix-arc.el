@@ -81,7 +81,7 @@
 ;;
 ;;   arc-nixopt-flake / arc-hm-flake  -- both default to ~/dotfiles, which is
 ;;                                       the flake nixos-rebuild actually
-;;                                       builds (#rafik lives there).
+;;                                       builds on the consumer's host.
 ;;   arc-embeddings-provider          -- Ollama on localhost:11434 with
 ;;                                       nomic-embed-text.  Each consumer host
 ;;                                       that runs arc must serve that model

@@ -29,10 +29,10 @@ let
       stateExpr = ''"''${XDG_DATA_HOME:-''${HOME:-}/.local/share}/${stateName}"'';
 
       # An adapter that shells out to a CLI this distribution does not install
-      # must say so itself. pi-coding-agent lives in the PERSONAL layer
-      # (dotfiles/home/scott/default.nix), because which AI harness to run is a
-      # personal choice -- so emanix must not pin its store path, and the only
-      # honest alternative is to resolve it at runtime and fail loudly.
+      # must say so itself. pi-coding-agent lives in the consumer's PERSONAL
+      # layer, because which AI harness to run is a personal choice -- so emanix
+      # must not pin its store path, and the only honest alternative is to
+      # resolve it at runtime and fail loudly.
       needsChecks = pkgs.lib.concatMapStrings
         (bin: ''
           if ! command -v ${bin} >/dev/null 2>&1; then
@@ -100,7 +100,7 @@ let
     # That made `pi-acp-update' fail outright on every current release -- the
     # patch threw "agent_settled anchor not found" and `set -eu' took the
     # updater down with it, AFTER npm had already installed a perfectly good
-    # payload. Found on rafik 2026-09-29: a reinstall left ~/.local/share/
+    # payload. Found on a consumer host 2026-09-29: a reinstall left ~/.local/share/
     # pi-acp absent (it is imperative state, not nix's), the wrapper exited
     # 127, and the repair command could not complete.
     #

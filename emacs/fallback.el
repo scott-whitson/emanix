@@ -1,6 +1,6 @@
 ;;; fallback.el --- minimum viable desktop -*- lexical-binding: t; -*-
 
-;; Loaded by init.el ONLY when config.el failed to load. On rafik Emacs is the
+;; Loaded by init.el ONLY when config.el failed to load. On an EWM host Emacs is the
 ;; Wayland compositor, so "config.el has an error" means "no top bar, no s-d,
 ;; no window navigation" — which happened twice on 2026-08-10 from unrelated
 ;; faults (an unbalanced paren, and a bare require that signalled).

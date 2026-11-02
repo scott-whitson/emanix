@@ -29,7 +29,7 @@
       # Leaving it unfollowed still had a cost: it parked a SECOND nixpkgs in
       # flake.lock, seven months stale (2026-02-17, rev 0182a361) while the
       # ewm input itself was a day old. Zero occurrences of that rev in
-      # whistle's or rafik's closure confirmed it built nothing -- but it was
+      # every consumer's closure confirmed it built nothing -- but it was
       # a loaded gun. The first `ewm.packages.*' anyone reaches for would
       # silently evaluate against February nixpkgs with no warning.
       #
