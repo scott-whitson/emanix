@@ -117,8 +117,9 @@
     ibm-plex.sans
     ibm-plex.serif
   ]
-  # ghostty for non-gui hosts that opt in (non-GUI hosts (WSLg)). gui hosts already
-  # get it from the gui block above — appended HERE so their list is
+  # ghostty for non-gui hosts that opt in (WSLg is the case that motivates it).
+  # gui hosts already get it from the gui block above — appended HERE so their
+  # list is
   # byte-identical (order is derivation-load-bearing, see the note at the top).
   ++ lib.optional (config.emanix.ghostty.enable && !config.emanix.gui) pkgs.ghostty;
 }

@@ -27,9 +27,12 @@ SCHEMA_URL = (
 
 # ──────────────────────────────────────────────────────────────────────
 # Background groups per variant.
-# Mocha (dark) uses deeper surfaces for tool boxes so they stand out against
-# the dark terminal. Latte (light) uses mantle/base to keep tool boxes close
-# to the terminal's own bg so they don't read as separate cards.
+# Grouped by VARIANT, not by palette: every dark palette uses BG_DARK and every
+# light one uses BG_LIGHT, and the sets have grown past the two -- mocha and
+# latte -- that were here when this was written. Dark uses deeper surfaces for
+# tool boxes so they stand out against the dark terminal; light uses mantle/base
+# to keep them close to the terminal's own bg, so they do not read as separate
+# cards.
 # ──────────────────────────────────────────────────────────────────────
 BG_DARK = {
     "user_message_bg": "mantle",
@@ -62,14 +65,18 @@ def detect_variant(toml: dict) -> str:
     return "light" if luminance > 0.5 else "dark"
 
 
-def build_colors(toml: dict) -> tuple[dict, dict]:
-    """Return (vars_map, colors) for a pi-agent theme."""
+def build_colors(toml: dict, variant: str) -> tuple[dict, dict]:
+    """Return (vars_map, colors) for a pi-agent theme.
+
+    `variant` is passed in rather than recomputed here: main already computes it
+    for the theme's own field, and detect_variant re-reads the whole palette
+    section. One computation, one source.
+    """
     # Section renamed [catppuccin] -> [palette] on 2026-08-09: the theme set is
     # no longer catppuccin-only. Both are accepted so a stale theme directory
     # keeps working.
     c = toml.get("palette") or toml["catppuccin"]
     ui = toml["ui"]
-    variant = detect_variant(toml)
     bg_map = BG_DARK if variant == "dark" else BG_LIGHT
 
     # vars — flat map of every semantic name so colors{} can reference them.
@@ -177,12 +184,18 @@ def main(argv: list[str]) -> int:
         print(f"colors.toml not found: {colors_toml}", file=sys.stderr)
         return 1
 
-    with open(colors_toml, "rb") as f:
-        toml = tomllib.load(f)
+    # A malformed palette is the consumer's file, and the failure should name it
+    # rather than traceback out of a build: this script runs from the theme tree.
+    try:
+        with open(colors_toml, "rb") as f:
+            toml = tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError) as e:
+        print(f"cannot read {colors_toml}: {e}", file=sys.stderr)
+        return 1
 
     variant = detect_variant(toml)
     theme_name = colors_toml.parent.name
-    vars_map, colors = build_colors(toml)
+    vars_map, colors = build_colors(toml, variant)
 
     theme = {
         "$schema": SCHEMA_URL,
