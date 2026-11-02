@@ -15,7 +15,14 @@
 
   users.users.${config.emanix.username} = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "docker" "video" ];
+    # mkDefault, and docker is NOT here: docker-group membership is equivalent
+    # to root (`docker run -v /:/host`), so a distribution should not grant it
+    # by default -- a consumer that wants it adds one line, and mkDefault is
+    # what makes that line possible rather than a conflict. networkmanager is
+    # conditional because the group only exists when the consumer enables
+    # NetworkManager; on a host without it the grant was dangling.
+    extraGroups = lib.mkDefault ([ "wheel" "video" ]
+      ++ lib.optional config.networking.networkmanager.enable "networkmanager");
     shell = pkgs.zsh;
   };
 

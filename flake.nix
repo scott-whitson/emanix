@@ -351,8 +351,9 @@
           # this branch's stated top risk pointed at a version nobody runs.
           agent-shell-api = import ./checks/agent-shell-api.nix { pkgs = emacsPkgs; };
 
-          # The prose renderer's unit tests, including the drawn markdown
-          # table and document magnification. See checks/prose.nix. Like
+          # The prose renderer's unit tests, including the drawn ORG table and
+          # document magnification (markdown rendering is markdown-modern's, and
+          # this check does not claim it). See checks/prose.nix. Like
           # agent-shell-api, it reads emacs package internals, so it needs the
           # overlay-extended pkgs rather than bare nixpkgs.
           prose = import ./checks/prose.nix { pkgs = emacsPkgs; };
