@@ -18,20 +18,23 @@
 # otherwise surface as a keybinding that errors when pressed, weeks later.
 { pkgs, ... }:
 let
+  inherit (pkgs) lib;
+
   emacsPackages = pkgs.emacsPackagesFor pkgs.emacs-unstable-nox;
   agentShellPkg = emacsPackages.agent-shell;
   emacsWithAgentShell =
     emacsPackages.emacsWithPackages
       (epkgs: [ epkgs.agent-shell epkgs.acp epkgs.shell-maker ]);
-in
-pkgs.runCommand "agent-shell-api" { } ''
-  export HOME=$(mktemp -d)
-  ${emacsWithAgentShell}/bin/emacs -Q --batch --eval '(progn
+
+  # The elisp this check runs, as a VALUE rather than a literal in the script, so
+  # the assertion under it can see the same bytes the emacs will.
+  payload = ''
+    (progn
     (require (quote agent-shell))
     (require (quote agent-shell-anthropic))
     (require (quote agent-shell-pi))
     (dolist (sym (quote (agent-shell-subscribe-to
-                         ;; a consumer's agent layer reads these two live.
+                         ;; the consumer agent layer reads these two live.
                          agent-shell-status
                          agent-shell-buffers
                          agent-shell-submit
@@ -57,10 +60,24 @@ pkgs.runCommand "agent-shell-api" { } ''
     (unless (string-match-p "tool-call-update"
                             (documentation (quote agent-shell-subscribe-to)))
       (error "agent-shell no longer documents the tool-call-update event"))
-    ;; a consumer's agent layer (the waiting-signal) counts on these events.
+    ;; the consumer agent layer (the waiting signal) counts on these events.
     (dolist (ev (quote ("turn-complete" "input-submitted" "clean-up")))
       (unless (string-match-p ev (documentation (quote agent-shell-subscribe-to)))
-        (error "agent-shell no longer documents the %s event" ev))))'
+        (error "agent-shell no longer documents the %s event" ev))))
+  '';
+in
+# The payload reaches emacs inside shell SINGLE quotes, so an apostrophe in it
+  # closes the argument early and truncates the elisp -- including an apostrophe
+  # inside a `;;' comment, where it looks harmless. That is how main went red on
+  # 2026-11-02: a comment reading "a consumer's agent layer" cut the payload at
+  # "a consumers", the build died with "End of file during parsing", and the PR
+  # gate stayed green because it never builds this check. Asserted at EVALUATION
+  # so the next one is caught before it is pushed. The payload spells `(quote x)'
+  # rather than `'x' -- that is this hazard, not style.
+assert !(lib.hasInfix "'" payload);
+pkgs.runCommand "agent-shell-api" { } ''
+  export HOME=$(mktemp -d)
+  ${emacsWithAgentShell}/bin/emacs -Q --batch --eval '${payload}'
 
   # The symbols above can all stay green while the payload SHAPE underneath
   # them changes -- a renamed key is not a renamed function. So read the actual
