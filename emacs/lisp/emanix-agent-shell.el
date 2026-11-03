@@ -4,39 +4,17 @@
 ;; an Emacs buffer and the agent is the CLI you already configured: CLAUDE.md,
 ;; ~/.claude/skills, plugins, hooks, subagents and settings permissions all
 ;; load, because the adapter passes settingSources ["user" "project" "local"].
-;; Replaces claude-code-ide.el (a terminal in a side window) and emanix-pi.el
-;; (pi in a separate Ghostty window).
+;; Replaces claude-code-ide.el and emanix-pi.el.
 ;;
-;; WHY THIS FILE CARRIES A BUFFER-SYNC PATCH
+;; The patch below makes the agent read and write THIS Emacs's buffers -- unsaved
+;; state included -- instead of writing to disk behind a stale buffer. The CLI
+;; adapter advertises that it can and never does; the measurement, why a local
+;; patch is worth writing, and the fail-soft contract are in
+;; docs/decisions/agent-shell-buffer-sync.md.
 ;;
-;; ACP lets a client offer `fs/read_text_file' and `fs/write_text_file' so the
-;; agent reads and writes the EDITOR's buffer, unsaved state included.
-;; agent-shell offers both and implements them correctly -- its read handler
-;; prefers `find-buffer-visiting' and its write handler uses
-;; `replace-buffer-contents' on the live buffer.
-;;
-;; claude-agent-acp never calls them. Measured 2026-09-07: Emacs advertised
-;; {"fs":{"readTextFile":true,"writeTextFile":true}} and a whole session that
-;; successfully edited a file carried ZERO fs/* requests. The adapter defines
-;; both methods and gates on clientCapabilities.fs nowhere. The ACP spec has
-;; only a negative obligation -- MUST NOT call when the capability is absent --
-;; and no duty to use it when present, so this does not self-heal. Gemini CLI
-;; does gate on it correctly, which is what makes this an adapter gap rather
-;; than a protocol one, and what makes a local patch worth writing.
-;;
-;; Consequence without a patch: the agent writes to disk while you edit a
-;; buffer, and agent-shell has no fallback -- its only `revert-buffer' sits
-;; inside the read handler that never fires, so the buffer goes stale in
-;; silence.
-;;
-;; Everything below `--- buffer coherence ---' closes that in two directions.
-;; It reads undocumented internals of a package whose author calls the API
-;; unstable, so it is written to fail soft: a shape change costs the sync
-;; feature, not a working Emacs.
-;;
-;; This file deliberately does NOT `require' agent-shell at top level. That
-;; keeps the logic below loadable -- and unit-testable -- under a bare batch
-;; Emacs, which is what checks/agent-shell-sync.nix relies on.
+;; agent-shell is deliberately NOT `require'd at top level: that keeps this file
+;; loadable, and unit-testable, under a bare batch Emacs -- which is what
+;; checks/agent-shell-sync.nix relies on.
 
 (require 'map)
 (require 'seq)

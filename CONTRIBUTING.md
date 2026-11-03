@@ -112,7 +112,8 @@ value* is the most valuable thing in the file — but past a few lines it stops
 being a comment and starts being an essay, and the essay belongs in a record.
 
 The budgets ([`docs/decisions/README.md`](docs/decisions/README.md)) are
-guidance, and only the 30-line ceiling is enforced (`checks/comment-budget.nix`):
+guidance, and only the 30-line ceiling is enforced (`checks/comment-budget.nix`,
+over every `.nix`, `.sh` and `.el` in the tree):
 
 | Where | Budget |
 | --- | --- |

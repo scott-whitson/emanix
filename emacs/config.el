@@ -55,41 +55,14 @@
 ;; --- Basics ---
 (set-face-attribute 'default nil :family "JetBrains Mono" :height 110)
 
-;; Symbol coverage, in two halves, because the two halves fail differently.
-;;
-;; TUI symbols (Claude Code's ⏵ ⏸ ⏺ ✻ ✦) are ordinary Unicode and fontconfig
-;; fallback finds them in pkgs.noto-fonts on its own — verified: U+23F5
-;; resolves to Noto Sans Symbols 2 with nothing configured here.
-;;
-;; ICON glyphs do NOT fall back. The top bar draws battery, volume and network
-;; from Nerd Font's Material Design set at U+F0000-U+FFFFD, and Emacs's
-;; fontconfig fallback does not reach the Private Use Areas: with the ranges
-;; below removed, U+F0079 resolves to NO font at all while U+23F5 resolves
-;; fine. So the PUA ranges must be wired explicitly.
-;;
-;; This corrects a claim that used to sit here — that set-fontset-font is
-;; inert on this pgtk/ftcrhb build. It is not. That was measured against the
-;; media-control block, where fallback already supplied a font, so forcing
-;; another family changed nothing *visible*. The genuine finding about those
-;; characters is about ADVANCE WIDTH, not coverage: no font draws them at the
-;; 9px cell, which no amount of font selection fixes. That is still true, and
-;; is why the display table further down exists.
-;;
-;; Mono variant deliberately: the proportional "Symbols Nerd Font" breaks the
-;; character grid in a monospace top bar.
-;; Applied from the frame hooks, not once at load, because this is a DAEMON.
-;; At startup there is no frame; when one is created the default face's family
-;; set above is realized into a fresh fontset that does NOT carry these
-;; prepends, so a rule applied at load time reaches nothing.
-;;
-;; Measured 2026-09-02 on the EWM reference host, after a rebuild and reboot: U+F0079 gave
-;; `internal-char-font' => NO FONT and `fontset-font' => (nil . gb18030*-*),
-;; while re-evaluating the IDENTICAL `set-fontset-font' calls in that same live
-;; session resolved it to "Symbols Nerd Font Mono" immediately. The rule was
-;; never wrong; its timing was. Symptom: the top bar's battery and volume
-;; glyphs render as empty boxes after every restart.
-;;
-;; Idempotent, so every call after the first is a no-op.
+;; Symbol coverage, in two halves, because the two halves fail differently: TUI
+;; symbols are ordinary Unicode and fontconfig fallback finds them, while the top
+;; bar's Nerd Font ICON glyphs sit in Private Use Areas that fallback does not
+;; reach, so those ranges are wired explicitly (mono variant: the proportional
+;; face breaks the character grid). Applied from the frame hooks, because this is
+;; a daemon and a fontset realized at frame creation drops a rule applied at
+;; load. Measurement, the advance-width finding and the corrected "inert" claim:
+;; docs/decisions/symbol-coverage.md.
 (defun emanix/apply-symbol-fontset (&optional _frame)
   "Wire the Private Use Areas to Symbols Nerd Font Mono.
 Accepts and ignores FRAME so this can sit on `after-make-frame-functions'."
@@ -577,47 +550,13 @@ path-specific groups from the personal layer.")
 
   ;; --- db freshness: this org-roam has NO file watcher ---
   ;;
-  ;; `org-roam-db-autosync-mode' (org-roam-db.el, 20260425.1623) indexes
-  ;; through exactly four paths: a `find-file-hook' that indexes the file you
-  ;; visit, an `after-save-hook' on buffers that already visited one, advice on
-  ;; `rename-file'/`delete-file', and ONE full `org-roam-db-sync' at mode
-  ;; enable -- i.e. at daemon start. There is no watcher anywhere in the
-  ;; package: grep add-watch/file-notify across the installed org-roam and you
-  ;; get zero hits. A .org file created by anything that is not Emacs --
-  ;; Syncthing, a script, an agent writing into ~/docs/org -- therefore stays
-  ;; invisible to the db until something visits it, and the daemon runs for
-  ;; weeks, so the gap only widens.
-  ;;
-  ;; Observed 2026-09-28: six externally-created files were missing from
-  ;; org-roam.db (spirituality/Pocket Buddhism.org, spirituality/Pocket Zen.org,
-  ;; Zurvan Akarana.org, three under websites/emanix/pages/docs/) and one stale
-  ;; row had survived an external rename. The symptom is not a node missing
-  ;; from the graph, it is a frozen Emacs: org-roam-id.el puts
-  ;; `org-roam-id-find' on `org-id-find' as :before-until advice, so a miss
-  ;; falls through to plain org-id, which finds no `org-id-locations' file on
-  ;; this host and walks the vault hunting the uuid. Every [[id:...]] link to
-  ;; an unindexed file hung behind a spinning cursor.
-  ;;
-  ;; Two triggers, because there are two failure modes with different
-  ;; latencies.
-  ;;
-  ;;   1. A lookup that MISSES syncs once and retries. `org-id-find' is the
-  ;;      only place the staleness becomes visible to a user, and this is what
-  ;;      makes a dead link repair itself. Cooldown-gated so a genuinely bogus
-  ;;      id cannot buy a full vault sync on every click. The timestamp is
-  ;;      stamped BEFORE the sync so a nested lookup inside `org-roam-db-sync'
-  ;;      sees the cooldown and cannot recurse.
-  ;;   2. An idle sweep catches what no lookup reaches: external edits to
-  ;;      already-indexed files (stale titles and headlines), and external
-  ;;      deletes (ghost nodes `org-roam-node-find' keeps offering). Idle
-  ;;      rather than wall-clock so it never competes with typing, and 30 min
-  ;;      because the sweep re-hashes every file in the tree to find changes.
-  ;;
-  ;; A cheap mtime pre-check was considered and rejected: a wrong comparison
-  ;; fails by NEVER syncing, which is the exact bug this section exists to fix.
-  ;; The sweep is affordable because it runs at idle and only files whose hash
-  ;; moved are re-parsed. Re-evaluating this buffer must not stack a second
-  ;; timer, hence the cancel-then-set.
+  ;; `org-roam-db-autosync-mode' indexes only what Emacs itself visits or saves,
+  ;; so a file Syncthing, a script or an agent creates stays invisible to the db
+  ;; -- and an unindexed file makes an [[id:...]] link hang, because
+  ;; `org-id-find' falls through to a vault-wide uuid hunt. A miss therefore
+  ;; syncs once and retries, cooldown-gated; a 30-minute idle sweep catches
+  ;; external edits and deletes. The measurement, the two failure modes and the
+  ;; rejected mtime pre-check: docs/decisions/org-roam-db-freshness.md.
   (defvar emanix/org-roam-miss-cooldown 60
     "Seconds between miss-triggered `org-roam-db-sync' runs.")
   (defvar emanix/org-roam--last-miss-sync 0

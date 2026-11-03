@@ -26,8 +26,8 @@ that no longer exists is a bug.
 
 The point of this directory is that code comments stay readable. These are
 guidance for authors. Only the 30-line ceiling on one comment block is enforced
-(`checks/comment-budget.nix`); the shorter budgets are not, and several files
-exceed them.
+(`checks/comment-budget.nix`, over every `.nix`, `.sh` and `.el` in the tree);
+the shorter budgets are not, and several files exceed them.
 
 | Where | Budget |
 | --- | --- |
@@ -48,3 +48,6 @@ relocated.
 | [`ewm-patches.md`](ewm-patches.md) | The EWM patches: what is carried, and each one's exit condition |
 | [`welcome-keys-check.md`](welcome-keys-check.md) | What the welcome-key check verifies, and the reach of its extraction pattern |
 | [`gpu-emacs.md`](gpu-emacs.md) | The GPU Emacs: EWM's pwayl/Skia fork, emacs-overlay as its vehicle, and three exit conditions |
+| [`org-roam-db-freshness.md`](org-roam-db-freshness.md) | org-roam has no watcher: why a miss syncs, and why an idle sweep exists |
+| [`agent-shell-buffer-sync.md`](agent-shell-buffer-sync.md) | The agent reads and writes Emacs buffers: the capability gap, the patch, and its fail-soft contract |
+| [`symbol-coverage.md`](symbol-coverage.md) | Font symbols: the PUA half does not fall back, and the rule belongs on a frame hook |
