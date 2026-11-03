@@ -94,7 +94,7 @@ machines it exists for.  CANDIDATES defaults to
       (let ((inhibit-read-only t))
         (erase-buffer)
         (insert "Emanix — Emacs is the desktop.\n\n")
-        (insert "  s-<return>   terminal          C-c i   ask arc\n")
+        (insert "  s-<return>   terminal\n")
         (insert "  s-1 … s-9    frame slots       C-c t   ghostel\n")
         (insert "  s-d          app launcher      C-x g   magit\n")
         (insert "  s-arrows     move focus        C-c z   prose mode\n")

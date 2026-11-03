@@ -29,11 +29,6 @@ Emanix does not hard-code a username, an SSH key, an email address, a secret, or
 a hostname. Personal configuration lives in the consuming flake (a personal
 dotfiles repo, for example), which imports Emanix and calls `lib.mkHost`.
 
-One thing is deliberately *not* consumer-supplied, and is named here so it does
-not read as a leak: `arc`, the distribution's bundled offline assistant, is
-pinned to `scott-whitson/arc`. That is a public repository belonging to the same
-author. It is a distribution capability, not a personal preference.
-
 ## Non-goals
 
 Stated as a list, because each one has been asked for at least once and the

@@ -302,12 +302,6 @@ in
       role = hmCfg.emanix.role;
       theme = hmCfg.emanix.theme;
     }) // {
-      # Loads the sqlite-vec (vec0) extension into arc's DB. Kept in Nix so the
-      # liveElisp emanix-arc.el stays store-path-free; arc errors at
-      # database-open time if it is unset or points nowhere, which is the loud
-      # failure this variable exists to make possible.
-      ARC_VEC0_PATH = emacsPkgs.arcVecPath;
-
       # X11 apps (Steam, etc.) use this to find XWayland, which EWM serves
       # through xwayland-satellite (see systemPackages below).
       DISPLAY = ":0";

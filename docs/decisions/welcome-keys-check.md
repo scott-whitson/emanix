@@ -31,10 +31,6 @@ about 1200 frames inside Nix's max-call-depth on an 8769-character buffer.
 `C-c C-i` will not be extracted at all, and the guard will not see it. Widen the
 pattern — and re-run the fail/pass drill — before trusting it on such a row.
 
-`C-c i` is genuinely bound, but only in `emanix-arc.el` (behind
-`(featurep 'arc)`), not in `config.el` or `fallback.el`, so `arc.el` is checked
-too.
-
 An empty extraction is treated as a failure, not a pass: if the buffer's render
 format changes so the pattern matches nothing, the loop below must not be allowed
 to succeed by iterating zero times.

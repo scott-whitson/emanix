@@ -47,11 +47,6 @@ The division is one rule:
 | The theme system | The network and the secrets |
 | The first-boot convention | The personal Home Manager layer |
 
-**One exception is deliberate.** The distribution holds `arc`, an offline
-assistant. The assistant reads the configuration of the machine. The source of
-`arc` is a public repository. The distribution names the source in the
-configuration. That name is a distribution feature, not a personal preference.
-
 ### There are no roles
 
 An earlier version had three profiles: `workstation`, `server`, and `wsl`. The
@@ -321,7 +316,6 @@ nothing. `checks/check-index.nix` asserts this table names every check.
 | `prose` | The prose renderer works, including the drawn org table (markdown rendering belongs to `markdown-modern`, which `checks/prose.nix` does not claim) |
 | `web` | The web layer detects templates, picks the right mode, and picks the right formatter |
 | `welcome` | The welcome buffer finds its dismissal marker and its configuration repository |
-| `arc-glue`, `arc-bridge` | The assistant holds its interface |
 | `agent-shell-api` | The upstream interface of the agent shell |
 | `agent-shell-glue`, `agent-shell-sync` | The agent wiring and the buffer sync |
 | `agent-acp-wrapper` | The adapter runs with a small PATH |

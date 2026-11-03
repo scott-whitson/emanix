@@ -1,5 +1,5 @@
-# Modelled on checks/arc-glue.nix: cheap greps over one file, run on every
-# `nix flake check' rather than whenever someone remembers to look.
+# Cheap greps over one file, run on every `nix flake check' rather than whenever
+# someone remembers to look.
 #
 # Each grep guards a failure that is SILENT in practice. A missing autoload
 # gives you a keybinding that reports a void function only when you press it.

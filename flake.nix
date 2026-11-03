@@ -312,10 +312,6 @@
           # checks/disk-layout.nix.
           disk-layout = import ./checks/disk-layout.nix { inherit pkgs; };
 
-          # The arc glue's paths, checked on every flake check rather than
-          # whenever someone remembers to look. See checks/arc-glue.nix.
-          arc-glue = import ./checks/arc-glue.nix { inherit pkgs; };
-
           # The ACP adapter wrapper. Half of it is decided at evaluation --
           # which is what puts it in front of a pull request -- by reading the
           # wrapper's own script text, and the other half still builds and RUNS
@@ -323,10 +319,6 @@
           # failure it guards (node resolved through PATH) only appears inside
           # the systemd-run Emacs daemon. See checks/agent-acp-wrapper.nix.
           agent-acp-wrapper = import ./checks/agent-acp-wrapper.nix { inherit pkgs; };
-
-          # The ARC compatibility bridge's dispatch and key contracts, tested
-          # without ARC, Ollama or a live database. See checks/arc-bridge.nix.
-          arc-bridge = import ./checks/arc-bridge.nix { pkgs = emacsPkgs; };
 
           # The buffer-sync patch's unit tests. See checks/agent-shell-sync.nix.
           agent-shell-sync = import ./checks/agent-shell-sync.nix { pkgs = emacsPkgs; };

@@ -63,7 +63,7 @@ visible symptoms pointed somewhere other than the fault."
   (error (message "fallback: tab-bar setup failed: %S" e)))
 
 ;; Slot keys only — config.el's `with-eval-after-load 'ewm' block also binds
-;; s-i (arc) and s-S-<return> (the Claude agent shell), neither of which this
+;; s-S-<return> (the Claude agent shell), which this
 ;; file requires, so those are deliberately left out here. EWM's own keymap
 ;; already provides s-d and s-<arrows>, so the launcher and directional
 ;; navigation survive without any of this; only slot switching was M-x-only

@@ -2,8 +2,8 @@
 # advertises that does not exist is worse than no buffer at all.
 #
 # This guards the failure that actually happened to the docs: emanix.net
-# published `elisa' for weeks after arc replaced it. Nothing detected it
-# because nothing compared what the docs claimed against what the code did.
+# published an assistant that was no longer there. Nothing detected it because
+# nothing compared what the docs claimed against what the code did.
 #
 # It does NOT generate the buffer from the bindings, and deliberately so. Two
 # thirds of the documented super-key surface is EWM upstream's keymap in the
@@ -25,13 +25,11 @@ let
   welcome = builtins.readFile welcomeSrc;
   welcomeLines = lib.splitString "\n" welcome;
 
-  # The three files a live binding form may sit in. config.el is the distro's
-  # own, fallback.el is a second intentional definition site, and emanix-arc.el
-  # carries `C-c i' behind (featurep 'arc).
+  # The two files a live binding form may sit in. config.el is the distro's
+  # own; fallback.el is a second, intentional definition site.
   bindingTexts = [
     (builtins.readFile ../emacs/config.el)
     (builtins.readFile ../emacs/fallback.el)
-    (builtins.readFile ../emacs/lisp/emanix-arc.el)
   ];
 
   # `builtins.match' anchors its pattern at BOTH ends, so `.*pattern.*' is an
@@ -101,7 +99,8 @@ let
     ''.*(global-set-key|keymap-global-set|keymap-set|define-key|bind-key)[^"]*"${literalKey key}".*'';
 
   problems = [
-    # 1. No absolute home path. Same rule as arc-glue.nix, same reason.
+    # 1. No absolute home path. Same rule as checks/agent-shell-glue.nix, same
+    #    reason.
     {
       ok = !(anyLineMatches ''.*"/home/[a-z].*'' welcomeLines);
       message = ''emanix-welcome.el contains an absolute home path; derive it from $HOME'';
@@ -126,7 +125,7 @@ let
   ++ map
     (key: {
       ok = lib.any (t: anyLineMatches (bindingPattern key) (codeLines t)) bindingTexts;
-      message = "emanix-welcome.el advertises '${key}' but no live binding form in config.el, fallback.el, or emanix-arc.el sets it";
+      message = "emanix-welcome.el advertises '${key}' but no live binding form in config.el or fallback.el sets it";
     })
     advertisedKeys
   ++ [

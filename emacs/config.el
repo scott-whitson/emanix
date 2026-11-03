@@ -204,7 +204,7 @@ Set buffer-locally to nil to hand `M-hjkl' back to a major mode.")
 ;;
 ;;  C-j = eval + print inline     C-x C-e = eval, echo area
 ;;  M-: = eval from minibuffer    C-x * q = quick calc
-;;  C-c i i = ask arc             C-h i = Info manuals
+;;                                C-h i = Info manuals
 ;;  M-x emanix-guides = every guide worth knowing about
 ")
 
@@ -890,12 +890,6 @@ Each cdr is verified to render at the default face's cell width.")
   (setq tab-bar-show t)   ; always show the panel, even with a single/zero tab
   (tab-bar-mode 1))
 
-;; arc — local, offline, config-aware emanix oracle (Emacs/Elisp/Linux/NixOS/
-;; org-roam retrieval over this machine's own config, via sqlite-vec. The
-;; distro-owned C-c i map keeps i/n/o/R/c stable across ARC package revisions;
-;; the old Ollama answer path remains only as a compatibility fallback.
-(require 'emanix-arc nil :no-error)
-
 ;; Orientation buffer, shown once per machine. `nil :no-error' like its
 ;; neighbours: a fault here must not cost the desktop.
 (require 'emanix-welcome nil :no-error)
@@ -932,16 +926,9 @@ Each cdr is verified to render at the default face's cell width.")
     ;; Stays on the upstream command rather than emanix/agent-shell-claude
     ;; (which C-c C-' uses): this is an INTERCEPTED key, so no C-u can precede
     ;; it — the prefix keystroke would go to the focused Wayland surface — and
-    ;; the wrapper's only added behaviour is the prefixed one. Same reasoning
-    ;; as s-i for arc below.
+    ;; the wrapper's only added behaviour is the prefixed one.
     (define-key ewm-mode-map (kbd "s-S-<return>")
       #'agent-shell-anthropic-start-claude-code)
-    ;; Summon ARC retrieval from ANY slot. It must be a single intercepted
-    ;; key: the C-c i prefix cannot reach Emacs from a focused Wayland surface
-    ;; (the follow-up key goes to the surface). C-c i still gives the full
-    ;; command set when a native Emacs frame is focused.
-    (when (fboundp 'emanix/arc-search)
-      (define-key ewm-mode-map (kbd "s-i") #'emanix/arc-search))
     (when (fboundp 'ewm--send-intercept-keys)
       (ewm--send-intercept-keys))))
 

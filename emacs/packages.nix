@@ -42,35 +42,8 @@ let
     dirvish
     magit
     llm
-    # arc — the distro's bundled companion, replacing the ELISA fork that used
-    # to sit here. Its canonical source is the author's public GitHub repo
-    # (same person as this flake — intentional, not a leak: the repo is
-    # public).
-    #
-    # Pinned by rev with a real hash, deliberately: there is no local-checkout
-    # override. An earlier draft read ARC_DEV_SRC through `builtins.getEnv',
-    # which flakes evaluate to "" unless the caller also passes `--impure' —
-    # and then fell through to the pin with NO error, silently building the
-    # pinned rev instead of the working tree someone had just edited. That is
-    # the same silent config-vs-reality divergence that let the old assistant
-    # index nothing for six weeks. To iterate on arc: commit, push, bump the
-    # rev and hash here, rebuild. Slower, and it cannot lie to you.
-    (trivialBuild {
-      pname = "arc";
-      version = "0.1.0";
-      src = pkgs.fetchFromGitHub {
-        owner = "scott-whitson";
-        repo = "arc";
-        rev = "e3c708eee7209a63d197cb08b156c1fb125fbb3c";
-        hash = "sha256-eE0P2ddUOzhvR4ixQ8fnnsRz4PZm0HAgBT/sQmFEpzs=";
-      };
-      # arc.el's own Package-Requires, exactly: llm, async, plz, transient.
-      # ARC is retrieval/tooling now; the calling agent owns prose generation.
-      # NOT ellama — it is no longer an ARC dependency.
-      packageRequires = with epkgs; [ llm async plz transient ];
-    })
-    async # arc dep (Package-Requires); also loadable standalone for testing
-    plz # arc/llm HTTP dep
+    async
+    plz # llm's HTTP dep
     # `s' used to sit here as the gdocs dependency. The gdocs workflow moved to
     # dotfiles on 2026-09-20, and the consumer now supplies `s' through
     # emanix.emacs.extraPackages — which is what that seam is for. Removed
@@ -180,15 +153,4 @@ in
     (pkgs.emacsPackagesFor base).emacsWithPackages
       (epkgs: list epkgs ++ extraPackages epkgs);
 
-  # arc's sqlite-vec extension. Exported because arc is in `list` above, so
-  # this file owns the dependency; the two consumers set it on different tiers
-  # (system vs home sessionVariables) but must agree on the value.
-  #
-  # The basename must stay exactly `vec0.so'. Emacs checks it against a
-  # hardcoded allow-list before SQLite sees the file, and SQLite then derives
-  # the entry point from it — a renamed copy fails through one gate loudly and
-  # the other in total silence. arc checks `sqlite-load-extension's return
-  # value and errors at database-open time rather than much later at first
-  # query, but do not rename this.
-  arcVecPath = "${pkgs.sqlite-vec}/lib/vec0.so";
 }

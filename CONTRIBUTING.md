@@ -68,10 +68,6 @@ a new spelling.
 A fact about a machine — or about a person — belongs in the consuming flake.
 A general capability belongs here. Emanix is never a hostname.
 
-The one deliberate exception is named in the README so it does not read as a
-leak: `arc` is pinned to `scott-whitson/arc`, a public repository belonging to
-the same author.
-
 ### 2. `mkHost`'s arguments are invariants; `emanix.role` is an opinion
 
 A value the distribution sets as `mkDefault` is an opinion, and a consumer
