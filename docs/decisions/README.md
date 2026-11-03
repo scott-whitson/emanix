@@ -51,3 +51,4 @@ relocated.
 | [`org-roam-db-freshness.md`](org-roam-db-freshness.md) | org-roam has no watcher: why a miss syncs, and why an idle sweep exists |
 | [`agent-shell-buffer-sync.md`](agent-shell-buffer-sync.md) | The agent reads and writes Emacs buffers: the capability gap, the patch, and its fail-soft contract |
 | [`symbol-coverage.md`](symbol-coverage.md) | Font symbols: the PUA half does not fall back, and the rule belongs on a frame hook |
+| [`keys-never-in-the-store.md`](keys-never-in-the-store.md) | No installer image carries a key: an image is the world-readable store |

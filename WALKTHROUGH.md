@@ -164,7 +164,7 @@ holds the option. `emanix.*` is in this repository.
 | `emanix.firstboot.runtimeInputs`, `emanix.firstboot.text` | The first-boot script |
 | `emanix.src.*` | The paths of the two checkouts |
 | `emanix.ewm.enable` | Set by the distribution. Do not set it by hand |
-| `emanix.installer.flake`, `emanix.installer.keysDir` | The flake and the host keys of an installer image |
+| `emanix.installer.flake` | The flake an installer image carries. It is the only thing the image carries |
 
 ## 6. The directory tree
 
@@ -243,14 +243,16 @@ sudo fresh-emanix-install
 No host argument is needed: the target's host key is minted on the target,
 which is why carrying no key is correct for this path.
 
-A keys-carrying image is the fleet path, not the default. The consumer builds
-its own image, because that image must hold the keys of the target machine. The
-consumer sets two options:
+No image carries a key, and none can: a NixOS image is assembled from
+`/nix/store`, which is world readable, so a key in an image is a key published.
+A fleet that wants its own keys at install time puts them on a removable medium
+and stages a `<host>-keys/` directory beside the repo, which is what
+`fresh-emanix-install`'s `resolve_keys` reads. The consumer builds its own image
+and sets one option:
 
 | Option | Function |
 | --- | --- |
-| `emanix.installer.flake` | The consumer flake that the image carries |
-| `emanix.installer.keysDir` | The directory that holds the host keys |
+| `emanix.installer.flake` | The consumer flake that the image carries, and the only thing it carries |
 
 An interactive install writes a new host, and the flake it writes is pinned to
 the distribution in the image: the image's own tree is copied in as
@@ -329,6 +331,7 @@ nothing. `checks/check-index.nix` asserts this table names every check.
 | `check-index` | Every check is named in this table |
 | `decisions-index` | Every decision record is linked from its index |
 | `comment-budget` | No comment block runs past 30 consecutive lines |
+| `iso-no-keys` | No key material and no second path is staged into the installer image |
 
 The directory `tests/` holds the shell and Python tests. Some are called by a
 check. Three are not, and cannot be: they want a live filesystem, a real

@@ -219,10 +219,13 @@ The direct build path also exists:
 nix build .#nixosConfigurations.installer.config.system.build.isoImage
 ```
 
-A keys-carrying image is the fleet path, not the default. A consuming flake
-builds one by importing `nixosModules.installer` and setting
-`emanix.installer.flake` and `emanix.installer.keysDir`, so the target's host
-keys can be staged into it. Host-specific install runbooks live in the
+No image carries a key, and none can: every file in a NixOS image comes from
+`/nix/store`, which is world readable, so a key baked into an image is a key
+published. The target's host key is minted on the target instead; a fleet that
+needs its own keys at install time puts them on a removable medium and points
+`fresh-emanix-install` at a `<host>-keys/` directory beside the repo. A
+consuming flake builds its own image by importing `nixosModules.installer` and
+setting `emanix.installer.flake`. Host-specific install runbooks live in the
 consuming flake, because they are about that user's machines, disks and keys —
 not about the distribution.
 

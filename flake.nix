@@ -189,10 +189,10 @@
       # The distro's installer ISO — keyless, staging the distro flake only.
       # A machine installed from the distribution alone uses this image and
       # `sudo fresh-emanix-install` with no host argument; the host key is
-      # minted on the target, so carrying no key is correct for that path. A
-      # keys-carrying image is the FLEET path, not the default: a consumer
-      # flake builds it via nixosModules.installer with
-      # emanix.installer.{flake,keysDir} set.
+      # minted on the target, and the image carries no key at all -- it cannot,
+      # because an image is assembled from the world-readable store. A consumer
+      # flake builds its own image via nixosModules.installer with
+      # emanix.installer.flake set, and supplies keys at install time.
       nixosConfigurations.installer = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit nixpkgs disko; };
@@ -400,6 +400,11 @@
           # docs/decisions/README.md; this enforces the one ceiling that is
           # unambiguously over. See checks/comment-budget.nix.
           comment-budget = import ./checks/comment-budget.nix { inherit pkgs; };
+
+          # Nothing but the flake is staged into the installer image, so no key
+          # material can reach the world-readable store through it. Evaluated,
+          # not built: see checks/iso-no-keys.nix.
+          iso-no-keys = import ./checks/iso-no-keys.nix { inherit pkgs; };
         };
 
       # Builder dev shell.

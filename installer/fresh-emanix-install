@@ -15,8 +15,9 @@
 #
 # The host is required. The repo is located automatically (EMANIX_REPO, the
 # script's parent, /etc/emanix/flake on the ISO, or common mounts); the
-# host key comes from the baked ISO keys, a staged <host>-keys/ dir beside the
-# repo, or a prompt; the target disk is auto-detected (largest non-removable
+# host key comes from a <host>-keys/ dir beside the repo -- a removable medium,
+# never the image, whose store is world readable -- or a prompt; the target disk
+# is auto-detected (largest non-removable
 # device with no mounted partitions) unless --disk is given. --check-only
 # prints the preflight checklist and exits without touching anything.
 #
@@ -222,15 +223,16 @@ parent, /etc/emanix/flake, /mnt/flake, /run/media/*/*/flake,
 /media/*/flake. Set EMANIX_REPO to the repo path and re-run."
 }
 
-# --- Locate the host key (baked ISO -> staged dir -> prompt) ------------------
+# --- Locate the host key (staged dir beside the repo -> prompt) ---------------
 # Sets KEY_DIR, or leaves it empty (check-only reports; real mode dies later).
+#
+# There is deliberately NO /etc/emanix/keys branch: nothing in the distribution
+# bakes a key into the image any more, because a key in an image is a key in
+# /nix/store, which is world readable. Keys come from a removable medium the
+# operator mounts, or from a prompt; an ISO built without them still installs,
+# minting the target's host key instead.
 resolve_keys() {
   KEY_DIR=""
-  if [ -f "/etc/emanix/keys/${FLAKE_HOST}_host_ed25519" ] &&
-    [ -f "/etc/emanix/keys/${FLAKE_HOST}_host_ed25519.pub" ]; then
-    KEY_DIR=/etc/emanix/keys
-    return
-  fi
   if [ -f "$(dirname "$REPO")/${FLAKE_HOST}-keys/${FLAKE_HOST}_host_ed25519" ]; then
     KEY_DIR="$(dirname "$REPO")/${FLAKE_HOST}-keys"
     return
