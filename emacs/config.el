@@ -446,6 +446,11 @@ path-specific groups from the personal layer.")
 ;; modification time before the size; drop `file-size' below to show only time.
 (setq dirvish-attributes '(file-time file-size)
       dirvish-time-format-string "%Y-%m-%d %H:%M")
+;; The preview pane is on by default and `dirvish-preview-dispatchers' is left
+;; at its defaults here: one external binary per file type, installed by
+;; home/packages.nix. Dirvish does not screen them out when a binary is absent
+;; (its `:require' plist reads nil in this build), so a missing thumbnailer
+;; shows as a pane that renders nothing for that type.
 (global-set-key (kbd "C-c d") #'dirvish)
 
 ;; --- Git ---

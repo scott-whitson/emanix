@@ -50,6 +50,17 @@
     # Media (CLI)
     ffmpeg
     imagemagick
+    # Dirvish's preview pane (emacs/config.el) shells out one binary per file
+    # type and this build of dirvish keeps a dispatcher whose binary is missing
+    # rather than dropping it, so the pane just fails to render that type. One
+    # line below per dispatcher: vipsthumbnail = image (libvips, which nixpkgs
+    # builds with libraw, so camera RAW thumbnails work), ffmpegthumbnailer =
+    # video, mediainfo = audio, pdftoppm = pdf, 7z = archive.
+    vips
+    ffmpegthumbnailer
+    mediainfo
+    poppler-utils
+    p7zip
 
     # Media (GUI): NOT listed here. mpv.nix's `programs.mpv.enable`, gated on
     # the same config.emanix.gui, already supplies it — nixpkgs's top-level
