@@ -114,7 +114,17 @@ in
             echo "    Until then use: et   (terminal frame, same daemon, unaffected)" >&2
             return 1
           fi
-          emacsclient -c -d "$WAYLAND_DISPLAY" "$@"
+          # Reuse a visible frame instead of paying for a new one: measured on
+          # whistle 2026-10-27, make-frame cost 274 ms cold against 34 ms warm,
+          # and the cold frame is the whole wait before the first keypress.
+          # `framep' is `t' for a tty frame, so the predicate skips tty and
+          # invisible frames -- the daemon keeps a stale invisible pgtk one.
+          local raise='(let ((f (seq-find (lambda (f) (and (not (eq (framep f) (quote t))) (eq (frame-parameter f (quote visibility)) (quote t)))) (frame-list)))) (if f (progn (select-frame-set-input-focus f) (raise-frame f) t) (error "ec: no frame")))'
+          if emacsclient -d "$WAYLAND_DISPLAY" -e "$raise" >/dev/null 2>&1; then
+            [[ $# -eq 0 ]] || emacsclient -d "$WAYLAND_DISPLAY" "$@"
+          else
+            emacsclient -c -d "$WAYLAND_DISPLAY" "$@"
+          fi
         else
           emacsclient -c "$@"
         fi
