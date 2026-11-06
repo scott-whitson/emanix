@@ -68,6 +68,16 @@ printf '%s\n' \
   '	path = ~/.config/git/config' > "$home/.gitconfig"
 chmod 600 "$home/.gitconfig"
 
+# The generator itself, which the copy above cannot check: '%s' does not expand
+# \t, so the escape in git.nix writes a literal backslash-t and git refuses the
+# file ("bad config line 6"). The hand-written copy used to hide exactly that.
+repo="$(cd "$(dirname "$0")/.." && pwd)"
+if grep -qF "'\tpath" "$repo/home/git.nix"; then
+  bad "home/git.nix seeds a literal backslash-t; printf '%s' never expands it"
+else
+  ok "home/git.nix seeds the include path with a real tab"
+fi
+
 if git_in config --global probe.after 1 >/dev/null 2>&1; then
   ok "with ~/.gitconfig present, a global write succeeds"
 else

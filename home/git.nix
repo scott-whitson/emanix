@@ -79,13 +79,18 @@
     # with the user's own edits. Upgrade path if a tool ever depends on it.
     home.activation.gitconfigWritable = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       if [[ ! -v DRY_RUN ]] && [[ ! -e "$HOME/.gitconfig" ]]; then
-        printf '%s\n' \
-          '# Yours: git and anything else is free to write here.' \
-          '# emanix manages ~/.config/git/config (read-only) and git reads only' \
-          '# ONE global file -- this one -- so the managed file is included' \
-          '# below it. Anything set after the include wins over the defaults.' \
-          '[include]' \
-          '\tpath = ~/.config/git/config' > "$HOME/.gitconfig"
+        # Two printfs: '%s' never expands \t, so a tab written as an argument
+        # becomes a literal backslash-t and git rejects the file ("bad config
+        # line 6", whistle 2026-11-06). Only the FORMAT string interprets it.
+        {
+          printf '%s\n' \
+            '# Yours: git and anything else is free to write here.' \
+            '# emanix manages ~/.config/git/config (read-only) and git reads only' \
+            '# ONE global file -- this one -- so the managed file is included' \
+            '# below it. Anything set after the include wins over the defaults.' \
+            '[include]'
+          printf '\t%s\n' 'path = ~/.config/git/config'
+        } > "$HOME/.gitconfig"
         chmod 600 "$HOME/.gitconfig"
       fi
     '';
