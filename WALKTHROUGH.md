@@ -320,6 +320,7 @@ nothing. `checks/check-index.nix` asserts this table names every check.
 | `agent-shell-glue`, `agent-shell-sync` | The agent wiring and the buffer sync |
 | `agent-acp-wrapper` | The adapter runs with a small PATH |
 | `modeline-segments` | The extension point for the consumer works |
+| `ewm-screenshot` | PrintScreen's capture orchestration (slurp, grim, the save/copy choice) |
 | `welcome-keys` | Every key in the welcome text is a real key |
 | `retired-names` | No live `.nix` file names a directory that was renamed on 2026-08-30 |
 | `check-index` | Every check is named in this table |

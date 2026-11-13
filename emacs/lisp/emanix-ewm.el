@@ -5,6 +5,10 @@
 ;; is still nil while init runs. Session helpers that must run as emacs subprocesses so they inherit
 ;; WAYLAND_DISPLAY and end with the session.
 
+;; PrintScreen's capture command and binding, kept in its own file so its unit
+;; tests can load it without this file's EWM side effects.
+(require 'emanix-ewm-screenshot)
+
 (defun emanix/lock-screen ()
   "Lock the screen with swaylock."
   (interactive)

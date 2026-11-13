@@ -328,6 +328,10 @@
           # holds the seam. See checks/modeline-segments.nix.
           modeline-segments = import ./checks/modeline-segments.nix { pkgs = emacsPkgs; };
 
+          # The PrintScreen screenshot command's unit tests. See
+          # checks/ewm-screenshot.nix.
+          ewm-screenshot = import ./checks/ewm-screenshot.nix { pkgs = emacsPkgs; };
+
           # The theme switch's unit tests. See checks/theme-switch.nix.
           theme-switch = import ./checks/theme-switch.nix { pkgs = emacsPkgs; };
 

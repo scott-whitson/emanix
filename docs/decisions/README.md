@@ -46,6 +46,7 @@ relocated.
 | [`speechd.md`](speechd.md) | The distribution does not ship text-to-speech |
 | [`firmware-default.md`](firmware-default.md) | Redistributable firmware is on for every host |
 | [`ewm-patches.md`](ewm-patches.md) | The EWM patches: what is carried, and each one's exit condition |
+| [`ewm-screenshot.md`](ewm-screenshot.md) | PrintScreen captures a region, then saves or copies it |
 | [`welcome-keys-check.md`](welcome-keys-check.md) | What the welcome-key check verifies, and the reach of its extraction pattern |
 | [`gpu-emacs.md`](gpu-emacs.md) | The GPU Emacs: EWM's pwayl/Skia fork, emacs-overlay as its vehicle, and three exit conditions |
 | [`org-roam-db-freshness.md`](org-roam-db-freshness.md) | org-roam has no watcher: why a miss syncs, and why an idle sweep exists |
