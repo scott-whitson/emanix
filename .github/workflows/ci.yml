@@ -4,7 +4,7 @@ name: CI
 # `nix flake check`, and nothing ran it for you. This file is the floor.
 #
 # Two jobs, split by COST. `nix flake check` builds all 23 checks, and eight of
-# them build Emacs (agent-shell-api, agent-shell-sync, arc-bridge,
+# them build Emacs (agent-shell-api, agent-shell-sync, ewm-screenshot,
 # modeline-segments, prose, theme-switch, web, welcome). Four more are shell
 # greps that only run when the check is BUILT, so they run in the main job and
 # never in front of a pull request: agent-acp-wrapper, agent-shell-glue,
