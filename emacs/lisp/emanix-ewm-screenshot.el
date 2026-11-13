@@ -14,16 +14,24 @@
 
 ;;; Code:
 
-(require 'seq)
+(require 'xdg)
 
 (defgroup emanix-screenshot nil
   "PrintScreen capture under EWM."
   :group 'emanix)
 
-(defcustom emanix/screenshot-directory (expand-file-name "~/Pictures/screenshots")
+(defcustom emanix/screenshot-directory
+  (file-name-concat (or (xdg-user-dir "PICTURES") "~/Pictures") "screenshots")
   "Directory the PrintScreen command saves captures to.
 Only the save choice consults this; a clipboard-only capture never writes here.
-A consumer overrides it from personal.el."
+Defaults to the host's OWN pictures directory, which is what keeps a first
+capture from minting a top-level directory the host does not declare: this fleet
+maps pictures onto ~/downloads (emanix's home/xdg.nix) and dot-drift-check
+allows only docs, dotfiles, downloads and projects at $HOME, so a hardcoded
+~/Pictures/screenshots made a stray the moment anyone saved one. Falls back to
+~/Pictures where user-dirs.dirs names no pictures directory, which is what a
+bare `emacs -Q' and every normal system give. A consumer overrides it from
+personal.el."
   :type 'directory
   :group 'emanix-screenshot)
 
@@ -76,25 +84,33 @@ The region comes from slurp; the choice is a minibuffer prompt."
     (if (and (not full) (null geometry))
         (message "Screenshot cancelled")
       (let ((tmp (make-temp-file "emanix-screenshot-" nil ".png")))
-        (if (not (zerop (emanix/ewm--grim geometry tmp)))
+        ;; `eq 0', not `zerop': call-process returns a STRING when the child dies
+        ;; from a signal, so zerop signals wrong-type-argument instead of
+        ;; reporting grim's failure as one.
+        (if (not (eq 0 (emanix/ewm--grim geometry tmp)))
             (progn (delete-file tmp nil) (user-error "grim failed"))
-          (pcase (emanix/ewm--choose-action)
-            ('save
-             (let ((final (emanix/ewm--save tmp)))
-               (kill-new final)
-               (message "Screenshot saved: %s" final)))
-            ('copy
-             (emanix/ewm--copy tmp)
-             (delete-file tmp nil)
-             (message "Screenshot copied to the clipboard"))
-            ('both
-             (let ((final (emanix/ewm--save tmp)))
-               (emanix/ewm--copy final)
-               (kill-new final)
-               (message "Screenshot saved and copied: %s" final)))
-            (_
-             (delete-file tmp nil)
-             (message "Screenshot discarded"))))))))
+          ;; One cleanup rather than one per branch, because the prompt can leave
+          ;; this function without choosing: `q' is the prompt's cancel key and
+          ;; returns nil, but C-g signals quit and skips everything below it,
+          ;; leaving the PNG in TMPDIR. `save' moves tmp away, so the check is
+          ;; for what is still there.
+          (unwind-protect
+              (pcase (emanix/ewm--choose-action)
+                ('save
+                 (let ((final (emanix/ewm--save tmp)))
+                   (kill-new final)
+                   (message "Screenshot saved: %s" final)))
+                ('copy
+                 (emanix/ewm--copy tmp)
+                 (message "Screenshot copied to the clipboard"))
+                ('both
+                 (let ((final (emanix/ewm--save tmp)))
+                   (emanix/ewm--copy final)
+                   (kill-new final)
+                   (message "Screenshot saved and copied: %s" final)))
+                (_
+                 (message "Screenshot discarded")))
+            (when (file-exists-p tmp) (delete-file tmp nil))))))))
 
 (defun emanix/ewm-screenshot-full ()
   "Capture the whole output, then save it, copy it, or both."

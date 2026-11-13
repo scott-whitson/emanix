@@ -13,6 +13,8 @@
   "Recorded subprocess calls, newest first, as (PROGRAM INFILE . ARGS).")
 (defvar emanix-ewm-test--geometry "10,20 300x400"
   "What the slurp stub writes to stdout; nil means the user cancelled.")
+(defvar emanix-ewm-test--slurp-status 0
+  "Exit status the slurp stub returns. Non-zero is how slurp reports a cancel.")
 (defvar emanix-ewm-test--grim-status 0
   "Exit status the grim stub returns.")
 (defvar emanix-ewm-test--action 'save
@@ -22,7 +24,8 @@
   "A `call-process' that obeys the three stubs and records every call."
   (push (cons program (cons infile args)) emanix-ewm-test--calls)
   (pcase program
-    ("slurp" (when (eq _dest t) (insert (or emanix-ewm-test--geometry ""))) 0)
+    ("slurp" (when (eq _dest t) (insert (or emanix-ewm-test--geometry "")))
+             emanix-ewm-test--slurp-status)
     ;; grim writes its last argument's file; a PNG payload is not needed.
     ("grim" (with-temp-file (car (last args)) (insert "PNG")) emanix-ewm-test--grim-status)
     (_ 0)))
@@ -32,6 +35,7 @@
   (declare (indent 0))
   `(let ((emanix-ewm-test--calls nil)
          (emanix-ewm-test--geometry "10,20 300x400")
+         (emanix-ewm-test--slurp-status 0)
          (emanix-ewm-test--grim-status 0)
          (emanix-ewm-test--action 'save))
      (cl-letf (((symbol-function 'call-process) #'emanix-ewm-test--call-process)
@@ -103,12 +107,40 @@
       (should (= 1 (length (emanix-ewm-test--args "grim")))))))
 
 (ert-deftest emanix-ewm-screenshot-cancelled-selection-does-nothing ()
-  "A cancelled slurp is not an error, and grim never runs."
+  "A cancelled slurp is not an error, and grim never runs.
+slurp reports a cancel as a non-zero exit; empty output at exit 0 is the other
+shape that reaches the same nil, and both are asserted because the stub used to
+return 0 unconditionally -- so only the second one was ever exercised."
+  (emanix-ewm-test--stub
+    (let ((emanix-ewm-test--slurp-status 1))
+      (emanix/ewm-screenshot)
+      (should (emanix-ewm-test--call "slurp"))
+      (should-not (emanix-ewm-test--call "grim"))))
   (emanix-ewm-test--stub
     (let ((emanix-ewm-test--geometry nil))
       (emanix/ewm-screenshot)
       (should (emanix-ewm-test--call "slurp"))
       (should-not (emanix-ewm-test--call "grim")))))
+
+(ert-deftest emanix-ewm-screenshot-quit-at-the-prompt-clears-the-temp ()
+  "C-g at the prompt is not a choice, and the temp PNG still goes.
+The prompt's cancel key is handled as a nil choice; quit is the path that leaves
+`emanix/ewm-screenshot' early, which is why the cleanup is an unwind-protect
+rather than one delete per branch.
+
+Caught with `condition-case', NOT `should-error': the `error' condition class
+does not include `quit', so should-error lets the quit escape to ERT, which
+records QUIT for the whole test and never reaches the assertion below it. That
+version built green and asserted nothing."
+  (emanix-ewm-test--stub
+    (let ((temp (make-temp-file "emanix-ewm-test-" nil ".png")))
+      (cl-letf (((symbol-function 'make-temp-file) (lambda (&rest _) temp))
+                ((symbol-function 'emanix/ewm--choose-action)
+                 (lambda () (signal 'quit nil))))
+        (should (eq 'quit (condition-case nil
+                              (progn (emanix/ewm-screenshot) 'no-quit)
+                            (quit 'quit)))))
+      (should-not (file-exists-p temp)))))
 
 (ert-deftest emanix-ewm-screenshot-grim-failure-signals-and-clears-the-temp ()
   "A failed grim raises a user-error and does not leave the temp behind."
