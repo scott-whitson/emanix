@@ -548,6 +548,13 @@ path-specific groups from the personal layer.")
   ;; (list org-attach-id-dir) is still wanted. Must precede the autosync call:
   ;; that kicks off a sync immediately.
   (add-to-list 'org-roam-file-exclude-regexp "\\.stversions/")
+  ;; agent-shell-crew queues (and their archives) live in an agents/ dir under
+  ;; the org tree so they sync and show in the agenda, but they are not notes:
+  ;; 0 nodes and 0 links on 2026-11-19. One archive reached 10 MB / 8k headings
+  ;; and its re-parse in the startup sync outlasted systemd's 90s start timeout,
+  ;; so emacs.service looped timeout->restart. Here, not in personal.el, because
+  ;; personal.el loads after the autosync call below has already synced.
+  (add-to-list 'org-roam-file-exclude-regexp "\\(?:\\`\\|/\\)agents/")
   (org-roam-db-autosync-mode 1)
   (global-set-key (kbd "C-c n f") #'org-roam-node-find)
   (global-set-key (kbd "C-c n i") #'org-roam-node-insert)
