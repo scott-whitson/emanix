@@ -440,9 +440,21 @@ Emacs (or set the variable back to t) to pick the feature up again."
   ;; `system-sleep' is a built-in that agent-shell loads lazily, on its first
   ;; inhibit attempt. Requiring it HERE defines the function before it is
   ;; advised, so the advice wraps the real `system-sleep-block-sleep'.
-  (require 'system-sleep)
-  (advice-add 'system-sleep-block-sleep :around
-              #'emanix/agent-shell--sleep-block-latch))
+  ;;
+  ;; Guarded because loading it can SIGNAL: system-sleep.el runs
+  ;; `system-sleep-enable' at top level, which takes a logind delay lock over
+  ;; D-Bus, and where logind refuses (whistle: polkit off; reproduce with
+  ;; `systemd-inhibit --what=sleep --mode=delay true') that is an uncaught
+  ;; AccessDenied out of `require'. Unguarded it aborted this whole form on
+  ;; the first agent-shell load -- so the latch below, written for exactly
+  ;; that host, was never installed. The functions are already defined when
+  ;; the signal escapes, hence advising on `fboundp' rather than on success.
+  (condition-case err
+      (require 'system-sleep)
+    (error (message "emanix: system-sleep unavailable (%s)" (error-message-string err))))
+  (when (fboundp 'system-sleep-block-sleep)
+    (advice-add 'system-sleep-block-sleep :around
+                #'emanix/agent-shell--sleep-block-latch)))
 
 (with-eval-after-load 'agent-shell-anthropic
   ;; `executable-find', not a store path: this file is out-of-store live elisp
